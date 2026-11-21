@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>3.2 Colour done right · Graphics Handbook</title>
+  <meta name="description" content="What the numbers in a pixel mean: RGB, bit depth, the sRGB curve, linear colour, why lighting maths must be linear, banding and dithering, and HDR rendering against HDR output.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="3.2">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 3 · Foundations</p>
+            <h1><span class="ch-num">3.2</span> Colour done right</h1>
+            <p class="lead">The numbers stored in an image are not amounts of light: they sit on a curve chosen to suit the eye. Renderers must decode them to real light before adding, mixing or blurring, and encode again for the screen. Get that wrong and every blend, light and shadow in the game is subtly off.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="3.1">3.1 Pixels and displays</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="6.5">6.5 PBR materials</a>, <a class="xref" data-ch="9.1">9.1 HDR, exposure and tone mapping</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Linear blend</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 296" role="img" aria-label="Two rows of eleven grey patches. Top: stored values evenly spaced from 0 to 1; the light each gives off rises slowly at first, so the stored value 0.5 gives off only 21% of full light. Bottom: light evenly spaced from 0% to 100%; the stored values climb quickly at first, so 50% light is stored as 0.74.">
+<text class="t-caps" x="20" y="22">HALF THE NUMBER IS NOT HALF THE LIGHT</text>
+<text class="t-head" x="20" y="66">Stored values,</text>
+<text class="t-head" x="20" y="82">evenly spaced</text>
+<text class="t-small t-muted" x="20" y="98">what an image file holds</text>
+<rect class="f-buf-lo" x="200" y="44" width="56" height="44"/>
+<text class="t-mono t-small mid" x="228" y="104">0.0</text>
+<text class="t-mono t-small t-muted mid" x="228" y="119">0%</text>
+<rect class="f-buf-lo" x="262" y="44" width="56" height="44"/><rect class="f-buf-hi" x="262" y="44" width="56" height="44" fill-opacity="0.100"/>
+<text class="t-mono t-small mid" x="290" y="104">0.1</text>
+<text class="t-mono t-small t-muted mid" x="290" y="119">1.0%</text>
+<rect class="f-buf-lo" x="324" y="44" width="56" height="44"/><rect class="f-buf-hi" x="324" y="44" width="56" height="44" fill-opacity="0.200"/>
+<text class="t-mono t-small mid" x="352" y="104">0.2</text>
+<text class="t-mono t-small t-muted mid" x="352" y="119">3.3%</text>
+<rect class="f-buf-lo" x="386" y="44" width="56" height="44"/><rect class="f-buf-hi" x="386" y="44" width="56" height="44" fill-opacity="0.300"/>
+<text class="t-mono t-small mid" x="414" y="104">0.3</text>
+<text class="t-mono t-small t-muted mid" x="414" y="119">7.3%</text>
+<rect class="f-buf-lo" x="448" y="44" width="56" height="44"/><rect class="f-buf-hi" x="448" y="44" width="56" height="44" fill-opacity="0.400"/>
+<text class="t-mono t-small mid" x="476" y="104">0.4</text>
+<text class="t-mono t-small t-muted mid" x="476" y="119">13%</text>
+<rect class="f-buf-lo" x="510" y="44" width="56" height="44"/><rect class="f-buf-hi" x="510" y="44" width="56" height="44" fill-opacity="0.500"/>
+<text class="t-mono t-small mid" x="538" y="104">0.5</text>
+<text class="t-mono t-small t-muted mid" x="538" y="119">21%</text>
+<rect class="f-buf-lo" x="572" y="44" width="56" height="44"/><rect class="f-buf-hi" x="572" y="44" width="56" height="44" fill-opacity="0.600"/>
+<text class="t-mono t-small mid" x="600" y="104">0.6</text>
+<text class="t-mono t-small t-muted mid" x="600" y="119">32%</text>
+<rect class="f-buf-lo" x="634" y="44" width="56" height="44"/><rect class="f-buf-hi" x="634" y="44" width="56" height="44" fill-opacity="0.700"/>
+<text class="t-mono t-small mid" x="662" y="104">0.7</text>
+<text class="t-mono t-small t-muted mid" x="662" y="119">45%</text>
+<rect class="f-buf-lo" x="696" y="44" width="56" height="44"/><rect class="f-buf-hi" x="696" y="44" width="56" height="44" fill-opacity="0.800"/>
+<text class="t-mono t-small mid" x="724" y="104">0.8</text>
+<text class="t-mono t-small t-muted mid" x="724" y="119">60%</text>
+<rect class="f-buf-lo" x="758" y="44" width="56" height="44"/><rect class="f-buf-hi" x="758" y="44" width="56" height="44" fill-opacity="0.900"/>
+<text class="t-mono t-small mid" x="786" y="104">0.9</text>
+<text class="t-mono t-small t-muted mid" x="786" y="119">79%</text>
+<rect class="f-buf-lo" x="820" y="44" width="56" height="44"/><rect class="f-buf-hi" x="820" y="44" width="56" height="44" fill-opacity="1.000"/>
+<text class="t-mono t-small mid" x="848" y="104">1.0</text>
+<text class="t-mono t-small t-muted mid" x="848" y="119">100%</text>
+<text class="t-small end" x="192" y="104">stored</text>
+<text class="t-small t-muted end" x="192" y="119">light</text>
+<text class="t-head" x="20" y="180">Light,</text>
+<text class="t-head" x="20" y="196">evenly spaced</text>
+<text class="t-small t-muted" x="20" y="212">what physics adds up</text>
+<rect class="f-buf-lo" x="200" y="158" width="56" height="44"/>
+<text class="t-mono t-small mid" x="228" y="218">0%</text>
+<text class="t-mono t-small t-muted mid" x="228" y="233">0.00</text>
+<rect class="f-buf-lo" x="262" y="158" width="56" height="44"/><rect class="f-buf-hi" x="262" y="158" width="56" height="44" fill-opacity="0.349"/>
+<text class="t-mono t-small mid" x="290" y="218">10%</text>
+<text class="t-mono t-small t-muted mid" x="290" y="233">0.35</text>
+<rect class="f-buf-lo" x="324" y="158" width="56" height="44"/><rect class="f-buf-hi" x="324" y="158" width="56" height="44" fill-opacity="0.485"/>
+<text class="t-mono t-small mid" x="352" y="218">20%</text>
+<text class="t-mono t-small t-muted mid" x="352" y="233">0.48</text>
+<rect class="f-buf-lo" x="386" y="158" width="56" height="44"/><rect class="f-buf-hi" x="386" y="158" width="56" height="44" fill-opacity="0.584"/>
+<text class="t-mono t-small mid" x="414" y="218">30%</text>
+<text class="t-mono t-small t-muted mid" x="414" y="233">0.58</text>
+<rect class="f-buf-lo" x="448" y="158" width="56" height="44"/><rect class="f-buf-hi" x="448" y="158" width="56" height="44" fill-opacity="0.665"/>
+<text class="t-mono t-small mid" x="476" y="218">40%</text>
+<text class="t-mono t-small t-muted mid" x="476" y="233">0.67</text>
+<rect class="f-buf-lo" x="510" y="158" width="56" height="44"/><rect class="f-buf-hi" x="510" y="158" width="56" height="44" fill-opacity="0.735"/>
+<text class="t-mono t-small mid" x="538" y="218">50%</text>
+<text class="t-mono t-small t-muted mid" x="538" y="233">0.74</text>
+<rect class="f-buf-lo" x="572" y="158" width="56" height="44"/><rect class="f-buf-hi" x="572" y="158" width="56" height="44" fill-opacity="0.798"/>
+<text class="t-mono t-small mid" x="600" y="218">60%</text>
+<text class="t-mono t-small t-muted mid" x="600" y="233">0.80</text>
+<rect class="f-buf-lo" x="634" y="158" width="56" height="44"/><rect class="f-buf-hi" x="634" y="158" width="56" height="44" fill-opacity="0.854"/>
+<text class="t-mono t-small mid" x="662" y="218">70%</text>
+<text class="t-mono t-small t-muted mid" x="662" y="233">0.85</text>
+<rect class="f-buf-lo" x="696" y="158" width="56" height="44"/><rect class="f-buf-hi" x="696" y="158" width="56" height="44" fill-opacity="0.906"/>
+<text class="t-mono t-small mid" x="724" y="218">80%</text>
+<text class="t-mono t-small t-muted mid" x="724" y="233">0.91</text>
+<rect class="f-buf-lo" x="758" y="158" width="56" height="44"/><rect class="f-buf-hi" x="758" y="158" width="56" height="44" fill-opacity="0.955"/>
+<text class="t-mono t-small mid" x="786" y="218">90%</text>
+<text class="t-mono t-small t-muted mid" x="786" y="233">0.95</text>
+<rect class="f-buf-lo" x="820" y="158" width="56" height="44"/><rect class="f-buf-hi" x="820" y="158" width="56" height="44" fill-opacity="1.000"/>
+<text class="t-mono t-small mid" x="848" y="218">100%</text>
+<text class="t-mono t-small t-muted mid" x="848" y="233">1.00</text>
+<text class="t-small end" x="192" y="218">light</text>
+<text class="t-small t-muted end" x="192" y="233">stored</text>
+<rect class="s-acc w2" x="507" y="41" width="62" height="50" rx="3"/>
+<rect class="s-acc w2" x="507" y="155" width="62" height="50" rx="3"/>
+<text class="t-small" x="200" y="266">Stored 0.5 (128 of 255) gives off only 21% of full light. Half the light, 50%, is stored as 0.74 (188 of 255).</text>
+<text class="t-small t-muted" x="200" y="284">Both rows look like smooth steps to the eye. Only the bottom row is correct to add, mix or blur.</text>
+</svg>
+              </div>
+              <figcaption><b>Stored values and light are on different scales.</b> Image files store numbers on the sRGB curve, which looks evenly spaced to the eye. Light adds up on a straight scale. The patches show the two side by side: the number halfway up the file's range gives off about a fifth of the light, and half the light needs a number about three quarters of the way up.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Every <a class="term" data-term="pixel" href="glossary.html#pixel">pixel</a> stores a colour as three numbers: how much red, green and blue light to show. It is natural to assume a bigger number means proportionally more light, so that 128 out of 255 is half as bright as 255. It is not. Images store their numbers on a curve that packs more steps into dark tones, because eyes notice small differences there and barely notice them in bright tones.</p>
+            <p>That curve is good for storage and wrong for arithmetic. Light adds up: two lamps give twice the light of one. Adding the stored numbers instead gives the wrong answer, and so does averaging, mixing or blurring them. A correct renderer decodes every colour to real light, does all its maths there, and encodes the result again just before the screen.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>The decibel scale on a mixing desk. The fader marks are spaced to match how loud things sound, not how much sound energy there is. Two singers at "80 dB" together are not "160 dB"; you convert to energy, add, and convert back.</p>
+                <p>Image numbers are like the fader marks. Light is like the sound energy.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Doing maths on the stored numbers makes blends between colours dark and muddy, light falloff harsh, blurs lose brightness, and lighting that looks right in one scene look wrong in the next.</p>
+                <p>Working in linear light makes lights add up, shadows scale and soft edges behave the way a camera would see them.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>The colour pipeline is a project-wide decision that is expensive to change late: switching a project from gamma to linear means re-checking every texture, every hand-picked colour and every lighting setup. Mistakes show up as "the art looks washed out in engine" or "the particles look dirty", and artists lose days tuning around them. HDR output adds another layer: a separate signal, separate brightness settings, and a calibration screen players expect.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow a colour from a texture file to the screen. There are seven steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="rgb-channels"><span class="step-num">1</span> RGB, channels and bit depth</h3>
+              <p>Screens make colour by mixing red, green and blue light, so renderers describe colour as <dfn class="term" data-term="rgb">RGB</dfn>: three amounts, one per light. Each amount is a <dfn class="term" data-term="colour-channel">colour channel</dfn>. Images and textures often carry a fourth, alpha, for opacity or for any other data that needs a slot.</p>
+              <p>The <dfn class="term" data-term="bit-depth">bit depth</dfn> says how many bits store each channel, and so how many levels it can take. With 8 bits a channel has 256 levels, 0 to 255, and three channels make 16.7 million combinations. With 10 bits each channel has 1,024 levels, four times finer. Inside the renderer, values are usually floating-point numbers with far more precision; the bit depth matters most where colour is stored: textures, the <a class="term" data-term="framebuffer" href="glossary.html#framebuffer">framebuffer</a> and the signal to the screen.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="Left: one pixel as four channels, red 255, green 128, blue 0 and alpha 255, each stored in 8 bits. Right: the darkest sixty-fourth of the range enlarged. 8-bit storage climbs it in 4 coarse steps; 10-bit storage climbs it in 16 fine steps.">
+<text class="t-caps" x="20" y="22">ONE PIXEL, FOUR CHANNELS</text>
+<rect class="f-surface s-strong" x="30" y="44" width="50" height="120"/>
+<rect class="f-acc-soft" x="31" y="44" width="48" height="120"/>
+<text class="t-head mid" x="55" y="62">R</text>
+<text class="t-mono t-small mid" x="55" y="182">255</text>
+<rect class="f-surface s-strong" x="96" y="44" width="50" height="120"/>
+<rect class="f-acc-soft" x="97" y="103.8" width="48" height="60.2"/>
+<text class="t-head mid" x="121" y="62">G</text>
+<text class="t-mono t-small mid" x="121" y="182">128</text>
+<rect class="f-surface s-strong" x="162" y="44" width="50" height="120"/>
+<text class="t-head mid" x="187" y="62">B</text>
+<text class="t-mono t-small mid" x="187" y="182">0</text>
+<rect class="f-surface s-strong" x="228" y="44" width="50" height="120"/>
+<rect class="f-solid" x="229" y="44" width="48" height="120"/>
+<text class="t-head mid" x="253" y="62">A</text>
+<text class="t-mono t-small mid" x="253" y="182">255</text>
+<text class="t-small" x="20" y="206">8 bits per channel: whole numbers 0 to 255.</text>
+<text class="t-small t-muted" x="20" y="222">R 255, G 128, B 0 is orange; A is opacity.</text>
+<text class="t-caps" x="370" y="22">THE DARKEST 1/64 OF THE RANGE, ENLARGED</text>
+<line class="s-strong" x1="380" y1="164" x2="860" y2="164"/>
+<line class="s-strong" x1="380" y1="40" x2="380" y2="164"/>
+<line class="s-muted dash" x1="380" y1="164" x2="860" y2="44.5"/>
+<path class="s-pix w2" d="M380,164 H441 V134 H561 V104 H682 V74 H802 V44 H860"/>
+<path class="s-acc w15" d="M380,164 H396 V156.5 H426 V149 H456 V141.6 H486 V134.1 H516 V126.6 H546 V119.1 H576 V111.7 H606 V104.2 H636 V96.7 H666 V89.2 H696 V81.7 H726 V74.3 H756 V66.8 H786 V59.3 H816 V51.8 H846 V44.4 H860"/>
+<text class="t-mono t-small t-muted end" x="372" y="168">0</text>
+<text class="t-mono t-small t-muted end" x="372" y="50">1/64</text>
+<text class="t-small t-pix t-strong" x="380" y="196">8-bit: 256 levels per channel · 256³ = 16,777,216 colours</text>
+<text class="t-small t-acc t-strong" x="380" y="213">10-bit: 1,024 levels per channel · 1,024³ = 1,073,741,824 colours</text>
+</svg>
+                </div>
+                <figcaption><b>A pixel is a few small numbers.</b> 8 bits per channel sounds like plenty, 16.7 million colours, but those colours are spread across the whole range. In a narrow, dark span like a night sky only a handful of levels are available, which is where steps become visible.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="srgb-curve"><span class="step-num">2</span> Stored numbers are not light: the sRGB curve</h3>
+              <p>Almost every image a game uses is in <dfn class="term" data-term="srgb">sRGB</dfn>, the standard colour space for PC screens and the web, published as IEC 61966-2-1. It fixes two things. First, exactly which red, green and blue the three channels mean. Second, a transfer function: the curve that turns a stored value into an amount of light.</p>
+              <p>That curve is close to "light = value to the power 2.2", which is why people call this <dfn class="term" data-term="gamma">gamma</dfn>, and why values still on the curve are said to be "in gamma space". Values converted to plain amounts of light, where twice the number really is twice the light, are <dfn class="term" data-term="linear-colour">linear colour</dfn>. A stored 0.5 decodes to 0.214 of full light. Going the other way, half the light encodes to 0.735, which is 188 out of 255.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="A graph of the sRGB decoding curve drawn from its formula: stored value across, light out up. It sags far below the straight line, so a stored 0.5 gives 0.214 light and 0.5 light needs a stored 0.735. A gamma 2.2 curve almost overlaps it. A zoomed graph of the darkest values shows sRGB's short straight segment below 0.04045. The formulas for decoding and encoding are listed on the right.">
+<text class="t-caps" x="20" y="22">STORED VALUE AGAINST LIGHT OUT</text>
+<line class="s-line" x1="127.5" y1="290" x2="127.5" y2="60"/>
+<line class="s-line" x1="70" y1="232.5" x2="300" y2="232.5"/>
+<line class="s-line" x1="185" y1="290" x2="185" y2="60"/>
+<line class="s-line" x1="70" y1="175" x2="300" y2="175"/>
+<line class="s-line" x1="242.5" y1="290" x2="242.5" y2="60"/>
+<line class="s-line" x1="70" y1="117.5" x2="300" y2="117.5"/>
+<rect class="s-strong" x="70" y="60" width="230" height="230"/>
+<line class="s-strong dash" x1="70" y1="290" x2="300" y2="60"/>
+<path class="s-muted w15 dot-dash" d="M70,290 L71.2,290 L72.3,290 L73.5,290 L74.6,290 L75.8,289.9 L76.9,289.9 L78.1,289.9 L79.2,289.8 L80.4,289.7 L81.5,289.7 L82.7,289.6 L83.8,289.5 L85,289.4 L86.1,289.3 L87.3,289.2 L88.4,289.1 L89.6,289 L90.7,288.8 L91.9,288.7 L93,288.5 L94.2,288.4 L95.3,288.2 L96.5,288 L97.6,287.8 L98.8,287.6 L99.9,287.4 L101.1,287.2 L102.2,287 L103.4,286.7 L104.5,286.5 L105.7,286.2 L106.8,285.9 L108,285.6 L109.1,285.3 L110.3,285 L111.4,284.7 L112.6,284.4 L113.7,284 L114.9,283.7 L116,283.3 L117.2,283 L118.3,282.6 L119.5,282.2 L120.6,281.8 L121.8,281.4 L122.9,280.9 L124.1,280.5 L125.2,280 L126.4,279.6 L127.5,279.1 L128.7,278.6 L129.8,278.1 L131,277.6 L132.1,277.1 L133.3,276.6 L134.4,276 L135.6,275.5 L136.7,274.9 L137.9,274.3 L139,273.7 L140.1,273.1 L141.3,272.5 L142.5,271.9 L143.6,271.2 L144.8,270.6 L145.9,269.9 L147.1,269.3 L148.2,268.6 L149.4,267.9 L150.5,267.2 L151.6,266.4 L152.8,265.7 L154,265 L155.1,264.2 L156.3,263.4 L157.4,262.6 L158.6,261.8 L159.7,261 L160.9,260.2 L162,259.4 L163.2,258.5 L164.3,257.7 L165.5,256.8 L166.6,255.9 L167.8,255 L168.9,254.1 L170.1,253.2 L171.2,252.2 L172.4,251.3 L173.5,250.3 L174.7,249.3 L175.8,248.3 L177,247.3 L178.1,246.3 L179.3,245.3 L180.4,244.2 L181.6,243.2 L182.7,242.1 L183.9,241 L185,239.9 L186.2,238.8 L187.3,237.7 L188.5,236.6 L189.6,235.4 L190.8,234.3 L191.9,233.1 L193.1,231.9 L194.2,230.7 L195.4,229.5 L196.5,228.3 L197.7,227 L198.8,225.8 L200,224.5 L201.1,223.2 L202.3,221.9 L203.4,220.6 L204.5,219.3 L205.7,218 L206.9,216.6 L208,215.2 L209.2,213.9 L210.3,212.5 L211.5,211.1 L212.6,209.6 L213.8,208.2 L214.9,206.8 L216.1,205.3 L217.2,203.8 L218.4,202.3 L219.5,200.8 L220.7,199.3 L221.8,197.8 L223,196.3 L224.1,194.7 L225.3,193.1 L226.4,191.5 L227.6,189.9 L228.7,188.3 L229.9,186.7 L231,185.1 L232.2,183.4 L233.3,181.7 L234.5,180 L235.6,178.3 L236.8,176.6 L237.9,174.9 L239.1,173.2 L240.2,171.4 L241.4,169.6 L242.5,167.9 L243.7,166.1 L244.8,164.2 L246,162.4 L247.1,160.6 L248.3,158.7 L249.4,156.9 L250.6,155 L251.7,153.1 L252.9,151.2 L254,149.2 L255.2,147.3 L256.3,145.3 L257.5,143.4 L258.6,141.4 L259.8,139.4 L260.9,137.3 L262,135.3 L263.2,133.3 L264.4,131.2 L265.5,129.1 L266.7,127.1 L267.8,124.9 L269,122.8 L270.1,120.7 L271.3,118.5 L272.4,116.4 L273.6,114.2 L274.7,112 L275.9,109.8 L277,107.6 L278.2,105.3 L279.3,103.1 L280.5,100.8 L281.6,98.5 L282.8,96.3 L283.9,93.9 L285.1,91.6 L286.2,89.3 L287.4,86.9 L288.5,84.5 L289.7,82.2 L290.8,79.8 L292,77.3 L293.1,74.9 L294.3,72.5 L295.4,70 L296.5,67.5 L297.7,65 L298.9,62.5 L300,60"/>
+<path class="s-acc w2" d="M70,290 L71.2,289.9 L72.3,289.8 L73.5,289.7 L74.6,289.6 L75.8,289.6 L76.9,289.5 L78.1,289.4 L79.2,289.3 L80.4,289.2 L81.5,289.1 L82.7,289 L83.8,288.9 L85,288.8 L86.1,288.6 L87.3,288.5 L88.4,288.3 L89.6,288.2 L90.7,288 L91.9,287.9 L93,287.7 L94.2,287.5 L95.3,287.3 L96.5,287.1 L97.6,286.9 L98.8,286.7 L99.9,286.5 L101.1,286.2 L102.2,286 L103.4,285.7 L104.5,285.5 L105.7,285.2 L106.8,284.9 L108,284.7 L109.1,284.4 L110.3,284.1 L111.4,283.7 L112.6,283.4 L113.7,283.1 L114.9,282.7 L116,282.4 L117.2,282 L118.3,281.6 L119.5,281.3 L120.6,280.9 L121.8,280.5 L122.9,280.1 L124.1,279.6 L125.2,279.2 L126.4,278.8 L127.5,278.3 L128.7,277.8 L129.8,277.4 L131,276.9 L132.1,276.4 L133.3,275.9 L134.4,275.3 L135.6,274.8 L136.7,274.3 L137.9,273.7 L139,273.2 L140.1,272.6 L141.3,272 L142.5,271.4 L143.6,270.8 L144.8,270.2 L145.9,269.5 L147.1,268.9 L148.2,268.2 L149.4,267.6 L150.5,266.9 L151.6,266.2 L152.8,265.5 L154,264.8 L155.1,264.1 L156.3,263.3 L157.4,262.6 L158.6,261.8 L159.7,261 L160.9,260.2 L162,259.4 L163.2,258.6 L164.3,257.8 L165.5,257 L166.6,256.1 L167.8,255.3 L168.9,254.4 L170.1,253.5 L171.2,252.6 L172.4,251.7 L173.5,250.8 L174.7,249.8 L175.8,248.9 L177,247.9 L178.1,246.9 L179.3,245.9 L180.4,244.9 L181.6,243.9 L182.7,242.9 L183.9,241.8 L185,240.8 L186.2,239.7 L187.3,238.6 L188.5,237.5 L189.6,236.4 L190.8,235.3 L191.9,234.1 L193.1,233 L194.2,231.8 L195.4,230.6 L196.5,229.4 L197.7,228.2 L198.8,227 L200,225.8 L201.1,224.5 L202.3,223.3 L203.4,222 L204.5,220.7 L205.7,219.4 L206.9,218.1 L208,216.7 L209.2,215.4 L210.3,214 L211.5,212.6 L212.6,211.2 L213.8,209.8 L214.9,208.4 L216.1,207 L217.2,205.5 L218.4,204.1 L219.5,202.6 L220.7,201.1 L221.8,199.6 L223,198.1 L224.1,196.5 L225.3,195 L226.4,193.4 L227.6,191.8 L228.7,190.2 L229.9,188.6 L231,187 L232.2,185.3 L233.3,183.7 L234.5,182 L235.6,180.3 L236.8,178.6 L237.9,176.9 L239.1,175.1 L240.2,173.4 L241.4,171.6 L242.5,169.8 L243.7,168 L244.8,166.2 L246,164.4 L247.1,162.5 L248.3,160.7 L249.4,158.8 L250.6,156.9 L251.7,155 L252.9,153.1 L254,151.1 L255.2,149.2 L256.3,147.2 L257.5,145.2 L258.6,143.2 L259.8,141.2 L260.9,139.1 L262,137.1 L263.2,135 L264.4,132.9 L265.5,130.8 L266.7,128.7 L267.8,126.6 L269,124.4 L270.1,122.3 L271.3,120.1 L272.4,117.9 L273.6,115.6 L274.7,113.4 L275.9,111.2 L277,108.9 L278.2,106.6 L279.3,104.3 L280.5,102 L281.6,99.7 L282.8,97.3 L283.9,94.9 L285.1,92.6 L286.2,90.2 L287.4,87.7 L288.5,85.3 L289.7,82.8 L290.8,80.4 L292,77.9 L293.1,75.4 L294.3,72.9 L295.4,70.3 L296.5,67.8 L297.7,65.2 L298.9,62.6 L300,60"/>
+<path class="s-acc dot-dash" d="M185,290 V240.8 H70"/>
+<circle class="f-acc" cx="185" cy="240.8" r="4.5"/>
+<path class="s-pix dot-dash" d="M70,175 H239.1 V290"/>
+<circle class="f-pix" cx="239.1" cy="175" r="4.5"/>
+<text class="t-small t-acc t-strong" x="193" y="256.8">stored 0.5 → light 0.214</text>
+<text class="t-small t-pix t-strong end" x="231.1" y="167">light 0.5 ← stored 0.735</text>
+<text class="t-mono t-small t-muted mid" x="70" y="308">0</text>
+<text class="t-mono t-small t-muted mid" x="300" y="308">1</text>
+<text class="t-small t-muted mid" x="185" y="308">stored value</text>
+<text class="t-mono t-small t-muted end" x="62" y="64">1</text>
+<text class="t-mono t-small t-muted end" x="62" y="294">0</text>
+<text class="t-small t-muted end" x="62" y="179">light</text>
+<text class="t-small t-muted end" x="166.6" y="142.8">if stored were light</text>
+<line class="s-acc w2" x1="330" y1="52" x2="356" y2="52"/>
+<text class="t-small" x="362" y="56">sRGB, from IEC 61966-2-1</text>
+<line class="s-muted w15 dot-dash" x1="330" y1="72" x2="356" y2="72"/>
+<text class="t-small" x="362" y="76">pure power 2.2, for comparison</text>
+<text class="t-caps" x="360" y="112">THE DARKEST 10%, ZOOMED</text>
+<rect class="s-strong" x="360" y="120" width="170" height="170"/>
+<path class="s-muted w15 dot-dash" d="M360,290 L360.9,290 L361.7,290 L362.6,290 L363.4,290 L364.3,290 L365.1,290 L366,289.9 L366.8,289.9 L367.7,289.9 L368.5,289.9 L369.4,289.8 L370.2,289.8 L371.1,289.7 L371.9,289.7 L372.8,289.6 L373.6,289.6 L374.5,289.5 L375.3,289.5 L376.2,289.4 L377,289.3 L377.9,289.2 L378.7,289.2 L379.6,289.1 L380.4,289 L381.3,288.9 L382.1,288.8 L383,288.7 L383.8,288.6 L384.7,288.5 L385.5,288.3 L386.4,288.2 L387.2,288.1 L388.1,288 L388.9,287.8 L389.8,287.7 L390.6,287.5 L391.5,287.4 L392.3,287.2 L393.2,287.1 L394,286.9 L394.9,286.7 L395.7,286.5 L396.6,286.4 L397.4,286.2 L398.3,286 L399.1,285.8 L400,285.6 L400.8,285.4 L401.7,285.1 L402.5,284.9 L403.4,284.7 L404.2,284.5 L405.1,284.2 L405.9,284 L406.8,283.7 L407.6,283.5 L408.5,283.2 L409.3,283 L410.2,282.7 L411,282.4 L411.9,282.1 L412.7,281.8 L413.6,281.6 L414.4,281.3 L415.3,281 L416.1,280.6 L417,280.3 L417.8,280 L418.7,279.7 L419.5,279.3 L420.4,279 L421.2,278.7 L422.1,278.3 L422.9,278 L423.8,277.6 L424.6,277.2 L425.5,276.9 L426.3,276.5 L427.2,276.1 L428,275.7 L428.9,275.3 L429.7,274.9 L430.6,274.5 L431.4,274.1 L432.3,273.7 L433.1,273.2 L434,272.8 L434.8,272.4 L435.7,271.9 L436.5,271.5 L437.4,271 L438.2,270.6 L439.1,270.1 L439.9,269.6 L440.8,269.1 L441.6,268.7 L442.5,268.2 L443.3,267.7 L444.2,267.2 L445,266.7 L445.9,266.1 L446.7,265.6 L447.6,265.1 L448.4,264.6 L449.3,264 L450.1,263.5 L451,262.9 L451.8,262.3 L452.7,261.8 L453.5,261.2 L454.4,260.6 L455.2,260 L456.1,259.5 L456.9,258.9 L457.8,258.3 L458.6,257.6 L459.5,257 L460.3,256.4 L461.2,255.8 L462,255.1 L462.9,254.5 L463.7,253.8 L464.6,253.2 L465.4,252.5 L466.3,251.9 L467.1,251.2 L468,250.5 L468.8,249.8 L469.7,249.1 L470.5,248.4 L471.4,247.7 L472.2,247 L473.1,246.3 L473.9,245.6 L474.8,244.8 L475.6,244.1 L476.5,243.3 L477.3,242.6 L478.2,241.8 L479,241.1 L479.9,240.3 L480.7,239.5 L481.6,238.7 L482.4,237.9 L483.3,237.1 L484.1,236.3 L485,235.5 L485.8,234.7 L486.7,233.9 L487.5,233 L488.4,232.2 L489.2,231.4 L490.1,230.5 L490.9,229.6 L491.8,228.8 L492.6,227.9 L493.5,227 L494.3,226.1 L495.2,225.2 L496,224.3 L496.9,223.4 L497.7,222.5 L498.6,221.6 L499.4,220.7 L500.3,219.7 L501.1,218.8 L502,217.9 L502.8,216.9 L503.7,215.9 L504.5,215 L505.4,214 L506.2,213 L507.1,212 L507.9,211 L508.8,210 L509.6,209 L510.5,208 L511.3,207 L512.2,206 L513,204.9 L513.9,203.9 L514.7,202.8 L515.6,201.8 L516.4,200.7 L517.3,199.6 L518.1,198.6 L519,197.5 L519.8,196.4 L520.7,195.3 L521.5,194.2 L522.4,193.1 L523.2,192 L524.1,190.8 L524.9,189.7 L525.8,188.5 L526.6,187.4 L527.5,186.2 L528.3,185.1 L529.2,183.9 L530,182.7"/>
+<path class="s-acc w2" d="M360,290 L360.9,289.3 L361.7,288.7 L362.6,288 L363.4,287.4 L364.3,286.7 L365.1,286.1 L366,285.4 L366.8,284.7 L367.7,284.1 L368.5,283.4 L369.4,282.8 L370.2,282.1 L371.1,281.4 L371.9,280.8 L372.8,280.1 L373.6,279.5 L374.5,278.8 L375.3,278.2 L376.2,277.5 L377,276.8 L377.9,276.2 L378.7,275.5 L379.6,274.9 L380.4,274.2 L381.3,273.6 L382.1,272.9 L383,272.2 L383.8,271.6 L384.7,270.9 L385.5,270.3 L386.4,269.6 L387.2,268.9 L388.1,268.3 L388.9,267.6 L389.8,267 L390.6,266.3 L391.5,265.7 L392.3,265 L393.2,264.3 L394,263.7 L394.9,263 L395.7,262.4 L396.6,261.7 L397.4,261.1 L398.3,260.4 L399.1,259.7 L400,259.1 L400.8,258.4 L401.7,257.8 L402.5,257.1 L403.4,256.4 L404.2,255.8 L405.1,255.1 L405.9,254.5 L406.8,253.8 L407.6,253.2 L408.5,252.5 L409.3,251.8 L410.2,251.2 L411,250.5 L411.9,249.9 L412.7,249.2 L413.6,248.6 L414.4,247.9 L415.3,247.2 L416.1,246.6 L417,245.9 L417.8,245.3 L418.7,244.6 L419.5,243.9 L420.4,243.3 L421.2,242.6 L422.1,242 L422.9,241.3 L423.8,240.7 L424.6,240 L425.5,239.3 L426.3,238.7 L427.2,238 L428,237.4 L428.9,236.7 L429.7,236 L430.6,235.4 L431.4,234.7 L432.3,234 L433.1,233.3 L434,232.6 L434.8,231.9 L435.7,231.2 L436.5,230.5 L437.4,229.8 L438.2,229 L439.1,228.3 L439.9,227.6 L440.8,226.8 L441.6,226.1 L442.5,225.4 L443.3,224.6 L444.2,223.9 L445,223.1 L445.9,222.3 L446.7,221.5 L447.6,220.8 L448.4,220 L449.3,219.2 L450.1,218.4 L451,217.6 L451.8,216.8 L452.7,216 L453.5,215.2 L454.4,214.4 L455.2,213.5 L456.1,212.7 L456.9,211.9 L457.8,211 L458.6,210.2 L459.5,209.3 L460.3,208.5 L461.2,207.6 L462,206.8 L462.9,205.9 L463.7,205 L464.6,204.1 L465.4,203.2 L466.3,202.4 L467.1,201.5 L468,200.6 L468.8,199.6 L469.7,198.7 L470.5,197.8 L471.4,196.9 L472.2,196 L473.1,195 L473.9,194.1 L474.8,193.1 L475.6,192.2 L476.5,191.2 L477.3,190.3 L478.2,189.3 L479,188.3 L479.9,187.3 L480.7,186.4 L481.6,185.4 L482.4,184.4 L483.3,183.4 L484.1,182.4 L485,181.4 L485.8,180.3 L486.7,179.3 L487.5,178.3 L488.4,177.3 L489.2,176.2 L490.1,175.2 L490.9,174.1 L491.8,173.1 L492.6,172 L493.5,170.9 L494.3,169.9 L495.2,168.8 L496,167.7 L496.9,166.6 L497.7,165.5 L498.6,164.4 L499.4,163.3 L500.3,162.2 L501.1,161.1 L502,159.9 L502.8,158.8 L503.7,157.7 L504.5,156.5 L505.4,155.4 L506.2,154.2 L507.1,153.1 L507.9,151.9 L508.8,150.7 L509.6,149.6 L510.5,148.4 L511.3,147.2 L512.2,146 L513,144.8 L513.9,143.6 L514.7,142.4 L515.6,141.2 L516.4,140 L517.3,138.7 L518.1,137.5 L519,136.3 L519.8,135 L520.7,133.8 L521.5,132.5 L522.4,131.2 L523.2,130 L524.1,128.7 L524.9,127.4 L525.8,126.1 L526.6,124.8 L527.5,123.5 L528.3,122.2 L529.2,120.9 L530,119.6"/>
+<line class="s-acc dot-dash" x1="428.8" y1="236.8" x2="428.8" y2="290"/>
+<circle class="f-acc" cx="428.8" cy="236.8" r="3.5"/>
+<text class="t-small t-acc" x="434.8" y="282">0.04045</text>
+<text class="t-small t-muted" x="368" y="136">straight below 0.04045,</text>
+<text class="t-small t-muted" x="368" y="150">so it never gets too flat</text>
+<text class="t-mono t-small t-muted mid" x="360" y="308">0</text>
+<text class="t-mono t-small t-muted mid" x="530" y="308">0.1</text>
+<text class="t-mono t-small t-muted end" x="354" y="124">0.01</text>
+<text class="t-caps" x="590" y="52">DECODE: STORED V → LIGHT L</text>
+<text class="t-mono t-small" x="590" y="74">if V ≤ 0.04045:</text>
+<text class="t-mono t-small" x="606" y="90">L = V / 12.92</text>
+<text class="t-mono t-small" x="590" y="108">otherwise:</text>
+<text class="t-mono t-small" x="606" y="124">L = ((V + 0.055) / 1.055)^2.4</text>
+<text class="t-caps" x="590" y="162">ENCODE: LIGHT L → STORED V</text>
+<text class="t-mono t-small" x="590" y="184">if L ≤ 0.0031308:</text>
+<text class="t-mono t-small" x="606" y="200">V = 12.92 × L</text>
+<text class="t-mono t-small" x="590" y="218">otherwise:</text>
+<text class="t-mono t-small" x="606" y="234">V = 1.055 × L^(1/2.4) − 0.055</text>
+<text class="t-small t-muted" x="590" y="270">V and L run from 0 to 1. Multiply V by 255</text>
+<text class="t-small t-muted" x="590" y="286">for the 8-bit number in a file.</text>
+</svg>
+                </div>
+                <figcaption><b>The sRGB curve, drawn from its formula.</b> The real curve is a power of 2.4 with an offset, plus a short straight segment near black; over the whole range it tracks a simple 2.2 power closely. The straight segment stops the curve becoming almost flat at the very bottom, where a pure power would squeeze many stored values into nearly no light.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The sRGB transfer functions</summary>
+                <div class="fold-body">
+                  <p>Decoding a stored value V (0 to 1) to linear light L:</p>
+                  <p class="formula">L = V / 12.92 if V ≤ 0.04045, otherwise L = ((V + 0.055) / 1.055)<sup>2.4</sup></p>
+                  <p>Encoding linear light back to a stored value:</p>
+                  <p class="formula">V = 12.92 × L if L ≤ 0.0031308, otherwise V = 1.055 × L<sup>1/2.4</sup> − 0.055</p>
+                  <p>For 8-bit data, divide the stored number by 255 first. GPUs do both conversions in hardware when a texture or framebuffer uses an sRGB format, so shaders never write these formulas for ordinary textures.</p>
+                </div>
+              </details>
+              <p>sRGB also defines a <dfn class="term" data-term="colour-gamut">colour gamut</dfn>: the range of colours its three primaries can mix. It is the same gamut as Rec. 709, used by HD television. HDR uses a much wider one, Rec. 2020, which comes back in step 7.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="why-encode"><span class="step-num">3</span> Why images are stored on a curve</h3>
+              <p>If the curve makes maths harder, why use it? Because of the eye. People notice a small change in a dark tone far more readily than the same change in a bright one. An 8-bit image has only 256 levels per channel to spend, and the sRGB curve spends them where they show.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 214" role="img" aria-label="Two bars of 256 stored levels each. With sRGB encoding, 118 of the 256 levels describe the darkest 18% of light, where eyes are most sensitive. Stored linearly, only 46 levels do, and the darkest 1% of light gets 3 levels instead of 26.">
+<text class="t-caps" x="20" y="22">WHERE 256 LEVELS GO · LEVELS FOR LIGHT DARKER THAN MID-GREY (18%) ARE HIGHLIGHTED</text>
+<text class="t-head" x="20" y="56">sRGB-encoded</text>
+<text class="t-small t-muted" x="20" y="71">the standard for images</text>
+<rect class="f-acc-soft" x="150" y="40" width="330.4" height="36"/>
+<rect class="f-surface" x="480.4" y="40" width="386.4" height="36"/>
+<path class="s-line" d="M239.6,40 v36 M329.2,40 v36 M418.8,40 v36 M508.4,40 v36 M598,40 v36 M687.6,40 v36 M777.2,40 v36"/>
+<rect class="s-strong" x="150" y="40" width="716.8" height="36"/>
+<line class="s-acc w2" x1="480.4" y1="36" x2="480.4" y2="80"/>
+<text class="t-small t-acc t-strong" x="488.4" y="63">118 of 256 levels</text>
+<text class="t-head" x="20" y="116">Linear</text>
+<text class="t-small t-muted" x="20" y="131">stored as plain light</text>
+<rect class="f-acc-soft" x="150" y="100" width="128.8" height="36"/>
+<rect class="f-surface" x="278.8" y="100" width="588" height="36"/>
+<path class="s-line" d="M239.6,100 v36 M329.2,100 v36 M418.8,100 v36 M508.4,100 v36 M598,100 v36 M687.6,100 v36 M777.2,100 v36"/>
+<rect class="s-strong" x="150" y="100" width="716.8" height="36"/>
+<line class="s-acc w2" x1="278.8" y1="96" x2="278.8" y2="140"/>
+<text class="t-small t-acc t-strong" x="286.8" y="123">46 of 256 levels</text>
+<text class="t-mono t-small t-muted mid" x="151.4" y="156">0</text>
+<text class="t-mono t-small t-muted mid" x="330.6" y="156">64</text>
+<text class="t-mono t-small t-muted mid" x="509.8" y="156">128</text>
+<text class="t-mono t-small t-muted mid" x="689" y="156">192</text>
+<text class="t-mono t-small t-muted mid" x="865.4" y="156">255</text>
+<text class="t-small" x="20" y="184">Darkest 1% of light: 26 levels with sRGB, 3 stored linearly. The first linear step above black is already as bright as sRGB level 13.</text>
+<text class="t-small t-muted" x="20" y="202">Eyes notice small changes in dark tones far more than in bright ones, so 8-bit images spend their levels where they show.</text>
+</svg>
+                </div>
+                <figcaption><b>The curve is a compression scheme for the eye.</b> Stored linearly, 8 bits would leave dark tones in coarse steps and spend half the levels on bright tones nobody can tell apart. This is why 8-bit colour textures are stored in sRGB, while the renderer's own intermediate images use higher precision.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="linear-maths"><span class="step-num">4</span> Lighting maths must happen in linear</h3>
+              <p>Light is additive. Two lamps on a wall give the sum of their light; a shadow that blocks half the light leaves half; a soft edge is an average of the light on each side. Every one of those operations is only correct on linear values. On stored values, sums overshoot, scaling undershoots, and averages come out too dark.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Left: two lamps each light a wall to a stored value of 0.5, 21% light. Adding the stored numbers gives 1.0, pure white, far too bright. Adding light gives 43%, stored as 0.69. Right: a shadow blocks half the light of a surface stored at 0.8, 60% light. Halving the stored number gives 0.4, only 13% light, far too dark. Halving the light gives 30%, stored as 0.59.">
+<text class="t-caps" x="20" y="22">TWO LAMPS LIGHT ONE WALL</text>
+<rect class="f-buf-lo" x="30" y="40" width="64" height="44"/><rect class="f-buf-hi" x="30" y="40" width="64" height="44" fill-opacity="0.500"/>
+<rect class="s-strong" x="30" y="40" width="64" height="44"/>
+<text class="t-mono t-small mid" x="62" y="100">lamp 1</text>
+<text class="t-mono t-small t-muted mid" x="62" y="114">0.5 · 21%</text>
+<text class="t-head mid" x="116" y="68">+</text>
+<rect class="f-buf-lo" x="140" y="40" width="64" height="44"/><rect class="f-buf-hi" x="140" y="40" width="64" height="44" fill-opacity="0.500"/>
+<rect class="s-strong" x="140" y="40" width="64" height="44"/>
+<text class="t-mono t-small mid" x="172" y="100">lamp 2</text>
+<text class="t-mono t-small t-muted mid" x="172" y="114">0.5 · 21%</text>
+<rect class="f-buf-lo" x="30" y="150" width="64" height="44"/><rect class="f-buf-hi" x="30" y="150" width="64" height="44" fill-opacity="1.000"/>
+<rect class="s-pix w2" x="30" y="150" width="64" height="44"/>
+<text class="t-mono t-small mid" x="62" y="210">add stored</text>
+<text class="t-mono t-small t-muted mid" x="62" y="224">1.0 · 100%</text>
+<rect class="f-buf-lo" x="220" y="150" width="64" height="44"/><rect class="f-buf-hi" x="220" y="150" width="64" height="44" fill-opacity="0.686"/>
+<rect class="s-acc w2" x="220" y="150" width="64" height="44"/>
+<text class="t-mono t-small mid" x="252" y="210">add light</text>
+<text class="t-mono t-small t-muted mid" x="252" y="224">0.69 · 43%</text>
+<text class="t-small t-pix t-strong" x="110" y="176">wrong:</text>
+<text class="t-small t-pix" x="110" y="190">white</text>
+<text class="t-small t-acc t-strong" x="300" y="176">right: twice</text>
+<text class="t-small t-acc" x="300" y="190">the light</text>
+<path class="s-muted" d="M100,118 V140 M200,118 Q200,134 252,140"/>
+<line class="s-line" x1="450" y1="30" x2="450" y2="240"/>
+<text class="t-caps" x="480" y="22">A SHADOW BLOCKS HALF THE LIGHT</text>
+<rect class="f-buf-lo" x="490" y="40" width="64" height="44"/><rect class="f-buf-hi" x="490" y="40" width="64" height="44" fill-opacity="0.800"/>
+<rect class="s-strong" x="490" y="40" width="64" height="44"/>
+<text class="t-mono t-small mid" x="522" y="100">unshadowed</text>
+<text class="t-mono t-small t-muted mid" x="522" y="114">0.8 · 60%</text>
+<text class="t-small" x="580" y="60">half the light reaches</text>
+<text class="t-small" x="580" y="74">the shadowed part</text>
+<rect class="f-buf-lo" x="490" y="150" width="64" height="44"/><rect class="f-buf-hi" x="490" y="150" width="64" height="44" fill-opacity="0.400"/>
+<rect class="s-pix w2" x="490" y="150" width="64" height="44"/>
+<text class="t-mono t-small mid" x="522" y="210">halve stored</text>
+<text class="t-mono t-small t-muted mid" x="522" y="224">0.4 · 13%</text>
+<rect class="f-buf-lo" x="690" y="150" width="64" height="44"/><rect class="f-buf-hi" x="690" y="150" width="64" height="44" fill-opacity="0.586"/>
+<rect class="s-acc w2" x="690" y="150" width="64" height="44"/>
+<text class="t-mono t-small mid" x="722" y="210">halve light</text>
+<text class="t-mono t-small t-muted mid" x="722" y="224">0.59 · 30%</text>
+<text class="t-small t-pix t-strong" x="570" y="176">wrong: keeps</text>
+<text class="t-small t-pix" x="570" y="190">only 22% of it</text>
+<text class="t-small t-acc t-strong" x="770" y="176">right: half</text>
+<text class="t-small t-acc" x="770" y="190">the light</text>
+<path class="s-muted" d="M522,118 V140 M560,118 Q560,134 722,140"/>
+<text class="t-small t-muted" x="20" y="252">Each patch shows its stored value and the light it gives off. Maths on stored numbers overshoots when adding and undershoots when scaling.</text>
+</svg>
+                </div>
+                <figcaption><b>The same two lighting sums, done both ways.</b> On stored numbers, two dim lamps add up to pure white and a half-shadow keeps less than a quarter of the light. On linear values the answers match what a light meter would read. Errors like these make lighting tuned in one scene look wrong in another.</figcaption>
+              </figure>
+              <p>Mixing colours is the same sum in disguise: a 50/50 mix is half of one light plus half of the other. Try it below. Each pair is mixed twice, once on the stored numbers and once as light. Watch the middle of red and green, and then blur the bright lights.</p>
+              <figure>
+                <div class="demo" data-demo="linear-blend">
+                  <p class="demo-hint">The linear blend demo needs JavaScript. Without it: a 50/50 mix of pure red and pure green is stored (128, 128, 0), a dark olive, when mixed as stored numbers, and (188, 188, 0), a bright yellow, when mixed as light.</p>
+                </div>
+                <figcaption><b>Linear blend.</b> Mixing stored numbers produces a dark, muddy band through the middle of a gradient, darker than either end for red and green. Mixed as light, the gradient stays bright. Blurring shows the same effect on bright lights: done on stored numbers, the blur loses light and the lights shrink.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>"Brightness" in the demo is relative luminance, which weights green most and blue least, as the eye does. Perceived lightness is a further curve on top of luminance. For lighting maths, only the linear values matter.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="pipeline"><span class="step-num">5</span> Decode on the way in, encode on the way out</h3>
+              <p>A renderer that works in linear colour does three things. When it reads a colour <a class="term" data-term="texture" data-forward href="glossary.html#texture">texture</a>, the GPU decodes sRGB to linear as it samples, before filtering, so the shader only ever sees light. Everything in between, lighting, blending, blur and post-processing, works on linear values. When the frame is finished, the output is encoded for the screen.</p>
+              <p>Not every texture holds colour. Normal maps, roughness and masks hold data: directions and amounts that were never put on the sRGB curve. They must be read exactly as stored. Marking a data texture as sRGB, or a colour texture as linear, is one of the most common colour bugs in games.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="The colour pipeline of a modern renderer. Colour textures stored with the sRGB curve are decoded to linear when sampled; data textures such as normals and roughness are read as they are. Lighting, blending and blurring work on linear floating-point values with no upper limit. Tone mapping brings them into the display's range, and the result is encoded with the sRGB curve for a standard screen or the PQ curve for an HDR10 screen.">
+<defs><marker id="pl-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="pl-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<text class="t-caps" x="20" y="22">IN</text>
+<text class="t-caps" x="250" y="22">WORK</text>
+<text class="t-caps" x="560" y="22">OUT</text>
+<rect class="f-surface s-strong" x="20" y="36" width="170" height="70" rx="6"/>
+<text class="t-strong" x="32" y="58">Colour textures</text>
+<text class="t-small t-muted" x="32" y="74">stored with the sRGB</text>
+<text class="t-small t-muted" x="32" y="90">curve, 8 bits</text>
+<rect class="f-surface s-strong" x="20" y="140" width="170" height="70" rx="6"/>
+<text class="t-strong" x="32" y="162">Data textures</text>
+<text class="t-small t-muted" x="32" y="178">normals, roughness,</text>
+<text class="t-small t-muted" x="32" y="194">masks: stored as is</text>
+<rect class="f-acc-soft s-acc" x="250" y="36" width="240" height="174" rx="6"/>
+<text class="t-strong t-acc" x="262" y="58">Linear light</text>
+<text class="t-small t-muted" x="262" y="74">lighting, blending, blur</text>
+<text class="t-small t-muted" x="262" y="90">floating-point values</text>
+<text class="t-small t-muted" x="262" y="106">that can go far above 1.0,</text>
+<text class="t-small t-muted" x="262" y="122">as real light does</text>
+<text class="t-small t-muted" x="262" y="138"></text>
+<text class="t-small t-acc t-strong" x="262" y="154">scene-referred HDR</text>
+<rect class="f-surface s-strong" x="560" y="92" width="120" height="62" rx="6"/>
+<text class="t-strong" x="572" y="114">Display range</text>
+<text class="t-small t-muted" x="572" y="130">0 to 1, or to the</text>
+<text class="t-small t-muted" x="572" y="146">screen's peak</text>
+<rect class="f-surface s-strong" x="740" y="36" width="140" height="70" rx="6"/>
+<text class="t-strong" x="752" y="58">SDR screen</text>
+<text class="t-small t-muted" x="752" y="74">sRGB curve,</text>
+<text class="t-small t-muted" x="752" y="90">8 bits</text>
+<rect class="f-lit-soft s-lit" x="740" y="140" width="140" height="70" rx="6"/>
+<text class="t-strong" x="752" y="162">HDR10 screen</text>
+<text class="t-small t-muted" x="752" y="178">PQ curve, 10 bits,</text>
+<text class="t-small t-muted" x="752" y="194">up to 10,000 nits</text>
+<line class="s-acc w15" x1="192" y1="71" x2="246" y2="71" marker-end="url(#pl-arr-a)"/>
+<text class="t-small t-acc t-strong mid" x="219" y="62">decode</text>
+<line class="s-muted w15" x1="192" y1="175" x2="246" y2="175" marker-end="url(#pl-arr)"/>
+<text class="t-small t-muted mid" x="219" y="166">as is</text>
+<line class="s-muted w15" x1="492" y1="123" x2="556" y2="123" marker-end="url(#pl-arr)"/>
+<text class="t-small t-strong mid" x="524" y="114">tone map</text>
+<path class="s-acc w15" d="M682,112 C710,112 710,71 736,71" marker-end="url(#pl-arr-a)"/>
+<path class="s-acc w15" d="M682,134 C710,134 710,175 736,175" marker-end="url(#pl-arr-a)"/>
+<text class="t-small t-acc t-strong mid" x="714" y="127">encode</text>
+<text class="t-small t-muted" x="20" y="236">Decoding and encoding happen in the GPU's texture and output hardware when textures and framebuffers use sRGB formats. Tone mapping is chapter 9.1.</text>
+</svg>
+                </div>
+                <figcaption><b>The linear pipeline.</b> Colour textures are decoded on read, data textures are not, and all the work happens on linear light. The output step depends on the screen: the sRGB curve for a standard screen, the PQ curve for HDR10. Inside the renderer, values are free to exceed 1.0.</figcaption>
+              </figure>
+              <p>Because values in the middle are real amounts of light, they are not limited to the 0 to 1 a screen can show. A sunlit wall can be many times brighter than a lamp-lit one. Rendering with this open-ended range in floating-point buffers is <dfn class="term" data-term="hdr-rendering">HDR rendering</dfn>, also called scene-referred rendering, because the values describe the scene rather than the screen. Squeezing that range into what a screen can show is tone mapping, the subject of <a class="xref" data-ch="9.1">9.1 HDR, exposure and tone mapping</a>.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="banding"><span class="step-num">6</span> Bit depth, banding and dithering</h3>
+              <p>Wherever colour is squeezed into a fixed number of levels, a smooth gradient becomes a staircase. In bright, busy areas nobody notices. In a dark, gentle gradient, a night sky, fog, a vignette, a light falling off on a wall, the steps become visible stripes: <dfn class="term" data-term="colour-banding">colour banding</dfn>. Video compression, low-precision intermediate images and 8-bit output all add to it.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="A dark gradient from black to 4% of the stored range, enlarged. 8-bit storage climbs it in 11 levels with wide steps; 10-bit storage uses 41 levels with steps a quarter the size. Below, the same two gradients as strips with the contrast boosted: the 8-bit strip shows clear bands, the 10-bit strip is much smoother.">
+<text class="t-caps" x="20" y="22">A DARK SKY GRADIENT, ENLARGED: STORED VALUES 0 TO 4% OF THE RANGE</text>
+<line class="s-strong" x1="170" y1="176" x2="860" y2="176"/>
+<line class="s-strong" x1="170" y1="44" x2="170" y2="176"/>
+<line class="s-muted dash" x1="170" y1="176" x2="860" y2="48"/>
+<path class="s-pix w2" d="M170,176 H204 V163.5 H272 V150.9 H340 V138.4 H407 V125.8 H475 V113.3 H543 V100.7 H610 V88.2 H678 V75.6 H745 V63.1 H813 V50.5"/>
+<path class="s-acc w15" d="M170,176 H179 V172.9 H196 V169.7 H213 V166.6 H230 V163.5 H246 V160.4 H263 V157.2 H280 V154.1 H297 V151 H314 V147.8 H331 V144.7 H348 V141.6 H364 V138.5 H381 V135.3 H398 V132.2 H415 V129.1 H432 V126 H449 V122.8 H466 V119.7 H482 V116.6 H499 V113.4 H516 V110.3 H533 V107.2 H550 V104.1 H567 V100.9 H584 V97.8 H600 V94.7 H617 V91.5 H634 V88.4 H651 V85.3 H668 V82.2 H685 V79 H702 V75.9 H719 V72.8 H735 V69.6 H752 V66.5 H769 V63.4 H786 V60.3 H803 V57.1 H820 V54 H837 V50.9 H853 V47.7"/>
+<text class="t-small t-pix t-strong" x="20" y="70">8-bit: 11 levels</text>
+<text class="t-small t-pix" x="20" y="85">across this span</text>
+<text class="t-small t-acc t-strong" x="20" y="110">10-bit: 41 levels</text>
+<text class="t-small t-acc" x="20" y="125">steps a quarter the size</text>
+<text class="t-small t-muted" x="20" y="150">dashed: the smooth</text>
+<text class="t-small t-muted" x="20" y="164">gradient wanted</text>
+<text class="t-mono t-small t-muted end" x="164" y="180">0</text>
+<text class="t-mono t-small t-muted end" x="164" y="52">4%</text>
+<text class="t-small" x="20" y="215">8-bit</text>
+<rect class="f-buf-lo" x="170" y="200" width="34.6" height="24"/>
+<rect class="f-buf-lo" x="204" y="200" width="68.6" height="24"/><rect class="f-buf-hi" x="204" y="200" width="68.6" height="24" fill-opacity="0.074"/>
+<rect class="f-buf-lo" x="272" y="200" width="68.6" height="24"/><rect class="f-buf-hi" x="272" y="200" width="68.6" height="24" fill-opacity="0.147"/>
+<rect class="f-buf-lo" x="340" y="200" width="67.6" height="24"/><rect class="f-buf-hi" x="340" y="200" width="67.6" height="24" fill-opacity="0.221"/>
+<rect class="f-buf-lo" x="407" y="200" width="68.6" height="24"/><rect class="f-buf-hi" x="407" y="200" width="68.6" height="24" fill-opacity="0.294"/>
+<rect class="f-buf-lo" x="475" y="200" width="68.6" height="24"/><rect class="f-buf-hi" x="475" y="200" width="68.6" height="24" fill-opacity="0.368"/>
+<rect class="f-buf-lo" x="543" y="200" width="67.6" height="24"/><rect class="f-buf-hi" x="543" y="200" width="67.6" height="24" fill-opacity="0.441"/>
+<rect class="f-buf-lo" x="610" y="200" width="68.6" height="24"/><rect class="f-buf-hi" x="610" y="200" width="68.6" height="24" fill-opacity="0.515"/>
+<rect class="f-buf-lo" x="678" y="200" width="67.6" height="24"/><rect class="f-buf-hi" x="678" y="200" width="67.6" height="24" fill-opacity="0.588"/>
+<rect class="f-buf-lo" x="745" y="200" width="68.6" height="24"/><rect class="f-buf-hi" x="745" y="200" width="68.6" height="24" fill-opacity="0.662"/>
+<rect class="f-buf-lo" x="813" y="200" width="47.6" height="24"/><rect class="f-buf-hi" x="813" y="200" width="47.6" height="24" fill-opacity="0.735"/>
+<rect class="s-strong" x="170" y="200" width="690" height="24"/>
+<text class="t-small" x="20" y="247">10-bit</text>
+<rect class="f-buf-lo" x="170" y="232" width="9.6" height="24"/>
+<rect class="f-buf-lo" x="179" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="179" y="232" width="17.6" height="24" fill-opacity="0.018"/>
+<rect class="f-buf-lo" x="196" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="196" y="232" width="17.6" height="24" fill-opacity="0.037"/>
+<rect class="f-buf-lo" x="213" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="213" y="232" width="17.6" height="24" fill-opacity="0.055"/>
+<rect class="f-buf-lo" x="230" y="232" width="16.6" height="24"/><rect class="f-buf-hi" x="230" y="232" width="16.6" height="24" fill-opacity="0.073"/>
+<rect class="f-buf-lo" x="246" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="246" y="232" width="17.6" height="24" fill-opacity="0.092"/>
+<rect class="f-buf-lo" x="263" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="263" y="232" width="17.6" height="24" fill-opacity="0.110"/>
+<rect class="f-buf-lo" x="280" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="280" y="232" width="17.6" height="24" fill-opacity="0.128"/>
+<rect class="f-buf-lo" x="297" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="297" y="232" width="17.6" height="24" fill-opacity="0.147"/>
+<rect class="f-buf-lo" x="314" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="314" y="232" width="17.6" height="24" fill-opacity="0.165"/>
+<rect class="f-buf-lo" x="331" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="331" y="232" width="17.6" height="24" fill-opacity="0.183"/>
+<rect class="f-buf-lo" x="348" y="232" width="16.6" height="24"/><rect class="f-buf-hi" x="348" y="232" width="16.6" height="24" fill-opacity="0.202"/>
+<rect class="f-buf-lo" x="364" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="364" y="232" width="17.6" height="24" fill-opacity="0.220"/>
+<rect class="f-buf-lo" x="381" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="381" y="232" width="17.6" height="24" fill-opacity="0.238"/>
+<rect class="f-buf-lo" x="398" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="398" y="232" width="17.6" height="24" fill-opacity="0.257"/>
+<rect class="f-buf-lo" x="415" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="415" y="232" width="17.6" height="24" fill-opacity="0.275"/>
+<rect class="f-buf-lo" x="432" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="432" y="232" width="17.6" height="24" fill-opacity="0.293"/>
+<rect class="f-buf-lo" x="449" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="449" y="232" width="17.6" height="24" fill-opacity="0.312"/>
+<rect class="f-buf-lo" x="466" y="232" width="16.6" height="24"/><rect class="f-buf-hi" x="466" y="232" width="16.6" height="24" fill-opacity="0.330"/>
+<rect class="f-buf-lo" x="482" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="482" y="232" width="17.6" height="24" fill-opacity="0.348"/>
+<rect class="f-buf-lo" x="499" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="499" y="232" width="17.6" height="24" fill-opacity="0.367"/>
+<rect class="f-buf-lo" x="516" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="516" y="232" width="17.6" height="24" fill-opacity="0.385"/>
+<rect class="f-buf-lo" x="533" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="533" y="232" width="17.6" height="24" fill-opacity="0.403"/>
+<rect class="f-buf-lo" x="550" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="550" y="232" width="17.6" height="24" fill-opacity="0.422"/>
+<rect class="f-buf-lo" x="567" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="567" y="232" width="17.6" height="24" fill-opacity="0.440"/>
+<rect class="f-buf-lo" x="584" y="232" width="16.6" height="24"/><rect class="f-buf-hi" x="584" y="232" width="16.6" height="24" fill-opacity="0.458"/>
+<rect class="f-buf-lo" x="600" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="600" y="232" width="17.6" height="24" fill-opacity="0.477"/>
+<rect class="f-buf-lo" x="617" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="617" y="232" width="17.6" height="24" fill-opacity="0.495"/>
+<rect class="f-buf-lo" x="634" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="634" y="232" width="17.6" height="24" fill-opacity="0.513"/>
+<rect class="f-buf-lo" x="651" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="651" y="232" width="17.6" height="24" fill-opacity="0.532"/>
+<rect class="f-buf-lo" x="668" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="668" y="232" width="17.6" height="24" fill-opacity="0.550"/>
+<rect class="f-buf-lo" x="685" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="685" y="232" width="17.6" height="24" fill-opacity="0.568"/>
+<rect class="f-buf-lo" x="702" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="702" y="232" width="17.6" height="24" fill-opacity="0.587"/>
+<rect class="f-buf-lo" x="719" y="232" width="16.6" height="24"/><rect class="f-buf-hi" x="719" y="232" width="16.6" height="24" fill-opacity="0.605"/>
+<rect class="f-buf-lo" x="735" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="735" y="232" width="17.6" height="24" fill-opacity="0.623"/>
+<rect class="f-buf-lo" x="752" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="752" y="232" width="17.6" height="24" fill-opacity="0.641"/>
+<rect class="f-buf-lo" x="769" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="769" y="232" width="17.6" height="24" fill-opacity="0.660"/>
+<rect class="f-buf-lo" x="786" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="786" y="232" width="17.6" height="24" fill-opacity="0.678"/>
+<rect class="f-buf-lo" x="803" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="803" y="232" width="17.6" height="24" fill-opacity="0.696"/>
+<rect class="f-buf-lo" x="820" y="232" width="17.6" height="24"/><rect class="f-buf-hi" x="820" y="232" width="17.6" height="24" fill-opacity="0.715"/>
+<rect class="f-buf-lo" x="837" y="232" width="16.6" height="24"/><rect class="f-buf-hi" x="837" y="232" width="16.6" height="24" fill-opacity="0.733"/>
+<rect class="f-buf-lo" x="853" y="232" width="7.6" height="24"/><rect class="f-buf-hi" x="853" y="232" width="7.6" height="24" fill-opacity="0.751"/>
+<rect class="s-strong" x="170" y="232" width="690" height="24"/>
+<text class="t-small t-muted" x="170" y="278">Strips drawn with the contrast boosted so the steps show on any screen.</text>
+</svg>
+                </div>
+                <figcaption><b>Ten bits make steps four times finer.</b> Across this dark span, 8-bit storage has 11 levels and 10-bit has 41. More bits shrink the steps, but on an 8-bit screen the final image still has 8-bit steps, which is where dithering comes in.</figcaption>
+              </figure>
+              <p>The standard fix costs almost nothing. <dfn class="term" data-term="dithering">Dithering</dfn> adds a tiny amount of noise, less than one level, just before the image is rounded to fewer levels. Instead of a hard edge between two levels, each pixel rounds up or down depending on the noise, and the mix of the two levels changes smoothly across the gradient. Up close it is fine grain; at viewing distance it reads as a smooth ramp.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 200" role="img" aria-label="Three strips spanning the gap between two stored levels. The wanted gradient is smooth. Rounded to the nearest level it becomes a hard step halfway. Dithered before rounding, it becomes a fine pattern of the two levels whose density changes smoothly from left to right.">
+<defs><linearGradient id="dt-g" x1="0" x2="1" y1="0" y2="0"><stop offset="0" class="stop-white" stop-opacity="0.2"/><stop offset="1" class="stop-white" stop-opacity="0.5"/></linearGradient><mask id="dt-m" maskContentUnits="userSpaceOnUse"><rect x="220" y="20" width="600" height="36" fill="url(#dt-g)"/></mask></defs>
+<text class="t-head" x="20" y="36">Wanted</text>
+<text class="t-small t-muted" x="20" y="51">between two stored levels</text>
+<text class="t-head" x="20" y="92">Rounded</text>
+<text class="t-small t-muted" x="20" y="107">to the nearest level</text>
+<text class="t-head" x="20" y="148">Dithered</text>
+<text class="t-small t-muted" x="20" y="163">noise added, then rounded</text>
+<rect class="f-buf-lo" x="220" y="20" width="600" height="36"/>
+<rect class="f-buf-hi" x="220" y="20" width="600" height="36" mask="url(#dt-m)"/>
+<rect class="f-buf-lo" x="220" y="76" width="300" height="36"/><rect class="f-buf-hi" x="220" y="76" width="300" height="36" fill-opacity="0.200"/>
+<rect class="f-buf-lo" x="520" y="76" width="300" height="36"/><rect class="f-buf-hi" x="520" y="76" width="300" height="36" fill-opacity="0.500"/>
+<rect class="f-buf-lo" x="220" y="132" width="600" height="36"/><rect class="f-buf-hi" x="220" y="132" width="600" height="36" fill-opacity="0.200"/>
+<rect class="f-buf-hi" x="244" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="268" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="292" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="316" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="328" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="340" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="352" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="364" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="376" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="388" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="400" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="412" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="424" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="436" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="448" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="460" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="472" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="484" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="496" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="508" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="520" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="532" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="538" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="544" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="556" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="562" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="568" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="580" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="586" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="592" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="604" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="610" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="616" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="622" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="628" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="634" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="640" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="646" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="652" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="658" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="664" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="670" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="676" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="682" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="688" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="694" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="700" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="706" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="712" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="718" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="724" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="730" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="736" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="742" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="748" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="754" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="760" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="766" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="772" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="778" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="784" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="790" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="796" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="802" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="808" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="814" y="132" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="394" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="418" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="442" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="466" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="478" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="490" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="502" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="514" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="526" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="538" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="550" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="562" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="574" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="586" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="598" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="610" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="622" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="634" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="646" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="658" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="670" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="682" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="694" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="700" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="706" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="718" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="724" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="730" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="742" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="748" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="754" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="766" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="772" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="778" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="784" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="790" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="796" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="802" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="808" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="814" y="138" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="280" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="304" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="328" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="352" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="364" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="376" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="388" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="400" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="412" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="424" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="436" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="448" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="460" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="472" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="484" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="496" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="508" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="520" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="532" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="544" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="556" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="568" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="574" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="580" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="592" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="598" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="604" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="616" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="622" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="628" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="640" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="646" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="652" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="658" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="664" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="670" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="676" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="682" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="688" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="694" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="700" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="706" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="712" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="718" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="724" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="730" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="736" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="742" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="748" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="754" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="760" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="766" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="772" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="778" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="784" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="790" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="796" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="802" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="808" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="814" y="144" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="430" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="454" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="478" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="502" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="514" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="526" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="538" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="550" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="562" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="574" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="586" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="598" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="610" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="622" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="634" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="646" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="658" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="670" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="682" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="694" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="706" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="718" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="730" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="736" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="742" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="754" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="760" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="766" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="778" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="784" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="790" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="802" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="808" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="814" y="150" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="244" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="268" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="292" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="316" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="328" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="340" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="352" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="364" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="376" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="388" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="400" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="412" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="424" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="436" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="448" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="460" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="472" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="484" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="496" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="508" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="520" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="532" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="538" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="544" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="556" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="562" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="568" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="580" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="586" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="592" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="604" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="610" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="616" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="622" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="628" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="634" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="640" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="646" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="652" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="658" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="664" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="670" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="676" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="682" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="688" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="694" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="700" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="706" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="712" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="718" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="724" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="730" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="736" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="742" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="748" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="754" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="760" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="766" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="772" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="778" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="784" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="790" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="796" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="802" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="808" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="814" y="156" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="394" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="418" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="442" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="466" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="478" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="490" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="502" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="514" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="526" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="538" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="550" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="562" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="574" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="586" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="598" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="610" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="622" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="634" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="646" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="658" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="670" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="682" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="694" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="700" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="706" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="718" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="724" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="730" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="742" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="748" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="754" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="766" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="772" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="778" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="784" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="790" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="796" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="802" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="808" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="f-buf-hi" x="814" y="162" width="6.4" height="6.4" fill-opacity="0.375"/>
+<rect class="s-strong" x="220" y="20" width="600" height="36"/>
+<rect class="s-strong" x="220" y="76" width="600" height="36"/>
+<rect class="s-strong" x="220" y="132" width="600" height="36"/>
+<text class="t-small t-muted end" x="820" y="190">Levels drawn far apart so the effect is visible. At real scale the dither reads as a smooth ramp.</text>
+</svg>
+                </div>
+                <figcaption><b>Dithering trades steps for grain.</b> The same two levels, three ways. Real dither uses noise patterns tuned to be invisible at normal viewing distance; engines apply it as a final step before writing 8-bit output.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="hdr"><span class="step-num">7</span> HDR rendering is not HDR output</h3>
+              <p>"HDR" means two different things in games, and briefs often mix them up. HDR rendering, from step 5, is how the renderer computes light internally; almost every modern game does it, even on a standard screen. An <dfn class="term" data-term="hdr-display">HDR display</dfn> is about the screen: one that can show far brighter highlights and richer colours, and a signal that tells it to.</p>
+              <p>Screen brightness is measured in <dfn class="term" data-term="nit">nits</dfn>, candelas per square metre. The sRGB standard assumes a reference screen with white at 80 nits; typical PC and phone screens show standard white at roughly 100 to 300. HDR screens reach 400 to 1,000 nits or more in highlights; VESA's DisplayHDR certification has tiers from 400 to 1,400.</p>
+              <p>The most common HDR signal is <dfn class="term" data-term="hdr10">HDR10</dfn>. It uses 10 bits per channel, the Rec. 2020 gamut, and a new curve called PQ (perceptual quantizer, SMPTE ST 2084). Unlike sRGB, which is relative to whatever white the screen has, PQ values mean absolute brightness, up to 10,000 nits. The game has to know how bright the player's screen gets and where its interface white should sit, which is why HDR games ship a calibration screen.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 388" role="img" aria-label="A logarithmic brightness scale from 0.1 to 10,000 nits. The sRGB reference display's white is 80 nits; typical SDR white on PCs and phones is 100 to 300 nits; HDR reference white is 203 nits; VESA DisplayHDR certified peaks run from 400 to 1,400 nits; Unreal's HDR output modes target 1,000 or 2,000 nits; the PQ curve of HDR10 encodes up to 10,000 nits. Below, the PQ signal: half of it covers 0 to 100 nits and the top quarter covers 1,000 to 10,000 nits.">
+<text class="t-caps" x="20" y="22">SCREEN BRIGHTNESS IN NITS, LOG SCALE: EACH STEP IS 10 TIMES BRIGHTER</text>
+<circle class="f-ink" cx="569.7" cy="52" r="5"/>
+<path class="f-ink" d="M564.7,224 l5,8 l5,-8 Z"/>
+<text class="t-small end" x="559.7" y="56">80 · sRGB reference display white</text>
+<rect class="f-surface s-strong" x="584" y="74" width="70.6" height="16" rx="3"/>
+<rect class="f-surface s-strong" x="584" y="226" width="70.6" height="6"/>
+<text class="t-small end" x="574" y="86">100 to 300 · SDR white on PCs and phones, typical</text>
+<circle class="f-lit" cx="629.5" cy="112" r="5"/>
+<path class="f-lit" d="M624.5,224 l5,8 l5,-8 Z"/>
+<text class="t-small end" x="619.5" y="116">203 · HDR reference white (ITU-R BT.2408)</text>
+<rect class="f-lit-soft s-lit" x="673.1" y="134" width="80.5" height="16" rx="3"/>
+<rect class="f-lit-soft s-lit" x="673.1" y="226" width="80.5" height="6"/>
+<text class="t-small end" x="663.1" y="146">400 to 1,400 · DisplayHDR peaks</text>
+<circle class="f-lit" cx="732" cy="172" r="5"/>
+<path class="f-lit" d="M727,224 l5,8 l5,-8 Z"/>
+<text class="t-small end" x="722" y="176">1,000 and 2,000 · Unreal's PQ output modes</text>
+<circle class="f-lit" cx="776.6" cy="172" r="5"/>
+<path class="f-lit" d="M771.6,224 l5,8 l5,-8 Z"/>
+<circle class="f-acc" cx="880" cy="202" r="5"/>
+<path class="f-acc" d="M875,224 l5,8 l5,-8 Z"/>
+<text class="t-small end" x="870" y="206">10,000 · the most PQ (HDR10) can encode</text>
+<line class="s-strong" x1="140" y1="232" x2="880" y2="232"/>
+<line class="s-strong" x1="140" y1="232" x2="140" y2="238"/>
+<text class="t-mono t-small mid" x="140" y="252">0.1</text>
+<line class="s-strong" x1="288" y1="232" x2="288" y2="238"/>
+<text class="t-mono t-small mid" x="288" y="252">1</text>
+<line class="s-strong" x1="436" y1="232" x2="436" y2="238"/>
+<text class="t-mono t-small mid" x="436" y="252">10</text>
+<line class="s-strong" x1="584" y1="232" x2="584" y2="238"/>
+<text class="t-mono t-small mid" x="584" y="252">100</text>
+<line class="s-strong" x1="732" y1="232" x2="732" y2="238"/>
+<text class="t-mono t-small mid" x="732" y="252">1,000</text>
+<line class="s-strong" x1="880" y1="232" x2="880" y2="238"/>
+<text class="t-mono t-small mid" x="880" y="252">10,000</text>
+<text class="t-small t-muted" x="20" y="252">nits (cd/m²)</text>
+<text class="t-caps" x="20" y="290">THE HDR10 SIGNAL</text>
+<text class="t-small t-muted" x="20" y="306">0 to 100% of the</text>
+<text class="t-small t-muted" x="20" y="320">10-bit range</text>
+<rect class="f-surface s-strong" x="140" y="280" width="376" height="30"/>
+<text class="t-small mid" x="328" y="299">0 to 100 nits</text>
+<rect class="f-lit-soft s-lit" x="516" y="280" width="180.4" height="30"/>
+<text class="t-small mid" x="606.2" y="299">100 to 1,000</text>
+<rect class="f-sunken s-lit" x="696.4" y="280" width="183.6" height="30"/>
+<text class="t-small mid" x="788.2" y="299">1,000 to 10,000</text>
+<line class="s-ink" x1="516" y1="274" x2="516" y2="320"/>
+<text class="t-mono t-small mid" x="516" y="332">100 nits at 51%</text>
+<line class="s-ink" x1="569.7" y1="274" x2="569.7" y2="336"/>
+<text class="t-mono t-small mid" x="569.7" y="348">203 nits at 58%</text>
+<line class="s-ink" x1="696.4" y1="274" x2="696.4" y2="320"/>
+<text class="t-mono t-small mid" x="696.4" y="332">1,000 nits at 75%</text>
+<text class="t-small t-muted" x="140" y="376">PQ spends half of its levels below 100 nits, where eyes are most sensitive, and stretches the rest up to 10,000.</text>
+</svg>
+                </div>
+                <figcaption><b>Standard and HDR brightness, to scale on a log axis.</b> Each tick is ten times brighter than the last. HDR mainly adds room above standard white for highlights: sun glints, fire, neon. Reference white in HDR stays modest, 203 nits in the ITU's guidance, so that interfaces and skin tones are not blinding.</figcaption>
+              </figure>
+              <aside class="note" data-kind="warning">
+                <p class="note-label">HDR output is its own feature</p>
+                <p>Supporting HDR output means a second output path, brightness and paper white settings for players, interface brightness that matches, testing on several TVs and monitors, and screenshots and video capture that still look right. Budget it as a feature, not a checkbox.</p>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Working in linear colour is close to free at runtime: GPUs convert sRGB textures and framebuffers in hardware. The real costs are memory and bandwidth for higher-precision images, and people-time when the pipeline is set up wrong or changed late.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Format of one screen-sized image</th><th scope="col" class="num">Bytes per pixel</th><th scope="col" class="num">1080p</th><th scope="col" class="num">4K</th><th scope="col">Typical use</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">8 bits per channel (sRGB)</th><td class="num">4</td><td class="num">8.3 MB</td><td class="num">33.2 MB</td><td>Final SDR output, colour textures</td></tr>
+                  <tr><th scope="row">10 bits per colour channel, 2-bit alpha</th><td class="num">4</td><td class="num">8.3 MB</td><td class="num">33.2 MB</td><td>HDR10 output on Windows (PQ, Rec. 2020)</td></tr>
+                  <tr><th scope="row">Packed floating point, no alpha (11, 11 and 10 bits)</th><td class="num">4</td><td class="num">8.3 MB</td><td class="num">33.2 MB</td><td>Compact HDR scene colour</td></tr>
+                  <tr><th scope="row">16-bit floating point per channel</th><td class="num">8</td><td class="num">16.6 MB</td><td class="num">66.4 MB</td><td>HDR scene colour with alpha; scRGB HDR output on Windows</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Unity's URP shows the trade directly: its <strong>HDR Precision</strong> setting offers 32-bit (the default) or 64-bit scene colour, and its documentation notes the 64-bit option avoids banding at the cost of bandwidth. Every screen-sized image is read and written several times a frame, so doubling its bytes per pixel shows up in GPU time, most of all on mobile.</p>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Precision of screen-sized images</strong><span>16-bit float doubles the memory and bandwidth of every full-screen pass that uses it.</span></li>
+              <li><strong>Number of HDR intermediates</strong><span>Lighting, bloom, blur and post chains each keep screen-sized buffers alive.</span></li>
+              <li><strong>Switching late</strong><span>Moving from gamma to linear mid-project changes how every texture, colour and light looks, and all of it needs re-checking.</span></li>
+              <li><strong>Mislabelled textures</strong><span>Each colour texture marked linear, or data texture marked sRGB, costs an artist time chasing a look that the engine is distorting.</span></li>
+              <li><strong>HDR output</strong><span>Calibration UI, interface brightness, testing on many screens, and a second look for every marketing capture.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>The decision that matters most is cheap if made on day one: linear colour space, sRGB flags set correctly by texture type, and an import rule that enforces them. Unreal and Godot light 3D scenes in linear out of the box; Unity keeps a Gamma option only for hardware that needs it.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Colour bugs rarely crash anything. They make the game look slightly wrong, and artists compensate by hand until the compensations themselves become the problem. Learn these five.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A strip that goes from light on the left to light on the right but dips into a dark band in the middle.">
+                    <defs>
+                      <linearGradient id="sy-mud-g" x1="0" x2="1" y1="0" y2="0"><stop offset="0" class="stop-white" stop-opacity="0.85"/><stop offset="0.5" class="stop-white" stop-opacity="0.3"/><stop offset="1" class="stop-white" stop-opacity="0.85"/></linearGradient>
+                      <mask id="sy-mud-m" maskContentUnits="userSpaceOnUse"><rect x="20" y="30" width="200" height="50" fill="url(#sy-mud-g)"/></mask>
+                    </defs>
+                    <rect class="f-buf-lo" x="20" y="30" width="200" height="50"/>
+                    <rect class="f-buf-hi" x="20" y="30" width="200" height="50" mask="url(#sy-mud-m)"/>
+                    <rect class="s-strong" x="20" y="30" width="200" height="50"/>
+                    <text class="t-small t-pix t-strong mid" x="120" y="104">dark, muddy middle</text>
+                  </svg>
+                </div>
+                <h4>Dirty blends and dark fringes</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Blending, mixing or blurring on stored values: gamma colour space, an 8-bit non-sRGB render target, or a shader that mixes colours read without decoding. Shows on gradients, particle edges, UI fades and soft shadows.</dd></div>
+                  <div><dt>Ask for</dt><dd>The project's colour space setting, the format of the render targets involved, and a test scene with red-to-green and black-to-white gradients.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two spheres. The left one has full contrast from bright to dark. The right one is pale and flat, its shadows lifted to light grey.">
+                    <defs>
+                      <radialGradient id="sy-tex-a" cx="0.35" cy="0.35" r="0.75"><stop offset="0" class="stop-white" stop-opacity="0.95"/><stop offset="1" class="stop-white" stop-opacity="0.05"/></radialGradient>
+                      <radialGradient id="sy-tex-b" cx="0.35" cy="0.35" r="0.75"><stop offset="0" class="stop-white" stop-opacity="1"/><stop offset="1" class="stop-white" stop-opacity="0.6"/></radialGradient>
+                      <mask id="sy-tex-ma" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#sy-tex-a)"/></mask>
+                      <mask id="sy-tex-mb" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#sy-tex-b)"/></mask>
+                    </defs>
+                    <circle class="f-buf-lo" cx="68" cy="58" r="40"/>
+                    <circle class="f-buf-hi" cx="68" cy="58" r="40" mask="url(#sy-tex-ma)"/>
+                    <circle class="f-buf-lo" cx="172" cy="58" r="40"/>
+                    <circle class="f-buf-hi" cx="172" cy="58" r="40" mask="url(#sy-tex-mb)"/>
+                    <text class="t-small t-muted mid" x="68" y="120">as authored</text>
+                    <text class="t-small t-pix t-strong mid" x="172" y="120">washed out</text>
+                  </svg>
+                </div>
+                <h4>Washed-out or too-dark textures</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The sRGB flag is wrong for the texture. A colour texture read as linear looks pale and washed out; a normal or roughness map read as sRGB has its values bent, giving wrong shine and lumpy lighting.</dd></div>
+                  <div><dt>Ask for</dt><dd>A list of textures whose sRGB setting does not match their type, and an import rule that sets it from the texture's role or file name.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dark sky drawn as six horizontal bands of slightly different grey with visible edges between them.">
+                    <rect class="f-buf-lo" x="20" y="10" width="200" height="110"/>
+                    <rect class="f-buf-hi" x="20" y="10" width="200" height="19" fill-opacity="0.30"/>
+                    <rect class="f-buf-hi" x="20" y="29" width="200" height="18" fill-opacity="0.24"/>
+                    <rect class="f-buf-hi" x="20" y="47" width="200" height="18" fill-opacity="0.18"/>
+                    <rect class="f-buf-hi" x="20" y="65" width="200" height="18" fill-opacity="0.12"/>
+                    <rect class="f-buf-hi" x="20" y="83" width="200" height="18" fill-opacity="0.06"/>
+                    <rect class="s-strong" x="20" y="10" width="200" height="110"/>
+                    <circle class="f-buf-hi" cx="170" cy="34" r="8" fill-opacity="0.9"/>
+                  </svg>
+                </div>
+                <h4>Stripes in skies and fog</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too few levels somewhere in the chain: an 8-bit intermediate image, low HDR precision, compression, or 8-bit output without dither.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which buffer the steps first appear in (a frame capture shows it), the scene colour precision, and dithering on the final output.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A screen whose game picture is a flat, greyish wash while a white HUD box in the corner glares with a bright halo.">
+                    <defs><filter id="sy-glare" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter></defs>
+                    <rect class="f-buf-lo" x="20" y="10" width="200" height="110"/>
+                    <rect class="f-buf-hi" x="20" y="10" width="200" height="110" fill-opacity="0.45"/>
+                    <polygon class="f-buf-hi" points="40,110 90,60 130,90 170,50 210,110" fill-opacity="0.25"/>
+                    <rect class="f-buf-hi" x="150" y="18" width="58" height="20" rx="3" filter="url(#sy-glare)"/>
+                    <rect class="f-buf-hi" x="150" y="18" width="58" height="20" rx="3"/>
+                    <rect class="s-strong" x="20" y="10" width="200" height="110"/>
+                  </svg>
+                </div>
+                <h4>HDR looks grey, or the HUD is blinding</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The output does not match the screen: SDR content sent in an HDR signal without conversion, wrong peak or paper white values, or the interface drawn at full peak brightness instead of reference white.</dd></div>
+                  <div><dt>Ask for</dt><dd>The HDR output path and its brightness settings, a calibration screen, and checks on at least one bright and one modest HDR screen.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two pools of light on a floor. The left one fades gradually; the right one is small with a hard edge and a quick drop to dark.">
+                    <defs>
+                      <radialGradient id="sy-fall-a"><stop offset="0" class="stop-lit" stop-opacity="0.9"/><stop offset="0.5" class="stop-lit" stop-opacity="0.45"/><stop offset="1" class="stop-lit" stop-opacity="0"/></radialGradient>
+                      <radialGradient id="sy-fall-b"><stop offset="0" class="stop-lit" stop-opacity="0.95"/><stop offset="0.45" class="stop-lit" stop-opacity="0.7"/><stop offset="0.6" class="stop-lit" stop-opacity="0.05"/><stop offset="1" class="stop-lit" stop-opacity="0"/></radialGradient>
+                    </defs>
+                    <rect class="f-sunken s-strong" x="10" y="20" width="220" height="90"/>
+                    <ellipse cx="65" cy="65" rx="52" ry="34" fill="url(#sy-fall-a)"/>
+                    <ellipse cx="175" cy="65" rx="52" ry="34" fill="url(#sy-fall-b)"/>
+                    <text class="t-small t-muted mid" x="65" y="124">linear</text>
+                    <text class="t-small t-pix t-strong mid" x="175" y="124">gamma maths</text>
+                  </svg>
+                </div>
+                <h4>Harsh light falloff that needs constant tweaking</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Lighting computed on stored values, usually a project left in gamma colour space or a custom shader that skips decoding. Lights look too small with hard edges, and brightening them blows out the centre.</dd></div>
+                  <div><dt>Ask for</dt><dd>Confirmation that lighting runs in linear, a list of custom shaders that read colours without decoding, and a before-and-after comparison scene.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>Most of these can be confirmed in a frame capture: check each texture's format (an sRGB format name, such as one ending in <code>_SRGB</code>, means the GPU decodes it) and each render target's format and bit depth.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines light in linear by default and decode colour textures automatically. The settings you meet are the per-texture sRGB flag, precision options, and HDR output.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Lighting colour space</th>
+                    <td>Lighting and colour grading work in scene-referred linear space. Project Settings, Rendering: <strong>Working Color Space</strong> sets the primaries, default sRGB/Rec709.</td>
+                    <td>Player settings, Other Settings, Rendering: <strong>Color Space</strong>, Linear or Gamma. Gamma exists for hardware that only supports it.</td>
+                    <td>3D renders in linear colour. 2D works on sRGB values unless <code>rendering/viewport/hdr_2d</code> is on, which makes 2D linear too.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Colour and data textures</th>
+                    <td>Texture setting <strong>sRGB</strong>. Epic's guidance: untick it for masks, which should not be gamma corrected.</td>
+                    <td>Texture import setting <strong>sRGB (Color Texture)</strong>. Set the texture type to match its use, and untick it for data such as masks.</td>
+                    <td>Shader hint <code>source_color</code> on colour textures. Required in Forward+ and Mobile; optional in Compatibility; recommended always.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Scene precision</th>
+                    <td>Always HDR inside: colour correction works on linear values before the tone mapper.</td>
+                    <td>URP Asset: <strong>HDR</strong> on, and <strong>HDR Precision</strong> 32-bit (default) or 64-bit to avoid banding.</td>
+                    <td>3D uses HDR internally for both SDR and HDR output. HDR 2D uses a 16-bit RGBA buffer.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">HDR output</th>
+                    <td><code>r.AllowHDR</code>, then <strong>EnableHDRDisplayOutput</strong> on <code>UGameUserSettings</code>. <code>r.HDR.Display.OutputDevice</code> includes ACES 1000-nit and 2000-nit ST-2084 modes. The docs state it needs exclusive full screen.</td>
+                    <td>Player settings, Other Settings: <strong>Allow HDR Display Output</strong> and <strong>Use HDR Display Output</strong>, with URP HDR on. Only works in Linear colour space.</td>
+                    <td><code>display/window/hdr/request_hdr_output</code> plus HDR 2D, with Forward+ or Mobile. Windows (Direct3D 12), macOS, iOS, visionOS and Linux on Wayland; not Android or web.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">HDR brightness</th>
+                    <td><strong>SetHDRPaperWhiteNits</strong>, <strong>SetMaximumHDRDisplayNits</strong> and <strong>SetHDRUILuminanceNits</strong> on <code>UGameUserSettings</code>.</td>
+                    <td>URP tone mapping uses the display's minimum, maximum and paper white brightness, set through the <code>HDROutputSettings</code> API.</td>
+                    <td>Reads reference (paper white) and maximum luminance from the operating system; <code>Window.get_output_max_linear_value()</code> says how far above 1.0 output can go.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Banding</th>
+                    <td>No documented switch found in the 5.8 docs.</td>
+                    <td>Camera: <strong>Dithering</strong>, applied to the final image to reduce banding.</td>
+                    <td><code>rendering/anti_aliasing/quality/use_debanding</code> adds a dither before values are rounded.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.8, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Unity projects started long ago</p>
+              <p>A project created in Gamma colour space keeps it until someone changes it. Changing the setting can reimport assets and changes how everything looks, so do it early, on a branch, with the art team watching.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Colour briefs go wrong when they say "make it look better". Name the colour space, the formats and the symptom, and ask for checks an artist can see.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use before switching a project to linear colour</span></div>
+              <pre class="prompt-body">Engine: Unity 6, URP. The project is in Gamma colour space and we want to move to Linear before content lock.
+
+1. List every setting that changes: Player colour space, URP HDR and HDR Precision, camera Dithering.
+2. Scan our textures and list any whose sRGB (Color Texture) setting does not match its role: colour textures with it off, masks, roughness or other data with it on.
+3. List custom shaders and UI materials that mix or blend colours, and say which will look different in Linear and why.
+4. Propose a test scene that shows the difference (gradients, overlapping lights, particle edges, UI fades) and the order to do the switch in so artists can review it.</pre>
+              <ul class="prompt-why">
+                <li>Naming the settings stops the AI changing only the colour space switch.</li>
+                <li>A texture audit by role catches the most common colour bug in one pass.</li>
+                <li>A test scene gives the art team something concrete to sign off.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when gradients show stripes</span></div>
+              <pre class="prompt-body">Godot 4.7, Forward+. In our night levels, the sky gradient and the fog show visible stripes on PC monitors. They get worse after the post-process chain and in video captures. Debanding is off.
+
+Find which step introduces the steps: check the precision of each buffer from sky rendering to final output, and whether any pass writes to an 8-bit target before tone mapping. Then propose fixes in order of cost (debanding, higher precision for the offending buffer, dithering in a custom pass) and tell me how to verify each with a frame capture and a screenshot comparison.</pre>
+              <ul class="prompt-why">
+                <li>Asking where the steps first appear finds the cause instead of hiding it.</li>
+                <li>"In order of cost" puts the cheap fix, dithering, first.</li>
+                <li>Video captures add their own banding, so the report says so up front.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing colour work</h3>
+            <ol class="review-list">
+              <li>Is every colour read decoded before it is used in lighting or blending?<span class="why">One shader that skips it produces the dark fringes everyone blames on art.</span></li>
+              <li>How is the sRGB flag set for new textures?<span class="why">A rule based on texture role beats relying on people to remember a checkbox.</span></li>
+              <li>What precision is each screen-sized buffer, and why?<span class="why">Too low bands; too high costs bandwidth on every pass.</span></li>
+              <li>Where is the final image dithered?<span class="why">Without dither, 8-bit output shows steps in dark gradients.</span></li>
+              <li>For HDR output, what are the paper white and interface brightness, and who chose them?<span class="why">Wrong values make HDR look worse than SDR, or make the interface glare.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">An 8-bit sRGB pixel stores 128. Roughly how much of full light does it give off? Which stored value gives off half?</p>
+                <details><summary>Show answer</summary><p>About 22%: 128 / 255 is 0.502, which decodes to about 0.216. Half the light encodes to 0.735, which is 188 out of 255.</p></details>
+              </li>
+              <li>
+                <p class="q">An artist says every colour texture looks pale and washed out in engine, while normal maps look fine. What do you check first?</p>
+                <details><summary>Show answer</summary><p>The sRGB flag on the colour textures. If it is off, their stored values are treated as linear light, so the midtones come out too bright when the result is encoded for the screen. Data textures like normal maps should have it off, which is why they look right.</p></details>
+              </li>
+              <li>
+                <p class="q">A foggy night level shows rings in the fog on an 8-bit screen. Name two fixes, and say which is cheaper.</p>
+                <details><summary>Show answer</summary><p>Dithering the final output, which turns the steps into fine noise at almost no cost, and raising the precision of whichever buffer first shows the steps, which costs memory and bandwidth. Dithering is cheaper, but it cannot fix steps that were baked in earlier at low precision.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#rgb">RGB</a></li>
+              <li><a class="chip" href="glossary.html#colour-channel">colour channel</a></li>
+              <li><a class="chip" href="glossary.html#bit-depth">bit depth</a></li>
+              <li><a class="chip" href="glossary.html#srgb">sRGB</a></li>
+              <li><a class="chip" href="glossary.html#gamma">gamma</a></li>
+              <li><a class="chip" href="glossary.html#linear-colour">linear colour</a></li>
+              <li><a class="chip" href="glossary.html#colour-gamut">colour gamut</a></li>
+              <li><a class="chip" href="glossary.html#hdr-rendering">HDR rendering</a></li>
+              <li><a class="chip" href="glossary.html#colour-banding">colour banding</a></li>
+              <li><a class="chip" href="glossary.html#dithering">dithering</a></li>
+              <li><a class="chip" href="glossary.html#hdr-display">HDR display</a></li>
+              <li><a class="chip" href="glossary.html#nit">nit</a></li>
+              <li><a class="chip" href="glossary.html#hdr10">HDR10</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="3.3"></a> introduces vectors, the arrows that describe positions, directions and surfaces, and the two operations that lighting is built from.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://en.wikipedia.org/wiki/SRGB">sRGB</a>, Wikipedia. The IEC 61966-2-1 transfer functions, primaries and reference viewing conditions.</li>
+              <li><a href="https://developer.nvidia.com/gpugems/gpugems3/part-iv-image-effects/chapter-24-importance-being-linear">The Importance of Being Linear</a>, Larry Gritz and Eugene d'Eon, GPU Gems 3, NVIDIA. Why shading, filtering and blending need linear values, and how sRGB formats do it in hardware.</li>
+              <li><a href="https://en.wikipedia.org/wiki/Perceptual_quantizer">Perceptual quantizer</a> and <a href="https://en.wikipedia.org/wiki/HDR10">HDR10</a>, Wikipedia. The SMPTE ST 2084 curve and its constants, and what HDR10 combines.</li>
+              <li><a href="https://www.itu.int/dms_pub/itu-r/opb/rep/R-REP-BT.2408-9-2026-PDF-E.pdf">Report ITU-R BT.2408-9</a>, ITU, 2026. HDR production practice, including the 203 cd/m² HDR reference white.</li>
+              <li><a href="https://displayhdr.org/">DisplayHDR</a>, VESA. Certification tiers and their minimum peak brightness.</li>
+              <li><a href="https://learn.microsoft.com/en-us/windows/win32/direct3darticles/high-dynamic-range">Use DirectX with Advanced Color on high/standard dynamic range displays</a>, Microsoft Learn. HDR10 and scRGB swap chain formats, and SDR reference white on HDR screens.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/graphics-color/color-spaces">Color spaces</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/graphics-color/hdr/hdr-in-urp/hdr-output">HDR Output in URP</a>, Unity 6.6 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/working-color-space-in-unreal-engine?application_version=5.8">Working Color Space</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/high-dynamic-range-display-output-in-unreal-engine?application_version=5.8">High Dynamic Range Display Output</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/tutorials/rendering/hdr_output.html">HDR output</a> and <a href="https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shading_language.html">Shading language</a> (the <code>source_color</code> hint), Godot Engine 4.7 documentation.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/linear-blend.js"></script>
+</body>
+</html>

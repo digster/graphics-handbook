@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>3.1 Pixels and displays · Graphics Handbook</title>
+  <meta name="description" content="How a frame becomes a picture: pixels, framebuffers, resolution, refresh rate, scan-out, swap chains, tearing, vsync and variable refresh rate, what they cost and how they break.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="3.1">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 3 · Foundations</p>
+            <h1><span class="ch-num">3.1</span> Pixels and displays</h1>
+            <p class="lead">A game draws each frame into a grid of pixels in memory, and the screen reads that grid out row by row, many times a second. The game and the screen run on separate clocks, and how they hand frames to each other decides whether motion looks smooth, torn or jerky.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="0.2">0.2 What a frame is</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="3.2">3.2 Colour done right</a>, <a class="xref" data-ch="9.3">9.3 Upscaling and frame generation</a>, <a class="xref" data-ch="11.1">11.1 Frame budgets</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Tearing simulator</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 344" role="img" aria-label="Left, the GPU's side: a back buffer where the GPU draws frame 43 and a front buffer holding frame 42; a present call swaps them. Right, the display reads the front buffer row by row. The swap happened partway down, so the top of the screen shows frame 42 and the bottom frame 43, with a tear line between. Below, a timeline: the display refreshes every 16.7 ms while the GPU finishes a frame every 22.2 ms, and four of five swaps land while rows are being read.">
+<defs><marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="pic-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<text class="t-caps" x="30" y="16">THE GPU SIDE</text>
+<text class="t-caps" x="540" y="16">THE DISPLAY SIDE</text>
+<rect class="f-sunken" x="30" y="52" width="180" height="73"/><rect class="f-geo-soft" x="30" y="125" width="180" height="28"/><path class="s-line" d="M39,52 V153 M48,52 V153 M57,52 V153 M66,52 V153 M75,52 V153 M84,52 V153 M93,52 V153 M102,52 V153 M111,52 V153 M120,52 V153 M129,52 V153 M138,52 V153 M147,52 V153 M156,52 V153 M165,52 V153 M174,52 V153 M183,52 V153 M192,52 V153 M201,52 V153 M30,61 H210 M30,70 H210 M30,79 H210 M30,88 H210 M30,97 H210 M30,106 H210 M30,115 H210 M30,124 H210 M30,133 H210 M30,142 H210 M30,151 H210"/><rect class="f-acc" x="142" y="52" width="14" height="101"/><text class="t-mono t-small" x="161" y="70">f43</text><rect class="s-strong" x="30" y="52" width="180" height="101"/>
+<rect class="f-sunken" x="260" y="52" width="180" height="73"/><rect class="f-geo-soft" x="260" y="125" width="180" height="28"/><path class="s-line" d="M269,52 V153 M278,52 V153 M287,52 V153 M296,52 V153 M305,52 V153 M314,52 V153 M323,52 V153 M332,52 V153 M341,52 V153 M350,52 V153 M359,52 V153 M368,52 V153 M377,52 V153 M386,52 V153 M395,52 V153 M404,52 V153 M413,52 V153 M422,52 V153 M431,52 V153 M260,61 H440 M260,70 H440 M260,79 H440 M260,88 H440 M260,97 H440 M260,106 H440 M260,115 H440 M260,124 H440 M260,133 H440 M260,142 H440 M260,151 H440"/><rect class="f-acc" x="332" y="52" width="14" height="101"/><text class="t-mono t-small" x="351" y="70">f42</text><rect class="s-strong" x="260" y="52" width="180" height="101"/>
+<text class="t-strong" x="30" y="174">Back buffer</text>
+<text class="t-small t-muted" x="30" y="190">the GPU draws frame 43 here</text>
+<text class="t-strong" x="260" y="174">Front buffer</text>
+<text class="t-small t-muted" x="260" y="190">the display reads frame 42 here</text>
+<path class="s-acc w15" d="M200,50 C218,34 252,34 270,50" marker-end="url(#pic-arr)"/>
+<text class="t-small t-acc t-strong mid" x="235" y="31">present: swap</text>
+<line class="s-muted w15" x1="446" y1="102" x2="532" y2="102" marker-end="url(#pic-arr-m)"/>
+<text class="t-small t-muted mid" x="489" y="122">read out</text>
+<text class="t-small t-muted mid" x="489" y="136">row by row</text>
+<rect class="f-solid s-strong" x="540" y="34" width="330" height="194" rx="8"/>
+<rect class="f-sunken" x="550" y="44" width="310" height="125"/>
+<rect class="f-geo-soft" x="550" y="169" width="310" height="49"/>
+<rect class="f-acc" x="674" y="44" width="24" height="78"/>
+<rect class="f-acc" x="743" y="122" width="24" height="96"/>
+<text class="t-mono t-small" x="703" y="62">f42</text>
+<text class="t-mono t-small" x="772" y="140">f43</text>
+<text class="t-small end" x="854" y="94">rows read before the swap</text>
+<text class="t-small" x="558" y="140">rows read after the swap</text>
+<line class="s-pix w2" x1="550" y1="122" x2="860" y2="122"/>
+<text class="t-small t-pix t-strong end" x="854" y="116">tear</text>
+<rect class="s-strong" x="550" y="44" width="310" height="174"/>
+<path class="f-solid s-strong" d="M685,228 L675,242 H735 L725,228"/>
+<text class="t-small" x="30" y="277">Display refreshes, 60 Hz</text>
+<text class="t-small" x="30" y="311">GPU finishes frames, 45 fps</text>
+<rect class="f-acc-soft s-acc" x="200" y="266" width="104.3" height="14" rx="2"/>
+<rect class="f-acc-soft s-acc" x="313.3" y="266" width="104.3" height="14" rx="2"/>
+<rect class="f-acc-soft s-acc" x="426.7" y="266" width="104.3" height="14" rx="2"/>
+<rect class="f-acc-soft s-acc" x="540" y="266" width="104.3" height="14" rx="2"/>
+<rect class="f-acc-soft s-acc" x="653.3" y="266" width="104.3" height="14" rx="2"/>
+<rect class="f-acc-soft s-acc" x="766.7" y="266" width="104.3" height="14" rx="2"/>
+<line class="s-pix w15" x1="234" y1="302" x2="234" y2="262"/>
+<circle class="f-ink" cx="234" cy="306" r="4"/>
+<line class="s-pix w15" x1="385.1" y1="302" x2="385.1" y2="262"/>
+<circle class="f-ink" cx="385.1" cy="306" r="4"/>
+<line class="s-muted dot-dash" x1="536.2" y1="302" x2="536.2" y2="262"/>
+<circle class="f-ink" cx="536.2" cy="306" r="4"/>
+<line class="s-pix w15" x1="687.3" y1="302" x2="687.3" y2="262"/>
+<circle class="f-ink" cx="687.3" cy="306" r="4"/>
+<line class="s-pix w15" x1="838.4" y1="302" x2="838.4" y2="262"/>
+<circle class="f-ink" cx="838.4" cy="306" r="4"/>
+<text class="t-small t-muted mid" x="540" y="336">A swap that lands while rows are being read makes a tear (rose). The one at 49 ms lands in the gap between refreshes.</text>
+</svg>
+              </div>
+              <figcaption><b>Two clocks, one picture.</b> The GPU finishes frames when it can; the display reads a picture out row by row on a fixed beat. If the GPU swaps in a new frame while the display is partway down the screen, the top shows the old frame and the bottom the new one. Every technique in this chapter decides when that swap is allowed to happen.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A screen is a grid of tiny lights. Each one is a <dfn class="term" data-term="pixel">pixel</dfn>, and the game decides its colour every <a class="term" data-term="frame" href="glossary.html#frame">frame</a>. The finished picture sits in a block of memory called a <dfn class="term" data-term="framebuffer">framebuffer</dfn>, one colour value per pixel, before the screen shows it.</p>
+            <p>The screen does not take the whole picture at once. It reads it out from top to bottom, row after row, and starts again at the top many times a second. The game, meanwhile, produces frames at whatever speed the work allows: sometimes faster than the screen, sometimes slower, rarely in step. Everything about smoothness comes down to how a finished frame is handed to a screen that is already busy reading the previous one.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A station departures board that updates row by row, top to bottom, once a minute. A clerk prepares the next timetable on a clipboard and hands it over when it is ready.</p>
+                <p>If the clerk hands over a new sheet while the board is halfway through updating, the top rows show the old times and the bottom rows the new ones. The board can wait for the clerk, or the clerk can wait for the board to finish. Those are the choices a game has.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without rules for the handover you get a picture split between two moments in time, a tear. Strict rules remove the tear but make finished frames wait, and uneven waits show as stutter.</p>
+                <p>Modern screens can also do the waiting themselves: they hold off refreshing until the next frame arrives. That removes both problems inside a range of speeds.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Resolution is the biggest single lever on GPU cost: 4K has four times the pixels of 1080p, and most of a frame's GPU time is spent per pixel. The handover settings (vsync, frame caps, variable refresh) decide how a given frame rate feels, and they are among the first options players look for in a settings menu. "It stutters" and "it tears" are two different bugs with two different fixes, and you need to tell them apart in a playtest report.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow one frame from the GPU's memory to the glass. There are seven steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="pixels-framebuffer"><span class="step-num">1</span> Pixels and the framebuffer</h3>
+              <p>Look closely at a screen and each pixel is three small lights, red, green and blue, each set to a brightness. Mixing the three makes every colour the screen can show. <a class="xref" data-ch="3.2">3.2 Colour done right</a> covers what those numbers mean; here they are just bytes.</p>
+              <p>The <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a> writes a frame into a framebuffer in its own memory, <a class="term" data-term="vram" data-forward href="glossary.html#vram">VRAM</a>. The most common layout stores each pixel in 4 bytes: one each for red, green and blue, and one spare channel called alpha. Pixels follow each other along a row, and rows follow each other down the image, so the framebuffer is simply the picture as a long list.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="Left: a small image drawn as a 16 by 9 grid of pixels, a sky, a sun and the ground, with one pixel outlined. Middle: that pixel enlarged into its red, green and blue parts at 255, 196 and 64. Right: in the framebuffer the pixel is four bytes, red, green, blue and alpha, stored one pixel after another, so a 1920 by 1080 framebuffer takes 8,294,400 bytes.">
+<text class="t-caps" x="30" y="24">AN IMAGE IS A GRID</text>
+<rect class="f-sunken" x="30" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="43" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="56" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="69" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="82" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="95" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="108" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="121" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="134" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="147" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="160" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="173" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="186" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="199" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="212" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="225" y="40" width="13" height="13"/>
+<rect class="f-sunken" x="30" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="43" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="56" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="69" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="82" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="95" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="108" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="121" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="134" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="147" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="160" y="53" width="13" height="13"/>
+<rect class="f-lit" x="173" y="53" width="13" height="13"/>
+<rect class="f-lit" x="186" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="199" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="212" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="225" y="53" width="13" height="13"/>
+<rect class="f-sunken" x="30" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="43" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="56" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="69" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="82" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="95" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="108" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="121" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="134" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="147" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="160" y="66" width="13" height="13"/>
+<rect class="f-lit" x="173" y="66" width="13" height="13"/>
+<rect class="f-lit" x="186" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="199" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="212" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="225" y="66" width="13" height="13"/>
+<rect class="f-sunken" x="30" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="43" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="56" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="69" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="82" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="95" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="108" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="121" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="134" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="147" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="160" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="173" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="186" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="199" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="212" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="225" y="79" width="13" height="13"/>
+<rect class="f-sunken" x="30" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="43" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="56" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="69" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="82" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="95" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="108" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="121" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="134" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="147" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="160" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="173" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="186" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="199" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="212" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="225" y="92" width="13" height="13"/>
+<rect class="f-sunken" x="30" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="43" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="56" y="105" width="13" height="13"/>
+<rect class="f-geo-soft" x="69" y="105" width="13" height="13"/>
+<rect class="f-geo-soft" x="82" y="105" width="13" height="13"/>
+<rect class="f-geo-soft" x="95" y="105" width="13" height="13"/>
+<rect class="f-geo-soft" x="108" y="105" width="13" height="13"/>
+<rect class="f-geo-soft" x="121" y="105" width="13" height="13"/>
+<rect class="f-geo-soft" x="134" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="147" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="160" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="173" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="186" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="199" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="212" y="105" width="13" height="13"/>
+<rect class="f-sunken" x="225" y="105" width="13" height="13"/>
+<rect class="f-geo-soft" x="30" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="43" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="56" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="69" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="82" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="95" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="108" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="121" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="134" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="147" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="160" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="173" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="186" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="199" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="212" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="225" y="118" width="13" height="13"/>
+<rect class="f-geo-soft" x="30" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="43" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="56" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="69" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="82" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="95" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="108" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="121" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="134" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="147" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="160" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="173" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="186" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="199" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="212" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="225" y="131" width="13" height="13"/>
+<rect class="f-geo-soft" x="30" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="43" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="56" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="69" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="82" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="95" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="108" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="121" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="134" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="147" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="160" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="173" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="186" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="199" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="212" y="144" width="13" height="13"/>
+<rect class="f-geo-soft" x="225" y="144" width="13" height="13"/>
+<path class="s-line" d="M30,40 V157 M43,40 V157 M56,40 V157 M69,40 V157 M82,40 V157 M95,40 V157 M108,40 V157 M121,40 V157 M134,40 V157 M147,40 V157 M160,40 V157 M173,40 V157 M186,40 V157 M199,40 V157 M212,40 V157 M225,40 V157 M238,40 V157 M30,40 H238 M30,53 H238 M30,66 H238 M30,79 H238 M30,92 H238 M30,105 H238 M30,118 H238 M30,131 H238 M30,144 H238 M30,157 H238"/>
+<rect class="s-acc w2" x="186" y="79" width="13" height="13"/>
+<text class="t-small" x="30" y="178">16 × 9 pixels here.</text>
+<text class="t-small t-muted" x="30" y="194">A 1080p screen has 1920 × 1080.</text>
+<path class="s-muted dash" d="M199,79 L300,44 M199,92 L300,164"/>
+<text class="t-caps" x="300" y="24">ONE PIXEL, THREE LIGHTS</text>
+<rect class="f-surface s-strong" x="300" y="44" width="40" height="120"/>
+<rect class="f-acc-soft" x="301" y="44" width="38" height="120"/>
+<text class="t-head mid" x="320" y="60">R</text>
+<text class="t-mono t-small mid" x="320" y="182">255</text>
+<rect class="f-surface s-strong" x="340" y="44" width="40" height="120"/>
+<rect class="f-acc-soft" x="341" y="71.8" width="38" height="92.2"/>
+<text class="t-head mid" x="360" y="60">G</text>
+<text class="t-mono t-small mid" x="360" y="182">196</text>
+<rect class="f-surface s-strong" x="380" y="44" width="40" height="120"/>
+<rect class="f-acc-soft" x="381" y="133.9" width="38" height="30.1"/>
+<text class="t-head mid" x="400" y="60">B</text>
+<text class="t-mono t-small mid" x="400" y="182">64</text>
+<text class="t-small t-muted" x="300" y="210">Each part's brightness: 0 to 255.</text>
+<text class="t-caps" x="490" y="24">IN MEMORY: 4 BYTES PER PIXEL</text>
+<rect class="f-acc-soft s-strong" x="490" y="44" width="64" height="44"/>
+<text class="t-small t-muted mid" x="522" y="61">R</text>
+<text class="t-mono mid" x="522" y="79">255</text>
+<rect class="f-acc-soft s-strong" x="554" y="44" width="64" height="44"/>
+<text class="t-small t-muted mid" x="586" y="61">G</text>
+<text class="t-mono mid" x="586" y="79">196</text>
+<rect class="f-acc-soft s-strong" x="618" y="44" width="64" height="44"/>
+<text class="t-small t-muted mid" x="650" y="61">B</text>
+<text class="t-mono mid" x="650" y="79">64</text>
+<rect class="f-sunken s-strong" x="682" y="44" width="64" height="44"/>
+<text class="t-small t-muted mid" x="714" y="61">A (alpha)</text>
+<text class="t-mono mid" x="714" y="79">255</text>
+<text class="t-small t-muted" x="752" y="72">= one pixel</text>
+<rect class="f-acc-soft s-strong" x="490" y="108" width="13" height="22"/>
+<rect class="f-acc-soft s-strong" x="503" y="108" width="13" height="22"/>
+<rect class="f-acc-soft s-strong" x="516" y="108" width="13" height="22"/>
+<rect class="f-sunken s-strong" x="529" y="108" width="13" height="22"/>
+<text class="t-mono t-small t-muted mid" x="516" y="146">px 0</text>
+<rect class="f-surface s-strong" x="546" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="559" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="572" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="585" y="108" width="13" height="22"/>
+<text class="t-mono t-small t-muted mid" x="572" y="146">px 1</text>
+<rect class="f-surface s-strong" x="602" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="615" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="628" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="641" y="108" width="13" height="22"/>
+<text class="t-mono t-small t-muted mid" x="628" y="146">px 2</text>
+<rect class="f-surface s-strong" x="658" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="671" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="684" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="697" y="108" width="13" height="22"/>
+<text class="t-mono t-small t-muted mid" x="684" y="146">px 3</text>
+<rect class="f-surface s-strong" x="714" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="727" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="740" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="753" y="108" width="13" height="22"/>
+<text class="t-mono t-small t-muted mid" x="740" y="146">px 4</text>
+<rect class="f-surface s-strong" x="770" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="783" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="796" y="108" width="13" height="22"/>
+<rect class="f-surface s-strong" x="809" y="108" width="13" height="22"/>
+<text class="t-mono t-small t-muted mid" x="796" y="146">px 5</text>
+<text class="t-muted" x="836" y="124">…</text>
+<text class="t-mono" x="490" y="182">1920 × 1080 × 4 bytes = 8,294,400 bytes ≈ 8.3 MB</text>
+<text class="t-mono" x="490" y="202">3840 × 2160 × 4 bytes = 33,177,600 bytes ≈ 33.2 MB</text>
+<text class="t-small t-muted" x="490" y="224">Rows follow each other in memory, top row first.</text>
+</svg>
+                </div>
+                <figcaption><b>A frame is a grid of numbers before it is a picture.</b> Each pixel is a few bytes in the framebuffer. Multiply the bytes per pixel by the pixel count and you have the framebuffer's size: about 8.3 MB at 1080p, 33.2 MB at 4K.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="resolution"><span class="step-num">2</span> Resolution: how many pixels</h3>
+              <p>A picture's <dfn class="term" data-term="resolution">resolution</dfn> is its size in pixels, written width × height. The everyday names count rows: 720p is 1280 × 720, 1080p is 1920 × 1080, 1440p is 2560 × 1440, and 4K (in games and TVs) is 3840 × 2160. The "p" comes from television and means every row is drawn in every refresh.</p>
+              <p>The names hide how fast the numbers grow. Doubling the width and the height quadruples the pixels, so 4K is exactly four times 1080p, not twice. Each of those pixels is coloured by a small program on the GPU, the <a class="term" data-term="pixel-shader" data-forward href="glossary.html#pixel-shader">pixel shader</a>, often several times per frame.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Four screen resolutions drawn to scale as nested rectangles: 720p, 1080p, 1440p and 4K. Beside them, bars to scale of their pixel counts: 921,600, 2,073,600, 3,686,400 and 8,294,400. 4K has four times the pixels of 1080p.">
+<text class="t-caps" x="30" y="22">DRAWN TO SCALE · 1 UNIT = 10 PIXELS</text>
+<rect class="f-acc-soft s-acc" x="30" y="40" width="384" height="216"/>
+<rect class="f-surface s-strong" x="30" y="40" width="256" height="144"/>
+<rect class="f-sunken s-strong" x="30" y="40" width="192" height="108"/>
+<rect class="f-solid s-strong" x="30" y="40" width="128" height="72"/>
+<text class="t-small t-strong end" x="152" y="105">720p</text>
+<text class="t-small t-strong end" x="216" y="141">1080p</text>
+<text class="t-small t-strong end" x="280" y="177">1440p</text>
+<text class="t-small t-strong end" x="408" y="249">4K</text>
+<text class="t-caps" x="470" y="22">PIXELS PER FRAME</text>
+<text class="t-head" x="470" y="59">720p</text>
+<text class="t-small t-muted" x="470" y="74">1280 × 720</text>
+<rect class="f-acc-soft s-acc" x="560" y="44" width="36.9" height="26"/>
+<text class="t-mono t-small" x="604.9" y="62">921,600 · 0.44× 1080p</text>
+<text class="t-head" x="470" y="113">1080p</text>
+<text class="t-small t-muted" x="470" y="128">1920 × 1080</text>
+<rect class="f-acc-soft s-acc" x="560" y="98" width="82.9" height="26"/>
+<text class="t-mono t-small" x="650.9" y="116">2,073,600 · 1× 1080p</text>
+<text class="t-head" x="470" y="167">1440p</text>
+<text class="t-small t-muted" x="470" y="182">2560 × 1440</text>
+<rect class="f-acc-soft s-acc" x="560" y="152" width="147.5" height="26"/>
+<text class="t-mono t-small" x="715.5" y="170">3,686,400 · 1.78× 1080p</text>
+<text class="t-head" x="470" y="221">4K</text>
+<text class="t-small t-muted" x="470" y="236">3840 × 2160</text>
+<rect class="f-acc-soft s-acc" x="560" y="206" width="331.8" height="26"/>
+<text class="t-mono t-small end" x="883.8" y="224">8,294,400 · 4× 1080p</text>
+<text class="t-small t-muted" x="470" y="270">Every one of these pixels is shaded every frame.</text>
+</svg>
+                </div>
+                <figcaption><b>Resolution grows by area.</b> The rectangles and bars are to scale. Going from 1080p to 1440p adds 78% more pixels; going to 4K adds 300%. That is why a game that runs well at 1080p can struggle at 4K on the same GPU.</figcaption>
+              </figure>
+              <p>The resolution the game renders at does not have to match the screen. Many games render at a lower <a class="term" data-term="internal-resolution" data-forward href="glossary.html#internal-resolution">internal resolution</a> and scale the result up, which <a class="xref" data-ch="9.3">9.3 Upscaling and frame generation</a> covers. The screen's own pixel count, its native resolution, is fixed: anything else is stretched to fit, and stretching softens the picture.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="refresh-rate"><span class="step-num">3</span> How a screen draws: scan-out and refresh rate</h3>
+              <p>A screen's <dfn class="term" data-term="refresh-rate">refresh rate</dfn> is how many times per second it redraws, in hertz (Hz). A 60 Hz screen starts a new picture every 16.7 ms; 120 Hz every 8.3 ms; 144 Hz every 6.9 ms. This is the display's clock, and on most screens it never changes while the game runs.</p>
+              <p>Each refresh is a <dfn class="term" data-term="scan-out">scan-out</dfn>: the display hardware reads the framebuffer one row at a time, top to bottom, and updates the matching row of the panel. After the bottom row comes a short pause before the top row starts again, the <dfn class="term" data-term="vertical-blank">vertical blank</dfn>. That pause is the only moment when no row is being read.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 288" role="img" aria-label="Timelines over 50 milliseconds. A 60 Hz display refreshes every 16.7 ms, 120 Hz every 8.3 ms and 144 Hz every 6.9 ms; each refresh is a scan-out followed by a short vertical blank. Below, a game at 60 fps finishes a frame every 16.7 ms and a game at 45 fps every 22.2 ms, which does not line up with any of the displays.">
+<text class="t-caps" x="30" y="22">THE DISPLAY'S CLOCK</text>
+<rect class="f-acc-soft s-acc" x="560" y="12" width="14" height="12"/>
+<text class="t-small" x="580" y="22">scan-out</text>
+<rect class="f-strong" x="650" y="12" width="14" height="12"/>
+<text class="t-small" x="670" y="22">vertical blank (drawn wider than real)</text>
+<text class="t-head" x="30" y="51">60 Hz</text>
+<text class="t-small t-muted" x="30" y="65">16.7 ms per refresh</text>
+<rect class="f-acc-soft s-acc" x="170" y="38" width="214.7" height="22"/>
+<rect class="f-strong" x="384.7" y="38" width="18.7" height="22"/>
+<rect class="f-acc-soft s-acc" x="403.3" y="38" width="214.7" height="22"/>
+<rect class="f-strong" x="618" y="38" width="18.7" height="22"/>
+<rect class="f-acc-soft s-acc" x="636.7" y="38" width="214.7" height="22"/>
+<rect class="f-strong" x="851.3" y="38" width="18.7" height="22"/>
+<text class="t-head" x="30" y="91">120 Hz</text>
+<text class="t-small t-muted" x="30" y="105">8.3 ms per refresh</text>
+<rect class="f-acc-soft s-acc" x="170" y="78" width="107.3" height="22"/>
+<rect class="f-strong" x="277.3" y="78" width="9.3" height="22"/>
+<rect class="f-acc-soft s-acc" x="286.7" y="78" width="107.3" height="22"/>
+<rect class="f-strong" x="394" y="78" width="9.3" height="22"/>
+<rect class="f-acc-soft s-acc" x="403.3" y="78" width="107.3" height="22"/>
+<rect class="f-strong" x="510.7" y="78" width="9.3" height="22"/>
+<rect class="f-acc-soft s-acc" x="520" y="78" width="107.3" height="22"/>
+<rect class="f-strong" x="627.3" y="78" width="9.3" height="22"/>
+<rect class="f-acc-soft s-acc" x="636.7" y="78" width="107.3" height="22"/>
+<rect class="f-strong" x="744" y="78" width="9.3" height="22"/>
+<rect class="f-acc-soft s-acc" x="753.3" y="78" width="107.3" height="22"/>
+<rect class="f-strong" x="860.7" y="78" width="9.3" height="22"/>
+<text class="t-head" x="30" y="131">144 Hz</text>
+<text class="t-small t-muted" x="30" y="145">6.9 ms per refresh</text>
+<rect class="f-acc-soft s-acc" x="170" y="118" width="89.4" height="22"/>
+<rect class="f-strong" x="259.4" y="118" width="7.8" height="22"/>
+<rect class="f-acc-soft s-acc" x="267.2" y="118" width="89.4" height="22"/>
+<rect class="f-strong" x="356.7" y="118" width="7.8" height="22"/>
+<rect class="f-acc-soft s-acc" x="364.4" y="118" width="89.4" height="22"/>
+<rect class="f-strong" x="453.9" y="118" width="7.8" height="22"/>
+<rect class="f-acc-soft s-acc" x="461.7" y="118" width="89.4" height="22"/>
+<rect class="f-strong" x="551.1" y="118" width="7.8" height="22"/>
+<rect class="f-acc-soft s-acc" x="558.9" y="118" width="89.4" height="22"/>
+<rect class="f-strong" x="648.3" y="118" width="7.8" height="22"/>
+<rect class="f-acc-soft s-acc" x="656.1" y="118" width="89.4" height="22"/>
+<rect class="f-strong" x="745.6" y="118" width="7.8" height="22"/>
+<rect class="f-acc-soft s-acc" x="753.3" y="118" width="89.4" height="22"/>
+<rect class="f-strong" x="842.8" y="118" width="7.8" height="22"/>
+<rect class="f-acc-soft s-acc" x="850.6" y="118" width="19.4" height="22"/>
+<line class="s-line" x1="30" y1="162" x2="880" y2="162"/>
+<text class="t-caps" x="30" y="182">THE GAME'S CLOCK</text>
+<text class="t-head" x="30" y="204">Game at 60 fps</text>
+<text class="t-small t-muted" x="30" y="217">16.7 ms per frame</text>
+<rect class="f-solid s-strong" x="170" y="192" width="232.3" height="22"/>
+<text class="t-mono t-small" x="176" y="207">frame 1</text>
+<rect class="f-solid s-strong" x="403.3" y="192" width="232.3" height="22"/>
+<text class="t-mono t-small" x="409.3" y="207">frame 2</text>
+<rect class="f-solid s-strong" x="636.7" y="192" width="232.3" height="22"/>
+<text class="t-mono t-small" x="642.7" y="207">frame 3</text>
+<text class="t-head" x="30" y="238">Game at 45 fps</text>
+<text class="t-small t-muted" x="30" y="251">22.2 ms per frame</text>
+<rect class="f-solid s-strong" x="170" y="226" width="310.1" height="22"/>
+<text class="t-mono t-small" x="176" y="241">frame 1</text>
+<rect class="f-solid s-strong" x="481.1" y="226" width="310.1" height="22"/>
+<text class="t-mono t-small" x="487.1" y="241">frame 2</text>
+<rect class="f-solid s-strong" x="792.2" y="226" width="76.8" height="22"/>
+<text class="t-mono t-small" x="798.2" y="241">frame 3</text>
+<line class="s-muted" x1="170" y1="258" x2="170" y2="264"/>
+<text class="t-mono t-small t-muted mid" x="170" y="280">0 ms</text>
+<line class="s-muted" x1="310" y1="258" x2="310" y2="264"/>
+<text class="t-mono t-small t-muted mid" x="310" y="280">10 ms</text>
+<line class="s-muted" x1="450" y1="258" x2="450" y2="264"/>
+<text class="t-mono t-small t-muted mid" x="450" y="280">20 ms</text>
+<line class="s-muted" x1="590" y1="258" x2="590" y2="264"/>
+<text class="t-mono t-small t-muted mid" x="590" y="280">30 ms</text>
+<line class="s-muted" x1="730" y1="258" x2="730" y2="264"/>
+<text class="t-mono t-small t-muted mid" x="730" y="280">40 ms</text>
+<line class="s-muted" x1="870" y1="258" x2="870" y2="264"/>
+<text class="t-mono t-small t-muted mid" x="870" y="280">50 ms</text>
+</svg>
+                </div>
+                <figcaption><b>The display keeps its own beat; the game keeps another.</b> Refresh rate is set by the screen. Frame rate is however fast the game finishes frames. A 45 fps game on a 60 Hz screen finishes frames at moments that drift across the refreshes, which is the root of tearing and stutter.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The figures draw the vertical blank much wider than it is so you can see it, and treat scan-out as a steady sweep. Real panels differ in detail (some light rows in groups, OLEDs and LCDs respond at different speeds), but every common display still takes its picture out of the framebuffer in order, during the refresh.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="swap-chain"><span class="step-num">4</span> Front buffer, back buffer, present</h3>
+              <p>The GPU cannot draw into the framebuffer the display is reading, or players would watch every frame being painted. So there are at least two. With <dfn class="term" data-term="double-buffering">double buffering</dfn> the display reads the front buffer while the GPU draws the next frame into the back buffer. When the frame is finished, the game calls <dfn class="term" data-term="present">present</dfn>, and the two buffers swap roles.</p>
+              <p>The graphics API manages these buffers as a <dfn class="term" data-term="swap-chain">swap chain</dfn>: a small ring of framebuffers, usually two or three, plus the rules for when a presented frame may become the front buffer. Direct3D calls the step <code>Present</code>; Vulkan calls it <code>vkQueuePresentKHR</code> and names the rules "present modes".</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Three panels. One: the display reads frame 7 from the front buffer while the GPU draws frame 8 into the back buffer. Two: frame 8 is done and the game calls present. Three: the buffers swap roles; frame 8 is now the front buffer and the old front buffer becomes the back buffer, where the GPU starts frame 9.">
+                    <defs>
+                      <marker id="sw-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="sw-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-head" x="20" y="28">1 · Draw and show at once</text>
+                    <rect class="f-surface s-acc w2" x="20" y="48" width="170" height="56" rx="4"/>
+                    <text class="t-small t-strong t-acc" x="32" y="70">Front buffer</text>
+                    <text class="t-mono" x="32" y="91">frame 7</text>
+                    <rect class="f-surface s-strong" x="20" y="146" width="170" height="56" rx="4"/>
+                    <text class="t-small t-strong" x="32" y="168">Back buffer</text>
+                    <text class="t-mono" x="32" y="189">frame 8 · drawing</text>
+                    <rect class="f-sunken s-strong" x="220" y="56" width="60" height="40" rx="3"/>
+                    <text class="t-small t-muted mid" x="250" y="112">display</text>
+                    <rect class="f-surface s-strong" x="220" y="156" width="60" height="36" rx="4"/>
+                    <text class="t-strong mid" x="250" y="179">GPU</text>
+                    <line class="s-muted w15" x1="192" y1="76" x2="216" y2="76" marker-end="url(#sw-arr-m)"/>
+                    <line class="s-muted w15" x1="218" y1="174" x2="194" y2="174" marker-end="url(#sw-arr-m)"/>
+
+                    <text class="t-head" x="315" y="28">2 · Present</text>
+                    <rect class="f-surface s-acc w2" x="315" y="48" width="170" height="56" rx="4"/>
+                    <text class="t-small t-strong t-acc" x="327" y="70">Front buffer</text>
+                    <text class="t-mono" x="327" y="91">frame 7</text>
+                    <rect class="f-acc-soft s-acc" x="315" y="146" width="170" height="56" rx="4"/>
+                    <text class="t-small t-strong" x="327" y="168">Back buffer</text>
+                    <text class="t-mono" x="327" y="189">frame 8 · done</text>
+                    <line class="s-acc w2" x1="400" y1="142" x2="400" y2="110" marker-end="url(#sw-arr)"/>
+                    <text class="t-mono t-acc t-strong" x="410" y="131">present()</text>
+                    <rect class="f-sunken s-strong" x="515" y="56" width="60" height="40" rx="3"/>
+                    <text class="t-small t-muted mid" x="545" y="112">display</text>
+                    <rect class="f-surface s-strong" x="515" y="156" width="60" height="36" rx="4"/>
+                    <text class="t-strong mid" x="545" y="179">GPU</text>
+                    <line class="s-muted w15" x1="487" y1="76" x2="511" y2="76" marker-end="url(#sw-arr-m)"/>
+
+                    <text class="t-head" x="610" y="28">3 · Swap</text>
+                    <rect class="f-surface s-acc w2" x="610" y="48" width="170" height="56" rx="4"/>
+                    <text class="t-small t-strong t-acc" x="622" y="70">Front buffer</text>
+                    <text class="t-mono" x="622" y="91">frame 8</text>
+                    <rect class="f-surface s-strong" x="610" y="146" width="170" height="56" rx="4"/>
+                    <text class="t-small t-strong" x="622" y="166">Back buffer</text>
+                    <text class="t-mono" x="622" y="184">frame 9 · drawing</text>
+                    <text class="t-small t-muted" x="622" y="198">reuses frame 7's memory</text>
+                    <path class="s-acc w15" d="M680,142 C672,128 672,120 680,108" marker-end="url(#sw-arr)"/>
+                    <path class="s-acc w15" d="M710,108 C718,120 718,128 710,142" marker-end="url(#sw-arr)"/>
+                    <rect class="f-sunken s-strong" x="810" y="56" width="60" height="40" rx="3"/>
+                    <text class="t-small t-muted mid" x="840" y="112">display</text>
+                    <rect class="f-surface s-strong" x="810" y="156" width="60" height="36" rx="4"/>
+                    <text class="t-strong mid" x="840" y="179">GPU</text>
+                    <line class="s-muted w15" x1="782" y1="76" x2="806" y2="76" marker-end="url(#sw-arr-m)"/>
+                    <line class="s-muted w15" x1="808" y1="174" x2="784" y2="174" marker-end="url(#sw-arr-m)"/>
+
+                    <text class="t-small" x="20" y="236">The display reads the front buffer while</text>
+                    <text class="t-small" x="20" y="252">the GPU draws into the back buffer.</text>
+                    <text class="t-small" x="315" y="236">The game calls present. When the swap is</text>
+                    <text class="t-small" x="315" y="252">allowed to happen is the whole question.</text>
+                    <text class="t-small" x="610" y="236">The two buffers trade places. Nothing is</text>
+                    <text class="t-small" x="610" y="252">copied; only which one is "front" changes.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A swap chain of two buffers.</b> The swap itself is instant: the display simply starts reading a different block of memory. The rules that follow, vsync and its alternatives, only decide the moment.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="tearing"><span class="step-num">5</span> Tearing: swapping mid-picture</h3>
+              <p>The simplest rule is "swap the moment the frame is done". If that moment falls while the display is reading rows, every row above the scan point came from the old frame and every row below comes from the new one. Anything moving sideways is drawn in two places, offset at a horizontal line: <dfn class="term" data-term="screen-tearing">screen tearing</dfn>. Because the game's clock drifts against the display's, the tear line jumps to a new height every refresh.</p>
+              <p>Try it below. The simulator slows a 60 Hz display down so you can watch each refresh. It opens with vsync off and a game at 45 fps: watch for rose tear lines in the picture and split blocks in the timeline. Then switch the present mode, and come back to it after the next two steps.</p>
+              <figure>
+                <div class="demo" data-demo="tearing-simulator">
+                  <p class="demo-hint">The tearing simulator needs JavaScript. Without it: with vsync off a 45 fps game tears in about 30 of every 60 refreshes; with vsync on it stutters or drops to 30 fps; with VRR every frame stays on screen for the same 22.2 ms.</p>
+                </div>
+                <figcaption><b>Tearing simulator.</b> Top left, what the player sees: rows already read in this refresh are bright, rows still waiting are veiled. Top right, the swap chain. Bottom, a timeline of refreshes against GPU frames; rose blocks are refreshes that show the previous frame again on a fixed refresh, dashed amber lines are finished frames waiting to be shown. The simulated display refreshes at 60 Hz and supports VRR from 30 to 60 Hz.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="vsync"><span class="step-num">6</span> Vsync: wait for the blank</h3>
+              <p><dfn class="term" data-term="vsync">Vsync</dfn> (vertical sync) changes the rule to "swap only during the vertical blank". No row is being read then, so there is never a tear. The cost is waiting: a finished frame sits until the next blank. In Vulkan this is the FIFO present mode, the only one every device must support; in Direct3D it is a sync interval of 1.</p>
+              <p>When the game keeps up with the display, vsync is ideal: one new frame per refresh, evenly spaced. Trouble starts when frames take longer than a refresh. With double buffering, a frame that misses a blank waits for the next one, and the GPU cannot start another frame meanwhile because both buffers are taken. A game that could run at 45 fps is held to 30, and a game that could run at 29 is held to 20.</p>
+              <p><dfn class="term" data-term="triple-buffering">Triple buffering</dfn> adds a third buffer so the GPU can keep drawing while a finished frame waits. The frame rate stays near 45, but the display can only change pictures on its 16.7 ms beat, so some frames stay up for one refresh and some for two. Objects that move at a steady speed appear to lurch: stutter. The extra queued frame also adds up to one frame of delay between input and screen.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="Three timelines of a 45 fps game on a 60 Hz display. Vsync off: the GPU never waits and most refreshes are split by a tear. Vsync on with two buffers: the GPU waits after each frame for the swap, so each frame is shown for two refreshes and the game runs at 30 fps. Vsync on with three buffers: the GPU keeps drawing, and frames are shown for one or two refreshes in an uneven pattern, which is stutter.">
+<defs><clipPath id="vs-clip"><rect x="190" y="0" width="690" height="330"/></clipPath></defs>
+<text class="t-caps" x="20" y="22">A GAME THAT TAKES 22.2 MS PER FRAME (45 FPS) ON A 60 HZ DISPLAY</text>
+<text class="t-head" x="20" y="54">Vsync off</text>
+<text class="t-small t-muted" x="20" y="70">swaps at once: tears,</text>
+<text class="t-small t-muted" x="20" y="84">no waiting</text>
+<text class="t-small t-muted end" x="184" y="55">GPU</text>
+<text class="t-small t-muted end" x="184" y="85">display</text>
+<g clip-path="url(#vs-clip)"><rect class="f-solid s-strong" x="88.1" y="40" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="93.1" y="54">f3</text><rect class="f-solid s-strong" x="219.6" y="40" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="224.6" y="54">f4</text><rect class="f-solid s-strong" x="351" y="40" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="356" y="54">f5</text><rect class="f-solid s-strong" x="482.4" y="40" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="487.4" y="54">f6</text><rect class="f-solid s-strong" x="613.9" y="40" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="618.9" y="54">f7</text><rect class="f-solid s-strong" x="745.3" y="40" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="750.3" y="54">f8</text><rect class="f-solid s-strong" x="876.7" y="40" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="881.7" y="54">f9</text><rect class="f-acc-soft s-acc" x="190" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="195" y="84">f2|f3</text><line class="s-pix w2" x1="219.6" y1="66" x2="219.6" y2="94"/><rect class="f-acc-soft s-acc" x="288.6" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="293.6" y="84">f3|f4</text><line class="s-pix w2" x1="351" y1="66" x2="351" y2="94"/><rect class="f-acc-soft s-acc" x="387.1" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="392.1" y="84">f4</text><rect class="f-acc-soft s-acc" x="485.7" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="490.7" y="84">f5</text><rect class="f-acc-soft s-acc" x="584.3" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="589.3" y="84">f5|f6</text><line class="s-pix w2" x1="613.9" y1="66" x2="613.9" y2="94"/><rect class="f-acc-soft s-acc" x="682.9" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="687.9" y="84">f6|f7</text><line class="s-pix w2" x1="745.3" y1="66" x2="745.3" y2="94"/><rect class="f-acc-soft s-acc" x="781.4" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="786.4" y="84">f7</text><rect class="f-acc-soft s-acc" x="880" y="70" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="885" y="84">f8</text></g>
+<text class="t-head" x="20" y="146">Vsync on, 2 buffers</text>
+<text class="t-small t-muted" x="20" y="162">GPU waits for each swap:</text>
+<text class="t-small t-muted" x="20" y="176">locked to 30 fps</text>
+<text class="t-small t-muted end" x="184" y="147">GPU</text>
+<text class="t-small t-muted end" x="184" y="177">display</text>
+<g clip-path="url(#vs-clip)"><rect class="f-solid s-strong" x="190" y="132" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="195" y="146">f3</text><line class="s-lit w2 dash" x1="321.4" y1="142" x2="387.1" y2="142"/><rect class="f-solid s-strong" x="387.1" y="132" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="392.1" y="146">f4</text><line class="s-lit w2 dash" x1="518.6" y1="142" x2="584.3" y2="142"/><rect class="f-solid s-strong" x="584.3" y="132" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="589.3" y="146">f5</text><line class="s-lit w2 dash" x1="715.7" y1="142" x2="781.4" y2="142"/><rect class="f-solid s-strong" x="781.4" y="132" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="786.4" y="146">f6</text><line class="s-lit w2 dash" x1="912.9" y1="142" x2="978.6" y2="142"/><rect class="f-acc-soft s-acc" x="190" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="195" y="176">f2</text><rect class="f-pix-soft s-pix" x="288.6" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small t-pix" x="293.6" y="176">f2 again</text><rect class="f-acc-soft s-acc" x="387.1" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="392.1" y="176">f3</text><rect class="f-pix-soft s-pix" x="485.7" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small t-pix" x="490.7" y="176">f3 again</text><rect class="f-acc-soft s-acc" x="584.3" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="589.3" y="176">f4</text><rect class="f-pix-soft s-pix" x="682.9" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small t-pix" x="687.9" y="176">f4 again</text><rect class="f-acc-soft s-acc" x="781.4" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="786.4" y="176">f5</text><rect class="f-pix-soft s-pix" x="880" y="162" width="90.7" height="20" rx="2"/><text class="t-mono t-small t-pix" x="885" y="176">f5 again</text></g>
+<text class="t-head" x="20" y="238">Vsync on, 3 buffers</text>
+<text class="t-small t-muted" x="20" y="254">GPU draws ahead: frames</text>
+<text class="t-small t-muted" x="20" y="268">held 1 or 2 refreshes</text>
+<text class="t-small t-muted end" x="184" y="239">GPU</text>
+<text class="t-small t-muted end" x="184" y="269">display</text>
+<g clip-path="url(#vs-clip)"><rect class="f-solid s-strong" x="88.1" y="224" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="93.1" y="238">f3</text><line class="s-lit w2 dash" x1="219.6" y1="234" x2="288.6" y2="234"/><rect class="f-solid s-strong" x="219.6" y="224" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="224.6" y="238">f4</text><line class="s-lit w2 dash" x1="351" y1="234" x2="387.1" y2="234"/><rect class="f-solid s-strong" x="351" y="224" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="356" y="238">f5</text><rect class="f-solid s-strong" x="482.4" y="224" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="487.4" y="238">f6</text><line class="s-lit w2 dash" x1="613.9" y1="234" x2="682.9" y2="234"/><rect class="f-solid s-strong" x="613.9" y="224" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="618.9" y="238">f7</text><line class="s-lit w2 dash" x1="745.3" y1="234" x2="781.4" y2="234"/><rect class="f-solid s-strong" x="745.3" y="224" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="750.3" y="238">f8</text><rect class="f-solid s-strong" x="876.7" y="224" width="130.4" height="20" rx="2"/><text class="t-mono t-small" x="881.7" y="238">f9</text><line class="s-lit w2 dash" x1="1008.1" y1="234" x2="1077.1" y2="234"/><rect class="f-pix-soft s-pix" x="190" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small t-pix" x="195" y="268">f2 again</text><rect class="f-acc-soft s-acc" x="288.6" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="293.6" y="268">f3</text><rect class="f-acc-soft s-acc" x="387.1" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="392.1" y="268">f4</text><rect class="f-acc-soft s-acc" x="485.7" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="490.7" y="268">f5</text><rect class="f-pix-soft s-pix" x="584.3" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small t-pix" x="589.3" y="268">f5 again</text><rect class="f-acc-soft s-acc" x="682.9" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="687.9" y="268">f6</text><rect class="f-acc-soft s-acc" x="781.4" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="786.4" y="268">f7</text><rect class="f-acc-soft s-acc" x="880" y="254" width="90.7" height="20" rx="2"/><text class="t-mono t-small" x="885" y="268">f8</text></g>
+<line class="s-muted" x1="190" y1="308" x2="190" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="190" y="324">0 ms</text>
+<line class="s-muted" x1="288.6" y1="308" x2="288.6" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="288.6" y="324">16.7 ms</text>
+<line class="s-muted" x1="387.1" y1="308" x2="387.1" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="387.1" y="324">33.3 ms</text>
+<line class="s-muted" x1="485.7" y1="308" x2="485.7" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="485.7" y="324">50 ms</text>
+<line class="s-muted" x1="584.3" y1="308" x2="584.3" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="584.3" y="324">66.7 ms</text>
+<line class="s-muted" x1="682.9" y1="308" x2="682.9" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="682.9" y="324">83.3 ms</text>
+<line class="s-muted" x1="781.4" y1="308" x2="781.4" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="781.4" y="324">100 ms</text>
+<line class="s-muted" x1="880" y1="308" x2="880" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="880" y="324">116.7 ms</text>
+</svg>
+                </div>
+                <figcaption><b>Three ways to show the same 45 fps game.</b> Without vsync the GPU never waits but most refreshes tear. With vsync and two buffers each frame stays up for exactly two refreshes: even, but only 30 fps. With three buffers the GPU never idles, but frames stay up for 16.7 or 33.3 ms in a repeating pattern (rose blocks are repeats), which the eye reads as stutter. Dashed amber lines are finished frames waiting for a blank.</figcaption>
+              </figure>
+              <p>This is why fixed-refresh games aim for a frame rate that divides the refresh rate exactly: 60 or 30 on a 60 Hz screen, 120, 60 or 40 on a 120 Hz screen. A steady 30 fps feels smoother than a frame rate wandering between 40 and 59.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="vrr"><span class="step-num">7</span> Variable refresh rate: the screen waits instead</h3>
+              <p>With <dfn class="term" data-term="vrr">variable refresh rate</dfn> (VRR), the display stops keeping its own beat. It holds the vertical blank open until the next frame is presented, then scans that frame out at once. Every frame is shown as soon as it is ready and stays up until the next one arrives, so there is no tearing and no uneven holding. NVIDIA sells this as G-SYNC, AMD as FreeSync, and HDMI 2.1 added its own version, HDMI VRR.</p>
+              <p>VRR works inside a range set by the panel, such as 48 to 144 Hz. Above the top of the range the screen cannot refresh any faster, so the game either tears or falls back to vsync. Below the bottom, the panel cannot hold a picture long enough, so the driver shows each frame two or more times, evenly spaced. AMD calls this low framerate compensation (LFC): a 35 fps game on a 48 to 144 Hz monitor is shown at 70 refreshes a second, each frame twice.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="Three timelines. A 50 fps game on a fixed 60 Hz display with vsync: four frames each stay up for one refresh and the fifth for two, an uneven rhythm. The same game on a VRR display with a 48 to 144 Hz range: the display refreshes when each frame is finished, every 20 ms, so every frame stays up equally long. A 35 fps game on the same VRR display is below its range: the display shows each frame twice, 70 times a second, which keeps the rhythm even.">
+<defs><clipPath id="vr-clip"><rect x="190" y="0" width="690" height="330"/></clipPath></defs>
+<text class="t-caps" x="20" y="22">THE SAME FRAMES, FIXED REFRESH AGAINST VARIABLE REFRESH</text>
+<text class="t-head" x="20" y="54">Fixed 60 Hz, vsync</text>
+<text class="t-small t-muted" x="20" y="70">50 fps: one frame in</text>
+<text class="t-small t-muted" x="20" y="84">five stays up twice</text>
+<text class="t-small t-muted end" x="184" y="55">GPU</text>
+<text class="t-small t-muted end" x="184" y="85">display</text>
+<g clip-path="url(#vr-clip)"><rect class="f-solid s-strong" x="103.8" y="40" width="114" height="20" rx="2"/><text class="t-mono t-small" x="108.8" y="54">f5</text><line class="s-lit w2 dash" x1="218.8" y1="50" x2="285.8" y2="50"/><rect class="f-solid s-strong" x="218.8" y="40" width="114" height="20" rx="2"/><text class="t-mono t-small" x="223.8" y="54">f6</text><line class="s-lit w2 dash" x1="333.8" y1="50" x2="381.7" y2="50"/><rect class="f-solid s-strong" x="333.8" y="40" width="114" height="20" rx="2"/><text class="t-mono t-small" x="338.8" y="54">f7</text><line class="s-lit w2 dash" x1="448.8" y1="50" x2="477.5" y2="50"/><rect class="f-solid s-strong" x="448.8" y="40" width="114" height="20" rx="2"/><text class="t-mono t-small" x="453.8" y="54">f8</text><line class="s-lit w2 dash" x1="563.8" y1="50" x2="573.3" y2="50"/><rect class="f-solid s-strong" x="563.8" y="40" width="114" height="20" rx="2"/><text class="t-mono t-small" x="568.8" y="54">f9</text><line class="s-lit w2 dash" x1="678.8" y1="50" x2="765" y2="50"/><rect class="f-solid s-strong" x="678.8" y="40" width="114" height="20" rx="2"/><text class="t-mono t-small" x="683.8" y="54">f10</text><line class="s-lit w2 dash" x1="793.8" y1="50" x2="860.8" y2="50"/><rect class="f-solid s-strong" x="793.8" y="40" width="114" height="20" rx="2"/><text class="t-mono t-small" x="798.8" y="54">f11</text><line class="s-lit w2 dash" x1="908.8" y1="50" x2="956.7" y2="50"/><rect class="f-acc-soft s-acc" x="190" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small" x="195" y="84">f4</text><rect class="f-acc-soft s-acc" x="285.8" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small" x="290.8" y="84">f5</text><rect class="f-acc-soft s-acc" x="381.7" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small" x="386.7" y="84">f6</text><rect class="f-acc-soft s-acc" x="477.5" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small" x="482.5" y="84">f7</text><rect class="f-acc-soft s-acc" x="573.3" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small" x="578.3" y="84">f8</text><rect class="f-pix-soft s-pix" x="669.2" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small t-pix" x="674.2" y="84">f8 again</text><rect class="f-acc-soft s-acc" x="765" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small" x="770" y="84">f9</text><rect class="f-acc-soft s-acc" x="860.8" y="70" width="88.2" height="20" rx="2"/><text class="t-mono t-small" x="865.8" y="84">f10</text></g>
+<text class="t-head" x="20" y="146">VRR, 48 to 144 Hz</text>
+<text class="t-small t-muted" x="20" y="162">50 fps: a refresh every</text>
+<text class="t-small t-muted" x="20" y="176">20 ms, as frames land</text>
+<text class="t-small t-muted end" x="184" y="147">GPU</text>
+<text class="t-small t-muted end" x="184" y="177">display</text>
+<g clip-path="url(#vr-clip)"><rect class="f-solid s-strong" x="86.5" y="132" width="114" height="20" rx="2"/><text class="t-mono t-small" x="91.5" y="146">f1</text><rect class="f-solid s-strong" x="201.5" y="132" width="114" height="20" rx="2"/><text class="t-mono t-small" x="206.5" y="146">f2</text><rect class="f-solid s-strong" x="316.5" y="132" width="114" height="20" rx="2"/><text class="t-mono t-small" x="321.5" y="146">f3</text><rect class="f-solid s-strong" x="431.5" y="132" width="114" height="20" rx="2"/><text class="t-mono t-small" x="436.5" y="146">f4</text><rect class="f-solid s-strong" x="546.5" y="132" width="114" height="20" rx="2"/><text class="t-mono t-small" x="551.5" y="146">f5</text><rect class="f-solid s-strong" x="661.5" y="132" width="114" height="20" rx="2"/><text class="t-mono t-small" x="666.5" y="146">f6</text><rect class="f-solid s-strong" x="776.5" y="132" width="114" height="20" rx="2"/><text class="t-mono t-small" x="781.5" y="146">f7</text><rect class="f-acc-soft s-acc" x="201.5" y="162" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="206.5" y="176">f1</text><rect class="f-acc-soft s-acc" x="316.5" y="162" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="321.5" y="176">f2</text><rect class="f-acc-soft s-acc" x="431.5" y="162" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="436.5" y="176">f3</text><rect class="f-acc-soft s-acc" x="546.5" y="162" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="551.5" y="176">f4</text><rect class="f-acc-soft s-acc" x="661.5" y="162" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="666.5" y="176">f5</text><rect class="f-acc-soft s-acc" x="776.5" y="162" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="781.5" y="176">f6</text><rect class="f-acc-soft s-acc" x="891.5" y="162" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="896.5" y="176">f7</text></g>
+<text class="t-head" x="20" y="238">VRR, below its range</text>
+<text class="t-small t-muted" x="20" y="254">35 fps: each frame twice,</text>
+<text class="t-small t-muted" x="20" y="268">70 Hz refresh (LFC)</text>
+<text class="t-small t-muted end" x="184" y="239">GPU</text>
+<text class="t-small t-muted end" x="184" y="269">display</text>
+<g clip-path="url(#vr-clip)"><rect class="f-solid s-strong" x="37.2" y="224" width="163.3" height="20" rx="2"/><text class="t-mono t-small" x="42.2" y="238">f1</text><rect class="f-solid s-strong" x="201.5" y="224" width="163.3" height="20" rx="2"/><text class="t-mono t-small" x="206.5" y="238">f2</text><rect class="f-solid s-strong" x="365.8" y="224" width="163.3" height="20" rx="2"/><text class="t-mono t-small" x="370.8" y="238">f3</text><rect class="f-solid s-strong" x="530.1" y="224" width="163.3" height="20" rx="2"/><text class="t-mono t-small" x="535.1" y="238">f4</text><rect class="f-solid s-strong" x="694.4" y="224" width="163.3" height="20" rx="2"/><text class="t-mono t-small" x="699.4" y="238">f5</text><rect class="f-solid s-strong" x="858.6" y="224" width="163.3" height="20" rx="2"/><text class="t-mono t-small" x="863.6" y="238">f6</text><rect class="f-acc-soft s-acc" x="201.5" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="206.5" y="268">f1</text><rect class="f-acc-soft s-acc" x="283.6" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="288.6" y="268">again</text><rect class="f-acc-soft s-acc" x="365.8" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="370.8" y="268">f2</text><rect class="f-acc-soft s-acc" x="447.9" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="452.9" y="268">again</text><rect class="f-acc-soft s-acc" x="530.1" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="535.1" y="268">f3</text><rect class="f-acc-soft s-acc" x="612.2" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="617.2" y="268">again</text><rect class="f-acc-soft s-acc" x="694.4" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="699.4" y="268">f4</text><rect class="f-acc-soft s-acc" x="776.5" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="781.5" y="268">again</text><rect class="f-acc-soft s-acc" x="858.6" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="863.6" y="268">f5</text><rect class="f-acc-soft s-acc" x="940.8" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="945.8" y="268">again</text><rect class="f-acc-soft s-acc" x="1022.9" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="1027.9" y="268">f6</text><rect class="f-acc-soft s-acc" x="1105.1" y="254" width="36.7" height="20" rx="2"/><text class="t-mono t-small" x="1110.1" y="268">again</text></g>
+<line class="s-muted" x1="190" y1="308" x2="190" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="190" y="324">0 ms</text>
+<line class="s-muted" x1="305" y1="308" x2="305" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="305" y="324">20 ms</text>
+<line class="s-muted" x1="420" y1="308" x2="420" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="420" y="324">40 ms</text>
+<line class="s-muted" x1="535" y1="308" x2="535" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="535" y="324">60 ms</text>
+<line class="s-muted" x1="650" y1="308" x2="650" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="650" y="324">80 ms</text>
+<line class="s-muted" x1="765" y1="308" x2="765" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="765" y="324">100 ms</text>
+<line class="s-muted" x1="880" y1="308" x2="880" y2="313"/>
+<text class="t-mono t-small t-muted mid" x="880" y="324">120 ms</text>
+</svg>
+                </div>
+                <figcaption><b>VRR keeps the rhythm of the game.</b> On a fixed 60 Hz screen a 50 fps game holds one frame in five for two refreshes. On a VRR screen the refresh follows the frames, so every frame stays up for the same 20 ms. Below the panel's range, frames are repeated evenly, which keeps motion steady.</figcaption>
+              </figure>
+              <aside class="note" data-kind="warning">
+                <p class="note-label">On Windows</p>
+                <p>Microsoft's documentation states that variable refresh rate displays need tearing to be allowed in the swap chain: the game presents with a sync interval of 0 and the <code>DXGI_PRESENT_ALLOW_TEARING</code> flag, on a flip-model swap chain. Engines handle this, but custom renderers and ports often miss it, and VRR then silently does nothing in windowed and borderless modes.</p>
+              </aside>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The numbers behind every timing figure in this chapter</summary>
+                <div class="fold-body">
+                  <p>Time per refresh and time per frame:</p>
+                  <p class="formula">refresh period (ms) = 1000 / refresh rate (Hz)&nbsp;&nbsp;&nbsp;frame time (ms) = 1000 / frame rate (fps)</p>
+                  <p>Under vsync with double buffering, a frame that takes longer than one refresh is held for whole refreshes:</p>
+                  <p class="formula">shown frame rate = refresh rate / ceil(frame time / refresh period)</p>
+                  <p>A 22.2 ms frame on a 16.7 ms refresh needs ceil(1.33) = 2 refreshes, so 60 / 2 = 30 fps. With triple buffering the average stays at the game's own rate, but each frame is held for either floor or ceil of that ratio: 1 or 2 refreshes at 45 fps.</p>
+                  <p>Pixel throughput, a rough guide to GPU load:</p>
+                  <p class="formula">pixels per second = width × height × frame rate</p>
+                </div>
+              </details>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Two bills come out of this chapter: GPU time, which grows with pixels and frame rate, and delay, which grows with waiting and buffering.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Target</th><th scope="col" class="num">Pixels per frame</th><th scope="col" class="num">× 1080p</th><th scope="col" class="num">Time per frame</th><th scope="col" class="num">Pixels per second</th><th scope="col" class="num">4-byte framebuffer</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">720p at 60 fps</th><td class="num">921,600</td><td class="num">0.44</td><td class="num">16.7 ms</td><td class="num">55 million</td><td class="num">3.7 MB</td></tr>
+                  <tr><th scope="row">1080p at 60 fps</th><td class="num">2,073,600</td><td class="num">1</td><td class="num">16.7 ms</td><td class="num">124 million</td><td class="num">8.3 MB</td></tr>
+                  <tr><th scope="row">1440p at 144 fps</th><td class="num">3,686,400</td><td class="num">1.78</td><td class="num">6.9 ms</td><td class="num">531 million</td><td class="num">14.7 MB</td></tr>
+                  <tr><th scope="row">4K at 60 fps</th><td class="num">8,294,400</td><td class="num">4</td><td class="num">16.7 ms</td><td class="num">498 million</td><td class="num">33.2 MB</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>A competitive player at 1440p and 144 fps asks the GPU for more pixels per second than a 4K player at 60, in well under half the time per frame. The framebuffers themselves are small next to the textures and the intermediate images a modern frame uses, many of which are also screen-sized and so scale the same way.</p>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Stacked bars for an example frame at four resolutions: 4 ms of work that does not depend on resolution plus 6 ms of per-pixel work at 1080p, scaled by pixel count. 720p takes 6.7 ms, 1080p 10 ms, 1440p 14.7 ms and 4K 28 ms. Lines mark the budgets for 120, 60 and 30 fps.">
+<text class="t-caps" x="20" y="22">AN EXAMPLE FRAME AT FOUR RESOLUTIONS</text>
+<rect class="f-solid s-strong" x="470" y="12" width="14" height="12"/>
+<text class="t-small" x="490" y="22">fixed work: 4 ms</text>
+<rect class="f-acc-soft s-acc" x="600" y="12" width="14" height="12"/>
+<text class="t-small" x="620" y="22">per-pixel work: 6 ms at 1080p, scaled</text>
+<line class="s-muted dash" x1="316.6" y1="40" x2="316.6" y2="228"/>
+<text class="t-small t-muted mid" x="316.6" y="242">120 fps · 8.3 ms</text>
+<line class="s-muted dash" x1="483.4" y1="40" x2="483.4" y2="228"/>
+<text class="t-small t-muted mid" x="483.4" y="242">60 fps · 16.7 ms</text>
+<line class="s-muted dash" x1="816.6" y1="40" x2="816.6" y2="228"/>
+<text class="t-small t-muted mid" x="816.6" y="242">30 fps · 33.3 ms</text>
+<text class="t-head" x="20" y="66">720p</text>
+<rect class="f-solid s-strong" x="150" y="48" width="80" height="28"/>
+<rect class="f-acc-soft s-acc" x="230" y="48" width="53.3" height="28"/>
+<rect class="f-surface" x="287.3" y="53" width="113.6" height="18" rx="3"/>
+<text class="t-mono t-small" x="291.3" y="66">6.7 ms · 150 fps</text>
+<text class="t-head" x="20" y="110">1080p</text>
+<rect class="f-solid s-strong" x="150" y="92" width="80" height="28"/>
+<rect class="f-acc-soft s-acc" x="230" y="92" width="120" height="28"/>
+<rect class="f-surface" x="354" y="97" width="120.2" height="18" rx="3"/>
+<text class="t-mono t-small" x="358" y="110">10.0 ms · 100 fps</text>
+<text class="t-head" x="20" y="154">1440p</text>
+<rect class="f-solid s-strong" x="150" y="136" width="80" height="28"/>
+<rect class="f-acc-soft s-acc" x="230" y="136" width="213.3" height="28"/>
+<rect class="f-surface" x="447.3" y="141" width="113.6" height="18" rx="3"/>
+<text class="t-mono t-small" x="451.3" y="154">14.7 ms · 68 fps</text>
+<text class="t-head" x="20" y="198">4K</text>
+<rect class="f-solid s-strong" x="150" y="180" width="80" height="28"/>
+<rect class="f-acc-soft s-acc" x="230" y="180" width="480" height="28"/>
+<rect class="f-surface" x="714" y="185" width="113.6" height="18" rx="3"/>
+<text class="t-mono t-small" x="718" y="198">28.0 ms · 35 fps</text>
+</svg>
+              </div>
+              <figcaption><b>Resolution multiplies only the per-pixel part of a frame.</b> In this example frame, 4 ms of work does not depend on resolution and 6 ms at 1080p does. 1440p still fits a 60 fps budget. 4K needs 28 ms, far over it; on a 60 Hz screen with vsync that becomes 30 fps. Real frames split differently, which is why profiling at the target resolution matters.</figcaption>
+            </figure>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Pixels</strong><span>Per-pixel work scales with width × height. 4K costs four times 1080p for every full-screen effect.</span></li>
+              <li><strong>Frame rate target</strong><span>The <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a> shrinks from 16.7 ms at 60 fps to 8.3 ms at 120 and 6.9 ms at 144.</span></li>
+              <li><strong>Full-screen passes</strong><span>Every screen-sized <a class="term" data-term="render-pass" data-forward href="glossary.html#render-pass">render pass</a> (lighting, effects, post) is paid again at the higher pixel count.</span></li>
+              <li><strong>Waiting under vsync</strong><span>A finished frame can wait up to one refresh for the blank: up to 16.7 ms at 60 Hz.</span></li>
+              <li><strong>Queued frames</strong><span>Each extra frame allowed in the queue (triple buffering, a deeper driver queue) can add one more frame of delay between a button press and the screen.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>A swap chain of three 4K framebuffers is about 100 MB, a small share of a modern GPU's memory. Resolution's real cost is time, not memory. That is why upscaling, which draws fewer pixels and reconstructs the rest, became standard on every platform.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Display problems are easy to describe badly. "It feels choppy" can mean any of the five below. Ask for a video, or a frame-time graph, and match it to a picture.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A screen showing a vertical pillar that is broken at two horizontal lines, each piece shifted sideways.">
+                    <rect class="f-sunken s-strong" x="30" y="10" width="180" height="110"/>
+                    <rect class="f-acc" x="96" y="10" width="20" height="40"/>
+                    <rect class="f-acc" x="112" y="50" width="20" height="38"/>
+                    <rect class="f-acc" x="126" y="88" width="20" height="32"/>
+                    <line class="s-pix w2" x1="30" y1="50" x2="210" y2="50"/>
+                    <line class="s-pix w2" x1="30" y1="88" x2="210" y2="88"/>
+                  </svg>
+                </div>
+                <h4>Torn picture</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Vsync is off, or VRR is not active, so frames swap while the display is reading rows. Worst on fast sideways camera pans.</dd></div>
+                  <div><dt>Ask for</dt><dd>Vsync and VRR options in the settings menu, a check that VRR actually engages in borderless mode, and a frame cap just under the refresh rate for VRR players.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A ball moving across the screen drawn at successive positions; the gaps between positions are uneven, with one position drawn twice.">
+                    <line class="s-line" x1="20" y1="96" x2="220" y2="96"/>
+                    <circle class="f-acc" cx="34" cy="70" r="12"/>
+                    <circle class="f-acc" cx="70" cy="70" r="12" fill-opacity="0.85"/>
+                    <circle class="f-pix" cx="106" cy="70" r="12"/>
+                    <circle class="s-pix w2" cx="106" cy="70" r="17"/>
+                    <circle class="f-acc" cx="160" cy="70" r="12" fill-opacity="0.85"/>
+                    <circle class="f-acc" cx="196" cy="70" r="12"/>
+                    <text class="t-small t-pix mid" x="106" y="30">held twice</text>
+                    <text class="t-small t-muted mid" x="120" y="118">16.7 · 16.7 · 33.3 · 16.7 ms</text>
+                  </svg>
+                </div>
+                <h4>Stutter at a decent frame rate</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Vsync on a fixed-refresh screen with a frame rate that does not divide the refresh rate, such as 45 to 55 fps at 60 Hz. Frames stay up for one or two refreshes unevenly. Uneven frame times from the game itself look the same.</dd></div>
+                  <div><dt>Ask for</dt><dd>A frame-time graph, not an average fps number. Then a cap at 30 or 60, a lighter preset, dynamic resolution, or VRR support.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time graph that sits flat at 33 milliseconds, well below a dashed 60 fps target line and far above the game's real 22 millisecond frame time.">
+                    <line class="s-strong" x1="30" y1="112" x2="220" y2="112"/>
+                    <line class="s-strong" x1="30" y1="12" x2="30" y2="112"/>
+                    <line class="s-acc dash" x1="30" y1="78" x2="220" y2="78"/>
+                    <text class="t-small t-acc" x="36" y="74">60 fps · 16.7 ms</text>
+                    <polyline class="s-pix w2" points="30,44 220,44"/>
+                    <text class="t-small t-pix" x="36" y="38">shown: 33.3 ms (30 fps)</text>
+                    <polyline class="s-muted dash" points="30,64 220,64"/>
+                    <text class="t-small t-muted" x="122" y="60">GPU: 22 ms</text>
+                  </svg>
+                </div>
+                <h4>Stuck at exactly 30 (or 20)</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Double-buffered vsync. The GPU could manage 45 fps but has to wait for every swap, so a frame that misses one refresh waits for the next.</dd></div>
+                  <div><dt>Ask for</dt><dd>The swap chain's buffer count and present mode, GPU time per frame from a profiler, and whether a third buffer or VRR is acceptable for this platform.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A button press on the left and the screen reacting on the right, with three queued frames between them on a timeline.">
+                    <circle class="f-acc" cx="34" cy="60" r="14"/>
+                    <text class="t-small mid" x="34" y="98">press</text>
+                    <rect class="f-solid s-strong" x="64" y="48" width="38" height="24" rx="3"/>
+                    <rect class="f-lit-soft s-lit" x="106" y="48" width="38" height="24" rx="3"/>
+                    <rect class="f-lit-soft s-lit" x="148" y="48" width="38" height="24" rx="3"/>
+                    <rect class="f-sunken s-strong" x="196" y="42" width="32" height="36" rx="3"/>
+                    <text class="t-small mid" x="212" y="98">screen</text>
+                    <line class="s-pix w2" x1="34" y1="114" x2="212" y2="114"/>
+                    <text class="t-small t-pix mid" x="124" y="30">frames queued ahead</text>
+                  </svg>
+                </div>
+                <h4>Sluggish, floaty controls</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too many frames between input and screen: vsync waits plus a deep queue of finished frames, often from triple buffering with a GPU faster than the refresh rate.</dd></div>
+                  <div><dt>Ask for</dt><dd>A latency measurement, the queue depth (for example Unity's <code>maxQueuedFrames</code> or Godot's <code>frame_queue_size</code>), and a frame cap slightly below the refresh rate.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A diagonal edge drawn with large blocky pixels that have been smeared, next to the same edge drawn crisply.">
+                    <defs><filter id="sy-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.5"/></filter></defs>
+                    <g filter="url(#sy-soft)">
+                      <rect class="f-ink" x="20" y="90" width="20" height="20"/><rect class="f-ink" x="40" y="70" width="20" height="40"/><rect class="f-ink" x="60" y="50" width="20" height="60"/><rect class="f-ink" x="80" y="30" width="20" height="80"/><rect class="f-ink" x="100" y="10" width="10" height="100"/>
+                    </g>
+                    <polygon class="f-ink" points="130,110 220,10 220,110"/>
+                    <text class="t-small t-muted mid" x="65" y="126">stretched</text>
+                    <text class="t-small t-muted mid" x="180" y="126">native</text>
+                  </svg>
+                </div>
+                <h4>Soft or blocky image</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The game outputs a resolution other than the screen's native one and the screen stretches it, or the render scale is below 100% without a good upscaler.</dd></div>
+                  <div><dt>Ask for</dt><dd>The output resolution against the panel's native resolution, the render scale, and whether the interface is drawn at native resolution.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>A tear, a stutter and a 30 fps lock can all coexist in one complaint. Ask for the present mode, the refresh rate of the player's screen and a frame-time graph before anyone changes code.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Every engine manages the swap chain for you. What you set are the rules: vsync, frame caps, buffer counts and resolutions, usually from a settings menu backed by these calls.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Vsync</th>
+                    <td><code>UGameUserSettings</code>: <strong>SetVSyncEnabled</strong>, then apply the settings. Console variable <code>r.VSync</code>.</td>
+                    <td>Quality settings: <strong>VSync Count</strong>; in code <code>QualitySettings.vSyncCount</code>, 0 to 4, default 1. Ignored on Android and iOS, and in VR.</td>
+                    <td>Project setting <code>display/window/vsync/vsync_mode</code>: Disabled, Enabled (default), Adaptive, Mailbox. At runtime <code>DisplayServer.window_set_vsync_mode()</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Frame cap</th>
+                    <td><strong>SetFrameRateLimit</strong> (0 turns the limit off). Project Settings, General Settings, Framerate: <strong>Smooth Frame Rate</strong> and <strong>Use Fixed Frame Rate</strong>.</td>
+                    <td><code>Application.targetFrameRate</code>. On desktop it only applies when <code>vSyncCount</code> is 0, and Unity's docs recommend vsync when smooth pacing matters. On Android the default is 30 fps.</td>
+                    <td><code>application/run/max_fps</code> (0 means no limit). Vsync takes precedence when enabled.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Swap chain and queue</th>
+                    <td>Not exposed as a project setting in the documentation we checked.</td>
+                    <td><code>QualitySettings.maxQueuedFrames</code>: frames the driver may queue, default 2 on PC. Direct3D 11, Direct3D 12 and Vulkan only.</td>
+                    <td><code>rendering/rendering_device/vsync/swapchain_image_count</code> (default 3: triple buffering) and <code>rendering/rendering_device/vsync/frame_queue_size</code> (default 2).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Output resolution</th>
+                    <td><strong>SetScreenResolution</strong> and <strong>SetFullscreenMode</strong> on <code>UGameUserSettings</code>.</td>
+                    <td><code>Screen.SetResolution(width, height, FullScreenMode, RefreshRate)</code>. Changing refresh rate only works in exclusive full screen.</td>
+                    <td><code>display/window/size/viewport_width</code> and <code>viewport_height</code> (default 1152 × 648); window mode in <code>display/window/size/mode</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Render resolution</th>
+                    <td><strong>SetResolutionScaleValueEx</strong>; dynamic resolution with <strong>SetDynamicResolutionEnabled</strong>.</td>
+                    <td>URP Asset: <strong>Render Scale</strong>. The interface stays at native resolution.</td>
+                    <td><code>rendering/scaling_3d/scale</code> (default 1.0) with a choice of scaling filter.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.8, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">A cap for VRR players</p>
+              <p>Godot's documentation recommends, with vsync on and a VRR monitor, capping the frame rate slightly below the refresh rate, using <code>r − r² / 3600</code>: about 138 fps on a 144 Hz monitor. The cap keeps the game inside the VRR range, where it neither tears nor waits for vsync. The same reasoning applies in any engine.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about display behaviour name the engine, the platforms and the screens players use, and describe what is seen in time, not just "it feels bad". Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when building the display settings menu</span></div>
+              <pre class="prompt-body">Engine: Godot 4.7, Forward+. Platforms: Windows PC and Steam Deck.
+We need a Display settings screen with: window mode, output resolution, render scale, vsync (off / on / adaptive), and a frame rate cap.
+
+1. List the project settings and runtime calls you will use for each option, and which ones need a restart.
+2. Default vsync on, and when the player has a VRR monitor, suggest a cap just below the refresh rate. Explain the formula you use.
+3. Keep the interface at native resolution when the render scale is below 100%.
+4. Describe how a tester can confirm each option works: what to look for on screen and in the frame-time graph.</pre>
+              <ul class="prompt-why">
+                <li>Naming the platforms tells the AI which screens and refresh rates to expect.</li>
+                <li>Asking which options need a restart catches settings that are only read at startup.</li>
+                <li>A test plan per option turns "it works" into something QA can check.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when motion stutters at a good frame rate</span></div>
+              <pre class="prompt-body">Unreal Engine 5, Windows, DirectX 12. Players on 60 Hz monitors report stutter when panning the camera, even though the fps counter shows 48 to 55. Players on 144 Hz VRR monitors do not report it. Vsync is on.
+
+Explain the likely cause in terms of refresh rate, frame time and how long each frame stays on screen. Propose two fixes with their trade-offs (for example a 30 fps cap option, dynamic resolution to hold 60), and say what we should capture (frame-time graph, present timing) to confirm the cause before and after.</pre>
+              <ul class="prompt-why">
+                <li>The 60 Hz against VRR pattern points straight at vsync judder, not a game bug.</li>
+                <li>Asking for trade-offs stops a single "turn vsync off" answer that brings tearing back.</li>
+                <li>Capturing before and after turns a feeling into evidence.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing display code</h3>
+            <ol class="review-list">
+              <li>What happens when the game cannot hold the target frame rate on a 60 Hz screen?<span class="why">The answer should name the present mode and buffer count, and whether players see 30 fps, stutter or tearing.</span></li>
+              <li>How many frames can be queued between input and screen?<span class="why">Each one can add a frame of delay; the setting is easy to raise and easy to forget.</span></li>
+              <li>Does VRR actually engage in borderless windowed mode?<span class="why">On Windows it needs the tearing flag; without it VRR quietly does nothing.</span></li>
+              <li>Which settings are only read at startup?<span class="why">Players expect a settings menu to apply changes, or to say that a restart is needed.</span></li>
+              <li>Is the interface drawn at native resolution when the 3D render scale is lowered?<span class="why">Blurry text is the first thing players notice about a low render scale.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">How many times more pixels does a 2560 × 1440 frame have than a 1920 × 1080 frame? And 3840 × 2160?</p>
+                <details><summary>Show answer</summary><p>2560 × 1440 = 3,686,400 pixels, about 1.78 times 2,073,600. 3840 × 2160 = 8,294,400, exactly 4 times: both dimensions double, so the area quadruples.</p></details>
+              </li>
+              <li>
+                <p class="q">A game's GPU work takes 20 ms per frame. On a 60 Hz screen with vsync and double buffering, what frame rate do players get, and what changes with triple buffering?</p>
+                <details><summary>Show answer</summary><p>20 ms misses the 16.7 ms refresh, so each frame waits for the second blank: 30 fps, evenly held. With triple buffering the GPU keeps drawing at 50 fps, but frames are held for one or two refreshes unevenly, so it stutters, and the extra queued frame adds delay.</p></details>
+              </li>
+              <li>
+                <p class="q">A tester reports a horizontal line across the screen that jumps to a different height every frame during fast turns. What is it, and what are the two standard fixes?</p>
+                <details><summary>Show answer</summary><p>Screen tearing: frames are being swapped during scan-out. Turn on vsync, which swaps only in the vertical blank, or use VRR, where the screen refreshes when each frame arrives. With VRR, cap the frame rate just below the screen's maximum so it stays in range.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#pixel">pixel</a></li>
+              <li><a class="chip" href="glossary.html#framebuffer">framebuffer</a></li>
+              <li><a class="chip" href="glossary.html#resolution">resolution</a></li>
+              <li><a class="chip" href="glossary.html#refresh-rate">refresh rate</a></li>
+              <li><a class="chip" href="glossary.html#scan-out">scan-out</a></li>
+              <li><a class="chip" href="glossary.html#vertical-blank">vertical blank</a></li>
+              <li><a class="chip" href="glossary.html#double-buffering">double buffering</a></li>
+              <li><a class="chip" href="glossary.html#present">present</a></li>
+              <li><a class="chip" href="glossary.html#swap-chain">swap chain</a></li>
+              <li><a class="chip" href="glossary.html#screen-tearing">screen tearing</a></li>
+              <li><a class="chip" href="glossary.html#vsync">vsync</a></li>
+              <li><a class="chip" href="glossary.html#triple-buffering">triple buffering</a></li>
+              <li><a class="chip" href="glossary.html#vrr">variable refresh rate</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="3.2"></a> looks inside the numbers each pixel holds, and why doing maths on them directly gives the wrong colours.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/variable-refresh-rate-displays">Variable refresh rate displays</a>, Microsoft Learn. The tearing flag and sync interval VRR needs on Windows.</li>
+              <li><a href="https://github.com/KhronosGroup/Vulkan-Docs/blob/main/chapters/VK_KHR_surface/wsi.adoc">Vulkan specification, window system integration chapter</a>, Khronos Group. Present modes IMMEDIATE, MAILBOX, FIFO and FIFO_RELAXED, and when each can tear.</li>
+              <li><a href="https://darksylinc.github.io/vsync_simulator/">V-Sync Simulator</a>, darksylinc. Explore how buffer counts change frame rate and latency; linked from Godot's documentation.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/classes/class_projectsettings.html">ProjectSettings</a>, Godot Engine 4.7 documentation. Vsync modes, swap chain image count, frame queue size and the VRR frame cap formula.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/qualitysettings/vsynccount">QualitySettings.vSyncCount</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/application/targetframerate">Application.targetFrameRate</a>, Unity 6.6 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/UGameUserSettings?application_version=5.8">UGameUserSettings</a>, Unreal Engine 5.8 API reference. Vsync, frame rate limit, resolution and resolution scale.</li>
+              <li><a href="https://www.nvidia.com/en-us/geforce/products/g-sync-monitors/">G-SYNC monitors</a>, NVIDIA, and <a href="https://www.hdmi.org/spec21sub/variablerefreshrate">Variable Refresh Rate</a>, HDMI Licensing Administrator. What the VRR brands promise.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/tearing-simulator.js"></script>
+</body>
+</html>

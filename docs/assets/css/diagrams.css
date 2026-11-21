@@ -155,6 +155,7 @@ svg.dg .stop-acc { stop-color: var(--accent); }
 svg.dg .stop-lit { stop-color: var(--lit); }
 svg.dg .stop-surface { stop-color: var(--surface); }
 svg.dg .stop-buf-lo { stop-color: var(--buffer-lo); }
+svg.dg .stop-buf-hi { stop-color: var(--buffer-hi); }
 svg.dg .stop-white { stop-color: #FFFFFF; }  /* masks only: never visible */
 svg.dg .stop-black { stop-color: #000000; }  /* masks only: never visible */
 
