@@ -199,6 +199,12 @@
     /* Contents anchor on the home page, used for chapters not yet written. */
     contentsHref: function (num) {
       return "index.html#ch-" + num.replace(".", "-");
-    }
+    },
+    /* Look-up pages, read out of order. Shown after the parts in the
+       sidebar and the contents, and indexed for search. */
+    reference: [
+      { id: "glossary", title: "Glossary", file: "glossary.html", blurb: "Every term the handbook defines, with the chapter that teaches it." },
+      { id: "acronyms", title: "Acronym decoder", file: "acronyms.html", blurb: "Every acronym in the handbook, spelled out, in one sorted list." }
+    ]
   };
 })();

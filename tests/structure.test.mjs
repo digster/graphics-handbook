@@ -57,8 +57,8 @@ test("nav and disk agree: published chapters have pages, planned ones do not", {
     else assert.ok(!exists, `${ch.file} exists but ${ch.num} is still marked planned`);
   }
   for (const page of pages) {
-    const known = page === "index.html" || page === "glossary.html" || chapterPages.includes(page);
-    assert.ok(known, `${page} is not the home page, the glossary or a chapter in nav.js`);
+    const known = page === "index.html" || nav.reference.some((r) => r.file === page) || chapterPages.includes(page);
+    assert.ok(known, `${page} is not the home page, a reference page or a chapter in nav.js`);
   }
 });
 

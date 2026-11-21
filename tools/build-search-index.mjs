@@ -7,7 +7,7 @@
  * this tool and committed. The structure tests fail if it is stale.
  *
  * Entry fields (short names keep the file small):
- *   k  kind: "chapter" | "section" | "term"
+ *   k  kind: "chapter" | "section" | "term" | "page"
  *   t  title shown in results
  *   s  subtitle (chapter for sections, definition for terms)
  *   u  relative URL
@@ -53,6 +53,10 @@ export function buildIndex() {
       entries.push({ k: "section", t: hd.text, s: label, u: `${ch.file}#${hd.id}` });
     }
     log.debug(`indexed ${ch.file}`);
+  }
+
+  for (const ref of nav.reference || []) {
+    entries.push({ k: "page", t: ref.title, s: ref.blurb, u: ref.file });
   }
 
   for (const [id, g] of Object.entries(glossary)) {

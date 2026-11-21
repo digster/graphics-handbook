@@ -243,8 +243,27 @@
     sidebar.replaceChildren(
       h("p", { class: "label", text: "Contents" }),
       buildBookToc(),
+      buildReferenceList(),
       h("p", { class: "sidebar-note", text: publishedChapters.length + " of " + nav.chapters.length + " chapters written so far." })
     );
+  }
+
+  /* Reference pages (glossary, acronyms...) listed under the parts. */
+  function buildReferenceList() {
+    var list = h("ol");
+    (nav.reference || []).forEach(function (ref) {
+      var isCurrent = pageId === ref.id;
+      list.appendChild(h("li", null, [
+        h("a", { class: "ch-link", href: ref.file, "aria-current": isCurrent ? "page" : null }, [
+          h("span", { class: "n", text: "Ref" }), h("span", { text: ref.title }), h("span", { class: "state" })
+        ])
+      ]));
+    });
+    var details = h("details", { open: true }, [
+      h("summary", null, [h("span", { class: "part-name", text: "Reference" }), h("span", { class: "part-count", text: String((nav.reference || []).length) })]),
+      list
+    ]);
+    return h("div", { class: "toc-book" }, [details]);
   }
 
   function buildNavDialog() {
@@ -331,7 +350,7 @@
   }
   HB.search = search;
 
-  var KIND_LABEL = { chapter: "Chapter", section: "Section", term: "Term" };
+  var KIND_LABEL = { chapter: "Chapter", section: "Section", term: "Term", page: "Page" };
 
   function buildSearchDialog() {
     var dialog = h("dialog", { class: "sheet search-sheet", "aria-label": "Search the handbook" });
