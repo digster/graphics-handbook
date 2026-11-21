@@ -851,6 +851,14 @@ dialog.sheet.is-nav {
   min-width: 0;
 }
 
+/* Grid children default to min-width: auto, so one wide child (a long
+   .grows list, a table) can widen the whole column on phones. */
+.beat > *,
+.step > *,
+.section > * {
+  min-width: 0;
+}
+
 .beat h3 {
   margin-top: var(--sp-4);
 }

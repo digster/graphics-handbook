@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>1.2 Who does what · Graphics Handbook</title>
+  <meta name="description" content="The roles that make a game's graphics: concept, 3D, technical, lighting and VFX artists, gameplay, engine, graphics and tools programmers, producers and QA. Who hands what to whom, who owns each graphics decision, and where AI agents fit.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="1.2">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 1 · How games get made</p>
+            <h1><span class="ch-num">1.2</span> Who does what</h1>
+            <p class="lead">A game's graphics pass through many hands on the way to the screen: artists who design and build, technical artists who connect art to the engine, programmers who build the renderer and the tools, and producers and testers who keep it moving and honest. Knowing who makes what and who owns each decision tells you who should brief, review and sign off any piece of work, including work an AI agent does.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="1.1">1.1 From idea to gold master</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="1.3">1.3 The content pipeline</a>, <a class="xref" data-ch="12.2">12.2 Briefing AI on graphics work</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 420" role="img" aria-label="A handoff map. Across the middle runs the chain: concept art by the concept artist, then the 3D model by the 3D artist, textures by the texture artist, materials and shaders by the technical artist, lighting by the lighting artist, and a performance review by graphics programmers, technical artists and QA, which sends fix lists back. Above the chain, the game designer feeds the 3D model, the art director approves the look, and the VFX artist adds effects to the lit level. Below it, the tools programmer supplies importers and tools, the graphics programmer supplies the shader framework and rendering features, and the engine programmer supports the build that is reviewed. The technical artist sits at the centre, with arrows up to the art side and down to the code side. Along the bottom, the producer plans every handoff and QA tests every build.">
+                  <defs>
+                    <marker id="hm-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    <marker id="hm-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+
+                  <text class="t-caps" x="20" y="36">ART AND DESIGN</text>
+                  <rect class="f-surface s-strong" x="20" y="44" width="270" height="56" rx="6"/>
+                  <text class="t-strong" x="34" y="66">Game designer</text>
+                  <text class="t-small" x="34" y="82">says what each space and character</text>
+                  <text class="t-small" x="34" y="95">must do in play</text>
+                  <rect class="f-surface s-strong" x="320" y="44" width="270" height="56" rx="6"/>
+                  <text class="t-strong" x="334" y="66">Art director</text>
+                  <text class="t-small" x="334" y="82">sets the visual target and approves</text>
+                  <text class="t-small" x="334" y="95">the look at every step</text>
+                  <rect class="f-surface s-strong" x="620" y="44" width="120" height="56" rx="6"/>
+                  <text class="t-strong" x="634" y="66">VFX artist</text>
+                  <text class="t-small" x="634" y="82">effects built on</text>
+                  <text class="t-small" x="634" y="95">TA shaders</text>
+
+                  <!-- feeds from the art side into the chain -->
+                  <line class="s-muted w15" x1="230" y1="100" x2="230" y2="146" marker-end="url(#hm-arr)"/>
+                  <path class="s-muted dash" d="M380,100 V146"/>
+                  <line class="s-muted w15" x1="680" y1="100" x2="680" y2="146" marker-end="url(#hm-arr)"/>
+                  <!-- the technical artist bridge, art side -->
+                  <line class="s-acc w2" x1="520" y1="148" x2="520" y2="106" marker-end="url(#hm-arr-a)"/>
+                  <line class="s-acc w2" x1="540" y1="104" x2="540" y2="146" marker-end="url(#hm-arr-a)"/>
+                  <text class="t-small t-acc t-strong" x="548" y="130">the look artists want</text>
+
+                  <text class="t-caps" x="20" y="142">THE HANDOFF CHAIN</text>
+                  <rect class="f-surface s-strong" x="20" y="150" width="120" height="60" rx="6"/>
+                  <text class="t-strong" x="32" y="174">Concept art</text>
+                  <text class="t-small t-muted" x="32" y="192">concept artist</text>
+                  <rect class="f-surface s-strong" x="170" y="150" width="120" height="60" rx="6"/>
+                  <text class="t-strong" x="182" y="174">3D model</text>
+                  <text class="t-small t-muted" x="182" y="192">3D artist</text>
+                  <rect class="f-surface s-strong" x="320" y="150" width="120" height="60" rx="6"/>
+                  <text class="t-strong" x="332" y="174">Textures</text>
+                  <text class="t-small t-muted" x="332" y="192">texture artist</text>
+                  <rect class="f-acc s-acc" x="470" y="150" width="120" height="60" rx="6"/>
+                  <text class="t-strong t-on-acc" x="482" y="172">Materials and</text>
+                  <text class="t-strong t-on-acc" x="482" y="186">shaders</text>
+                  <text class="t-small t-on-acc" x="482" y="202">technical artist</text>
+                  <rect class="f-surface s-strong" x="620" y="150" width="120" height="60" rx="6"/>
+                  <text class="t-strong" x="632" y="174">Lighting</text>
+                  <text class="t-small t-muted" x="632" y="192">lighting artist</text>
+                  <rect class="f-surface s-strong" x="770" y="150" width="110" height="60" rx="6"/>
+                  <text class="t-strong" x="780" y="172">Performance</text>
+                  <text class="t-strong" x="780" y="186">review</text>
+                  <text class="t-small t-muted" x="780" y="202">graphics, TA, QA</text>
+                  <path class="s-ink w15" d="M140,180 H166 M290,180 H316 M440,180 H466 M590,180 H616 M740,180 H766"/>
+                  <path class="f-ink" d="M168,180 L161,176.5 L161,183.5 Z M318,180 L311,176.5 L311,183.5 Z M468,180 L461,176.5 L461,183.5 Z M618,180 L611,176.5 L611,183.5 Z M768,180 L761,176.5 L761,183.5 Z"/>
+                  <g class="t-small">
+                    <text x="20" y="226">sheets, paintovers</text>
+                    <text x="170" y="226">high and low poly</text>
+                    <text x="320" y="226">texture set</text>
+                    <text x="470" y="226">material instances</text>
+                    <text x="620" y="226">lit level build</text>
+                    <text class="t-pix t-strong" x="770" y="226">fix lists back</text>
+                  </g>
+
+                  <!-- the technical artist bridge, code side -->
+                  <line class="s-acc w2" x1="520" y1="234" x2="520" y2="276" marker-end="url(#hm-arr-a)"/>
+                  <line class="s-acc w2" x1="540" y1="278" x2="540" y2="236" marker-end="url(#hm-arr-a)"/>
+                  <text class="t-small t-acc t-strong" x="548" y="262">what the renderer can afford</text>
+                  <!-- feeds from the code side -->
+                  <line class="s-muted w15" x1="230" y1="280" x2="230" y2="234" marker-end="url(#hm-arr)"/>
+                  <line class="s-muted w15 dash" x1="825" y1="280" x2="825" y2="234" marker-end="url(#hm-arr)"/>
+
+                  <text class="t-caps" x="20" y="274">CODE</text>
+                  <rect class="f-surface s-strong" x="20" y="282" width="270" height="56" rx="6"/>
+                  <text class="t-strong" x="34" y="304">Tools programmer</text>
+                  <text class="t-small" x="34" y="320">importers, validation and editor tools</text>
+                  <rect class="f-surface s-strong" x="320" y="282" width="270" height="56" rx="6"/>
+                  <text class="t-strong" x="334" y="304">Graphics programmer</text>
+                  <text class="t-small" x="334" y="320">renderer features, shader framework,</text>
+                  <text class="t-small" x="334" y="333">budgets and frame captures</text>
+                  <rect class="f-surface s-strong" x="620" y="282" width="260" height="56" rx="6"/>
+                  <text class="t-strong" x="634" y="304">Engine programmer</text>
+                  <text class="t-small" x="634" y="320">platform layer, memory, streaming</text>
+
+                  <text class="t-caps" x="20" y="362">EVERY STEP</text>
+                  <rect class="f-sunken s-strong" x="20" y="370" width="420" height="40" rx="6"/>
+                  <text class="t-strong" x="34" y="394">Producer</text>
+                  <text class="t-small" x="104" y="394">plans and tracks every handoff; owns the schedule</text>
+                  <rect class="f-sunken s-strong" x="460" y="370" width="420" height="40" rx="6"/>
+                  <text class="t-strong" x="474" y="394">QA</text>
+                  <text class="t-small" x="504" y="394">tests every build, including on target hardware</text>
+                </svg>
+              </div>
+              <figcaption><b>Who hands what to whom.</b> One asset's journey runs across the middle, each step owned by a different role and each arrow a file or a decision. The technical artist sits where art meets code, translating what artists want into what the renderer can afford, and back. The performance review at the end sends fix lists back to whichever step caused the cost. On a small team several of these boxes are the same person; the handoffs still happen.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Making a game's graphics is a relay. Someone imagines a thing, someone builds it in 3D, someone paints its surfaces, someone makes it react to light in the engine, someone lights the place it lives in, and someone checks that the result runs fast enough. Programmers build the machinery that every one of those steps runs on.</p>
+            <p>Each person in the relay owns some decisions and hands on some files. Most graphics problems on real projects are not about the technique itself. They come from a decision nobody owned, or a file handed on without the information the next person needed.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>Building a house needs an architect who decides how it looks, builders and decorators who make it, electricians and plumbers who install the systems, a project manager who books everyone in the right order, and an inspector who checks the work. A good site engineer translates the architect's drawings into something the builders can actually build with the materials and the regulations they have.</p>
+                <p>The art director is the architect, the artists are the builders and decorators, the programmers install the systems, the producer is the project manager and QA is the inspector. The technical artist is the site engineer.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without clear roles, two things go wrong at once. Some decisions get made twice, by people who disagree, and some never get made at all until they surface as a bug.</p>
+                <p>Clear roles and clear handoffs give every decision one owner, and every file one next stop.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Graphics problems are usually ownership problems in disguise: a level that runs at 24 fps because nobody owned the light budget, a shader that looks wrong on one console because nobody checked it there. When AI agents take on slices of these roles, the question gets sharper. Every piece of agent output needs a named human in the matching role who reviews it, and you need to know which role that is.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Meet the people first, then follow how they hand work on, how decisions are owned, and how the same roles shrink or multiply with the size of the team. There are nine steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="the-cast"><span class="step-num">1</span> The cast</h3>
+              <p>Job titles vary between studios, but these roles appear on almost every team that ships 3D games. On large teams each is a department; on small ones a person may hold five of them.</p>
+              <div class="table-wrap">
+                <table class="is-wide">
+                  <thead><tr><th scope="col">Role</th><th scope="col">Makes or decides</th><th scope="col">Hands on to</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row"><strong>Game designer</strong></th><td>Rules, mechanics, level layouts: what each space and character must do in play.</td><td>Artists and gameplay programmers</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="art-director">Art director</dfn></th><td>The visual direction, and approval of whether art, lighting and effects match it. Some teams also have a technical art director who leads the technical artists.</td><td>Every artist, as targets and feedback</td></tr>
+                    <tr><th scope="row"><strong>Concept artist</strong></th><td>Paintings and sketches of characters, places and objects before anything is built.</td><td>3D artists</td></tr>
+                    <tr><th scope="row"><strong>3D artist</strong></th><td>Models and their textures. Large teams split this into character, environment and prop artists, and sometimes separate texture artists.</td><td>Technical artists, lighting artists</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="technical-artist">Technical artist</dfn></th><td>Materials, shaders, import rules, tools for artists, and the check that art fits its budgets.</td><td>Artists (tools, rules) and programmers (requests, bugs)</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="lighting-artist">Lighting artist</dfn></th><td>Lights, sky, fog and exposure in each level: mood and readability within the lighting budget.</td><td>The performance review, the art director</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="vfx-artist">VFX artist</dfn></th><td>Fire, smoke, magic, impacts and weather, mostly with particle systems and custom materials.</td><td>The level, the performance review</td></tr>
+                    <tr><th scope="row"><strong>Gameplay programmer</strong></th><td>The code for player abilities, enemies, cameras and game rules.</td><td>Designers, QA</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="engine-programmer">Engine programmer</dfn></th><td>The engine's foundations: memory, threads, file loading, streaming, platform support.</td><td>Every other programmer</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="graphics-programmer">Graphics programmer</dfn></th><td>The renderer: lighting, shadows, the material system, post-processing, GPU performance.</td><td>Technical artists, the performance review</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="tools-programmer">Tools programmer</dfn></th><td>Editors, importers, build systems and automation for the whole team.</td><td>Everyone who makes content</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="producer">Producer</dfn></th><td>The plan: schedule, scope, priorities and who does what next.</td><td>Everyone, as tasks and dates</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="qa">QA</dfn></th><td>Testing every build, reporting bugs, checking fixes, confirming the game works on each platform.</td><td>Producers and the owner of each bug</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real teams also have animators, riggers, UI artists, audio designers, writers, network and AI programmers, build engineers and more. This chapter keeps to the roles that touch a game's graphics most.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="handoffs"><span class="step-num">2</span> The handoff chain</h3>
+              <p>Follow one asset, a market stall in a fantasy town, along the middle row of the picture.</p>
+              <ol>
+                <li>The <strong>concept artist</strong> paints the stall from a few angles, with notes on materials and scale, and the art director approves it.</li>
+                <li>The <strong>3D artist</strong> builds a detailed high-poly model for baking fine detail, and a lighter low-poly model for the game, within the triangle budget for props.</li>
+                <li>A <strong>texture artist</strong>, often the same 3D artist, paints the colour, roughness and other surface maps.</li>
+                <li>The <strong>technical artist</strong> has already built the material the stall uses, with the parameters artists may change. The stall becomes a set of material instances of it, imported with the agreed rules.</li>
+                <li>The <strong>lighting artist</strong> lights the market, which is when the stall's materials are judged under the real light of the game.</li>
+                <li>The <strong>performance review</strong> captures the market on target hardware. If it is over budget, a fix list goes back to whichever step caused the cost.</li>
+              </ol>
+              <p>Every arrow carries more than a file. It carries a spec, such as scale, budgets and naming, and an acceptance check. When one of those is missing, the next person either guesses or sends the work back. <a class="xref" data-ch="1.3">1.3 The content pipeline</a> follows the files themselves through the tools and formats.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="technical-artist-bridge"><span class="step-num">3</span> The technical artist: the bridge</h3>
+              <p>Technical artists rarely make the final art, but nearly every visual in the game passes through something they built. Creative Assembly's Jodie Azhar described the role as the area between art and technology: working closely with the graphics programmers so that visuals render correctly in the game, streamlining art pipelines, and building tools for artists. GDC's long-running Technical Artist Bootcamp has covered the same ground, from optimising assets for run-time performance to the observation that technical artists spend much of their time on internal tools and libraries.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 280" role="img" aria-label="Two overlapping ovals, art on the left and code on the right. Art alone holds style and composition, modelling and sculpting, painting textures and animation. Code alone holds the renderer, engine systems, platform code and build infrastructure. The overlap, labelled technical artist, holds materials and shader graphs, import rules and budget checks, LOD and texture settings, scripts and tools for artists, rigs and skinning setup, and profiling art content.">
+                    <defs>
+                      <clipPath id="ta-clip"><ellipse cx="330" cy="140" rx="230" ry="115"/></clipPath>
+                    </defs>
+                    <ellipse class="f-sunken" cx="330" cy="140" rx="230" ry="115"/>
+                    <ellipse class="f-sunken" cx="570" cy="140" rx="230" ry="115"/>
+                    <ellipse class="f-acc-soft" cx="570" cy="140" rx="230" ry="115" clip-path="url(#ta-clip)"/>
+                    <ellipse class="s-strong" cx="330" cy="140" rx="230" ry="115"/>
+                    <ellipse class="s-strong" cx="570" cy="140" rx="230" ry="115"/>
+
+                    <text class="t-head" x="140" y="92">Art</text>
+                    <g class="t-small">
+                      <text x="140" y="116">style and composition</text>
+                      <text x="140" y="132">modelling and sculpting</text>
+                      <text x="140" y="148">painting textures</text>
+                      <text x="140" y="164">animation</text>
+                    </g>
+                    <text class="t-head" x="600" y="92">Code</text>
+                    <g class="t-small">
+                      <text x="600" y="116">the renderer</text>
+                      <text x="600" y="132">engine systems</text>
+                      <text x="600" y="148">platform code</text>
+                      <text x="600" y="164">build infrastructure</text>
+                    </g>
+                    <text class="t-head t-acc mid" x="450" y="84">Technical artist</text>
+                    <g class="t-small">
+                      <text class="mid" x="450" y="106">materials and shader graphs</text>
+                      <text class="mid" x="450" y="122">import rules and budget checks</text>
+                      <text class="mid" x="450" y="138">LOD and texture settings</text>
+                      <text class="mid" x="450" y="154">scripts and tools for artists</text>
+                      <text class="mid" x="450" y="170">rigs and skinning setup</text>
+                      <text class="mid" x="450" y="186">profiling art content</text>
+                    </g>
+                  </svg>
+                </div>
+                <figcaption><b>The overlap is the job.</b> A technical artist speaks enough art to know what an artist is after and enough code to know what it costs. Many come from an art background and learn scripting and shaders; some come from programming. Where a team has no technical artist, this work still exists, and it falls on whoever is nearest, usually without the time set aside for it.</figcaption>
+              </figure>
+              <p>Two pieces of technical art matter most to a lead. The first is the material library: a small set of master materials with exposed settings, so that artists can make a thousand surfaces without a programmer and without a thousand separate shaders. The second is the import rules and budget checks that catch an over-budget asset on the day it arrives, months before alpha.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="programmers"><span class="step-num">4</span> Four kinds of programmer</h3>
+              <p>The word programmer covers very different jobs. The four kinds that matter for graphics work at different heights of the same stack. Gameplay programmers work at the top, on what the player does. Graphics programmers own the renderer. Engine programmers own the foundations everything stands on. Tools programmers work beside the stack, on the software the team uses to make the game.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="A simplified stack of four layers. Top: gameplay code, such as player abilities, enemy behaviour, cameras and game rules, owned by gameplay programmers. Second, highlighted: the renderer, covering lighting, shadows, materials, post-processing and GPU performance, owned by graphics programmers. Third: engine core, covering memory, threads, file loading, streaming and platform ports, owned by engine programmers. Bottom: platform and hardware, the operating system, graphics API, drivers and GPU, from platform holders and GPU makers. Beside the stack, a tall column for tools and pipeline, owned by tools programmers, serves everyone.">
+                    <text class="t-caps" x="20" y="22">WHERE EACH PROGRAMMER WORKS · A SIMPLIFIED STACK</text>
+                    <rect class="f-surface s-strong" x="20" y="34" width="620" height="48" rx="4"/>
+                    <text class="t-strong" x="36" y="54">Gameplay code</text>
+                    <text class="t-small" x="36" y="71">player abilities, enemy behaviour, cameras, game rules</text>
+                    <text class="t-small t-muted end" x="626" y="54">gameplay programmers</text>
+
+                    <rect class="f-acc-soft s-acc" x="20" y="88" width="620" height="48" rx="4"/>
+                    <text class="t-strong" x="36" y="108">Renderer</text>
+                    <text class="t-small" x="36" y="125">lighting, shadows, materials, post-processing, GPU performance</text>
+                    <text class="t-small t-acc t-strong end" x="626" y="108">graphics programmers</text>
+
+                    <rect class="f-surface s-strong" x="20" y="142" width="620" height="48" rx="4"/>
+                    <text class="t-strong" x="36" y="162">Engine core</text>
+                    <text class="t-small" x="36" y="179">memory, threads, file loading, streaming, platform ports</text>
+                    <text class="t-small t-muted end" x="626" y="162">engine programmers</text>
+
+                    <rect class="f-sunken s-strong dash" x="20" y="196" width="620" height="48" rx="4"/>
+                    <text class="t-strong" x="36" y="216">Platform and hardware</text>
+                    <text class="t-small" x="36" y="233">operating system, graphics API, drivers, GPU</text>
+                    <text class="t-small t-muted end" x="626" y="216">platform holders, GPU makers</text>
+
+                    <rect class="f-surface s-strong" x="660" y="34" width="220" height="210" rx="4"/>
+                    <text class="t-strong" x="676" y="56">Tools and pipeline</text>
+                    <g class="t-small">
+                      <text x="676" y="80">editors and importers</text>
+                      <text x="676" y="96">asset validation</text>
+                      <text x="676" y="112">build system</text>
+                      <text x="676" y="128">automated tests and</text>
+                      <text x="676" y="144">performance captures</text>
+                    </g>
+                    <text class="t-small t-muted" x="676" y="214">tools programmers,</text>
+                    <text class="t-small t-muted" x="676" y="229">serving every layer</text>
+                  </svg>
+                </div>
+                <figcaption><b>Same title, different floors.</b> When a frame is slow, the cause can sit on any floor: a gameplay script doing too much, a costly rendering feature, a streaming stall, or a driver problem. Knowing which floor each programmer owns tells you who to send the capture to first. <a class="xref" data-ch="2.1">2.1 Anatomy of an engine</a> takes the stack apart properly.</figcaption>
+              </figure>
+              <p>On most teams that use a commercial engine, there are few or no engine programmers: the engine's maker does that work. Graphics programmers on those teams spend more time configuring, extending and profiling the engine's renderer than writing a new one.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="lighting-vfx"><span class="step-num">5</span> Lighting and effects come last</h3>
+              <p>Lighting artists and VFX artists work at the end of the chain, which makes them sensitive to every change upstream. Move a wall and the lighting in that room may need redoing; if the game uses <a class="term" data-term="baked-lighting" data-forward href="glossary.html#baked-lighting">baked lighting</a>, the room's lighting has to be recalculated too. Change a material and an effect that blends with it can look wrong.</p>
+              <p>They are also where performance budgets are most often spent. Every light that casts a shadow and every layer of overlapping smoke costs GPU time, and the cost depends on the camera, so the same effect can be cheap in one shot and expensive in another. That is why lighting and VFX artists need a clear budget from the technical artist or graphics programmer, and access to the same profiling tools.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="review-loop"><span class="step-num">6</span> Producers, QA and the review loop</h3>
+              <p>Producers and QA keep graphics problems moving from found to fixed. QA testers play every build, write reproducible bug reports and, on many teams, run scripted performance captures on each target platform. Producers turn those reports into prioritised tasks with owners and dates. Together they run a loop that repeats with every build.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 232" role="img" aria-label="A five-step loop that repeats with every build: build, from the build system; capture frame time and memory on target hardware, by QA and graphics programmers; triage what broke, how bad it is and who owns the fix, by the producer and leads; fix, by the owning role; verify with the same scene and camera in the next build, by QA. Below, an example: the market level on Xbox Series S at 21.0 milliseconds against a 16.6 millisecond budget, owned by the lighting artist because of 14 shadow-casting lights where the budget allows 6, measured at 15.8 milliseconds in the next build.">
+                    <defs>
+                      <marker id="rl-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="20" y="30" width="152" height="90" rx="6"/>
+                    <text class="t-acc t-strong" x="32" y="52">1</text><text class="t-strong" x="46" y="52">Build</text>
+                    <text class="t-small" x="32" y="72">nightly or milestone</text>
+                    <text class="t-small" x="32" y="86">build</text>
+                    <text class="t-small t-muted" x="32" y="110">build system</text>
+
+                    <rect class="f-surface s-strong" x="196" y="30" width="152" height="90" rx="6"/>
+                    <text class="t-acc t-strong" x="208" y="52">2</text><text class="t-strong" x="222" y="52">Capture</text>
+                    <text class="t-small" x="208" y="72">frame time and memory</text>
+                    <text class="t-small" x="208" y="86">on target hardware</text>
+                    <text class="t-small t-muted" x="208" y="110">QA, graphics</text>
+
+                    <rect class="f-acc-soft s-acc" x="372" y="30" width="152" height="90" rx="6"/>
+                    <text class="t-acc t-strong" x="384" y="52">3</text><text class="t-strong" x="398" y="52">Triage</text>
+                    <text class="t-small" x="384" y="72">what broke, how bad,</text>
+                    <text class="t-small" x="384" y="86">who owns the fix</text>
+                    <text class="t-small t-muted" x="384" y="110">producer and leads</text>
+
+                    <rect class="f-surface s-strong" x="548" y="30" width="152" height="90" rx="6"/>
+                    <text class="t-acc t-strong" x="560" y="52">4</text><text class="t-strong" x="574" y="52">Fix</text>
+                    <text class="t-small" x="560" y="72">the owner changes the</text>
+                    <text class="t-small" x="560" y="86">asset, setting or code</text>
+                    <text class="t-small t-muted" x="560" y="110">the owning role</text>
+
+                    <rect class="f-surface s-strong" x="724" y="30" width="156" height="90" rx="6"/>
+                    <text class="t-acc t-strong" x="736" y="52">5</text><text class="t-strong" x="750" y="52">Verify</text>
+                    <text class="t-small" x="736" y="72">same scene, same</text>
+                    <text class="t-small" x="736" y="86">camera, next build</text>
+                    <text class="t-small t-muted" x="736" y="110">QA</text>
+
+                    <line class="s-muted w15" x1="700" y1="75" x2="720" y2="75" marker-end="url(#rl-arr)"/>
+                    <line class="s-muted w15" x1="172" y1="75" x2="192" y2="75" marker-end="url(#rl-arr)"/>
+                    <line class="s-muted w15" x1="348" y1="75" x2="368" y2="75" marker-end="url(#rl-arr)"/>
+                    <line class="s-muted w15" x1="524" y1="75" x2="544" y2="75" marker-end="url(#rl-arr)"/>
+                    <path class="s-muted w15" d="M802,120 V146 H96 V124" marker-end="url(#rl-arr)"/>
+                    <text class="t-small t-muted mid" x="450" y="140">repeat with every build</text>
+
+                    <rect class="f-sunken s-line" x="20" y="166" width="860" height="56" rx="6"/>
+                    <text class="t-caps" x="34" y="186">EXAMPLE</text>
+                    <text class="t-small" x="110" y="186">Market level, Xbox Series S: 21.0 ms against a 16.6 ms budget.</text>
+                    <text class="t-small" x="110" y="204">Owner: lighting artist. 14 shadow-casting lights where the budget allows 6. Next build: 15.8 ms.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Review runs with every build.</b> Performance and visual bugs are found, owned, fixed and checked continuously, from the first builds onwards. The triage step is where unclear ownership shows: a bug with no obvious owner tends to wait. The example numbers are illustrative.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="raci"><span class="step-num">7</span> Who decides: a RACI grid</h3>
+              <p>A <dfn class="term" data-term="raci">RACI</dfn> grid lists decisions against roles and marks, for each decision, who is <strong>R</strong>esponsible for doing the work, who is <strong>A</strong>ccountable for the result, who is <strong>C</strong>onsulted before it is made, and who is <strong>I</strong>nformed afterwards. The rule that makes it useful is one Accountable person per row. Here is a typical grid for graphics decisions; your team's will differ, and writing it down is the point.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 360" role="img" aria-label="A RACI grid of eight graphics decisions against seven roles. Visual target: art director accountable, lighting and 3D artists responsible, technical artist and graphics programmer consulted. Frame-time and memory budgets: graphics programmer accountable, technical artist responsible, art director, lighting artist and producer consulted. Shader and material complexity: technical artist accountable and responsible, art director and graphics programmer consulted. LOD rules and triangle counts: technical artist accountable, 3D artists responsible, art director and graphics programmer consulted. Lighting approach and light counts: lighting artist accountable and responsible, art director, technical artist and graphics programmer consulted. Quality tiers per platform: graphics programmer accountable, technical artist responsible, art director, lighting artist and producer consulted. Milestone performance sign-off: graphics programmer accountable, QA responsible, technical artist and producer consulted. Fix priority and schedule: producer accountable and responsible, art director, technical artist, graphics programmer and QA consulted. Everyone else is informed.">
+                    <!-- columns: 86 px wide from x = 268; rows: 30 px tall from y = 74 -->
+                    <g class="t-small t-strong">
+                      <text class="mid" x="311" y="50">Art</text><text class="mid" x="311" y="64">director</text>
+                      <text class="mid" x="397" y="50">Technical</text><text class="mid" x="397" y="64">artist</text>
+                      <text class="mid" x="483" y="50">Graphics</text><text class="mid" x="483" y="64">programmer</text>
+                      <text class="mid" x="569" y="50">Lighting</text><text class="mid" x="569" y="64">artist</text>
+                      <text class="mid" x="655" y="50">3D</text><text class="mid" x="655" y="64">artist</text>
+                      <text class="mid" x="741" y="64">Producer</text>
+                      <text class="mid" x="827" y="64">QA</text>
+                    </g>
+                    <rect class="f-sunken" x="268" y="74" width="602" height="240"/>
+
+                    <!-- R cells (soft) -->
+                    <g class="f-acc-soft">
+                      <rect x="527" y="75" width="84" height="28"/><rect x="613" y="75" width="84" height="28"/>
+                      <rect x="355" y="105" width="84" height="28"/>
+                      <rect x="613" y="165" width="84" height="28"/>
+                      <rect x="355" y="225" width="84" height="28"/>
+                      <rect x="785" y="255" width="84" height="28"/>
+                    </g>
+                    <!-- C cells -->
+                    <g class="f-surface">
+                      <rect x="355" y="75" width="84" height="28"/><rect x="441" y="75" width="84" height="28"/>
+                      <rect x="269" y="105" width="84" height="28"/><rect x="527" y="105" width="84" height="28"/><rect x="699" y="105" width="84" height="28"/>
+                      <rect x="269" y="135" width="84" height="28"/><rect x="441" y="135" width="84" height="28"/>
+                      <rect x="269" y="165" width="84" height="28"/><rect x="441" y="165" width="84" height="28"/>
+                      <rect x="269" y="195" width="84" height="28"/><rect x="355" y="195" width="84" height="28"/><rect x="441" y="195" width="84" height="28"/>
+                      <rect x="269" y="225" width="84" height="28"/><rect x="527" y="225" width="84" height="28"/><rect x="699" y="225" width="84" height="28"/>
+                      <rect x="355" y="255" width="84" height="28"/><rect x="699" y="255" width="84" height="28"/>
+                      <rect x="269" y="285" width="84" height="28"/><rect x="355" y="285" width="84" height="28"/><rect x="441" y="285" width="84" height="28"/><rect x="785" y="285" width="84" height="28"/>
+                    </g>
+                    <!-- A cells -->
+                    <g class="f-acc">
+                      <rect x="269" y="75" width="84" height="28"/>
+                      <rect x="441" y="105" width="84" height="28"/>
+                      <rect x="355" y="135" width="84" height="28"/>
+                      <rect x="355" y="165" width="84" height="28"/>
+                      <rect x="527" y="195" width="84" height="28"/>
+                      <rect x="441" y="225" width="84" height="28"/>
+                      <rect x="441" y="255" width="84" height="28"/>
+                      <rect x="699" y="285" width="84" height="28"/>
+                    </g>
+                    <path class="s-line" d="M268,74 H870 M268,104 H870 M268,134 H870 M268,164 H870 M268,194 H870 M268,224 H870 M268,254 H870 M268,284 H870 M268,314 H870 M268,74 V314 M354,74 V314 M440,74 V314 M526,74 V314 M612,74 V314 M698,74 V314 M784,74 V314 M870,74 V314"/>
+
+                    <g class="t-small">
+                      <text x="20" y="93">Visual target and style</text>
+                      <text x="20" y="123">Frame-time and memory budgets</text>
+                      <text x="20" y="153">Shader and material complexity</text>
+                      <text x="20" y="183">LOD rules and triangle counts</text>
+                      <text x="20" y="213">Lighting approach, light counts</text>
+                      <text x="20" y="243">Quality tiers per platform</text>
+                      <text x="20" y="273">Milestone performance sign-off</text>
+                      <text x="20" y="303">Fix priority and schedule</text>
+                    </g>
+
+                    <g class="t-mono t-strong">
+                      <!-- row 1 -->
+                      <text class="mid t-on-acc" x="311" y="93">A</text><text class="mid" x="397" y="93">C</text><text class="mid" x="483" y="93">C</text><text class="mid t-acc" x="569" y="93">R</text><text class="mid t-acc" x="655" y="93">R</text>
+                      <!-- row 2 -->
+                      <text class="mid" x="311" y="123">C</text><text class="mid t-acc" x="397" y="123">R</text><text class="mid t-on-acc" x="483" y="123">A</text><text class="mid" x="569" y="123">C</text><text class="mid" x="741" y="123">C</text>
+                      <!-- row 3 -->
+                      <text class="mid" x="311" y="153">C</text><text class="mid t-on-acc" x="397" y="153">A R</text><text class="mid" x="483" y="153">C</text>
+                      <!-- row 4 -->
+                      <text class="mid" x="311" y="183">C</text><text class="mid t-on-acc" x="397" y="183">A</text><text class="mid" x="483" y="183">C</text><text class="mid t-acc" x="655" y="183">R</text>
+                      <!-- row 5 -->
+                      <text class="mid" x="311" y="213">C</text><text class="mid" x="397" y="213">C</text><text class="mid" x="483" y="213">C</text><text class="mid t-on-acc" x="569" y="213">A R</text>
+                      <!-- row 6 -->
+                      <text class="mid" x="311" y="243">C</text><text class="mid t-acc" x="397" y="243">R</text><text class="mid t-on-acc" x="483" y="243">A</text><text class="mid" x="569" y="243">C</text><text class="mid" x="741" y="243">C</text>
+                      <!-- row 7 -->
+                      <text class="mid" x="397" y="273">C</text><text class="mid t-on-acc" x="483" y="273">A</text><text class="mid" x="741" y="273">C</text><text class="mid t-acc" x="827" y="273">R</text>
+                      <!-- row 8 -->
+                      <text class="mid" x="311" y="303">C</text><text class="mid" x="397" y="303">C</text><text class="mid" x="483" y="303">C</text><text class="mid t-on-acc" x="741" y="303">A R</text><text class="mid" x="827" y="303">C</text>
+                    </g>
+                    <g class="t-mono t-muted">
+                      <text class="mid" x="741" y="93">I</text><text class="mid" x="827" y="93">I</text>
+                      <text class="mid" x="655" y="123">I</text><text class="mid" x="827" y="123">I</text>
+                      <text class="mid" x="569" y="153">I</text><text class="mid" x="655" y="153">I</text><text class="mid" x="741" y="153">I</text><text class="mid" x="827" y="153">I</text>
+                      <text class="mid" x="569" y="183">I</text><text class="mid" x="741" y="183">I</text><text class="mid" x="827" y="183">I</text>
+                      <text class="mid" x="655" y="213">I</text><text class="mid" x="741" y="213">I</text><text class="mid" x="827" y="213">I</text>
+                      <text class="mid" x="655" y="243">I</text><text class="mid" x="827" y="243">I</text>
+                      <text class="mid" x="311" y="273">I</text><text class="mid" x="569" y="273">I</text><text class="mid" x="655" y="273">I</text>
+                      <text class="mid" x="569" y="303">I</text><text class="mid" x="655" y="303">I</text>
+                    </g>
+
+                    <rect class="f-acc" x="20" y="332" width="16" height="16"/><text class="t-small" x="42" y="344">Accountable: one per row</text>
+                    <rect class="f-acc-soft" x="210" y="332" width="16" height="16"/><text class="t-small" x="232" y="344">Responsible: does the work</text>
+                    <rect class="f-surface s-strong" x="410" y="332" width="16" height="16"/><text class="t-small" x="432" y="344">Consulted before</text>
+                    <rect class="f-sunken s-strong" x="560" y="332" width="16" height="16"/><text class="t-small" x="582" y="344">Informed after</text>
+                    <text class="t-small t-muted end" x="870" y="344">A R: accountable and does it</text>
+                  </svg>
+                </div>
+                <figcaption><b>One accountable person per decision.</b> The grid is one typical starting point, and teams adapt it. Here the graphics programmer column stands for the rendering lead, who is accountable for the numbers; the art director is accountable for the look; the technical artist owns the rules artists build to. If a row ends up with two A's, or none, that is the argument to have now rather than at alpha.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="team-sizes"><span class="step-num">8</span> Same roles, different team sizes</h3>
+              <p>The roles do not change with team size. The number of people holding them does. Eric Barone made <em>Stardew Valley</em> alone over about four and a half years, acting as designer, programmer, artist, writer and composer. Supergiant's creative director put the studio at fewer than 20 people while it made <em>Hades</em>. Larian had about 400 people across seven studios working on <em>Baldur's Gate 3</em> in 2022.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 392" role="img" aria-label="Thirteen roles listed down the side, mapped onto three teams. In a tiny team of three, a founder covers design and production, one artist covers every art role from art director to VFX, one programmer covers gameplay, engine, graphics and tools with a bought engine, and testing is done by playtesters and contractors. In a small studio of around twenty, there are a few designers, one producer, an art director who also paints concepts, several 3D artists, one or two technical artists who also light and build effects, several gameplay programmers, one or two programmers covering engine, graphics and tools, and an external QA partner. In a large team, every role is its own team, often split further, with outsourcers and an internal QA department plus external testers.">
+                    <text class="t-head" x="196" y="30">Tiny team, 1 to 5</text>
+                    <text class="t-small t-muted" x="196" y="46">for example, 3 people</text>
+                    <text class="t-head" x="426" y="30">Small studio, 10 to 30</text>
+                    <text class="t-small t-muted" x="426" y="46">for example, about 20</text>
+                    <text class="t-head" x="656" y="30">Large team, hundreds</text>
+                    <text class="t-small t-muted" x="656" y="46">several studios and outsourcers</text>
+
+                    <!-- 13 rows, 22 px each, from y = 62 -->
+                    <g class="t-small">
+                      <text x="20" y="77">Game designer</text>
+                      <text x="20" y="99">Producer</text>
+                      <text x="20" y="121">Art director</text>
+                      <text x="20" y="143">Concept artist</text>
+                      <text x="20" y="165">3D artist</text>
+                      <text class="t-strong" x="20" y="187">Technical artist</text>
+                      <text x="20" y="209">Lighting artist</text>
+                      <text x="20" y="231">VFX artist</text>
+                      <text x="20" y="253">Gameplay programmer</text>
+                      <text x="20" y="275">Engine programmer</text>
+                      <text class="t-strong" x="20" y="297">Graphics programmer</text>
+                      <text x="20" y="319">Tools programmer</text>
+                      <text x="20" y="341">QA</text>
+                    </g>
+                    <path class="s-line" d="M20,84 H880 M20,106 H880 M20,128 H880 M20,150 H880 M20,172 H880 M20,194 H880 M20,216 H880 M20,238 H880 M20,260 H880 M20,282 H880 M20,304 H880 M20,326 H880"/>
+
+                    <!-- tiny team -->
+                    <rect class="f-acc-soft s-acc" x="196" y="64" width="200" height="40" rx="4"/>
+                    <text class="t-small t-strong" x="206" y="82">Founder</text>
+                    <text class="t-small" x="206" y="96">designs and runs the project</text>
+                    <rect class="f-acc-soft s-acc" x="196" y="108" width="200" height="128" rx="4"/>
+                    <text class="t-small t-strong" x="206" y="168">One artist</text>
+                    <text class="t-small" x="206" y="182">covers every art role</text>
+                    <rect class="f-acc-soft s-acc" x="196" y="240" width="200" height="84" rx="4"/>
+                    <text class="t-small t-strong" x="206" y="276">One programmer</text>
+                    <text class="t-small" x="206" y="290">uses a bought engine</text>
+                    <rect class="f-surface s-strong dash" x="196" y="328" width="200" height="18" rx="4"/>
+                    <text class="t-small" x="206" y="341">playtesters, contractors</text>
+
+                    <!-- small studio -->
+                    <rect class="f-surface s-strong" x="426" y="64" width="200" height="18" rx="4"/><text class="t-small" x="436" y="77">a few designers</text>
+                    <rect class="f-surface s-strong" x="426" y="86" width="200" height="18" rx="4"/><text class="t-small" x="436" y="99">one producer</text>
+                    <rect class="f-acc-soft s-acc" x="426" y="108" width="200" height="40" rx="4"/>
+                    <text class="t-small" x="436" y="122">art director who also</text>
+                    <text class="t-small" x="436" y="138">paints concepts</text>
+                    <rect class="f-surface s-strong" x="426" y="152" width="200" height="18" rx="4"/><text class="t-small" x="436" y="165">several 3D artists</text>
+                    <rect class="f-acc-soft s-acc" x="426" y="174" width="200" height="62" rx="4"/>
+                    <text class="t-small" x="436" y="196">one or two technical</text>
+                    <text class="t-small" x="436" y="210">artists who also light</text>
+                    <text class="t-small" x="436" y="224">and build effects</text>
+                    <rect class="f-surface s-strong" x="426" y="240" width="200" height="18" rx="4"/><text class="t-small" x="436" y="253">several gameplay programmers</text>
+                    <rect class="f-acc-soft s-acc" x="426" y="262" width="200" height="62" rx="4"/>
+                    <text class="t-small" x="436" y="284">one or two programmers</text>
+                    <text class="t-small" x="436" y="298">cover engine, graphics</text>
+                    <text class="t-small" x="436" y="312">and tools</text>
+                    <rect class="f-surface s-strong dash" x="426" y="328" width="200" height="18" rx="4"/><text class="t-small" x="436" y="341">external QA partner</text>
+
+                    <!-- large team -->
+                    <g class="f-surface s-strong">
+                      <rect x="656" y="64" width="224" height="18" rx="4"/><rect x="656" y="86" width="224" height="18" rx="4"/><rect x="656" y="108" width="224" height="18" rx="4"/><rect x="656" y="130" width="224" height="18" rx="4"/><rect x="656" y="152" width="224" height="18" rx="4"/><rect x="656" y="174" width="224" height="18" rx="4"/><rect x="656" y="196" width="224" height="18" rx="4"/><rect x="656" y="218" width="224" height="18" rx="4"/><rect x="656" y="240" width="224" height="18" rx="4"/><rect x="656" y="262" width="224" height="18" rx="4"/><rect x="656" y="284" width="224" height="18" rx="4"/><rect x="656" y="306" width="224" height="18" rx="4"/><rect x="656" y="328" width="224" height="18" rx="4"/>
+                    </g>
+                    <g class="t-small">
+                      <text x="666" y="77">design teams, split by area</text>
+                      <text x="666" y="99">a producer per team</text>
+                      <text x="666" y="121">art director and art leads</text>
+                      <text x="666" y="143">concept team</text>
+                      <text x="666" y="165">character, environment, prop teams</text>
+                      <text x="666" y="187">technical art team</text>
+                      <text x="666" y="209">lighting team</text>
+                      <text x="666" y="231">VFX team</text>
+                      <text x="666" y="253">several gameplay teams</text>
+                      <text x="666" y="275">engine team</text>
+                      <text x="666" y="297">rendering team</text>
+                      <text x="666" y="319">tools team</text>
+                      <text x="666" y="341">QA department and vendors</text>
+                    </g>
+
+                    <rect class="f-acc-soft s-acc" x="196" y="364" width="16" height="16"/><text class="t-small" x="218" y="376">one person or small group holding several roles</text>
+                    <rect class="f-surface s-strong dash" x="520" y="364" width="16" height="16"/><text class="t-small" x="542" y="376">outside the team</text>
+                  </svg>
+                </div>
+                <figcaption><b>Thirteen roles, three teams.</b> The tiny team still does technical art, lighting and performance review; one artist and one programmer just do them between other jobs. The large team turns each row into a team and adds coordination: more producers, more meetings, more handoffs. The team shapes are illustrative.</figcaption>
+              </figure>
+              <p>Two things carry over at every size. First, the technical artist and graphics programmer rows are the ones small teams most often leave implicit, and they are where performance problems hide. Second, the bigger the team, the more of each person's time goes into handoffs, which is why large studios invest so heavily in tools and pipeline.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ai-roles"><span class="step-num">9</span> Where an AI agent takes a slice</h3>
+              <p>An AI agent takes a slice of the drafting inside a role, and the human in that role decides, checks and signs off. The useful question for each role is which part is drafting and which part is judgement.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 392" role="img" aria-label="Eight roles, each with what an agent can draft and what a human must do. Concept artist: an agent drafts mood boards and variations; a human chooses the direction and the art director signs off. 3D artist: placeholder meshes and first-pass UVs and LODs; a human makes hero assets and keeps every asset in budget. Technical artist: import scripts, validation rules and shader graph drafts; a human sets the rules and measures shader cost on target. Lighting artist: first-pass light placement and settings sweeps; a human owns mood and readability. Graphics programmer: feature prototypes, shader code and first reads of captures; a human owns correctness and performance on every platform. Tools programmer: editor tools, importers and tests; a human decides what the team needs and reviews before artists rely on it. Producer: bug-list summaries and schedule what-ifs; a human owns priorities and commitments. QA: test scripts, log triage and automated captures; a human plays on real hardware and decides what blocks release.">
+                    <text class="t-caps" x="190" y="38">AN AGENT CAN DRAFT</text>
+                    <text class="t-caps" x="550" y="38">A HUMAN IN THE ROLE MUST</text>
+
+                    <g class="f-acc-soft s-acc">
+                      <rect x="180" y="50" width="340" height="36" rx="4"/><rect x="180" y="92" width="340" height="36" rx="4"/><rect x="180" y="134" width="340" height="36" rx="4"/><rect x="180" y="176" width="340" height="36" rx="4"/><rect x="180" y="218" width="340" height="36" rx="4"/><rect x="180" y="260" width="340" height="36" rx="4"/><rect x="180" y="302" width="340" height="36" rx="4"/><rect x="180" y="344" width="340" height="36" rx="4"/>
+                    </g>
+                    <g class="f-surface s-strong">
+                      <rect x="540" y="50" width="340" height="36" rx="4"/><rect x="540" y="92" width="340" height="36" rx="4"/><rect x="540" y="134" width="340" height="36" rx="4"/><rect x="540" y="176" width="340" height="36" rx="4"/><rect x="540" y="218" width="340" height="36" rx="4"/><rect x="540" y="260" width="340" height="36" rx="4"/><rect x="540" y="302" width="340" height="36" rx="4"/><rect x="540" y="344" width="340" height="36" rx="4"/>
+                    </g>
+
+                    <g class="t-strong">
+                      <text x="20" y="72">Concept artist</text>
+                      <text x="20" y="114">3D artist</text>
+                      <text x="20" y="156">Technical artist</text>
+                      <text x="20" y="198">Lighting artist</text>
+                      <text x="20" y="240">Graphics programmer</text>
+                      <text x="20" y="282">Tools programmer</text>
+                      <text x="20" y="324">Producer</text>
+                      <text x="20" y="366">QA</text>
+                    </g>
+
+                    <g class="t-small">
+                      <text x="190" y="65">mood boards, rough variations and thumbnails</text><text x="190" y="79">to react to</text>
+                      <text x="550" y="65">choose the direction, check it is original and</text><text x="550" y="79">on style; the art director signs off</text>
+
+                      <text x="190" y="107">placeholder meshes, first-pass UVs and LODs,</text><text x="190" y="121">texture variants</text>
+                      <text x="550" y="107">hero assets, clean shapes that animate well,</text><text x="550" y="121">every asset inside its budget</text>
+
+                      <text x="190" y="149">import scripts, validation rules, first drafts</text><text x="190" y="163">of shader graphs</text>
+                      <text x="550" y="149">set the rules, measure shader cost on target,</text><text x="550" y="163">own the material library</text>
+
+                      <text x="190" y="191">first-pass light placement, settings sweeps,</text><text x="190" y="205">side-by-side comparison captures</text>
+                      <text x="550" y="191">mood, readability and the final look;</text><text x="550" y="205">the art director signs off</text>
+
+                      <text x="190" y="233">feature prototypes, shader code, test scenes,</text><text x="190" y="247">first reads of frame captures</text>
+                      <text x="550" y="233">correctness on every platform, performance on</text><text x="550" y="247">target hardware, code review</text>
+
+                      <text x="190" y="275">editor tools, importers, automation scripts</text><text x="190" y="289">and their tests</text>
+                      <text x="550" y="275">decide what the team needs; review before</text><text x="550" y="289">artists depend on it</text>
+
+                      <text x="190" y="317">bug-list summaries, schedule what-ifs,</text><text x="190" y="331">meeting notes</text>
+                      <text x="550" y="317">priorities, cuts and commitments to people</text><text x="550" y="331">and partners</text>
+
+                      <text x="190" y="359">test scripts, log triage, automated captures</text><text x="190" y="373">and image comparisons</text>
+                      <text x="550" y="359">play on real hardware, judge what players will</text><text x="550" y="373">notice, decide what blocks release</text>
+                    </g>
+                  </svg>
+                </div>
+                <figcaption><b>Drafts on the left, judgement on the right.</b> The right-hand column is the job description of the reviewer for any agent output in that role. If nobody on the team holds that role, nobody can review the agent's work properly, which is a staffing problem the agent cannot solve.</figcaption>
+              </figure>
+              <p>Agents also blur the handoff chain. One agent can draft a model, its material and a lighting pass in an afternoon, skipping the specs and checks that each handoff normally carries. Treat each step's acceptance check as still required, with the matching human role signing it off, however the draft was made.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Roles cost headcount, and handoffs cost time. The headcount range across real projects is enormous.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">1</span><span class="what">person made <em>Stardew Valley</em>: design, programming, art, writing and music</span></div>
+              <div class="stat"><span class="value">&lt; 20</span><span class="what">people at Supergiant while it made <em>Hades</em></span></div>
+              <div class="stat"><span class="value">≈ 400</span><span class="what">people across seven Larian studios on <em>Baldur's Gate 3</em>, 2022</span></div>
+            </div>
+            <h3>Handoffs cost calendar time</h3>
+            <p>Take an illustrative prop that needs 4 days of hands-on work spread across six steps: concept, model, textures, material setup, placement under the level's lighting, and a performance check. If it waits an average of 2 working days in someone's queue at each of the six handoffs, it reaches the game after 4 + 6 × 2 = 16 working days, more than three weeks. Three quarters of that time is waiting. Fewer handoffs, smaller queues and clear acceptance checks shorten it far more than faster work at any single step.</p>
+            <h3>Missing roles cost people-time</h3>
+            <p>Suppose a 20-artist team has no technical artist and no material library, so artists wait for a programmer to expose a material setting or fix an import. If that costs an artist half a day, and it happens 40 times a month, the team loses 40 × 0.5 = 20 artist-days a month, about one full-time artist, before counting the programmer's time. A technical artist who builds the library and the import checks pays for the role on that alone. These numbers are illustrative; measure your own by counting requests in the bug tracker.</p>
+            <div class="stack">
+            <ul class="grows">
+              <li><strong>Number of handoffs</strong><span>Each one adds a queue and a chance to lose information.</span></li>
+              <li><strong>Unowned decisions</strong><span>They resurface later as bugs and arguments, usually at a worse time.</span></li>
+              <li><strong>Single points of knowledge</strong><span>One graphics programmer who understands the renderer becomes a queue for the whole team.</span></li>
+              <li><strong>Outsourcing distance</strong><span>Time zones and contracts turn a quick question into a day's round trip, so specs must be complete.</span></li>
+              <li><strong>Review capacity</strong><span>More drafted content, from people or agents, needs more reviewer hours in the right roles.</span></li>
+              <li><strong>Rework loops</strong><span>An asset sent back twice costs its hands-on time three times.</span></li>
+            </ul>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Hiring order</p>
+              <p>On small and mid-size 3D teams, the first technical artist is often the hire with the largest effect on graphics quality per person, because it multiplies the output of every other artist. If you cannot hire one, name who does the job and give them time for it.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Role problems look like technical problems from the outside. These five are the commonest in graphics work.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two blocks labelled art and code with a gap between them, and assets falling into the gap.">
+                    <rect class="f-solid s-strong" x="12" y="62" width="84" height="56"/>
+                    <rect class="f-solid s-strong" x="144" y="62" width="84" height="56"/>
+                    <text class="t-small mid" x="54" y="94">art</text>
+                    <text class="t-small mid" x="186" y="94">code</text>
+                    <rect class="f-pix-soft s-pix" x="104" y="50" width="14" height="14"/>
+                    <rect class="f-pix-soft s-pix" x="116" y="80" width="14" height="14"/>
+                    <rect class="f-pix-soft s-pix" x="106" y="106" width="14" height="14"/>
+                    <path class="s-muted dash" d="M70,40 Q100,20 112,46"/>
+                  </svg>
+                </div>
+                <h4>Art that fails late</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Nobody owns the space between art and code. Budgets exist on paper, but no import check enforces them and nobody profiles art content until alpha.</dd></div>
+                  <div><dt>Ask for</dt><dd>A named owner of budgets and import rules, technical artist or not, and automatic checks that run on every new asset.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A queue of seven request tickets waiting in front of a single person.">
+                    <g class="f-surface s-strong">
+                      <rect x="10" y="56" width="20" height="26" rx="2"/><rect x="36" y="56" width="20" height="26" rx="2"/><rect x="62" y="56" width="20" height="26" rx="2"/><rect x="88" y="56" width="20" height="26" rx="2"/><rect x="114" y="56" width="20" height="26" rx="2"/><rect x="140" y="56" width="20" height="26" rx="2"/><rect x="166" y="56" width="20" height="26" rx="2"/>
+                    </g>
+                    <circle class="f-acc-soft s-acc" cx="212" cy="46" r="10"/>
+                    <path class="f-acc-soft s-acc" d="M196,96 Q196,62 212,62 Q228,62 228,96 Z"/>
+                    <text class="t-small t-pix" x="10" y="108">waiting days</text>
+                  </svg>
+                </div>
+                <h4>Every shader tweak waits for a programmer</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Materials are hand-written shaders with nothing exposed, so artists queue for the one graphics programmer for every colour, tiling or roughness change.</dd></div>
+                  <div><dt>Ask for</dt><dd>A material library with the common settings exposed, built and owned by a technical artist, with the programmer reviewing its cost.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A level floor plan with light bulbs, a moved wall and a red circular arrow meaning redo.">
+                    <rect class="f-surface s-strong" x="14" y="18" width="150" height="96"/>
+                    <path class="s-strong w2" d="M80,18 V70"/>
+                    <path class="s-pix w2 dash" d="M100,18 V70"/>
+                    <circle class="f-lit-soft s-lit" cx="44" cy="44" r="8"/>
+                    <circle class="f-lit-soft s-lit" cx="130" cy="44" r="8"/>
+                    <circle class="f-lit-soft s-lit" cx="90" cy="92" r="8"/>
+                    <path class="s-pix w2 round" d="M214,40 A22,22 0 1 1 192,30"/>
+                    <path class="f-pix" d="M190,22 L200,30 L188,36 Z"/>
+                  </svg>
+                </div>
+                <h4>Lighting redone again and again</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Lighting started before level geometry was locked, and nobody told the lighting artist when walls moved. Each change triggers relighting, and rebaking where lighting is baked.</dd></div>
+                  <div><dt>Ask for</dt><dd>A geometry lock date per level before final lighting, and a notification whenever a locked level changes.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time graph that is flat until a launch line, then spikes, with player speech bubbles.">
+                    <line class="s-ink dash" x1="10" y1="70" x2="230" y2="70"/>
+                    <line class="s-strong" x1="140" y1="12" x2="140" y2="118"/>
+                    <text class="t-small t-muted" x="144" y="24">launch</text>
+                    <polyline class="s-acc w15" points="10,84 30,82 50,85 70,83 90,84 110,82 140,83"/>
+                    <polyline class="s-pix w2 round" points="140,83 152,60 162,86 174,38 186,84 198,44 210,82 222,30"/>
+                    <rect class="f-surface s-strong" x="22" y="18" width="40" height="20" rx="6"/>
+                    <text class="t-small mid" x="42" y="32">lag!</text>
+                  </svg>
+                </div>
+                <h4>Performance found by players</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>QA tested function on development PCs, and nobody owned scripted performance captures on the target hardware, so regressions were never measured before release.</dd></div>
+                  <div><dt>Ask for</dt><dd>Automated captures of fixed scenes and camera paths on each target, every build, with an owner for each regression.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="An agent box with an arrow going straight into the build, bypassing a reviewer who is crossed out.">
+                    <rect class="f-acc-soft s-acc" x="12" y="44" width="56" height="38" rx="4"/>
+                    <text class="t-small mid" x="40" y="67">agent</text>
+                    <rect class="f-solid s-strong" x="172" y="44" width="56" height="38" rx="4"/>
+                    <text class="t-small mid" x="200" y="67">build</text>
+                    <line class="s-pix w2" x1="70" y1="63" x2="168" y2="63"/>
+                    <path class="f-pix" d="M170,63 L162,59 L162,67 Z"/>
+                    <circle class="s-muted dash" cx="120" cy="104" r="9"/>
+                    <path class="s-pix w2" d="M108,92 L132,116 M132,92 L108,116"/>
+                  </svg>
+                </div>
+                <h4>Agent output with no owner</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Agent-written shaders, tools or assets were merged because they worked on one machine, without review by the person in the matching role.</dd></div>
+                  <div><dt>Ask for</dt><dd>A rule that every agent change names its human reviewer by role, using the right-hand column of the slice figure as the review checklist.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Each engine gives the graphics roles their own tools. Knowing their names helps you match a task, and an agent's output, to the role that should review it.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Technical artists: materials</th>
+                    <td>The node-based <strong>Material Editor</strong>. <strong>Material Instances</strong> change a parent material's parameters without recompiling the shader.</td>
+                    <td><strong>Shader Graph</strong> builds shaders from connected nodes; supported in URP, HDRP and the Built-in Render Pipeline; custom render pipelines are unsupported.</td>
+                    <td><strong>VisualShader</strong>, a node graph converted to shader code behind the scenes. It does not expose every feature of written shaders.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Tools for artists</th>
+                    <td><strong>Editor Utility Widgets</strong>, built in UMG and Blueprint, add custom editor tabs. The <strong>Python Editor Script Plugin</strong> automates asset tasks.</td>
+                    <td>Custom windows derive from <code>EditorWindow</code>; Unity recommends UI Toolkit over IMGUI for extending the editor.</td>
+                    <td><code>@tool</code> scripts run in the editor; <strong>editor plugins</strong> add tools without recompiling the engine.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Lighting artists</th>
+                    <td>The <strong>Environment Light Mixer</strong> gathers sky light, up to two atmosphere lights, sky atmosphere and volumetric clouds in one window.</td>
+                    <td><strong>Window › Rendering › Light Explorer</strong> lists and edits every light, reflection probe, light probe and static emissive material in the scene.</td>
+                    <td><strong>LightmapGI</strong> and <strong>ReflectionProbe</strong> work in all renderers; <strong>VoxelGI</strong> and <strong>SDFGI</strong> are not available in the Mobile or Compatibility renderers.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">VFX artists</th>
+                    <td><strong>Niagara</strong>, which Epic describes as letting technical artists add functionality without a programmer.</td>
+                    <td><strong>Visual Effect Graph</strong> simulates particles on the GPU, for far more particles than the Built-in Particle System.</td>
+                    <td><strong>GPUParticles3D</strong> for hundreds of thousands of particles on modern hardware; <strong>CPUParticles3D</strong> for older devices and phones.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Graphics programmers</th>
+                    <td>Rendering features in C++ use the <strong>Render Dependency Graph</strong> (RDG), which records render commands into a graph before running them.</td>
+                    <td>In URP, a <code>ScriptableRenderPass</code> written with the render graph API, added to the frame by a Renderer Feature.</td>
+                    <td>The <strong>compositor</strong>: <code>CompositorEffect</code> scripts insert passes into a viewport's rendering, in the Forward+ and Mobile renderers.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.7, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>When you brief an agent on role-shaped work, say which role it is drafting for, who will review the result, and what that reviewer will check. That gives the agent the acceptance check the handoff would normally carry.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when assets keep arriving over budget</span></div>
+              <pre class="prompt-body">You are drafting a tool for our technical artist, who will review it before any artist uses it.
+Engine: Unity 6.6, URP. Targets: PC and mid-range Android phones.
+
+Write an editor tool that checks every newly imported model and texture against our budgets (table attached: triangles per asset type, texture sizes, material count, LOD count).
+1. Report each asset over budget, by how much, and which rule it breaks. Do not change any asset automatically.
+2. Run on import and on demand for a whole folder.
+3. Include tests with one asset that passes and one that fails each rule.
+4. List anything in the budget table that is ambiguous, so the technical artist can decide it.</pre>
+              <ul class="prompt-why">
+                <li>Naming the reviewer's role tells the agent who the output is for and what will be checked.</li>
+                <li>Report-only keeps the decision with the technical artist.</li>
+                <li>Asking for ambiguities surfaces rules nobody has written down.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Plan</span><span class="use-when">Use when nobody is sure who owns a graphics decision</span></div>
+              <pre class="prompt-body">Our team: 1 art director, 6 3D artists, 1 technical artist who also does VFX, no dedicated lighting artist, 2 programmers (one mostly rendering), 1 producer, external QA. Unreal Engine 5.7, PC and consoles.
+
+Draft a RACI grid for these graphics decisions: visual target, frame-time and memory budgets, shader and material complexity, LOD rules, lighting approach and light counts, quality tiers per platform, milestone performance sign-off, fix priority.
+- Exactly one Accountable per row.
+- Flag rows where one person is Accountable for so much that they become a bottleneck.
+- Flag work no one on this team can be Responsible for, and suggest whether to hire, train or outsource.</pre>
+              <ul class="prompt-why">
+                <li>The real team list makes the gaps visible, such as the missing lighting artist.</li>
+                <li>The one-A rule forces the useful argument.</li>
+                <li>Bottleneck and gap flags turn a chart into decisions.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing AI work in any graphics role</h3>
+            <ol class="review-list">
+              <li>Which role would normally own this, and has the person in that role reviewed it?<span class="why">Agent output skips the handoff checks unless you put them back.</span></li>
+              <li>Does it change something another role hands on, such as a material other artists use?<span class="why">A change to shared work ripples down the chain.</span></li>
+              <li>Is it inside the budgets the budget owner set, measured on target hardware?<span class="why">A draft that only runs well on a development PC moves the cost downstream.</span></li>
+              <li>Who maintains this tool or shader after today?<span class="why">Code nobody owns breaks quietly at the next engine upgrade.</span></li>
+              <li>Would the person in that role put their name to it?<span class="why">It is the simplest test of whether the review really happened.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">New rock assets look great, but the canyon level has dropped from 60 to 40 fps on console. Who do you go to first, and with what?</p>
+                <details><summary>Show answer</summary><p>The owner of budgets and import rules, usually the technical artist, with a frame capture from the graphics programmer or QA on the target console. Together they can tell whether the rocks break the triangle, texture or material budget, and send a fix list back to the 3D artist.</p></details>
+              </li>
+              <li>
+                <p class="q">Your 6-person team has no technical artist. Does that mean nobody does technical art?</p>
+                <details><summary>Show answer</summary><p>No. Materials, import rules, budgets and art profiling still have to happen, so they fall on whoever is nearest, usually a generalist artist or the programmer. Name who it is and give them time for it.</p></details>
+              </li>
+              <li>
+                <p class="q">An AI agent writes a new water shader that looks good in the editor. Who should sign it off before it ships?</p>
+                <details><summary>Show answer</summary><p>The technical artist for how it fits the material library and the budgets, the graphics programmer for correctness and performance on every target platform, and the art director for the look.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#art-director">art director</a></li>
+              <li><a class="chip" href="glossary.html#technical-artist">technical artist</a></li>
+              <li><a class="chip" href="glossary.html#lighting-artist">lighting artist</a></li>
+              <li><a class="chip" href="glossary.html#vfx-artist">VFX artist</a></li>
+              <li><a class="chip" href="glossary.html#engine-programmer">engine programmer</a></li>
+              <li><a class="chip" href="glossary.html#graphics-programmer">graphics programmer</a></li>
+              <li><a class="chip" href="glossary.html#tools-programmer">tools programmer</a></li>
+              <li><a class="chip" href="glossary.html#producer">producer</a></li>
+              <li><a class="chip" href="glossary.html#qa">QA</a></li>
+              <li><a class="chip" href="glossary.html#raci">RACI</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="1.3"></a> follows the files these people hand each other, from the tools artists use to the cooked data the game loads.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://www.mcvuk.com/creative-assemblys-jodie-azhar-on-how-technical-artists-influence-every-part-of-a-games-visuals-and-how-to-become-one/">Creative Assembly's Jodie Azhar on how technical artists influence every part of a game's visuals</a>, Marie Dealessandri, MCV/DEVELOP, 2018.</li>
+              <li><a href="https://gdcvault.com/play/1020643/Technical-Artist-Bootcamp">Technical Artist Bootcamp: Ryse</a>, Riham Toulan and Vladimir Mastilovic, GDC 2014. Toolchains, automated asset processing and optimising assets for run-time.</li>
+              <li><a href="https://gdcvault.com/play/1025253/Technical-Artist-Bootcamp-Contributing-to">Technical Artist Bootcamp: Contributing to Open Source</a>, Bob White, Volition, GDC 2018. On technical artists' work on internal tools and libraries.</li>
+              <li><a href="https://en.wikipedia.org/wiki/Responsibility_assignment_matrix">Responsibility assignment matrix</a>, Wikipedia. The RACI letters and the one-Accountable rule.</li>
+              <li><a href="https://www.gamedeveloper.com/design/road-to-the-igf-concernedape-s-i-stardew-valley-i-">Road to the IGF: ConcernedApe's Stardew Valley</a>, Alissa McAloon, Game Developer, 2017.</li>
+              <li><a href="https://www.gamedeveloper.com/design/supergiant-s-fourth-outing-i-hades-i-introduces-a-more-mature-organized-dev-process">Supergiant's fourth outing, Hades, introduces a more mature, organized dev process</a>, Bryant Francis, Game Developer, 2019.</li>
+              <li><a href="https://gameworldobserver.com/2022/03/24/larian-grew-10-times-since-original-sin-although-swen-vincke-never-thought-studio-would-need-400-people">Larian grew 10 times since Original Sin</a>, Evgeny Obedkov, Game World Observer, 2022.</li>
+              <li>Engine documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-materials?application_version=5.7">Unreal materials</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/overview-of-niagara-effects-for-unreal-engine?application_version=5.7">Niagara</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/environment-light-mixer-in-unreal-engine?application_version=5.7">Environment Light Mixer</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/render-dependency-graph-in-unreal-engine?application_version=5.7">Render Dependency Graph</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/writing-custom/shader-graph">Unity Shader Graph</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/visual-effects/vfxgraph">Unity Visual Effect Graph</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/render-pipelines/universal-render-pipeline/customizing-urp/render-graph/write-render-pass">URP render passes</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/shaders/visual_shaders.html">Godot visual shaders</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/rendering/compositor.html">Godot compositor</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>

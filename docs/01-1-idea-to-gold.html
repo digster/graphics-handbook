@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>1.1 From idea to gold master · Graphics Handbook</title>
+  <meta name="description" content="How a game moves from concept through prototypes, pre-production, the vertical slice, production, alpha, beta and gold master to launch and live ops, and where graphics work and risk sit in each phase.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="1.1">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 1 · How games get made</p>
+            <h1><span class="ch-num">1.1</span> From idea to gold master</h1>
+            <p class="lead">A commercial game moves through a series of phases, and each one ends at a gate where the team must prove something before it is allowed to spend more. Knowing what each gate proves, and when graphics decisions turn expensive, is most of what a lead needs to steer the work.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="0.1">0.1 The whole journey on one page</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="1.2">1.2 Who does what</a>, <a class="xref" data-ch="1.3">1.3 The content pipeline</a>, <a class="xref" data-ch="11.1">11.1 Frame budgets</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 510" role="img" aria-label="A timeline of one illustrative mid-size game project, drawn to scale over 45 months. Phases: concept 3 months, pre-production 9, production 18, alpha 4, beta 3, gold to launch 1.5, then live ops. The team band grows from 4 people to about 25 at the end of pre-production and 100 at the peak, then shrinks to 35 after launch. Graphics work moves from look development and budgets, to content production, to optimisation and bug fixing, to patches. Uncertainty falls while the cost of changing course rises, so risk concentrates from late production to launch. Six gates say what done means: greenlight, into production, alpha, beta, gold master and launch.">
+                  <text class="t-caps" x="20" y="18">ONE MID-SIZE PROJECT, ILLUSTRATIVE · TIME AND TEAM SIZE TO SCALE</text>
+                  <text class="t-muted t-small mid" x="764" y="31">gold → launch</text>
+
+                  <!-- gate lines sit behind everything -->
+                  <path class="s-line dash" d="M208,40 V406 M352,40 V406 M640,40 V406 M704,40 V406 M752,40 V406 M776,40 V406"/>
+
+                  <!-- lane labels -->
+                  <text class="t-caps" x="20" y="58">PHASE</text>
+                  <text class="t-caps" x="20" y="132">TEAM SIZE</text>
+                  <text class="t-caps" x="20" y="240">GRAPHICS WORK</text>
+                  <text class="t-caps" x="20" y="340">RISK</text>
+                  <text class="t-caps" x="20" y="418">GATES</text>
+
+                  <!-- phases: 1 month = 16 px from x = 160 -->
+                  <rect class="f-acc-soft s-acc" x="160" y="40" width="48" height="28"/>
+                  <rect class="f-acc-soft s-acc" x="208" y="40" width="144" height="28"/>
+                  <rect class="f-acc-soft s-acc" x="352" y="40" width="288" height="28"/>
+                  <rect class="f-acc-soft s-acc" x="640" y="40" width="64" height="28"/>
+                  <rect class="f-acc-soft s-acc" x="704" y="40" width="48" height="28"/>
+                  <rect class="f-acc-soft s-acc" x="752" y="40" width="24" height="28"/>
+                  <rect class="f-surface s-acc dash" x="776" y="40" width="104" height="28"/>
+                  <text class="t-small mid" x="184" y="58">Concept</text>
+                  <text class="t-strong mid" x="280" y="58">Pre-production</text>
+                  <text class="t-strong mid" x="496" y="58">Production</text>
+                  <text class="t-strong mid" x="672" y="58">Alpha</text>
+                  <text class="t-strong mid" x="728" y="58">Beta</text>
+                  <text class="t-strong mid" x="828" y="58">Live ops</text>
+
+                  <path class="s-muted" d="M160,70 V75 M256,70 V75 M352,70 V75 M448,70 V75 M544,70 V75 M640,70 V75 M736,70 V75"/>
+                  <text class="t-mono t-muted mid" x="160" y="87" font-size="10">0</text>
+                  <text class="t-mono t-muted mid" x="256" y="87" font-size="10">6</text>
+                  <text class="t-mono t-muted mid" x="352" y="87" font-size="10">12</text>
+                  <text class="t-mono t-muted mid" x="448" y="87" font-size="10">18</text>
+                  <text class="t-mono t-muted mid" x="544" y="87" font-size="10">24</text>
+                  <text class="t-mono t-muted mid" x="640" y="87" font-size="10">30</text>
+                  <text class="t-mono t-muted mid" x="736" y="87" font-size="10">36 months</text>
+
+                  <!-- team band: thickness = headcount, 1 px per person -->
+                  <polygon class="f-acc-soft s-acc" points="160,148 208,147 256,144 304,141 352,137.5 400,127.5 448,115 496,105 544,100 640,100 704,100 752,107.5 776,120 800,130 880,132.5 880,167.5 800,170 776,180 752,192.5 704,200 640,200 544,200 496,195 448,185 400,172.5 352,162.5 304,159 256,156 208,153 160,152"/>
+                  <rect class="f-acc-soft s-acc" x="24" y="142" width="8" height="25"/>
+                  <text class="t-small t-muted" x="38" y="159">= 25 people</text>
+                  <text class="t-small t-strong" x="166" y="141">4</text>
+                  <text class="t-small t-strong mid" x="352" y="130">about 25</text>
+                  <text class="t-strong mid" x="592" y="154">100 at the peak</text>
+                  <text class="t-small t-strong mid" x="840" y="154">35 live</text>
+
+                  <!-- graphics work per phase -->
+                  <rect class="f-surface s-strong" x="162" y="222" width="186" height="80" rx="4"/>
+                  <text class="t-small" x="172" y="238">Look development: style</text>
+                  <text class="t-small" x="172" y="251">tests and target images.</text>
+                  <text class="t-small" x="172" y="264">Tech targets: platforms,</text>
+                  <text class="t-small" x="172" y="277">frame rate, resolution.</text>
+                  <text class="t-small t-strong" x="172" y="290">Performance budgets set.</text>
+                  <rect class="f-surface s-strong" x="356" y="222" width="280" height="80" rx="4"/>
+                  <text class="t-small" x="366" y="238">Content production to budget: models,</text>
+                  <text class="t-small" x="366" y="251">textures, materials, lighting, VFX.</text>
+                  <text class="t-small" x="366" y="264">Rendering features built and tested on</text>
+                  <text class="t-small" x="366" y="277">target hardware, then frozen at alpha.</text>
+                  <rect class="f-surface s-strong" x="644" y="222" width="104" height="80" rx="4"/>
+                  <text class="t-small" x="652" y="238">Optimisation,</text>
+                  <text class="t-small" x="652" y="251">performance</text>
+                  <text class="t-small" x="652" y="264">passes, graphics</text>
+                  <text class="t-small" x="652" y="277">bug fixing,</text>
+                  <text class="t-small" x="652" y="290">quality tiers.</text>
+                  <rect class="f-surface s-strong" x="756" y="222" width="124" height="80" rx="4"/>
+                  <text class="t-small" x="764" y="238">Day-one patch,</text>
+                  <text class="t-small" x="764" y="251">new content inside</text>
+                  <text class="t-small" x="764" y="264">the same budgets,</text>
+                  <text class="t-small" x="764" y="277">platform updates.</text>
+
+                  <!-- risk: uncertainty falls, cost of change rises -->
+                  <rect class="f-pix-soft" fill-opacity="0.6" x="600" y="308" width="176" height="92"/>
+                  <path class="s-ink w15 dash" d="M160,318 C320,322 440,372 600,384 C700,390 800,394 880,396"/>
+                  <path class="s-pix w2" d="M160,398 C420,396 560,380 680,352 C760,334 820,324 880,320"/>
+                  <text class="t-small" x="216" y="313">uncertainty</text>
+                  <text class="t-small t-pix end" x="872" y="354">cost of changing course</text>
+                  <text class="t-small t-muted" x="216" y="360">retire risk here,</text>
+                  <text class="t-small t-muted" x="216" y="373">while change is cheap</text>
+                  <text class="t-small t-strong mid" x="690" y="368">a surprise here</text>
+                  <text class="t-small t-strong mid" x="690" y="380">costs the most</text>
+
+                  <!-- gate markers -->
+                  <circle class="f-acc" cx="208" cy="414" r="8"/><text class="t-small t-on-acc t-strong mid" x="208" y="418">1</text>
+                  <circle class="f-acc" cx="352" cy="414" r="8"/><text class="t-small t-on-acc t-strong mid" x="352" y="418">2</text>
+                  <circle class="f-acc" cx="640" cy="414" r="8"/><text class="t-small t-on-acc t-strong mid" x="640" y="418">3</text>
+                  <circle class="f-acc" cx="704" cy="414" r="8"/><text class="t-small t-on-acc t-strong mid" x="704" y="418">4</text>
+                  <circle class="f-acc" cx="752" cy="414" r="8"/><text class="t-small t-on-acc t-strong mid" x="752" y="418">5</text>
+                  <circle class="f-acc" cx="776" cy="414" r="8"/><text class="t-small t-on-acc t-strong mid" x="776" y="418">6</text>
+
+                  <!-- what done means at each gate -->
+                  <rect class="f-surface s-strong" x="20" y="430" width="138" height="72" rx="4"/>
+                  <text class="t-acc t-strong" x="30" y="448">1</text><text class="t-strong" x="42" y="448">Greenlight</text>
+                  <text class="t-small" x="30" y="463">Pitch and prototypes</text>
+                  <text class="t-small" x="30" y="476">show an idea worth</text>
+                  <text class="t-small" x="30" y="489">pre-production.</text>
+                  <rect class="f-surface s-strong" x="166" y="430" width="138" height="72" rx="4"/>
+                  <text class="t-acc t-strong" x="176" y="448">2</text><text class="t-strong" x="188" y="448">Into production</text>
+                  <text class="t-small" x="176" y="463">Vertical slice, final</text>
+                  <text class="t-small" x="176" y="476">quality, on target</text>
+                  <text class="t-small" x="176" y="489">hardware, in budget.</text>
+                  <rect class="f-surface s-strong" x="312" y="430" width="138" height="72" rx="4"/>
+                  <text class="t-acc t-strong" x="322" y="448">3</text><text class="t-strong" x="334" y="448">Alpha</text>
+                  <text class="t-small" x="322" y="463">Every feature in and</text>
+                  <text class="t-small" x="322" y="476">playable. Features</text>
+                  <text class="t-small" x="322" y="489">freeze.</text>
+                  <rect class="f-surface s-strong" x="458" y="430" width="138" height="72" rx="4"/>
+                  <text class="t-acc t-strong" x="468" y="448">4</text><text class="t-strong" x="480" y="448">Beta</text>
+                  <text class="t-small" x="468" y="463">Content complete.</text>
+                  <text class="t-small" x="468" y="476">Only fixes and</text>
+                  <text class="t-small" x="468" y="489">optimisation now.</text>
+                  <rect class="f-surface s-strong" x="604" y="430" width="138" height="72" rx="4"/>
+                  <text class="t-acc t-strong" x="614" y="448">5</text><text class="t-strong" x="626" y="448">Gold master</text>
+                  <text class="t-small" x="614" y="463">Release build passes</text>
+                  <text class="t-small" x="614" y="476">certification and</text>
+                  <text class="t-small" x="614" y="489">is locked.</text>
+                  <rect class="f-surface s-strong" x="750" y="430" width="130" height="72" rx="4"/>
+                  <text class="t-acc t-strong" x="760" y="448">6</text><text class="t-strong" x="772" y="448">Launch</text>
+                  <text class="t-small" x="760" y="463">On sale with the</text>
+                  <text class="t-small" x="760" y="476">day-one patch. Live</text>
+                  <text class="t-small" x="760" y="489">ops begins.</text>
+                </svg>
+              </div>
+              <figcaption><b>One mid-size project, from concept to live ops.</b> Time runs left to right at 16 pixels per month, and the band is the team, one pixel per person: a few people at first, about 25 by the end of pre-production, about 100 at the peak and a smaller live team after launch. Pre-production takes about a quarter of the calendar but only about 6% of the people-time, which makes it the cheapest place to be wrong. The numbers are illustrative. A solo project and a 400-person one follow the same shape at a different size.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Most commercial games are made in phases. Each phase answers a question. Is the idea any good? Can we build it, and what will it look like? Can we build all of it? Is it finished? Each phase ends at a <dfn class="term" data-term="milestone">milestone</dfn>, a dated checkpoint where the team shows a build and the people paying for the game decide whether to keep going.</p>
+            <p>The early phases are small, cheap and full of unknowns. The later ones are large, expensive and supposed to be predictable. The whole system exists to move unknowns out of the project before the expensive part starts. Graphics sits right in the middle of that: the look, the target hardware and the performance budget are among the biggest unknowns a project has, and among the most expensive to change late.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A film starts as a script and a pitch. In pre-production the team casts, storyboards, scouts locations, shoots tests and fixes a budget. Only then does the full crew arrive for production, and after the shoot the film is edited, finished and locked before copies go out to cinemas.</p>
+                <p>Nobody books a 200-person crew to shoot a script that has not been tested. Games use the same words, pre-production and production, for the same reason.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>In the project above, monthly spending grows about 25 times from the first months to the peak. A mistake found in month 2 costs a conversation. The same mistake found in month 30 can cost a hundred people's time.</p>
+                <p>Gates make each big jump in spending wait for evidence: a prototype that is fun, a slice that looks right and runs on the real hardware, a build that is complete.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Graphics decisions have a price that rises with every phase. Choosing a lighting approach costs a prototype in pre-production and months of rework in late production. Leads write the gate criteria, so they decide what evidence graphics work must show and when. And because an AI agent can produce an impressive demo in days, knowing what a gate actually has to prove is what stops a fast demo being mistaken for a solved problem.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow one project from the first idea to the months after launch. Studios name and split the phases differently, but the order and the questions stay remarkably stable. There are nine steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="concept"><span class="step-num">1</span> Concept: an idea worth testing</h3>
+              <p>The <dfn class="term" data-term="concept-phase">concept phase</dfn> is where a few people work out what the game is: the core idea, who it is for, which platforms it targets, roughly how big it is and roughly what it will cost. The output is a pitch: a document or deck, some concept art, often a short playable or a video, and a rough budget and schedule.</p>
+              <p>Graphics enters early here, mostly as decisions rather than work. The platform list sets the ceiling for everything visual. A game aimed at phones and handhelds and one aimed only at current consoles and high-end PCs can share a pitch, but not a renderer, a lighting approach or an art style. The concept ends at a greenlight: approval and money to start pre-production.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="prototypes"><span class="step-num">2</span> Prototypes answer one question each</h3>
+              <p>A <dfn class="term" data-term="prototype">prototype</dfn> is a quick, disposable build made to answer one question. Good prototypes are small and narrow on purpose. They are allowed to be ugly, buggy and badly written, because they are thrown away once they have answered their question.</p>
+              <p>For a lead, the important point is that a prototype only answers the question it was built for. A gameplay prototype says nothing about whether the game can hit its frame rate, and a gorgeous visual target says nothing about whether it is fun.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 240" role="img" aria-label="Three kinds of prototype side by side. A gameplay prototype made of grey boxes and a capsule-shaped player asks whether it is fun. A visual target, a framed landscape image with a sun, asks whether it looks right. A technical prototype, a field of eighteen trees with a frame-time gauge reading 14.2 milliseconds against a 16.6 millisecond budget, asks whether it will run on the target hardware.">
+                    <rect class="f-surface s-strong" x="20" y="16" width="270" height="210" rx="8"/>
+                    <text class="t-caps" x="36" y="40">GAMEPLAY PROTOTYPE</text>
+                    <text class="t-head" x="36" y="62">Is it fun?</text>
+                    <rect class="f-sunken s-strong" x="36" y="150" width="238" height="14"/>
+                    <rect class="f-solid s-strong" x="60" y="118" width="30" height="32"/>
+                    <rect class="f-solid s-strong" x="190" y="104" width="46" height="46"/>
+                    <polygon class="f-solid s-strong" points="236,150 274,150 274,124"/>
+                    <rect class="f-acc-soft s-acc" x="120" y="112" width="18" height="38" rx="9"/>
+                    <path class="s-muted dash" d="M138,114 Q164,84 190,100"/>
+                    <text class="t-small" x="36" y="190">Grey boxes, placeholder art and</text>
+                    <text class="t-small" x="36" y="204">sound. Days to a few weeks.</text>
+
+                    <rect class="f-surface s-strong" x="315" y="16" width="270" height="210" rx="8"/>
+                    <text class="t-caps" x="331" y="40">VISUAL TARGET</text>
+                    <text class="t-head" x="331" y="62">Does it look right?</text>
+                    <rect class="f-sunken s-strong" x="331" y="76" width="238" height="90"/>
+                    <circle class="f-lit-soft s-lit" cx="530" cy="102" r="14"/>
+                    <polygon class="f-solid s-strong" points="331,166 392,110 430,138 474,98 569,166"/>
+                    <polygon class="f-strong" points="331,166 360,146 400,156 450,140 500,158 569,150 569,166"/>
+                    <text class="t-small t-muted" x="339" y="92">target image</text>
+                    <text class="t-small" x="331" y="190">Concept paintovers and a few assets</text>
+                    <text class="t-small" x="331" y="204">finished in the engine. Weeks.</text>
+
+                    <rect class="f-surface s-strong" x="610" y="16" width="270" height="210" rx="8"/>
+                    <text class="t-caps" x="626" y="40">TECHNICAL PROTOTYPE</text>
+                    <text class="t-head" x="626" y="62">Will it run on the target?</text>
+                    <polygon class="f-geo-soft s-geo" points="630,106 638,88 646,106"/><polygon class="f-geo-soft s-geo" points="654,106 662,88 670,106"/><polygon class="f-geo-soft s-geo" points="678,106 686,88 694,106"/><polygon class="f-geo-soft s-geo" points="702,106 710,88 718,106"/><polygon class="f-geo-soft s-geo" points="726,106 734,88 742,106"/><polygon class="f-geo-soft s-geo" points="750,106 758,88 766,106"/>
+                    <polygon class="f-geo-soft s-geo" points="630,130 638,112 646,130"/><polygon class="f-geo-soft s-geo" points="654,130 662,112 670,130"/><polygon class="f-geo-soft s-geo" points="678,130 686,112 694,130"/><polygon class="f-geo-soft s-geo" points="702,130 710,112 718,130"/><polygon class="f-geo-soft s-geo" points="726,130 734,112 742,130"/><polygon class="f-geo-soft s-geo" points="750,130 758,112 766,130"/>
+                    <polygon class="f-geo-soft s-geo" points="630,154 638,136 646,154"/><polygon class="f-geo-soft s-geo" points="654,154 662,136 670,154"/><polygon class="f-geo-soft s-geo" points="678,154 686,136 694,154"/><polygon class="f-geo-soft s-geo" points="702,154 710,136 718,154"/><polygon class="f-geo-soft s-geo" points="726,154 734,136 742,154"/><polygon class="f-geo-soft s-geo" points="750,154 758,136 766,154"/>
+                    <text class="t-small t-muted" x="630" y="170">× 10,000 in the real test</text>
+                    <rect class="f-sunken s-strong" x="790" y="90" width="16" height="70"/>
+                    <rect class="f-acc-soft s-acc" x="790" y="100.1" width="16" height="59.9"/>
+                    <line class="s-ink w15" x1="786" y1="90" x2="810" y2="90"/>
+                    <text class="t-small t-muted" x="814" y="94">16.6 ms</text>
+                    <text class="t-small t-muted" x="814" y="106">budget</text>
+                    <text class="t-small t-acc t-strong" x="814" y="124">14.2 ms</text>
+                    <text class="t-small t-muted" x="814" y="137">measured</text>
+                    <text class="t-small" x="626" y="190">Stress tests of the riskiest ideas,</text>
+                    <text class="t-small" x="626" y="204">measured on the target hardware.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Three questions, three prototypes.</b> Each one is cheap because it ignores the other two questions. Trouble starts when one kind is presented as evidence for another: a beautiful target image shown as proof that the game will run, or a fun grey-box level shown as proof that the art style will work.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="pre-production"><span class="step-num">3</span> Pre-production: planning by building</h3>
+              <p><dfn class="term" data-term="pre-production">Pre-production</dfn> turns the pitch into a plan that has been tested. A team of perhaps a quarter of its eventual size builds prototypes, the core tools and pipeline, the first finished content, and a schedule and budget for the rest. It is the phase where changing direction is still affordable.</p>
+              <p>Insomniac's postmortem of <em>Ratchet &amp; Clank</em> shows what that buys. The studio spent about six months of pre-production on a different game, built a first playable that its founder described as not bad but not great, and on 20 March 2001 stopped and started over. The new concept, which became <em>Ratchet &amp; Clank</em>, came together within two weeks. Six months of a small team is an expensive lesson; six months of a full production team would have been far worse.</p>
+              <p>Three kinds of graphics work belong here:</p>
+              <ul>
+                <li><strong>Look development.</strong> <dfn class="term" data-term="look-development">Look development</dfn> is the work of finding and proving the visual style in the engine: target images, test scenes, a first set of materials and lighting rigs, until the art director can point at a screen and say that this is how the game will look.</li>
+                <li><strong>Technical targets.</strong> Platforms, resolution, frame rate, which rendering features are in and which are out. These decide how much every later asset may cost.</li>
+                <li><strong>Budgets.</strong> The target frame rate becomes a <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a>, split between the parts of the frame, plus memory and per-asset limits that artists can build to.</li>
+              </ul>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Example budgets set in pre-production. A bar drawn to scale splits a 16.6 millisecond GPU frame at 60 frames per second into geometry and shadows 5.0, lighting 4.0, post-processing 2.0, effects 2.0, UI 0.5 and headroom 3.1 milliseconds. Below, a table of example asset budgets: hero character 80,000 triangles, 3 materials, 2048 by 2048 textures, 4 LOD levels; common enemy 25,000 triangles, 2 materials, 2048 textures, 3 LODs; large prop 15,000 triangles, 2 materials, 1024 textures, 3 LODs; small prop 500 to 3,000 triangles, 1 material, a shared atlas, 2 LODs.">
+                    <text class="t-caps" x="20" y="22">EXAMPLE BUDGETS SET IN PRE-PRODUCTION · ILLUSTRATIVE VALUES</text>
+                    <text class="t-head" x="40" y="50">GPU frame time at 60 fps: 16.6 ms</text>
+                    <text class="t-small t-muted end" x="870" y="50">to scale: 1 ms = 50 px</text>
+
+                    <rect class="f-geo-soft s-strong" x="40" y="62" width="250" height="40"/>
+                    <rect class="f-lit-soft s-strong" x="290" y="62" width="200" height="40"/>
+                    <rect class="f-pix-soft s-strong" x="490" y="62" width="100" height="40"/>
+                    <rect class="f-surface s-strong" x="590" y="62" width="100" height="40"/>
+                    <rect class="f-solid s-strong" x="690" y="62" width="25" height="40"/>
+                    <rect class="f-sunken s-strong dash" x="715" y="62" width="155" height="40"/>
+                    <text class="t-small mid" x="165" y="86">geometry and shadows 5.0</text>
+                    <text class="t-small mid" x="390" y="86">lighting 4.0</text>
+                    <text class="t-small mid" x="540" y="86">post 2.0</text>
+                    <text class="t-small mid" x="640" y="86">effects 2.0</text>
+                    <text class="t-small t-muted mid" x="792" y="86">headroom 3.1</text>
+                    <text class="t-small mid" x="702" y="118">UI 0.5</text>
+                    <path class="s-muted" d="M40,106 V111 M290,106 V111 M540,106 V111 M790,106 V111 M870,106 V111"/>
+                    <text class="t-mono t-muted mid" x="40" y="124" font-size="10">0</text>
+                    <text class="t-mono t-muted mid" x="290" y="124" font-size="10">5</text>
+                    <text class="t-mono t-muted mid" x="540" y="124" font-size="10">10</text>
+                    <text class="t-mono t-muted mid" x="790" y="124" font-size="10">15</text>
+                    <text class="t-mono t-muted mid" x="870" y="124" font-size="10">16.6 ms</text>
+
+                    <text class="t-caps" x="20" y="160">ASSET BUDGETS</text>
+                    <text class="t-small t-muted" x="40" y="184">Asset</text>
+                    <text class="t-small t-muted" x="300" y="184">Triangles, nearest LOD</text>
+                    <text class="t-small t-muted" x="480" y="184">Materials</text>
+                    <text class="t-small t-muted" x="590" y="184">Largest texture</text>
+                    <text class="t-small t-muted" x="750" y="184">LOD levels</text>
+                    <path class="s-line" d="M40,192 H870 M40,214 H870 M40,236 H870 M40,258 H870"/>
+                    <text class="t-strong" x="40" y="208">Hero character</text><text class="t-mono" x="300" y="208">80,000</text><text class="t-mono" x="480" y="208">3</text><text class="t-mono" x="590" y="208">2048 × 2048</text><text class="t-mono" x="750" y="208">4</text>
+                    <text class="t-strong" x="40" y="230">Common enemy</text><text class="t-mono" x="300" y="230">25,000</text><text class="t-mono" x="480" y="230">2</text><text class="t-mono" x="590" y="230">2048 × 2048</text><text class="t-mono" x="750" y="230">3</text>
+                    <text class="t-strong" x="40" y="252">Large prop, such as a vehicle</text><text class="t-mono" x="300" y="252">15,000</text><text class="t-mono" x="480" y="252">2</text><text class="t-mono" x="590" y="252">1024 × 1024</text><text class="t-mono" x="750" y="252">3</text>
+                    <text class="t-strong" x="40" y="274">Small prop</text><text class="t-mono" x="300" y="274">500 to 3,000</text><text class="t-mono" x="480" y="274">1</text><text class="t-mono" x="590" y="274">shared atlas</text><text class="t-mono" x="750" y="274">2</text>
+                  </svg>
+                </div>
+                <figcaption><b>What a budget looks like.</b> Pre-production turns a target such as 60 fps on console into numbers that people can build to: milliseconds for each part of the frame, and limits for each kind of asset. The values here are only an example; real budgets come from measuring the technical prototypes on the weakest target hardware. Parts 4 to 11 explain each line.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real budgets also cover CPU time, memory per level, streaming bandwidth, <a class="term" data-term="draw-call" data-forward href="glossary.html#draw-call">draw calls</a> and download size, and they usually differ per platform. Each one is a finite resource split in advance, so that nobody discovers at alpha that everyone has already spent it.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="vertical-slice"><span class="step-num">4</span> The vertical slice</h3>
+              <p>Pre-production usually ends with a <dfn class="term" data-term="vertical-slice">vertical slice</dfn>: a small part of the game, such as one level or ten minutes of play, built to final quality through every layer. Final gameplay, final art, final lighting, effects, audio and interface, running on the target hardware within budget. It is the show home on an estate that has not been built yet.</p>
+              <p>The slice answers questions no prototype can: what the game really looks and plays like, whether the pipeline can produce finished content, and how long one finished area takes. That last number is what turns a slice into a production schedule. At GDC 2015, Volition described using its vertical slices as the test of whether a team is ready to move from pre-production into production.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Two grids of eight game areas by eight layers: gameplay, level art, characters, lighting, VFX, audio, UI and runs on target. In the vertical slice, area 3 is filled at final quality in every layer, including runs on target. In the horizontal slice, the gameplay layer is filled at grey-box quality across all eight areas, and the runs-on-target row is unknown.">
+                    <text class="t-caps" x="20" y="22">VERTICAL SLICE · ONE AREA, EVERY LAYER</text>
+                    <text class="t-caps" x="470" y="22">HORIZONTAL SLICE · EVERY AREA, ONE LAYER</text>
+                    <g class="t-mono t-muted">
+                      <text class="mid" x="154" y="44" font-size="10">1</text><text class="mid" x="182" y="44" font-size="10">2</text><text class="mid t-acc t-strong" x="210" y="44" font-size="10">3</text><text class="mid" x="238" y="44" font-size="10">4</text><text class="mid" x="266" y="44" font-size="10">5</text><text class="mid" x="294" y="44" font-size="10">6</text><text class="mid" x="322" y="44" font-size="10">7</text><text class="mid" x="350" y="44" font-size="10">8</text>
+                      <text class="mid" x="604" y="44" font-size="10">1</text><text class="mid" x="632" y="44" font-size="10">2</text><text class="mid" x="660" y="44" font-size="10">3</text><text class="mid" x="688" y="44" font-size="10">4</text><text class="mid" x="716" y="44" font-size="10">5</text><text class="mid" x="744" y="44" font-size="10">6</text><text class="mid" x="772" y="44" font-size="10">7</text><text class="mid" x="800" y="44" font-size="10">8</text>
+                    </g>
+                    <text class="t-small t-muted end" x="134" y="44">area</text>
+                    <text class="t-small t-muted end" x="584" y="44">area</text>
+
+                    <g class="t-small">
+                      <text x="20" y="67">Gameplay</text><text x="20" y="93">Level art</text><text x="20" y="119">Characters</text><text x="20" y="145">Lighting</text><text x="20" y="171">VFX</text><text x="20" y="197">Audio</text><text x="20" y="223">UI</text><text class="t-strong" x="20" y="249">Runs on target</text>
+                      <text x="470" y="67">Gameplay</text><text x="470" y="93">Level art</text><text x="470" y="119">Characters</text><text x="470" y="145">Lighting</text><text x="470" y="171">VFX</text><text x="470" y="197">Audio</text><text x="470" y="223">UI</text><text class="t-strong" x="470" y="249">Runs on target</text>
+                    </g>
+
+                    <!-- left grid: 8 columns x 8 rows, cell 28 x 26 from (140, 50) -->
+                    <rect class="f-sunken s-line" x="140" y="50" width="224" height="208"/>
+                    <path class="s-line" d="M168,50 V258 M196,50 V258 M224,50 V258 M252,50 V258 M280,50 V258 M308,50 V258 M336,50 V258 M140,76 H364 M140,102 H364 M140,128 H364 M140,154 H364 M140,180 H364 M140,206 H364 M140,232 H364"/>
+                    <rect class="f-acc s-acc" x="196" y="50" width="28" height="208"/>
+                    <path class="s-surface" d="M196,76 H224 M196,102 H224 M196,128 H224 M196,154 H224 M196,180 H224 M196,206 H224 M196,232 H224"/>
+
+                    <!-- right grid -->
+                    <rect class="f-sunken s-line" x="590" y="50" width="224" height="208"/>
+                    <path class="s-line" d="M618,50 V258 M646,50 V258 M674,50 V258 M702,50 V258 M730,50 V258 M758,50 V258 M786,50 V258 M590,76 H814 M590,102 H814 M590,128 H814 M590,154 H814 M590,180 H814 M590,206 H814 M590,232 H814"/>
+                    <rect class="f-acc-soft s-acc" x="590" y="50" width="224" height="26"/>
+                    <text class="t-small t-acc t-strong mid" x="702" y="67">grey box</text>
+                    <g class="t-small t-muted">
+                      <text class="mid" x="604" y="249">?</text><text class="mid" x="632" y="249">?</text><text class="mid" x="660" y="249">?</text><text class="mid" x="688" y="249">?</text><text class="mid" x="716" y="249">?</text><text class="mid" x="744" y="249">?</text><text class="mid" x="772" y="249">?</text><text class="mid" x="800" y="249">?</text>
+                    </g>
+
+                    <text class="t-small" x="20" y="282">Proves the look, the pipeline, the cost of one finished area</text>
+                    <text class="t-small" x="20" y="296">and the frame rate on real hardware.</text>
+                    <text class="t-small" x="470" y="282">Proves the structure of the whole game. Says nothing</text>
+                    <text class="t-small" x="470" y="296">about how it will look, cost or run.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Vertical against horizontal.</b> The solid blue column is at final quality; the soft blue row is a grey-box placeholder. Both are useful, but only the vertical slice can tell you how much the remaining seven areas will cost and whether the target hardware can carry them.</figcaption>
+              </figure>
+              <aside class="note" data-kind="warning">
+                <p class="note-label">The slice is not a trailer</p>
+                <p>Slices are often shown to publishers and press, which tempts teams to hand-tune one area beyond what the pipeline can repeat, or to run it on a high-end PC. A slice that cannot be reproduced at the same cost, on the target hardware, gives the production schedule a false foundation.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="gates"><span class="step-num">5</span> Milestones and gates</h3>
+              <p>A milestone has a date, a build and a list of things the build must show. The list matters more than the date. Criteria written at the start of a phase, such as "level 3 at final quality, 60 fps on base console, no crash in a two-hour soak test", make the review a check. Criteria invented in the review make it a negotiation, and negotiations tend to end in a pass.</p>
+              <p>When a publisher funds the game, milestones are usually written into the contract and payments are tied to them. Self-funded studios run the same reviews internally. Small teams often use short, regular milestones instead of a few big ones: during <em>Hades</em>' early access, Supergiant worked to a monthly cadence, with large code changes early in each month and testing and polish later.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 222" role="img" aria-label="A milestone build and its evidence go into a gate review, which checks them against criteria agreed at the start of the phase. Three outcomes come out: pass, and the next phase is funded; pass with conditions, with a dated fix list; or fail, leading to rework, a change of direction or cancellation.">
+                    <defs>
+                      <marker id="gate-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="20" y="40" width="210" height="140" rx="6"/>
+                    <text class="t-caps" x="36" y="62">MILESTONE BUILD</text>
+                    <text class="t-small" x="36" y="84">The build itself, playable</text>
+                    <text class="t-small" x="36" y="100">Captures on target hardware</text>
+                    <text class="t-small" x="36" y="116">Frame time against budget</text>
+                    <text class="t-small" x="36" y="132">Screenshots against the target</text>
+                    <text class="t-small" x="36" y="148">Open bugs by severity</text>
+                    <text class="t-small" x="36" y="164">Schedule and spend to date</text>
+
+                    <line class="s-muted w15" x1="232" y1="110" x2="282" y2="110" marker-end="url(#gate-arr)"/>
+
+                    <rect class="f-acc-soft s-acc" x="288" y="40" width="240" height="140" rx="6"/>
+                    <text class="t-caps" x="304" y="62">GATE REVIEW</text>
+                    <text class="t-small" x="304" y="84">Checks the evidence against</text>
+                    <text class="t-small" x="304" y="100">criteria agreed at the start</text>
+                    <text class="t-small" x="304" y="116">of the phase.</text>
+                    <text class="t-small t-strong" x="304" y="144">Who: leads, studio heads and</text>
+                    <text class="t-small t-strong" x="304" y="160">the publisher, if there is one.</text>
+
+                    <path class="s-muted w15" d="M530,110 C560,110 560,50 590,50" marker-end="url(#gate-arr)"/>
+                    <line class="s-muted w15" x1="530" y1="110" x2="590" y2="110" marker-end="url(#gate-arr)"/>
+                    <path class="s-muted w15" d="M530,110 C560,110 560,170 590,170" marker-end="url(#gate-arr)"/>
+
+                    <rect class="f-acc s-acc" x="596" y="26" width="284" height="48" rx="6"/>
+                    <text class="t-strong t-on-acc" x="612" y="46">Pass: the next phase is funded</text>
+                    <text class="t-small t-on-acc" x="612" y="63">With a publisher, often a milestone payment.</text>
+                    <rect class="f-surface s-strong" x="596" y="86" width="284" height="48" rx="6"/>
+                    <text class="t-strong" x="612" y="106">Pass with conditions</text>
+                    <text class="t-small" x="612" y="123">A fix list with owners and dates.</text>
+                    <rect class="f-pix-soft s-pix" x="596" y="146" width="284" height="48" rx="6"/>
+                    <text class="t-strong" x="612" y="166">Fail</text>
+                    <text class="t-small" x="612" y="183">Rework and review again, change course, or stop.</text>
+
+                    <text class="t-small t-muted" x="20" y="212">Graphics evidence is measured on the target hardware, never only on a development PC.</text>
+                  </svg>
+                </div>
+                <figcaption><b>How a gate works.</b> The build and its evidence go in; a decision comes out. A gate is only as strong as its written criteria. Stopping a project at a gate feels like failure, but a cancelled concept or slice is the system working: it is the cheapest point at which to stop.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="production"><span class="step-num">6</span> Production and alpha</h3>
+              <p><dfn class="term" data-term="production">Production</dfn> is where the bulk of the game gets made. The team grows to its full size, often with outside studios building some of the art, and the work turns from discovery into throughput: levels, characters, props, animations, effects and code, made to the budgets and the pipeline that pre-production proved.</p>
+              <p>Rendering features are still being added early in production. They should not be added for ever. At <dfn class="term" data-term="alpha">alpha</dfn> the game is feature complete: every system and mechanic is in and playable from start to finish, even if much of the content is rough. From alpha on, the team stops starting new features. This is often called a feature freeze, and it is the point where graphics work turns from building to measuring and fixing.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 296" role="img" aria-label="A sketch of graphics effort over the project. Work on rendering features rises through pre-production, peaks in early production and drops to zero at alpha, the feature freeze, with a small bump in live ops. Content work rises through production, peaks late in production and drops to zero at beta, content complete, with bumps in live ops. Optimisation and graphics bug fixing stays low until late production, then climbs steeply to peak between beta and gold, and falls after launch.">
+                    <text class="t-caps" x="20" y="24">GRAPHICS EFFORT OVER TIME · A SKETCH, NOT DATA</text>
+                    <line class="s-acc w2" x1="20" y1="70" x2="44" y2="70"/>
+                    <text class="t-small" x="52" y="74">rendering</text>
+                    <text class="t-small" x="52" y="87">features</text>
+                    <line class="s-ink w15 dash" x1="20" y1="110" x2="44" y2="110"/>
+                    <text class="t-small" x="52" y="114">content</text>
+                    <line class="s-pix w2" x1="20" y1="138" x2="44" y2="138"/>
+                    <text class="t-small" x="52" y="142">optimisation</text>
+                    <text class="t-small" x="52" y="155">and bug fixing</text>
+
+                    <path class="s-line" d="M160,230 H880 M160,40 V230"/>
+                    <path class="s-strong dash" d="M640,40 V236 M704,40 V236 M752,40 V236 M776,40 V236"/>
+
+                    <path class="s-acc w2" d="M160,228 C200,226 260,170 352,120 C420,84 470,80 520,100 C580,124 610,200 640,228 L776,228 C800,228 810,205 828,205 C846,205 856,228 880,228"/>
+                    <path class="s-ink w15 dash" d="M160,229 C260,229 300,215 352,200 C420,170 470,70 544,64 C600,60 620,70 640,90 C670,130 690,200 704,229 L776,229 C796,229 806,190 830,190 C850,190 860,229 880,229"/>
+                    <path class="s-pix w2" d="M160,227 C300,227 440,224 520,212 C600,198 640,120 690,70 C720,46 745,52 760,80 C780,130 800,180 880,196"/>
+
+                    <text class="t-small t-muted mid" x="184" y="250">Concept</text>
+                    <text class="t-small mid" x="280" y="250">Pre-production</text>
+                    <text class="t-small mid" x="496" y="250">Production</text>
+                    <text class="t-small mid" x="672" y="250">Alpha</text>
+                    <text class="t-small mid" x="728" y="250">Beta</text>
+                    <text class="t-small mid" x="830" y="250">Live ops</text>
+                    <text class="t-small t-acc t-strong mid" x="640" y="270">feature freeze</text>
+                    <text class="t-small t-strong mid" x="704" y="286">content complete</text>
+                    <text class="t-small t-strong mid" x="764" y="270">gold</text>
+                  </svg>
+                </div>
+                <figcaption><b>Features freeze, then optimisation takes over.</b> New rendering features stop at alpha so that the team can measure a stable game. Content stops at beta. From then until gold, most graphics effort goes into making what exists fast and correct on every target. The shape is typical; the exact curves vary by project.</figcaption>
+              </figure>
+              <p>Studios define alpha differently, and some put a separate content-complete milestone before beta or fold it into alpha. When you join a project, ask for the written definition of each milestone rather than assuming one.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="beta-gold"><span class="step-num">7</span> Beta, content complete and gold master</h3>
+              <p><dfn class="term" data-term="content-complete">Content complete</dfn> means every level, character, asset, line of dialogue and piece of interface is in the game in its final or near-final form. On many teams this defines <dfn class="term" data-term="beta">beta</dfn>: a complete game in which the only work left is fixing bugs, optimising and polishing. Wikipedia's summary of common practice puts beta two to three months before the code is released and the first release candidate three to four weeks before.</p>
+              <p>A release candidate is a build the team believes could ship. For a console game it goes to the platform holder for certification, a technical check against the platform's rules that <a class="xref" data-ch="1.4">1.4 Platforms and what they change</a> covers in detail. The build that passes and is locked is the <dfn class="term" data-term="gold-master">gold master</dfn>, the version used to manufacture discs and seed digital stores. Teams say a game has gone gold at the moment they stop changing that build.</p>
+              <div class="table-wrap">
+                <table class="is-wide">
+                  <thead><tr><th scope="col">Gate</th><th scope="col">Done means</th><th scope="col">State of the graphics</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Greenlight</th><td>A pitch and prototypes justify pre-production.</td><td>Target platforms chosen; mood boards and concept art.</td></tr>
+                    <tr><th scope="row">Into production</th><td>The vertical slice is approved and the production plan is costed from it.</td><td>Look locked in principle; budgets set and measured on target hardware; pipeline proven.</td></tr>
+                    <tr><th scope="row">Alpha</th><td>Feature complete: everything is playable, start to finish.</td><td>No new rendering features. Known performance gaps are listed with owners.</td></tr>
+                    <tr><th scope="row">Beta</th><td>Content complete: only fixes and polish remain.</td><td>Every scene exists; optimisation and visual bug fixing at full speed.</td></tr>
+                    <tr><th scope="row">Gold master</th><td>A release candidate passes certification and is locked.</td><td>Meets budgets on every target and quality tier; no known blocking visual bugs.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="launch-live"><span class="step-num">8</span> Launch, the day-one patch and live ops</h3>
+              <p>Gold is not the end of the work. Discs have to be manufactured and shipped, and stores have to be stocked, which takes weeks. The team keeps fixing bugs throughout, and those fixes ship as a <dfn class="term" data-term="day-one-patch">day-one patch</dfn>: an update released on or before launch day that players download over the gold build. When <em>No Man's Sky</em> launched in 2016, Sean Murray said most of the team was back at work the day after the game went gold, building its large launch update.</p>
+              <p>After launch, many games continue as a service. <dfn class="term" data-term="live-ops">Live ops</dfn> is the ongoing work of running a released game: hotfixes, scheduled patches, events, seasons and new content, each one built, tested and certified like a small release. Bungie's GDC 2024 talk on <em>Destiny 2</em> describes planning expansions, seasonal updates, scheduled maintenance patches and emergency hotfixes across several content teams at once.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 256" role="img" aria-label="A zoom on the last months, in weeks from beta. The release build is bug-fixed through beta, release candidates are built around week 9, certification runs from week 10 to 13, the gold master is locked at week 13, and discs are made and shipped until launch at week 19. In parallel, a patch branch collects fixes found after the lock from week 13, goes through its own certification and ships at launch as the day-one patch. After launch, live ops ships a hotfix, a patch and a content update.">
+                    <defs>
+                      <marker id="gl-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">THE LAST MONTHS · WEEKS FROM BETA, ILLUSTRATIVE</text>
+                    <path class="s-line dash" d="M459,40 V214 M597,40 V214"/>
+                    <text class="t-small t-strong mid" x="459" y="38">gold master</text>
+                    <text class="t-small t-strong mid" x="597" y="38">launch</text>
+
+                    <text class="t-caps" x="20" y="80">RELEASE BUILD</text>
+                    <rect class="f-acc-soft s-acc" x="160" y="58" width="207" height="34"/>
+                    <text class="t-small mid" x="263" y="79">beta: fix bugs, optimise</text>
+                    <rect class="f-surface s-strong" x="367" y="58" width="23" height="34"/>
+                    <text class="t-small mid" x="378.5" y="79">RC</text>
+                    <rect class="f-surface s-strong dash" x="390" y="58" width="69" height="34"/>
+                    <text class="t-small mid" x="424.5" y="79">certification</text>
+                    <polygon class="f-acc" points="459,65 468,75 459,85 450,75"/>
+                    <rect class="f-sunken s-strong" x="470" y="58" width="127" height="34"/>
+                    <text class="t-small mid" x="533.5" y="79">discs made, shipped</text>
+
+                    <text class="t-caps" x="20" y="140">PATCH BRANCH</text>
+                    <rect class="f-acc-soft s-acc" x="459" y="118" width="101" height="34"/>
+                    <text class="t-small mid" x="509.5" y="139">fixes after lock</text>
+                    <rect class="f-surface s-strong dash" x="560" y="118" width="37" height="34"/>
+                    <text class="t-small mid" x="578.5" y="139">cert</text>
+                    <line class="s-acc w15" x1="597" y1="135" x2="622" y2="135" marker-end="url(#gl-arr)"/>
+                    <text class="t-small t-acc t-strong" x="628" y="139">day-one patch</text>
+
+                    <text class="t-caps" x="20" y="200">AFTER LAUNCH</text>
+                    <line class="s-strong" x1="597" y1="196" x2="850" y2="196"/>
+                    <circle class="f-acc" cx="620" cy="196" r="6"/>
+                    <circle class="f-acc" cx="712" cy="196" r="6"/>
+                    <circle class="f-acc" cx="827" cy="196" r="6"/>
+                    <text class="t-small mid" x="620" y="182">hotfix</text>
+                    <text class="t-small mid" x="712" y="182">patch</text>
+                    <text class="t-small mid" x="827" y="182">new content</text>
+                    <text class="t-small t-muted" x="610" y="216">each one built, tested and certified</text>
+
+                    <path class="s-muted" d="M160,230 H850 M160,226 V234 M367,226 V234 M459,226 V234 M597,226 V234 M850,226 V234"/>
+                    <text class="t-mono t-muted mid" x="160" y="248" font-size="10">0</text>
+                    <text class="t-mono t-muted mid" x="367" y="248" font-size="10">9</text>
+                    <text class="t-mono t-muted mid" x="459" y="248" font-size="10">13</text>
+                    <text class="t-mono t-muted mid" x="597" y="248" font-size="10">19</text>
+                    <text class="t-mono t-muted mid" x="850" y="248" font-size="10">30 weeks</text>
+                  </svg>
+                </div>
+                <figcaption><b>Work carries on after gold.</b> The disc build is frozen at gold, but work continues on a branch that becomes the day-one patch, which has its own certification pass. Digital-only and PC releases can shorten the gap; physical releases keep it. The week numbers are an example.</figcaption>
+              </figure>
+              <p>Live ops changes the graphics job in two ways. New content has to fit the same budgets on hardware that is now in players' hands, so a heavy new effect cannot quietly break the frame rate on the weakest console. And the renderer has to keep working across platform updates, new driver versions and new hardware for as long as the game is sold.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ai-timeline"><span class="step-num">9</span> Where AI changes the timeline</h3>
+              <p>AI tools are now part of many teams' daily work. In GDC's 2026 State of the Game Industry survey of more than 2,300 professionals, 36% said they use generative AI tools in their job, most often for research and brainstorming, code assistance and prototyping. The same survey found 52% thought generative AI was having a negative effect on the industry, so expect a range of attitudes on any team.</p>
+              <p>On a timeline, AI changes how fast drafts appear. It does not change what each gate has to prove.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 306" role="img" aria-label="Two project timelines with the same three gates at the same places: vertical slice, alpha and beta, and gold. In the typical timeline, pre-production holds three prototypes and production holds six blocks of content. In the timeline with AI tools, pre-production holds ten smaller prototypes and production holds twelve blocks of drafted content, but both timelines carry the same review band and the same final phase of optimisation, QA on hardware and certification. Notes list what AI speeds up and what stays the same.">
+                    <text class="t-caps" x="20" y="22">SAME GATES, MORE DRAFTS · ILLUSTRATIVE</text>
+
+                    <text class="t-strong" x="20" y="72">Typical</text>
+                    <rect class="f-surface s-strong" x="160" y="50" width="170" height="40"/>
+                    <rect class="f-surface s-strong" x="330" y="50" width="370" height="40"/>
+                    <rect class="f-sunken s-strong" x="700" y="50" width="160" height="40"/>
+                    <rect class="f-acc-soft s-acc" x="180" y="62" width="24" height="16"/><rect class="f-acc-soft s-acc" x="232" y="62" width="24" height="16"/><rect class="f-acc-soft s-acc" x="284" y="62" width="24" height="16"/>
+                    <rect class="f-geo-soft s-geo" x="350" y="54" width="20" height="20"/><rect class="f-geo-soft s-geo" x="400" y="54" width="20" height="20"/><rect class="f-geo-soft s-geo" x="450" y="54" width="20" height="20"/><rect class="f-geo-soft s-geo" x="500" y="54" width="20" height="20"/><rect class="f-geo-soft s-geo" x="550" y="54" width="20" height="20"/><rect class="f-geo-soft s-geo" x="600" y="54" width="20" height="20"/>
+                    <rect class="f-solid" x="331" y="78" width="368" height="11"/>
+                    <text class="t-small mid" x="780" y="74">optimise, QA, cert</text>
+
+                    <text class="t-strong" x="20" y="182">With AI tools</text>
+                    <rect class="f-surface s-strong" x="160" y="160" width="170" height="40"/>
+                    <rect class="f-surface s-strong" x="330" y="160" width="370" height="40"/>
+                    <rect class="f-sunken s-strong" x="700" y="160" width="160" height="40"/>
+                    <g>
+                      <rect class="f-acc-soft s-acc" x="168" y="166" width="12" height="12"/><rect class="f-acc-soft s-acc" x="184" y="166" width="12" height="12"/><rect class="f-acc-soft s-acc" x="200" y="166" width="12" height="12"/><rect class="f-acc-soft s-acc" x="216" y="166" width="12" height="12"/><rect class="f-acc-soft s-acc" x="232" y="166" width="12" height="12"/>
+                      <rect class="f-acc-soft s-acc" x="168" y="182" width="12" height="12"/><rect class="f-acc-soft s-acc" x="184" y="182" width="12" height="12"/><rect class="f-acc-soft s-acc" x="200" y="182" width="12" height="12"/><rect class="f-acc-soft s-acc" x="216" y="182" width="12" height="12"/><rect class="f-acc-soft s-acc" x="232" y="182" width="12" height="12"/>
+                    </g>
+                    <text class="t-small t-muted" x="252" y="185">more tried</text>
+                    <g>
+                      <rect class="f-geo-soft s-geo" x="345" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="370" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="395" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="420" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="445" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="470" y="164" width="20" height="20"/>
+                      <rect class="f-geo-soft s-geo" x="495" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="520" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="545" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="570" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="595" y="164" width="20" height="20"/><rect class="f-geo-soft s-geo" x="620" y="164" width="20" height="20"/>
+                    </g>
+                    <rect class="f-solid" x="331" y="188" width="368" height="11"/>
+                    <text class="t-small mid" x="780" y="184">optimise, QA, cert</text>
+
+                    <path class="s-acc dash" d="M330,94 V156 M700,94 V156 M860,94 V156"/>
+                    <polygon class="f-acc" points="330,84 338,92 330,100 322,92"/><polygon class="f-acc" points="700,84 708,92 700,100 692,92"/><polygon class="f-acc" points="860,84 868,92 860,100 852,92"/>
+                    <polygon class="f-acc" points="330,194 338,202 330,210 322,202"/><polygon class="f-acc" points="700,194 708,202 700,210 692,202"/><polygon class="f-acc" points="860,194 868,202 860,210 852,202"/>
+                    <text class="t-small t-acc t-strong" x="338" y="128">slice gate</text>
+                    <text class="t-small t-acc t-strong mid" x="515" y="122">review band: budgets, integration, sign-off</text>
+                    <text class="t-small t-muted mid" x="515" y="136">the same height in both rows</text>
+                    <text class="t-small t-acc t-strong end" x="692" y="128">alpha, beta</text>
+                    <text class="t-small t-acc t-strong end" x="852" y="128">gold</text>
+
+                    <text class="t-caps" x="160" y="240">FASTER</text>
+                    <text class="t-small" x="160" y="258">prototypes and test scenes,</text>
+                    <text class="t-small" x="160" y="272">placeholder and variant content,</text>
+                    <text class="t-small" x="160" y="286">tool, script and test code</text>
+                    <text class="t-caps" x="520" y="240">UNCHANGED</text>
+                    <text class="t-small" x="520" y="258">what each gate must prove,</text>
+                    <text class="t-small" x="520" y="272">measurement on target hardware,</text>
+                    <text class="t-small" x="520" y="286">human review, QA and certification</text>
+                  </svg>
+                </div>
+                <figcaption><b>AI speeds up the drafts; the gates stay put.</b> The gates sit in the same places and ask the same questions. Teams with good AI tooling can try more prototypes in the same weeks and draft more content variants, but every asset still has to meet the budgets and pass review, and the final phase on real hardware does not shrink. How much calendar time a given team saves is not something this sketch measures.</figcaption>
+              </figure>
+              <p>Two consequences matter for leads. First, cheap demos make the gate criteria more important, because an AI agent can produce something that looks like a vertical slice without the pipeline, budgets or repeatable cost that make a real one. Second, more drafted content means more review: the bottleneck moves from making assets to checking them, so the review band in the picture needs people and time planned for it.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>For a production, the unit of cost is people-time. Add up the team band in the picture month by month and the illustrative project uses about 2,340 person-months, or 195 person-years, from concept to launch.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">2,340</span><span class="what">person-months from concept to launch in the illustrative project</span></div>
+              <div class="stat"><span class="value">6%</span><span class="what">of them spent in pre-production, which takes 23% of the calendar</span></div>
+              <div class="stat"><span class="value">60%</span><span class="what">spent in production</span></div>
+              <div class="stat"><span class="value">34%</span><span class="what">spent from alpha to launch, mostly fixing and optimising</span></div>
+            </div>
+            <p>Money follows directly. At an assumed fully loaded cost of $12,000 per person per month (salary, benefits, equipment and office; the real figure varies widely between countries), 2,340 person-months is about $28 million before marketing. The live team of 35 then costs about $420,000 a month for as long as the game is supported.</p>
+            <h3>The same decision, two prices</h3>
+            <p>Take one graphics decision: moving from baked lighting to fully dynamic lighting, perhaps because the design now needs a day and night cycle. Here is an illustrative estimate of what it costs at two points in the project.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Work</th><th scope="col" class="num">In pre-production</th><th scope="col" class="num">In late production, 30 levels built</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Technical prototype and lighting tests</th><td class="num">6 person-weeks</td><td class="num">included below</td></tr>
+                  <tr><th scope="row">Relight existing levels, about a week each</th><td class="num">0</td><td class="num">30 person-weeks</td></tr>
+                  <tr><th scope="row">Re-optimise for the new cost on the weakest target</th><td class="num">0</td><td class="num">12 person-weeks</td></tr>
+                  <tr><th scope="row">Adjust materials and LODs for the new lighting</th><td class="num">0</td><td class="num">8 person-weeks</td></tr>
+                  <tr><th scope="row">QA retest, half a week per level</th><td class="num">0</td><td class="num">15 person-weeks</td></tr>
+                  <tr><th scope="row">Total</th><td class="num">6 person-weeks</td><td class="num">65 person-weeks, about 11 times more</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>The late version also lands when the team is at full size and the schedule has least slack, so it tends to push something else out or into overtime. That is why <a class="term" data-term="baked-lighting" data-forward href="glossary.html#baked-lighting">baked lighting</a>, <a class="term" data-term="lod" data-forward href="glossary.html#lod">LOD</a> strategy and the frame budget are pre-production decisions on well-run projects.</p>
+            <h3>What makes the bill grow</h3>
+            <div class="stack">
+            <ul class="grows">
+              <li><strong>Team size × time</strong><span>Every month of slip at the peak costs about 25 times a month of slip in concept.</span></li>
+              <li><strong>Late discovery</strong><span>A problem found after content is built is paid for once per asset it touches.</span></li>
+              <li><strong>Platform count</strong><span>Each extra target adds its own performance work, quality settings, QA passes and certification.</span></li>
+              <li><strong>Unfrozen features</strong><span>Each feature added after alpha destabilises a build that everyone else is trying to measure.</span></li>
+              <li><strong>Overtime</strong><span>Long hours lift output for a short time, then raise the bug rate and drive people out of the team.</span></li>
+              <li><strong>Live commitments</strong><span>A promised season of content costs people every month it runs.</span></li>
+            </ul>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Crunch is a cost</p>
+              <p>When a schedule runs out, teams often fall back on <dfn class="term" data-term="crunch">crunch</dfn>, sustained long hours to hit a date. Insomniac's founder wrote of <em>Ratchet &amp; Clank</em> that the team was "always in crunch mode", and the practice was widespread for years. It looks free in the budget because it is unpaid or fixed-salary time, but it shows up as tired mistakes, sick leave and experienced people leaving. Plan buffer and a cut list instead.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Projects rarely fail at the moment the trouble starts. They fail a year later, when the trouble meets a gate it cannot pass. These five patterns cover most of the graphics-related cases.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A monitor showing a tick next to a console whose frame-time graph spikes far above a dashed budget line.">
+                    <rect class="f-surface s-strong" x="14" y="22" width="92" height="62" rx="4"/>
+                    <path class="s-strong" d="M60,84 V96 M44,98 H76"/>
+                    <path class="s-acc w3 round" d="M42,54 L56,68 L80,40"/>
+                    <rect class="f-solid s-strong" x="136" y="86" width="90" height="28" rx="4"/>
+                    <line class="s-muted dash" x1="132" y1="50" x2="230" y2="50"/>
+                    <polyline class="s-pix w2 round" points="136,58 148,56 158,30 168,60 180,18 192,56 204,26 216,62 226,14"/>
+                    <text class="t-small t-muted" x="136" y="44">budget</text>
+                  </svg>
+                </div>
+                <h4>The slice that only ran on a PC</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The vertical slice was built and shown on a development PC. Nobody measured it on the weakest target, so production assumed headroom that never existed.</dd></div>
+                  <div><dt>Ask for</dt><dd>Gate criteria that name the hardware: frame time and memory measured on the weakest target, captured, attached to the milestone.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Six asset bars against a dashed budget line; most bars overshoot it, with the excess shown in red.">
+                    <line class="s-ink dash" x1="14" y1="60" x2="226" y2="60"/>
+                    <rect class="f-solid s-strong" x="24" y="60" width="24" height="56"/><rect class="f-pix-soft s-pix" x="24" y="26" width="24" height="34"/>
+                    <rect class="f-solid s-strong" x="58" y="72" width="24" height="44"/>
+                    <rect class="f-solid s-strong" x="92" y="60" width="24" height="56"/><rect class="f-pix-soft s-pix" x="92" y="16" width="24" height="44"/>
+                    <rect class="f-solid s-strong" x="126" y="60" width="24" height="56"/><rect class="f-pix-soft s-pix" x="126" y="38" width="24" height="22"/>
+                    <rect class="f-solid s-strong" x="160" y="60" width="24" height="56"/><rect class="f-pix-soft s-pix" x="160" y="10" width="24" height="50"/>
+                    <rect class="f-solid s-strong" x="194" y="80" width="24" height="36"/>
+                    <text class="t-small t-muted" x="190" y="54">budget</text>
+                  </svg>
+                </div>
+                <h4>Budgets arrive after the content</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Production started before triangle, texture and frame-time budgets were set, or they were set but never checked. Hundreds of assets now need rework.</dd></div>
+                  <div><dt>Ask for</dt><dd>Budgets before content, and automatic checks at import that flag any asset over its limit the day it is added.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A feature curve that keeps rising past a vertical freeze line, with a red bug-count curve climbing behind it.">
+                    <line class="s-ink dash" x1="140" y1="10" x2="140" y2="118"/>
+                    <text class="t-small t-muted" x="146" y="22">freeze</text>
+                    <path class="s-acc w2" d="M14,110 C60,100 100,60 140,56 C170,54 200,40 226,30"/>
+                    <path class="s-pix w2" d="M14,116 C80,114 120,104 150,90 C180,76 205,50 226,40"/>
+                    <path class="s-line" d="M14,118 H226"/>
+                  </svg>
+                </div>
+                <h4>Features keep landing after alpha</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>New rendering features or minor visual upgrades were accepted after the freeze. Each one moves the performance baseline and adds bugs while the team is trying to stabilise.</dd></div>
+                  <div><dt>Ask for</dt><dd>A written feature freeze with a change-control list: any late feature needs a named owner, a cost, and something cut to pay for it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="An open gate with question marks passing through it into a large crowd of people.">
+                    <rect class="f-solid s-strong" x="40" y="20" width="10" height="96"/>
+                    <rect class="f-solid s-strong" x="92" y="20" width="10" height="96"/>
+                    <path class="s-strong" d="M50,30 L70,24 M50,50 L70,44"/>
+                    <text class="t-head t-pix mid" x="20" y="70">?</text>
+                    <text class="t-head t-pix mid" x="72" y="80">?</text>
+                    <text class="t-head t-pix mid" x="122" y="58">?</text>
+                    <g class="f-acc-soft s-acc">
+                      <circle cx="150" cy="96" r="7"/><circle cx="170" cy="96" r="7"/><circle cx="190" cy="96" r="7"/><circle cx="210" cy="96" r="7"/>
+                      <circle cx="160" cy="76" r="7"/><circle cx="180" cy="76" r="7"/><circle cx="200" cy="76" r="7"/><circle cx="220" cy="76" r="7"/>
+                      <circle cx="170" cy="56" r="7"/><circle cx="190" cy="56" r="7"/><circle cx="210" cy="56" r="7"/>
+                    </g>
+                  </svg>
+                </div>
+                <h4>Production starts with open questions</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Pre-production was cut short, or the gate passed on enthusiasm. The art style, a key rendering feature or the lighting approach is still undecided when the full team arrives.</dd></div>
+                  <div><dt>Ask for</dt><dd>A list of open technical and visual risks at every gate, each with an owner and a date by which a prototype will close it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Weekly working-hours bars that stay at a 40-hour line for most of the project, then climb far above it in red near the end.">
+                    <line class="s-ink dash" x1="10" y1="80" x2="230" y2="80"/>
+                    <text class="t-small t-muted" x="12" y="74">40 h</text>
+                    <g class="f-solid s-strong">
+                      <rect x="14" y="80" width="14" height="36"/><rect x="34" y="80" width="14" height="36"/><rect x="54" y="80" width="14" height="36"/><rect x="74" y="80" width="14" height="36"/><rect x="94" y="80" width="14" height="36"/><rect x="114" y="80" width="14" height="36"/>
+                    </g>
+                    <g class="f-pix-soft s-pix">
+                      <rect x="134" y="62" width="14" height="54"/><rect x="154" y="48" width="14" height="68"/><rect x="174" y="36" width="14" height="80"/><rect x="194" y="26" width="14" height="90"/><rect x="214" y="20" width="14" height="96"/>
+                    </g>
+                  </svg>
+                </div>
+                <h4>Crunch as the plan</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The schedule had no buffer, cuts were postponed, and late surprises were absorbed with overtime. Quality and bug counts get worse just as the team needs them to improve.</dd></div>
+                  <div><dt>Ask for</dt><dd>A visible cut list from pre-production on, schedule buffer before beta, and weekly tracking of open bugs against the time left.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>The first pattern has a famous recent example. <em>Cyberpunk 2077</em> launched in December 2020 to widespread criticism of its performance on the base PlayStation 4 and Xbox One, although the PC version was largely well received. CD Projekt apologised for not showing those versions before release and said it should have paid more attention to how the game ran on them, and on 18 December Sony removed the game from the PlayStation Store and offered refunds. Whatever happened inside the studio, the lesson for leads is the same: the weakest target has to be in the evidence at every gate.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>No engine runs your milestones for you, but each one has tools for the work each phase needs: starting fast, measuring against budgets, scaling to platforms, working as a team, shipping and patching.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Starting a prototype</th>
+                    <td>Games templates (First Person, Third Person, Top Down, Vehicle, Virtual Reality, Handheld AR) as starting points; Blueprint visual scripting lets designers build gameplay without C++.</td>
+                    <td>Project templates in the Unity Hub as starting points; gameplay in C# scripts.</td>
+                    <td>A small editor with its own scripting language, GDScript. Scenes are saved as text <code>.tscn</code> files, which are mostly human-readable.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">AI help in the editor</th>
+                    <td>5.7 adds an <strong>AI Assistant</strong> panel (Experimental) for answers, step-by-step guidance and code examples.</td>
+                    <td>Unity AI: an in-editor <strong>Assistant</strong> that writes code, troubleshoots and automates tasks, and generators for sprites, textures, sounds, animations and materials, with usage tracked in credits.</td>
+                    <td>None built in. A long-time maintainer said in June 2026 that Godot does not include AI features and does not intend to add any. External tools can work on the text scene and script files.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Measuring against budgets</th>
+                    <td><strong>Unreal Insights</strong>: Timing Insights for CPU and GPU work, Memory Insights for allocations.</td>
+                    <td>The <strong>Profiler</strong> window, which can connect to a device on the target platform, and the <strong>Frame Debugger</strong>, which steps through the rendering events of a frame.</td>
+                    <td>The Debugger panel's <strong>Profiler</strong> for frame time and scripts, and <strong>Visual Profiler</strong> for rendering time on CPU and GPU. <strong>Monitors</strong> graph FPS and memory.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Scaling to platforms</th>
+                    <td>Scalability settings, plus device profiles that set values such as texture pool size per platform or device.</td>
+                    <td><strong>Quality</strong> settings: a matrix of quality levels against build platforms, customisable per build profile.</td>
+                    <td>Any project setting can be overridden per feature tag, such as a value used only on mobile.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Working as a team</th>
+                    <td>Perforce and SVN supported in the editor by default. <strong>Multi-User Editing</strong> lets several editors work in one live session; Epic says it does not replace version control.</td>
+                    <td>Editor integration with Perforce and Unity Version Control, including check out and, with Perforce, file locking.</td>
+                    <td>An official Git plugin for in-editor version control; <strong>Project › Version Control › Generate Version Control Metadata</strong> writes <code>.gitignore</code> and <code>.gitattributes</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Release builds</th>
+                    <td>Build configurations include <strong>Shipping</strong> (for release) and <strong>Test</strong> (Shipping plus some stats and profiling tools).</td>
+                    <td><strong>Build Profiles</strong>: several saved configurations per platform, for example release and development, each with its own scene list.</td>
+                    <td>Export presets per platform; export templates must be installed to export.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Patches after launch</th>
+                    <td>Patch builds compare new cooked content with the released version and store changes in a <code>_p</code> PAK file. Distribution goes through each platform's own tools.</td>
+                    <td>Addressables <strong>content update builds</strong> publish changed content without a new player build, if the game already uses a remote catalog.</td>
+                    <td>Resource packs (<code>.pck</code>) loaded with <code>ProjectSettings.load_resource_pack()</code>; the export dialog's Patching tab can export only what changed since a base pack.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.7, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>AI is useful for production work that is mostly structured writing and checking: drafting gate criteria, turning them into automated checks, and reviewing a plan for risks. Give it the platforms, the team size, the dates and the current state in numbers.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when planning a vertical slice gate</span></div>
+              <pre class="prompt-body">We are a 25-person team making a third-person action game in Unreal Engine 5.7 for PS5, Xbox Series X|S and PC. Xbox Series S is our weakest target, at 30 fps. Pre-production ends in 8 months with a vertical slice: one 15-minute level.
+
+Draft the graphics criteria for the vertical slice gate.
+1. Make every criterion measurable, and say on which hardware and how it is measured (tool, scene, camera path).
+2. Cover frame time, memory, loading, visual quality against our target images, and pipeline repeatability (how long the next level will take).
+3. For each criterion, say what would make it a conditional pass and what would make it a fail.
+4. List the open graphics risks you would expect at this stage, and the prototype that would close each one before the gate.</pre>
+              <ul class="prompt-why">
+                <li>Naming the weakest target stops criteria being written for a development PC.</li>
+                <li>Asking how each criterion is measured turns wishes into checks.</li>
+                <li>Pipeline repeatability is the part of a slice that teams most often forget to prove.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Review</span><span class="use-when">Use when a schedule needs a risk check</span></div>
+              <pre class="prompt-body">Attached is our production schedule (milestones, dates, team size per month) and our current list of rendering features with their status. We hit alpha in 5 months.
+
+Review it as a production lead with a graphics background.
+- Which rendering features are not yet proven on Xbox Series S, and which content depends on them?
+- Where does the schedule assume optimisation will happen without time set aside for it?
+- What would you freeze now, and what would you put on a cut list?
+- Give me three questions to ask the graphics leads this week.
+Do not rewrite the schedule; point at the risks and explain each in two sentences.</pre>
+              <ul class="prompt-why">
+                <li>Giving the real schedule and feature list keeps the answer specific.</li>
+                <li>The questions target the two classic late failures: unproven features and unplanned optimisation.</li>
+                <li>Asking for risks rather than a new plan keeps decisions with the team.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing AI work on production plans and demos</h3>
+            <ol class="review-list">
+              <li>Was this measured on the weakest target hardware, and where is the capture?<span class="why">A demo on a development PC proves nothing about a console or a phone.</span></li>
+              <li>Which gate criterion does this evidence satisfy, and which does it only resemble?<span class="why">Fast AI-made demos can look like a vertical slice without the repeatable pipeline behind one.</span></li>
+              <li>What would changing this decision cost after the next gate?<span class="why">It tells you whether to decide now or leave it open a little longer.</span></li>
+              <li>Is this a new feature after the freeze? Who approved it, and what was cut to pay for it?<span class="why">Late features are the commonest source of late instability.</span></li>
+              <li>Does generated content go through the same budgets, import checks and review as hand-made content?<span class="why">More content is only useful if it fits the frame and the memory.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">The team shows a stunning 3-minute capture of one level, recorded on a high-end PC, and asks to start production. Is that a vertical slice?</p>
+                <details><summary>Show answer</summary><p>Not yet. A vertical slice is playable, at final quality in every layer, running on the target hardware within budget, and built with the pipeline production will use. Ask for it on the weakest target, with captures, and for how long the level took to make.</p></details>
+              </li>
+              <li>
+                <p class="q">In this chapter's example, moving from baked to fully dynamic lighting costs 6 person-weeks in pre-production. Roughly what does it cost in late production, and why?</p>
+                <details><summary>Show answer</summary><p>About 65 person-weeks, around 11 times more, because 30 finished levels must be relit, re-optimised, adjusted and retested. The work is paid once for every asset the decision touches.</p></details>
+              </li>
+              <li>
+                <p class="q">Two months after alpha, a publisher asks for a new ray-traced reflections mode for the PC version. What do you ask before agreeing?</p>
+                <details><summary>Show answer</summary><p>It breaks the feature freeze, so: what does it cost in people and weeks, who owns it, how it affects performance, testing and stability on every platform, and what will be cut to pay for it. Often the better answer is a post-launch patch.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#milestone">milestone</a></li>
+              <li><a class="chip" href="glossary.html#concept-phase">concept phase</a></li>
+              <li><a class="chip" href="glossary.html#prototype">prototype</a></li>
+              <li><a class="chip" href="glossary.html#pre-production">pre-production</a></li>
+              <li><a class="chip" href="glossary.html#look-development">look development</a></li>
+              <li><a class="chip" href="glossary.html#vertical-slice">vertical slice</a></li>
+              <li><a class="chip" href="glossary.html#production">production</a></li>
+              <li><a class="chip" href="glossary.html#alpha">alpha</a></li>
+              <li><a class="chip" href="glossary.html#content-complete">content complete</a></li>
+              <li><a class="chip" href="glossary.html#beta">beta</a></li>
+              <li><a class="chip" href="glossary.html#gold-master">gold master</a></li>
+              <li><a class="chip" href="glossary.html#day-one-patch">day-one patch</a></li>
+              <li><a class="chip" href="glossary.html#live-ops">live ops</a></li>
+              <li><a class="chip" href="glossary.html#crunch">crunch</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="1.2"></a> introduces the people who do this work, who hands what to whom, and who owns each graphics decision.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://gdcvault.com/play/1022328/contactUs">The Vertical Slice Challenge</a>, Greg Donovan, Volition, GDC 2015. The vertical slice as the gate between pre-production and production.</li>
+              <li><a href="https://www.gamedeveloper.com/game-platforms/postmortem-insomniac-games-i-ratchet-clank-i-">Postmortem: Insomniac Games' Ratchet &amp; Clank</a>, Ted Price, Game Developer, 2003. A restarted pre-production, first playables and crunch.</li>
+              <li><a href="https://www.gamedeveloper.com/design/supergiant-s-fourth-outing-i-hades-i-introduces-a-more-mature-organized-dev-process">Supergiant's fourth outing, Hades, introduces a more mature, organized dev process</a>, Bryant Francis, Game Developer, 2019. Monthly milestones during early access.</li>
+              <li><a href="https://www.engadget.com/2016-08-08-day-one-patch-no-mans-sky-always-on.html">Day-one patches are the new normal</a>, Jessica Conditt, Engadget, 2016. Going gold, certification and the No Man's Sky launch update.</li>
+              <li><a href="https://gdcvault.com/play/1034240/Live-Service-Release-Planning-Maintaining">Live Service Release Planning: Maintaining 'Destiny 2'</a>, Shawna Williams, Bungie, GDC 2024. Expansions, seasons, maintenance patches and hotfixes.</li>
+              <li><a href="https://www.videogameschronicle.com/news/sony-has-removed-cyberpunk-2077-from-the-playstation-store-and-is-offering-refunds">Sony has removed Cyberpunk 2077 from the PlayStation Store and is offering refunds</a>, Video Games Chronicle, 18 December 2020.</li>
+              <li><a href="https://gdconf.com/article/gdc-2026-state-of-the-game-industry-reveals-impact-of-layoffs-generative-ai-and-more/">GDC 2026 State of the Game Industry</a>, GDC. Survey figures on generative AI use and attitudes.</li>
+              <li><a href="https://en.wikipedia.org/wiki/Video_game_development">Video game development</a>, Wikipedia. A summary of common milestone definitions and timings.</li>
+              <li><a href="https://respawn.outlookindia.com/gaming/gaming-news/godot-draws-clear-line-on-ai-assisted-contributions">Godot draws clear line on AI-assisted contributions</a>, Outlook Respawn, 2026. Source for the Godot maintainer's statement on AI features.</li>
+              <li>Engine documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-templates-reference?application_version=5.7">Unreal templates</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-insights-in-unreal-engine?application_version=5.7">Unreal Insights</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/updating-unreal-engine-projects-with-patches-after-release?application_version=5.7">Unreal patching</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/building-and-publishing/build-settings/build-profiles">Unity Build Profiles</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/unity-ai">Unity AI</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/scripting/debug/debugger_panel.html">Godot debugger panel</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/export/exporting_pcks.html">Godot patches and PCK files</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>
