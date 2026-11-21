@@ -1,0 +1,920 @@
+<title>Graphics Handbook Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+  /* Layout: a sticky contents rail beside one reading column; figures and the chapter outline use the column's full width, prose stays near 68 characters. */
+  :root {
+    --bg: #F4F5F9;            /* cool viewport grey */
+    --surface: #FFFFFF;
+    --ink: #151833;
+    --muted: #5B6180;
+    --line: #D9DCE8;
+    --line-strong: #B3B8CE;
+    --solid: #E2E5F0;         /* geometry mass in diagrams */
+    --accent: #4A4ED6;        /* tangent-space normal-map blue, darkened for text */
+    --accent-soft: #E6E7FB;
+    --geo: #0B7F74;           /* geometry and vertex data */
+    --lit: #A85C00;           /* light */
+    --pix: #B92F58;           /* screen-space data */
+    --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+    --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11131C; --surface: #191C2A; --ink: #E9EBF6; --muted: #9BA1BC;
+      --line: #2A2E44; --line-strong: #474D6B; --solid: #232740;
+      --accent: #9EA0FF; --accent-soft: #25284F;
+      --geo: #45CDBC; --lit: #F0B14D; --pix: #F27A98;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11131C; --surface: #191C2A; --ink: #E9EBF6; --muted: #9BA1BC;
+    --line: #2A2E44; --line-strong: #474D6B; --solid: #232740;
+    --accent: #9EA0FF; --accent-soft: #25284F;
+    --geo: #45CDBC; --lit: #F0B14D; --pix: #F27A98;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 1180px; margin-inline: auto;
+    padding-block: 2.5rem 5rem;
+    padding-left: max(clamp(16px, 4vw, 40px), env(safe-area-inset-left, 0px));
+    padding-right: max(clamp(16px, 4vw, 40px), env(safe-area-inset-right, 0px));
+    display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem;
+  }
+  main { display: grid; gap: 4rem; min-width: 0; }
+  section, header.top { display: grid; gap: 1.1rem; min-width: 0; scroll-margin-top: 1.5rem; }
+
+  /* Type scale: 0.72 / 0.82 / 0.92 / 1 / 1.15 / 1.6 / 2.6 rem */
+  h1, h2, h3, h4 { font-family: var(--font-display); margin: 0; text-wrap: balance; line-height: 1.2; }
+  h1 { font-size: clamp(2rem, 5vw, 2.6rem); font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: 1.6rem; font-weight: 600; letter-spacing: -0.01em; padding-top: 1.25rem; border-top: 1px solid var(--line-strong); }
+  h3 { font-size: 1.15rem; font-weight: 600; margin-top: 0.9rem; }
+  h4 { font-size: 1rem; font-weight: 600; }
+  p, ul, ol, dl, figure, pre { margin: 0; }
+  p, li { max-width: 68ch; }
+  a { color: var(--accent); text-underline-offset: 0.18em; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  code { font-family: var(--font-mono); font-size: 0.88em; background: var(--solid); padding: 0.08em 0.35em; border-radius: 4px; }
+  .eyebrow, .label {
+    font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .lead { font-size: 1.15rem; line-height: 1.55; max-width: 60ch; }
+  .muted { color: var(--muted); }
+
+  /* Contents rail */
+  .toc ol { list-style: none; margin: 0.6rem 0 0; padding: 0; columns: 2; column-gap: 1.5rem; font-size: 0.92rem; }
+  .toc li { break-inside: avoid; padding: 0.18rem 0; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc a:hover { color: var(--accent); text-decoration: underline; }
+  @media (min-width: 1080px) {
+    .wrap { grid-template-columns: 190px minmax(0, 1fr); gap: 3.5rem; }
+    .toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 1.5rem); align-self: start; }
+    .toc ol { columns: 1; }
+  }
+
+  /* Facts row under the title */
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); overflow: hidden; }
+  .facts > div { padding: 0.9rem 1.1rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 0 -1px -1px 0; }
+  .facts dt { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .facts dd { margin: 0.25rem 0 0; font-size: 0.92rem; line-height: 1.45; }
+  .facts strong { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .list { padding-left: 1.2rem; display: grid; gap: 0.45rem; }
+  .list li::marker { color: var(--accent); }
+
+  /* Before / after brief */
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .quote { border-left: 3px solid var(--line-strong); padding: 0.2rem 0 0.2rem 1rem; display: grid; gap: 0.4rem; min-width: 0; }
+  .quote.is-after { border-left-color: var(--accent); }
+  .quote p { font-size: 0.95rem; }
+
+  /* Chapter beats */
+  .beats { list-style: none; padding: 0; counter-reset: beat; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.9rem 2rem; }
+  .beats li { counter-increment: beat; display: grid; grid-template-columns: 1.9rem minmax(0, 1fr); gap: 0.2rem 0.5rem; max-width: none; }
+  .beats li::before { content: counter(beat); font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent); grid-row: span 2; padding-top: 0.12rem; }
+  .beats strong { font-family: var(--font-display); font-weight: 600; }
+  .beats span { font-size: 0.92rem; color: var(--muted); }
+
+  /* Figures */
+  figure { display: grid; gap: 0.7rem; min-width: 0; }
+  .fig-frame { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; overflow-x: auto; padding: 1rem; }
+  figcaption { font-size: 0.88rem; color: var(--muted); max-width: 72ch; }
+  figcaption b { color: var(--ink); font-weight: 600; }
+  .dg { display: block; width: 100%; min-width: 720px; height: auto; }
+  .dg text { font-family: var(--font-body); fill: var(--ink); }
+  .dg .mono { font-family: var(--font-mono); }
+  .dg .caps { font-family: var(--font-mono); letter-spacing: 0.08em; }
+  .dg .disp { font-family: var(--font-display); }
+  .dg .muted { fill: var(--muted); }
+  .dg .acc { fill: var(--accent); }
+  .dg .strong { font-weight: 600; }
+  .dg .box { fill: var(--surface); stroke: var(--line-strong); }
+  .dg .box-acc { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+  .dg .box-dash { fill: none; stroke: var(--line-strong); stroke-dasharray: 5 4; }
+  .dg .soft { fill: var(--accent-soft); }
+  .dg .solid { fill: var(--solid); }
+  .dg .ln { stroke: var(--ink); fill: none; }
+  .dg .ln-muted { stroke: var(--muted); fill: none; }
+  .dg .ln-line { stroke: var(--line-strong); fill: none; }
+  .dg .ln-acc { stroke: var(--accent); fill: none; }
+  .dg .f-ink { fill: var(--ink); }
+  .dg .f-muted { fill: var(--muted); }
+  .dg .f-acc { fill: var(--accent); }
+  .dg .f-surface { fill: var(--surface); }
+
+  /* Outline */
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; font-size: 0.88rem; color: var(--muted); }
+  .tag { display: inline-block; font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.08rem 0.45rem; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--muted); white-space: nowrap; vertical-align: 0.1em; }
+  .tag.is-live { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .tag.is-named { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  #outline { display: grid; gap: 1.75rem; }
+  .part { display: grid; gap: 0; min-width: 0; }
+  .part-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 1rem; align-items: baseline; padding-bottom: 0.6rem; border-bottom: 2px solid var(--ink); }
+  .part-head h3 { margin: 0; }
+  .part-head .label { justify-self: end; }
+  .part-head p { grid-column: 1 / -1; font-size: 0.92rem; color: var(--muted); }
+  .ch { display: grid; grid-template-columns: 2.6rem minmax(0, 1.05fr) minmax(0, 1fr); gap: 0.2rem 1rem; padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
+  .ch-num { font-family: var(--font-mono); font-size: 0.82rem; color: var(--muted); padding-top: 0.15rem; font-variant-numeric: tabular-nums; }
+  .ch h4 { display: flex; flex-wrap: wrap; gap: 0.35rem 0.5rem; align-items: center; }
+  .ch-terms { font-size: 0.86rem; color: var(--muted); margin-top: 0.2rem; }
+  .ch-visual { font-size: 0.9rem; }
+  @media (max-width: 720px) {
+    .ch { grid-template-columns: 2.6rem minmax(0, 1fr); }
+    .ch-visual { grid-column: 2; }
+  }
+
+  /* Prerequisite ladders */
+  .ladders { display: grid; gap: 1.4rem; }
+  .ladder-row { display: grid; gap: 0.5rem; }
+  .ladder { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+  .ladder li { position: relative; font-size: 0.9rem; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 6px; padding: 0.25rem 0.6rem; max-width: none; }
+  .ladder li + li::before { content: "\2192"; position: absolute; left: -1.15rem; top: 0.22rem; color: var(--muted); }
+  .ladder li.is-goal { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .ladder .ref { font-family: var(--font-mono); font-size: 0.74rem; color: var(--muted); margin-right: 0.3rem; }
+
+  /* Small definition grids */
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2rem 2rem; }
+  .item { display: grid; gap: 0.25rem; align-content: start; min-width: 0; }
+  .item p { font-size: 0.92rem; color: var(--muted); }
+  .item h4 .ref { font-family: var(--font-mono); font-size: 0.74rem; font-weight: 400; color: var(--muted); margin-left: 0.35rem; }
+  .swatches { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.6rem 1.5rem; }
+  .swatches li { display: grid; grid-template-columns: 1.1rem minmax(0, 1fr); gap: 0.6rem; align-items: start; font-size: 0.92rem; max-width: none; }
+  .sw { width: 1.1rem; height: 1.1rem; border-radius: 4px; margin-top: 0.2rem; }
+
+  pre.tree { font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.55; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 1rem 1.1rem; overflow-x: auto; }
+  pre.tree span { color: var(--muted); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.9rem; }
+  th, td { text-align: left; vertical-align: top; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  th { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; color: var(--muted); border-bottom-color: var(--line-strong); }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  td .num { font-family: var(--font-mono); font-weight: 400; color: var(--muted); font-size: 0.8rem; display: block; }
+  .rec { color: var(--accent); font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <nav class="toc" aria-label="Plan contents">
+    <p class="label">Contents</p>
+    <ol>
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#reader">Who it is for</a></li>
+      <li><a href="#method">How ideas are taught</a></li>
+      <li><a href="#path">Learning path</a></li>
+      <li><a href="#chapters">Chapter outline</a></li>
+      <li><a href="#named">Terms you named</a></li>
+      <li><a href="#visuals">Visual system</a></li>
+      <li><a href="#interactives">Signature interactives</a></li>
+      <li><a href="#site">How the site is built</a></li>
+      <li><a href="#quality">Quality checks</a></li>
+      <li><a href="#phases">Delivery phases</a></li>
+      <li><a href="#decisions">Decisions for you</a></li>
+      <li><a href="#scope">Out of scope</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="top" id="overview">
+      <p class="eyebrow">Build plan · draft 1 · 21 Nov 2026 · awaiting review</p>
+      <h1>Graphics Handbook</h1>
+      <p class="lead">A visual handbook that takes someone new to graphics from “what is a frame?” to reading a renderer's feature list with confidence. It is written for a game lead who will direct AI to do much of the hands-on work.</p>
+      <dl class="facts">
+        <div><dt>Size</dt><dd><strong><span data-count="parts">13</span> parts · <span data-count="chapters">64</span> chapters</strong><br>plus 4 reference pages</dd></div>
+        <div><dt>Visuals</dt><dd><strong>~250 diagrams</strong><br><span data-count="live">34</span> interactives and one recurring live scene</dd></div>
+        <div><dt>Format</dt><dd><strong>Static HTML</strong><br>opens from a double-click, hosted on GitHub Pages</dd></div>
+        <div><dt>First delivery</dt><dd><strong>Shell + 2 pilots</strong><br>vertex buffers and GTAO, for your review before the rest</dd></div>
+      </dl>
+    </header>
+
+    <section id="reader">
+      <h2>Who it is for</h2>
+      <p>The reader is sharp, comfortable working with AI tools, and has never opened a renderer. They will lead or build a game where AI agents write much of the code and content. Their job is to know what to ask for, judge what comes back, and make the trade-off calls.</p>
+      <p>That shapes the whole book. It teaches recognition and judgement first: what a technique is, why it exists, what it costs, and how it fails. Hand-writing the code comes last and stays optional.</p>
+
+      <h3>After the handbook, the reader can</h3>
+      <ul class="list">
+        <li>Follow one asset from an artist's tool to a lit pixel and name every stage it passes through.</li>
+        <li>Explain what a draw call, vertex buffer, shader, G-buffer and render pass are, and what each one costs.</li>
+        <li>Decode a feature list or a settings menu: SSAO against HBAO against GTAO, SSR, SSGI, CSM, TAA, DLSS, Lumen, Nanite.</li>
+        <li>Look at a visual bug and name the technique most likely at fault.</li>
+        <li>Read a frame-time graph and a profiler capture well enough to ask the right next question.</li>
+        <li>Write a brief an AI agent can act on, and review what it returns.</li>
+        <li>Choose a lighting, shadow and anti-aliasing approach that fits a platform and a frame budget.</li>
+      </ul>
+
+      <h3>What fluent sounds like</h3>
+      <div class="pair">
+        <div class="quote">
+          <p class="label">Before</p>
+          <p>“The shadows look bad on the terrain. Fix them.”</p>
+        </div>
+        <div class="quote is-after">
+          <p class="label">After</p>
+          <p>“Unity 6 URP, Quest 3, 72 fps target. Shadow acne on the terrain when the sun is low. The main light uses 2 cascades at 1024. Propose bias and cascade changes that keep the shadow pass under 1.5 ms, and tell me how to confirm the result in the Frame Debugger.”</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="method">
+      <h2>How every idea is taught</h2>
+      <p>Every chapter follows the same eight beats in the same order, so the reader always knows where to look. Beats four, five and seven are what set this handbook apart from a programmer's textbook: they are the parts a lead uses daily.</p>
+      <ol class="beats">
+        <li><strong>The picture</strong><span>One diagram that holds the whole idea before any prose.</span></li>
+        <li><strong>In plain words</strong><span>Three sentences without jargon, an everyday analogy, and the problem the technique was invented to solve.</span></li>
+        <li><strong>How it works</strong><span>The mechanism step by step. Where motion explains it better, an interactive replaces the static figure.</span></li>
+        <li><strong>What it costs</strong><span>Milliseconds, memory, and what makes the cost grow: resolution, light count, triangle count.</span></li>
+        <li><strong>How it breaks</strong><span>The artifacts it produces, what each looks like, and the usual fix.</span></li>
+        <li><strong>In the engines</strong><span>What Unreal, Unity and Godot call it, and where the setting lives.</span></li>
+        <li><strong>Say it to your AI</strong><span>Briefs and review questions that use the chapter's vocabulary, ready to copy and adapt.</span></li>
+        <li><strong>Check yourself</strong><span>Three quick questions and the list of terms the chapter introduced.</span></li>
+      </ol>
+
+      <figure>
+        <div class="fig-frame">
+          <svg class="dg" viewBox="0 0 880 430" role="img" aria-label="Wireframe of a chapter page: chapter navigation on the left, the eight beats stacked in the centre column, and a right rail with page contents, terms, a term hover card and reading progress.">
+            <rect class="box" x="10" y="10" width="860" height="410" rx="8"/>
+            <line class="ln-line" x1="10" y1="46" x2="870" y2="46"/>
+            <line class="ln-line" x1="190" y1="46" x2="190" y2="420"/>
+            <line class="ln-line" x1="664" y1="46" x2="664" y2="420"/>
+            <!-- top bar -->
+            <text class="disp strong" x="26" y="33" font-size="12.5">Graphics Handbook</text>
+            <rect class="box" x="596" y="19" width="176" height="18" rx="9"/>
+            <text class="muted" x="608" y="32" font-size="10">Search 300 terms</text>
+            <circle class="box" cx="800" cy="28" r="7"/>
+            <path class="f-ink" d="M800,21 A7,7 0 0 1 800,35 Z"/>
+            <text class="mono muted" x="820" y="32" font-size="10">38%</text>
+            <!-- sidebar -->
+            <text class="caps muted" x="26" y="70" font-size="9.5">PART 4 · GEOMETRY</text>
+            <text x="26" y="92" font-size="11">4.1 Meshes</text>
+            <circle class="f-acc" cx="174" cy="88" r="3.5"/>
+            <rect class="soft" x="18" y="99" width="164" height="20" rx="4"/>
+            <text class="acc strong" x="26" y="113" font-size="11">4.2 Vertex buffers</text>
+            <text x="26" y="134" font-size="11">4.3 Draw calls</text>
+            <text x="26" y="154" font-size="11">4.4 Culling</text>
+            <text x="26" y="174" font-size="11">4.5 Level of detail</text>
+            <text x="26" y="194" font-size="11">4.6 Moving geometry</text>
+            <text class="caps muted" x="26" y="226" font-size="9.5">PART 5 · GPU PIPELINE</text>
+            <rect class="solid" x="26" y="238" width="112" height="6" rx="3"/>
+            <rect class="solid" x="26" y="254" width="92" height="6" rx="3"/>
+            <rect class="solid" x="26" y="270" width="124" height="6" rx="3"/>
+            <rect class="solid" x="26" y="286" width="100" height="6" rx="3"/>
+            <!-- main column -->
+            <text class="caps muted" x="210" y="68" font-size="9.5">NEEDS: 4.1 MESHES</text>
+            <text class="disp strong" x="210" y="92" font-size="17">Vertex buffers and index buffers</text>
+            <rect class="box-dash" x="210" y="104" width="440" height="72" rx="6"/>
+            <text class="mono strong" x="222" y="124" font-size="10.5">1 · The picture</text>
+            <text class="muted" x="222" y="141" font-size="10.5">one diagram that holds the whole idea</text>
+            <rect class="box" x="210" y="184" width="440" height="30" rx="6"/>
+            <text class="mono strong" x="222" y="203" font-size="10.5">2 · In plain words</text>
+            <text class="muted" x="362" y="203" font-size="10.5">and the problem it solves</text>
+            <rect class="box-acc" x="210" y="222" width="440" height="72" rx="6"/>
+            <text class="mono strong acc" x="222" y="242" font-size="10.5">3 · How it works</text>
+            <text class="muted" x="222" y="259" font-size="10.5">drag, toggle, scrub: the mechanism in motion</text>
+            <line class="ln-line" x1="222" y1="278" x2="402" y2="278" stroke-width="3" stroke-linecap="round"/>
+            <circle class="f-acc" cx="332" cy="278" r="6"/>
+            <rect class="soft" x="420" y="270" width="34" height="16" rx="8"/>
+            <circle class="f-acc" cx="445" cy="278" r="5.5"/>
+            <rect class="box" x="210" y="302" width="214" height="32" rx="6"/>
+            <text class="mono strong" x="222" y="322" font-size="10.5">4 · What it costs</text>
+            <rect class="box" x="436" y="302" width="214" height="32" rx="6"/>
+            <text class="mono strong" x="448" y="322" font-size="10.5">5 · How it breaks</text>
+            <rect class="box" x="210" y="342" width="214" height="32" rx="6"/>
+            <text class="mono strong" x="222" y="362" font-size="10.5">6 · In the engines</text>
+            <rect class="box" x="436" y="342" width="214" height="32" rx="6"/>
+            <text class="mono strong" x="448" y="362" font-size="10.5">7 · Say it to your AI</text>
+            <rect class="box" x="210" y="382" width="440" height="26" rx="6"/>
+            <text class="mono strong" x="222" y="399" font-size="10.5">8 · Check yourself</text>
+            <text class="muted" x="362" y="399" font-size="10.5">then on to 4.3 Draw calls</text>
+            <!-- right rail -->
+            <text class="caps muted" x="680" y="70" font-size="9.5">ON THIS PAGE</text>
+            <rect class="solid" x="680" y="82" width="120" height="6" rx="3"/>
+            <rect class="solid" x="680" y="96" width="100" height="6" rx="3"/>
+            <rect class="solid" x="680" y="110" width="132" height="6" rx="3"/>
+            <rect class="solid" x="680" y="124" width="90" height="6" rx="3"/>
+            <text class="caps muted" x="680" y="160" font-size="9.5">TERMS INTRODUCED</text>
+            <rect class="soft" x="680" y="170" width="52" height="18" rx="9"/>
+            <text class="acc" x="706" y="183" font-size="10" text-anchor="middle">stride</text>
+            <rect class="box" x="738" y="170" width="84" height="18" rx="9"/>
+            <text x="780" y="183" font-size="10" text-anchor="middle">index buffer</text>
+            <rect class="box" x="680" y="194" width="92" height="18" rx="9"/>
+            <text x="726" y="207" font-size="10" text-anchor="middle">vertex layout</text>
+            <text class="caps muted" x="680" y="244" font-size="9.5">HOVER CARD, ANY TERM</text>
+            <rect class="box-acc" x="680" y="254" width="174" height="84" rx="6" stroke-width="1.2"/>
+            <text class="strong" x="692" y="274" font-size="11.5">stride</text>
+            <text class="muted" x="692" y="292" font-size="10.5">Bytes from one vertex to</text>
+            <text class="muted" x="692" y="306" font-size="10.5">the next inside a buffer.</text>
+            <text class="acc" x="692" y="326" font-size="10.5">Taught in 4.2</text>
+            <text class="caps muted" x="680" y="372" font-size="9.5">PROGRESS</text>
+            <rect class="solid" x="680" y="382" width="174" height="6" rx="3"/>
+            <rect class="f-acc" x="680" y="382" width="66" height="6" rx="3"/>
+          </svg>
+        </div>
+        <figcaption><b>A chapter page.</b> The eight beats run down the centre in a fixed order. The left rail tracks where the reader is in the book; the right rail lists the terms the chapter introduces, and any term anywhere on the site opens a card that points back to where it was taught.</figcaption>
+      </figure>
+
+      <h3>Three rules that hold across the book</h3>
+      <ul class="list">
+        <li><strong>No term before its chapter.</strong> Each chapter lists what it needs, and a test flags any term used ahead of the chapter that teaches it.</li>
+        <li><strong>Simplifications are labelled.</strong> Where the simple story hides something, a note says so and points to the fuller version.</li>
+        <li><strong>Maths is optional.</strong> Formulas and short annotated shader snippets live in fold-outs. The pictures carry the argument.</li>
+      </ul>
+    </section>
+
+    <section id="path">
+      <h2>The learning path</h2>
+      <p>The book follows the route real data takes: from a team's idea, through art tools and the engine, across the CPU and into the GPU, until it leaves as a finished image. Each part owns a stretch of that route. Part 0 walks the whole route once, quickly, before any detail.</p>
+      <figure>
+        <div class="fig-frame">
+          <svg class="dg" viewBox="0 0 1040 326" role="img" aria-label="Eight stages from idea to final image: idea and team, art tools, engine scene, draw calls, vertex buffers, rasterizer, pixel shading, final image. Parts 1, 2, 4, 5 and 9 each cover a stretch; parts 6, 7 and 8 all hang off pixel shading; parts 3, 10, 11 and 12 span the route.">
+            <defs>
+              <marker id="j-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+            </defs>
+            <!-- zones -->
+            <path class="ln-muted" d="M18,42 V36 H254 V42"/>
+            <text class="caps muted" x="136" y="26" font-size="10.5" text-anchor="middle">PEOPLE AND TOOLS</text>
+            <path class="ln-muted" d="M274,42 V36 H510 V42"/>
+            <text class="caps muted" x="392" y="26" font-size="10.5" text-anchor="middle">CPU</text>
+            <path class="ln-muted" d="M530,42 V36 H1022 V42"/>
+            <text class="caps muted" x="776" y="26" font-size="10.5" text-anchor="middle">GPU</text>
+            <!-- stations -->
+            <rect class="box" x="18" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="72" y="76" font-size="12" text-anchor="middle">Idea and team</text>
+            <text class="muted" x="72" y="93" font-size="10" text-anchor="middle">concept to gold</text>
+            <rect class="box" x="146" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="200" y="76" font-size="12" text-anchor="middle">Art tools</text>
+            <text class="muted" x="200" y="93" font-size="10" text-anchor="middle">model, UV, texture</text>
+            <rect class="box" x="274" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="328" y="76" font-size="12" text-anchor="middle">Engine scene</text>
+            <text class="muted" x="328" y="93" font-size="10" text-anchor="middle">objects, camera</text>
+            <rect class="box" x="402" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="456" y="76" font-size="12" text-anchor="middle">Draw calls</text>
+            <text class="muted" x="456" y="93" font-size="10" text-anchor="middle">cull, sort, submit</text>
+            <rect class="box-acc" x="530" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="584" y="76" font-size="12" text-anchor="middle">Vertex buffers</text>
+            <text class="muted" x="584" y="93" font-size="10" text-anchor="middle">mesh data on GPU</text>
+            <rect class="box" x="658" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="712" y="76" font-size="12" text-anchor="middle">Rasterizer</text>
+            <text class="muted" x="712" y="93" font-size="10" text-anchor="middle">triangles to pixels</text>
+            <rect class="box" x="786" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="840" y="76" font-size="12" text-anchor="middle">Pixel shading</text>
+            <text class="muted" x="840" y="93" font-size="10" text-anchor="middle">material, light, GI</text>
+            <rect class="box" x="914" y="52" width="108" height="54" rx="6"/>
+            <text class="strong" x="968" y="76" font-size="12" text-anchor="middle">Final image</text>
+            <text class="muted" x="968" y="93" font-size="10" text-anchor="middle">AA, tone map, UI</text>
+            <!-- arrows -->
+            <line class="ln-muted" x1="128" y1="79" x2="143" y2="79" marker-end="url(#j-arr)"/>
+            <line class="ln-muted" x1="256" y1="79" x2="271" y2="79" marker-end="url(#j-arr)"/>
+            <line class="ln-muted" x1="384" y1="79" x2="399" y2="79" marker-end="url(#j-arr)"/>
+            <line class="ln-muted" x1="512" y1="79" x2="527" y2="79" marker-end="url(#j-arr)"/>
+            <line class="ln-muted" x1="640" y1="79" x2="655" y2="79" marker-end="url(#j-arr)"/>
+            <line class="ln-muted" x1="768" y1="79" x2="783" y2="79" marker-end="url(#j-arr)"/>
+            <line class="ln-muted" x1="896" y1="79" x2="911" y2="79" marker-end="url(#j-arr)"/>
+            <!-- parts under stations -->
+            <path class="ln" d="M18,112 V118 H254 V112"/>
+            <text x="136" y="136" font-size="11" text-anchor="middle">Part 1 · How games get made</text>
+            <path class="ln" d="M274,112 V118 H382 V112"/>
+            <text x="328" y="136" font-size="11" text-anchor="middle">Part 2 · Inside an engine</text>
+            <path class="ln" d="M402,112 V118 H638 V112"/>
+            <text x="520" y="136" font-size="11" text-anchor="middle">Part 4 · Geometry</text>
+            <path class="ln" d="M658,112 V118 H894 V112"/>
+            <text x="712" y="136" font-size="11" text-anchor="middle">Part 5 · GPU pipeline</text>
+            <path class="ln" d="M914,112 V118 H1022 V112"/>
+            <text x="968" y="136" font-size="11" text-anchor="middle">Part 9 · Post</text>
+            <line class="ln" x1="840" y1="118" x2="840" y2="143"/>
+            <text x="840" y="157" font-size="11" text-anchor="middle">Part 6 · Materials</text>
+            <text x="840" y="173" font-size="11" text-anchor="middle">Part 7 · Lighting</text>
+            <rect class="soft" x="784" y="178" width="112" height="17" rx="4"/>
+            <text class="acc strong" x="840" y="190" font-size="11" text-anchor="middle">Part 8 · GI and AO</text>
+            <!-- spanning parts -->
+            <rect class="box" x="18" y="208" width="1004" height="22" rx="4"/>
+            <text x="30" y="223" font-size="11"><tspan class="strong">Part 3 · Foundations</tspan><tspan class="muted" dx="10">colour, vectors, spaces and hardware, used at every stage</tspan></text>
+            <rect class="box" x="274" y="236" width="748" height="22" rx="4"/>
+            <text x="286" y="251" font-size="11"><tspan class="strong">Part 10 · Anatomy of a frame</tspan><tspan class="muted" dx="10">the CPU and GPU stages replayed, in order, on real frames</tspan></text>
+            <rect class="box" x="274" y="264" width="748" height="22" rx="4"/>
+            <text x="286" y="279" font-size="11"><tspan class="strong">Part 11 · Performance</tspan><tspan class="muted" dx="10">what each stage costs and how to measure it</tspan></text>
+            <rect class="box" x="18" y="292" width="1004" height="22" rx="4"/>
+            <text x="30" y="307" font-size="11"><tspan class="strong">Part 12 · Working with AI</tspan><tspan class="muted" dx="10">briefing and reviewing work at every stage</tspan></text>
+          </svg>
+        </div>
+        <figcaption><b>One route, thirteen parts.</b> Three whole parts hang off a single stage, pixel shading, because that is where materials, light and bounced light are computed and where most graphics acronyms live. Blue marks where the three terms you named are taught.</figcaption>
+      </figure>
+    </section>
+
+    <section id="chapters">
+      <h2>Chapter outline</h2>
+      <p><span data-count="chapters">64</span> chapters, each a single page. <span data-count="core">34</span> are marked core: a reader short on time can follow only those and still reach every term you named. The right-hand column is the chapter's lead visual.</p>
+      <p class="legend">
+        <span><span class="tag">core</span> on the short path</span>
+        <span><span class="tag is-live">interactive</span> the lead visual responds to input</span>
+        <span><span class="tag is-named">named</span> teaches a term from your brief</span>
+      </p>
+      <div id="outline"></div>
+    </section>
+
+    <section id="named">
+      <h2>The three terms you named</h2>
+      <p>Vertex buffers, GTAO and SSGI sit at very different depths. A vertex buffer needs one earlier idea. GTAO needs seven. The outline is ordered so each one arrives only after everything it stands on.</p>
+      <div class="ladders">
+        <div class="ladder-row">
+          <p class="label">Vertex buffers</p>
+          <ol class="ladder">
+            <li><span class="ref">4.1</span>Mesh and vertex attributes</li>
+            <li class="is-goal"><span class="ref">4.2</span>Vertex buffer</li>
+            <li><span class="ref">4.2</span>Index buffer</li>
+            <li><span class="ref">4.3</span>Draw call</li>
+            <li><span class="ref">5.2</span>Vertex shader reads it</li>
+          </ol>
+        </div>
+        <div class="ladder-row">
+          <p class="label">GTAO · ground-truth ambient occlusion</p>
+          <ol class="ladder">
+            <li><span class="ref">4.1</span>Normals</li>
+            <li><span class="ref">5.5</span>Depth buffer</li>
+            <li><span class="ref">7.3</span>G-buffer</li>
+            <li><span class="ref">8.1</span>Indirect light</li>
+            <li><span class="ref">8.3</span>Ambient occlusion</li>
+            <li><span class="ref">8.3</span>SSAO</li>
+            <li><span class="ref">8.3</span>HBAO and horizons</li>
+            <li class="is-goal"><span class="ref">8.3</span>GTAO</li>
+            <li><span class="ref">9.2</span>Temporal clean-up</li>
+          </ol>
+        </div>
+        <div class="ladder-row">
+          <p class="label">SSGI · screen-space global illumination</p>
+          <ol class="ladder">
+            <li><span class="ref">5.5</span>Depth buffer</li>
+            <li><span class="ref">7.3</span>G-buffer</li>
+            <li><span class="ref">8.1</span>Direct against indirect light</li>
+            <li><span class="ref">8.4</span>Ray marching the depth buffer</li>
+            <li><span class="ref">8.4</span>SSR</li>
+            <li class="is-goal"><span class="ref">8.4</span>SSGI</li>
+            <li><span class="ref">8.4</span>Screen-space blind spots</li>
+            <li><span class="ref">8.5</span>What engines fall back to</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <section id="visuals">
+      <h2>Visual system</h2>
+      <p>Pictures do the teaching and prose supports them. Every chapter opens on a diagram, and no page goes more than a screen without one.</p>
+
+      <h3>Four kinds of picture</h3>
+      <div class="grid-2">
+        <div class="item"><h4>Static diagrams</h4><p>About 250 hand-drawn SVGs, written into the page so they follow the light and dark themes and stay sharp at any zoom.</p></div>
+        <div class="item"><h4>Interactives</h4><p><span data-count="live">34</span> small Canvas pieces with one or two controls each: drag a vertex, slide a bias, toggle a pass. Most are 2D cross-sections, which explain shadow maps, AO and ray marching better than a 3D view does.</p></div>
+        <div class="item"><h4>The live scene</h4><p>A small real-time renderer in WebGL2 that draws one diorama and can show any of its internal buffers.</p></div>
+        <div class="item"><h4>Artifact gallery</h4><p>Every failure mode drawn or simulated next to its fixed version, named and linked to its cause.</p></div>
+      </div>
+
+      <h3>One scene, all the way through</h3>
+      <p>A single diorama, the Lantern Courtyard, appears from Part 4 onward: a stone arch, a few crates, a lantern, a puddle and a hanging banner. Each object is there for a reason. The arch gives corners for AO and long shadows, the crates show instancing and level of detail, the lantern is a point light that blooms, the puddle exposes what screen-space reflections miss, and the banner moves in a vertex shader.</p>
+      <p>The reader first meets it as bare wireframe, then watches it gain textures, light, shadows, occlusion, bounced light and post effects. By Part 10 they can step through every pass that draws it. The scene is generated in code, so it needs no asset files.</p>
+
+      <h3>Colour means the same thing everywhere</h3>
+      <ul class="swatches">
+        <li><span class="sw" style="background: var(--accent)"></span><span><strong>Blue</strong> is the idea the chapter is about. It is the blue of a tangent-space normal map.</span></li>
+        <li><span class="sw" style="background: var(--geo)"></span><span><strong>Teal</strong> is geometry and vertex data.</span></li>
+        <li><span class="sw" style="background: var(--lit)"></span><span><strong>Amber</strong> is light and anything it carries.</span></li>
+        <li><span class="sw" style="background: var(--pix)"></span><span><strong>Rose</strong> is screen-space data: depth, G-buffer, post.</span></li>
+      </ul>
+      <p class="muted">Colour never carries meaning alone. Every coloured mark also has a label or a pattern.</p>
+
+      <h3>Two sample diagrams in the proposed style</h3>
+      <p>These are drafts of the lead diagrams for the two pilot chapters, one easy idea and one hard one.</p>
+
+      <figure>
+        <div class="fig-frame">
+          <svg class="dg" viewBox="0 0 900 292" role="img" aria-label="A quad made of two triangles, its vertex buffer of four 32-byte rows holding position, normal and UV, and its index buffer of six entries. Vertex 1 is stored once in the vertex buffer and referenced twice by the index buffer.">
+            <defs>
+              <marker id="v-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+            </defs>
+            <text class="caps muted" x="95" y="30" font-size="10.5" text-anchor="middle">MESH</text>
+            <text class="muted" x="95" y="46" font-size="10.5" text-anchor="middle">2 triangles, 4 corners</text>
+            <text class="caps muted" x="456" y="30" font-size="10.5" text-anchor="middle">VERTEX BUFFER</text>
+            <text class="muted" x="456" y="46" font-size="10.5" text-anchor="middle">one row per vertex</text>
+            <text class="caps muted" x="752" y="30" font-size="10.5" text-anchor="middle">INDEX BUFFER</text>
+            <text class="muted" x="752" y="46" font-size="10.5" text-anchor="middle">6 × uint16</text>
+            <!-- mesh -->
+            <polygon class="box" points="30,232 160,232 160,96 30,96"/>
+            <line class="ln-line" x1="160" y1="232" x2="30" y2="96"/>
+            <text class="mono muted" x="73" y="191" font-size="11" text-anchor="middle">A</text>
+            <text class="mono muted" x="117" y="146" font-size="11" text-anchor="middle">B</text>
+            <circle class="f-ink" cx="30" cy="232" r="4.5"/>
+            <circle class="f-ink" cx="30" cy="96" r="4.5"/>
+            <circle class="f-ink" cx="160" cy="96" r="4.5"/>
+            <circle class="f-acc" cx="160" cy="232" r="6"/>
+            <text class="mono" x="18" y="250" font-size="11" text-anchor="middle">0</text>
+            <text class="mono acc strong" x="160" y="254" font-size="11" text-anchor="middle">1</text>
+            <text class="mono" x="18" y="88" font-size="11" text-anchor="middle">2</text>
+            <text class="mono" x="172" y="88" font-size="11" text-anchor="middle">3</text>
+            <polyline class="ln-acc" points="168,232 236,232 236,147 258,147" stroke-width="1.5" marker-end="url(#v-arr)"/>
+            <text class="acc" x="208" y="224" font-size="10.5" text-anchor="middle">stored once</text>
+            <!-- vertex buffer table -->
+            <rect class="box" x="262" y="62" width="388" height="170"/>
+            <rect class="soft" x="262.5" y="130" width="387" height="34"/>
+            <path class="ln-line" d="M262,96 H650 M262,130 H650 M262,164 H650 M262,198 H650 M302,62 V232 M442,62 V232 M562,62 V232"/>
+            <text class="mono muted" x="282" y="84" font-size="11" text-anchor="middle">#</text>
+            <text class="strong" x="372" y="78" font-size="12" text-anchor="middle">position</text>
+            <text class="mono muted" x="372" y="90" font-size="9.5" text-anchor="middle">3 × float32</text>
+            <text class="strong" x="502" y="78" font-size="12" text-anchor="middle">normal</text>
+            <text class="mono muted" x="502" y="90" font-size="9.5" text-anchor="middle">3 × float32</text>
+            <text class="strong" x="606" y="78" font-size="12" text-anchor="middle">uv</text>
+            <text class="mono muted" x="606" y="90" font-size="9.5" text-anchor="middle">2 × float32</text>
+            <text class="mono" x="282" y="117" font-size="11" text-anchor="middle">0</text>
+            <text class="mono" x="372" y="117" font-size="11" text-anchor="middle">-1, -1, 0</text>
+            <text class="mono" x="502" y="117" font-size="11" text-anchor="middle">0, 0, 1</text>
+            <text class="mono" x="606" y="117" font-size="11" text-anchor="middle">0, 0</text>
+            <text class="mono acc strong" x="282" y="151" font-size="11" text-anchor="middle">1</text>
+            <text class="mono" x="372" y="151" font-size="11" text-anchor="middle">1, -1, 0</text>
+            <text class="mono" x="502" y="151" font-size="11" text-anchor="middle">0, 0, 1</text>
+            <text class="mono" x="606" y="151" font-size="11" text-anchor="middle">1, 0</text>
+            <text class="mono" x="282" y="185" font-size="11" text-anchor="middle">2</text>
+            <text class="mono" x="372" y="185" font-size="11" text-anchor="middle">-1, 1, 0</text>
+            <text class="mono" x="502" y="185" font-size="11" text-anchor="middle">0, 0, 1</text>
+            <text class="mono" x="606" y="185" font-size="11" text-anchor="middle">0, 1</text>
+            <text class="mono" x="282" y="219" font-size="11" text-anchor="middle">3</text>
+            <text class="mono" x="372" y="219" font-size="11" text-anchor="middle">1, 1, 0</text>
+            <text class="mono" x="502" y="219" font-size="11" text-anchor="middle">0, 0, 1</text>
+            <text class="mono" x="606" y="219" font-size="11" text-anchor="middle">1, 1</text>
+            <!-- byte ruler -->
+            <path class="ln-muted" d="M302,244 H650 M302,240 V249 M442,240 V249 M562,240 V249 M650,240 V249"/>
+            <text class="mono muted" x="302" y="263" font-size="10" text-anchor="middle">0</text>
+            <text class="mono muted" x="442" y="263" font-size="10" text-anchor="middle">12</text>
+            <text class="mono muted" x="562" y="263" font-size="10" text-anchor="middle">24</text>
+            <text class="mono muted" x="650" y="263" font-size="10" text-anchor="middle">32</text>
+            <text class="muted" x="476" y="281" font-size="10.5" text-anchor="middle">byte offset inside one vertex · stride = 32 bytes</text>
+            <!-- index buffer -->
+            <rect class="box" x="730" y="84" width="44" height="156"/>
+            <rect class="soft" x="730.5" y="110" width="43" height="26"/>
+            <rect class="soft" x="730.5" y="188" width="43" height="26"/>
+            <path class="ln-line" d="M730,110 H774 M730,136 H774 M730,162 H774 M730,188 H774 M730,214 H774"/>
+            <text class="mono" x="752" y="102" font-size="11" text-anchor="middle">0</text>
+            <text class="mono acc strong" x="752" y="128" font-size="11" text-anchor="middle">1</text>
+            <text class="mono" x="752" y="154" font-size="11" text-anchor="middle">2</text>
+            <text class="mono" x="752" y="180" font-size="11" text-anchor="middle">2</text>
+            <text class="mono acc strong" x="752" y="206" font-size="11" text-anchor="middle">1</text>
+            <text class="mono" x="752" y="232" font-size="11" text-anchor="middle">3</text>
+            <path class="ln-muted" d="M780,86 H786 V160 H780 M780,164 H786 V238 H780"/>
+            <text class="muted" x="794" y="127" font-size="10.5">triangle A</text>
+            <text class="muted" x="794" y="205" font-size="10.5">triangle B</text>
+            <line class="ln-acc" x1="728" y1="123" x2="655" y2="144" stroke-width="1.5" marker-end="url(#v-arr)"/>
+            <line class="ln-acc" x1="728" y1="201" x2="655" y2="151" stroke-width="1.5" marker-end="url(#v-arr)"/>
+            <text class="acc" x="690" y="112" font-size="10.5" text-anchor="middle">used twice</text>
+          </svg>
+        </div>
+        <figcaption><b>Chapter 4.2 draft: a quad the way the GPU stores it.</b> Each corner is one 32-byte row in the vertex buffer. The index buffer lists which rows make each triangle, so shared corners are stored once and referenced twice: 140 bytes here instead of 192 without indices. On a real mesh the saving is far larger.</figcaption>
+      </figure>
+
+      <figure>
+        <div class="fig-frame">
+          <svg class="dg" viewBox="0 0 880 280" role="img" aria-label="A side-on slice through the depth buffer. From pixel P on the floor, a wall on the left raises the horizon to 30 degrees and a ledge on the right raises it to 15 degrees, leaving 134 of 180 degrees open to the sky.">
+            <defs>
+              <pattern id="g-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="ln-muted" x1="0" y1="0" x2="0" y2="6" stroke-width="1.2"/></pattern>
+              <marker id="g-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+            </defs>
+            <!-- scene mass, as the depth buffer sees it -->
+            <polygon class="solid" points="60,80 200,80 200,220 620,220 620,170 820,170 820,262 60,262"/>
+            <polyline class="ln" points="60,80 200,80 200,220 620,220 620,170 820,170" stroke-width="1.5"/>
+            <text class="caps muted" x="62" y="68" font-size="10">ONE SLICE OF THE DEPTH BUFFER</text>
+            <text class="muted" x="130" y="160" font-size="11" text-anchor="middle">wall</text>
+            <text class="muted" x="720" y="205" font-size="11" text-anchor="middle">ledge</text>
+            <!-- hemisphere above P -->
+            <path fill="url(#g-hatch)" d="M440,220 L320,220 A120,120 0 0 1 336.35,159.53 Z"/>
+            <path fill="url(#g-hatch)" d="M440,220 L555.62,187.88 A120,120 0 0 1 560,220 Z"/>
+            <path class="soft" d="M440,220 L336.35,159.53 A120,120 0 0 1 555.62,187.88 Z"/>
+            <path class="ln-muted" d="M320,220 A120,120 0 0 1 560,220" stroke-dasharray="3 4"/>
+            <path class="ln-acc" d="M336.35,159.53 A120,120 0 0 1 555.62,187.88" stroke-width="2.5"/>
+            <!-- horizon rays -->
+            <line class="ln-acc" x1="440" y1="220" x2="200" y2="80" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <line class="ln-acc" x1="440" y1="220" x2="620" y2="170" stroke-width="1.5" stroke-dasharray="6 4"/>
+            <!-- depth samples marched along the slice -->
+            <circle class="f-muted" cx="400" cy="220" r="2.5"/><circle class="f-muted" cx="360" cy="220" r="2.5"/><circle class="f-muted" cx="320" cy="220" r="2.5"/><circle class="f-muted" cx="280" cy="220" r="2.5"/><circle class="f-muted" cx="240" cy="220" r="2.5"/>
+            <circle class="f-muted" cx="480" cy="220" r="2.5"/><circle class="f-muted" cx="520" cy="220" r="2.5"/><circle class="f-muted" cx="560" cy="220" r="2.5"/><circle class="f-muted" cx="600" cy="220" r="2.5"/>
+            <circle class="f-muted" cx="660" cy="170" r="2.5"/><circle class="f-muted" cx="700" cy="170" r="2.5"/>
+            <circle class="f-acc" cx="200" cy="80" r="5"/>
+            <circle class="f-acc" cx="620" cy="170" r="5"/>
+            <!-- normal -->
+            <line class="ln" x1="440" y1="220" x2="440" y2="130" stroke-width="1.5" marker-end="url(#g-arr)"/>
+            <text x="448" y="138" font-size="10.5">normal</text>
+            <circle class="f-acc" cx="440" cy="220" r="5.5"/>
+            <text class="strong" x="440" y="243" font-size="12" text-anchor="middle">P</text>
+            <!-- labels -->
+            <text class="acc strong" x="440" y="90" font-size="11.5" text-anchor="middle">134° of 180° open to the sky</text>
+            <text class="acc" x="250" y="98" font-size="10.5">horizon 1 · 30°</text>
+            <text class="acc" x="632" y="158" font-size="10.5">horizon 2 · 15°</text>
+            <text class="muted" x="360" y="240" font-size="10.5" text-anchor="middle">blocked</text>
+            <text class="muted" x="532" y="240" font-size="10.5" text-anchor="middle">blocked</text>
+            <text class="muted" x="300" y="256" font-size="10" text-anchor="middle">depth samples, marched outward from P</text>
+          </svg>
+        </div>
+        <figcaption><b>Chapter 8.3 draft: GTAO in one slice.</b> From pixel P the shader walks left and right through the depth buffer and keeps the steepest angle it meets on each side. Those two horizons bound the arc of sky P can see. Repeat for a few slice directions, weight each by how directly it faces the surface normal, and the result is ambient occlusion. The interactive version lets the reader drag P and reshape the wall.</figcaption>
+      </figure>
+    </section>
+
+    <section id="interactives">
+      <h2>Signature interactives</h2>
+      <p>Twelve of the <span data-count="live">34</span> interactives carry the hardest ideas. They get the most design time and are the ones a reader will remember.</p>
+      <div class="grid-2">
+        <div class="item"><h4>Frame scrubber <span class="ref">10.1</span></h4><p>Step through every pass of a live frame of the courtyard: shadow map, depth, G-buffer, AO, lighting, reflections, fog, post. The capstone of the book.</p></div>
+        <div class="item"><h4>Vertex buffer inspector <span class="ref">4.2</span></h4><p>Click a corner of a mesh and see its bytes light up. Toggle indexing and watch the memory total change.</p></div>
+        <div class="item"><h4>Space stepper <span class="ref">3.4</span></h4><p>One cube carried through object, world, view, clip and screen space, one click per transform.</p></div>
+        <div class="item"><h4>Triangle rasterizer <span class="ref">5.3</span></h4><p>Drag a triangle across a pixel grid. See which pixels it covers and how values blend between corners.</p></div>
+        <div class="item"><h4>Filter floor <span class="ref">6.2</span></h4><p>A checkerboard running to the horizon under nearest, bilinear, trilinear and anisotropic filtering.</p></div>
+        <div class="item"><h4>Material sphere <span class="ref">6.5</span></h4><p>Roughness and metallic sliders on a lit sphere, with the light free to move.</p></div>
+        <div class="item"><h4>Shadow bias bench <span class="ref">7.4</span></h4><p>A side view of the shadow-map depth test. Slide the bias from acne to peter-panning and find the middle.</p></div>
+        <div class="item"><h4>Horizon explorer <span class="ref">8.3</span></h4><p>Drag pixel P along a depth slice and watch SSAO's random samples give way to GTAO's two horizons.</p></div>
+        <div class="item"><h4>Screen-space ray lab <span class="ref">8.4</span></h4><p>Fire reflection and bounce rays into the depth buffer. See them hit, then see them lose the scene behind an object or past the screen edge.</p></div>
+        <div class="item"><h4>TAA time machine <span class="ref">9.2</span></h4><p>Scrub through frames as jittered samples build a smooth edge, then move the object and watch ghosting appear.</p></div>
+        <div class="item"><h4>Budget builder <span class="ref">11.1</span></h4><p>Stack render passes into a 16.6 ms bar until the frame bursts, then choose what to cut.</p></div>
+        <div class="item"><h4>Symptom gallery <span class="ref">12.4</span></h4><p>Pick the picture that matches what you see on screen. Get its name, its likely cause, and what to ask for.</p></div>
+      </div>
+    </section>
+
+    <section id="site">
+      <h2>How the site is built</h2>
+      <p>The site has no build step and no server. The <code>docs</code> folder is the site: what is in git is what GitHub Pages serves and what opens when someone double-clicks <code>index.html</code>.</p>
+
+      <h3>Rules that keep it working from a double-click</h3>
+      <p>Browsers treat a page opened from disk more strictly than one served over the web. These rules come from those limits, and a test enforces each one.</p>
+      <ul class="list">
+        <li><strong>Classic scripts only.</strong> Browsers refuse to load JavaScript modules from <code>file://</code>.</li>
+        <li><strong>No <code>fetch()</code>.</strong> Navigation, glossary and search data ship as plain <code>.js</code> files.</li>
+        <li><strong>Textures are generated in code.</strong> WebGL cannot use image files loaded from disk.</li>
+        <li><strong>All pages sit flat in one folder</strong> with relative links that end in <code>.html</code>, so every asset is below the page that needs it.</li>
+        <li><strong>Nothing from a CDN.</strong> Fonts are self-hosted with system fallbacks, so the handbook also works offline.</li>
+        <li><strong>Saved state is a convenience.</strong> Theme and reading progress use local storage and the site works without it.</li>
+      </ul>
+
+      <h3>Folder layout</h3>
+<pre class="tree">graphics-handbook/
+├── docs/                          <span>the site; GitHub Pages serves this folder</span>
+│   ├── index.html                 <span>cover and learning path</span>
+│   ├── 04-2-vertex-buffers.html   <span>one flat file per chapter</span>
+│   ├── glossary.html
+│   └── assets/
+│       ├── css/                   <span>tokens, layout, components, diagram styles</span>
+│       ├── js/                    <span>page shell, nav data, glossary data, search index</span>
+│       ├── demos/                 <span>one script per interactive, plus Canvas and WebGL2 helpers</span>
+│       └── fonts/
+├── tools/                         <span>author-only Node scripts: search index, site checks</span>
+├── tests/                         <span>structure tests and Playwright browser tests</span>
+├── plan/                          <span>this plan</span>
+└── README · ARCHITECTURE · LEARNINGS · CLAUDE · PROMPT · memory/</pre>
+
+      <h3>What readers get</h3>
+      <ul class="list">
+        <li>Part and chapter navigation with reading progress and previous/next links.</li>
+        <li>Offline search across chapters and about 300 glossary terms.</li>
+        <li>A hover card on every term, linking to the chapter that teaches it.</li>
+        <li>Light and dark themes that every diagram follows.</li>
+        <li>Copy buttons on every “Say it to your AI” brief.</li>
+        <li>Printable cheat sheets: the pipeline, the anatomy of a frame, budgets, settings decoded.</li>
+        <li>Full keyboard access, reduced-motion support, and interactives that pause when off screen.</li>
+      </ul>
+      <p class="muted">Node is used by authors only, for the tests and to regenerate the search index. Readers never need it.</p>
+    </section>
+
+    <section id="quality">
+      <h2>Quality checks</h2>
+      <div class="grid-2">
+        <div class="item"><h4>Structure tests</h4><p>Every page has all eight beats. Every link and anchor resolves. Every term used is in the glossary and taught at or before the chapter using it. No module scripts, no <code>fetch</code>, no absolute or remote asset URLs. The search index matches the pages.</p></div>
+        <div class="item"><h4>Browser tests</h4><p>Playwright opens every page from <code>file://</code>: no console errors, no sideways scroll at phone width, both themes, each interactive starts and responds to input, keyboard order makes sense. Chromium locally; Firefox and WebKit added in GitHub Actions.</p></div>
+        <div class="item"><h4>Technical accuracy</h4><p>Each chapter lists its sources: papers, conference talks, engine documentation. Engine-specific names and settings are checked against current docs when the chapter is written and stamped with the engine version, because they change quickly.</p></div>
+        <div class="item"><h4>Fresh-eyes review</h4><p>At the end of each phase a separate reviewer with no context reads the new chapters twice: once hunting for technical errors, once as a newcomer marking every sentence that assumes too much.</p></div>
+      </div>
+    </section>
+
+    <section id="phases">
+      <h2>Delivery phases</h2>
+      <p>Each phase ends with a working, published site and a review point. Nothing after Phase 0 starts until you have seen the two pilot chapters.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Phase</th><th>What gets built</th><th>You review</th></tr></thead>
+          <tbody>
+            <tr><td>0 · Foundation<span class="num">2 pilot chapters</span></td><td>Repo scaffold, design system, page shell with navigation, search, glossary cards and themes. Diagram kit and demo helpers. Tests, CI and GitHub Pages. Pilots: 4.2 Vertex and index buffers, 8.3 Ambient occlusion to GTAO.</td><td>Look, tone and depth. This is the cheapest moment to change direction.</td></tr>
+            <tr><td>1 · Orientation<span class="num">Parts 0–2 · 10 chapters</span></td><td>The whole-route poster, the production pipeline, roles, content pipeline, engine anatomy and game loop.</td><td>Whether the production and engine material matches how your team works.</td></tr>
+            <tr><td>2 · Foundations and geometry<span class="num">Parts 3–4 · 11 chapters</span></td><td>Colour, vectors, spaces, hardware, meshes, draw calls, culling, level of detail. First version of the courtyard renderer.</td><td>Whether the maths stays light enough.</td></tr>
+            <tr><td>3 · Pipeline and materials<span class="num">Parts 5–6 · 11 chapters</span></td><td>The GPU pipeline stage by stage, textures, filtering, normal maps, PBR.</td><td>Depth of the shader-reading material.</td></tr>
+            <tr><td>4 · Light<span class="num">Parts 7–8 · 13 chapters</span></td><td>Lights, render paths, shadows, reflections, baked and real-time GI, ray tracing. The heaviest phase, and where most acronyms land.</td><td>Clarity of the hardest chapters.</td></tr>
+            <tr><td>5 · Image and frame<span class="num">Parts 9–10 · 9 chapters</span></td><td>Tone mapping, anti-aliasing, upscaling, camera effects, atmosphere. The frame scrubber.</td><td>The capstone: does a full frame now read as familiar?</td></tr>
+            <tr><td>6 · Performance and AI<span class="num">Parts 11–12 · 10 chapters</span></td><td>Budgets, profiling, the settings menu decoded, briefing and reviewing AI work, the visual bug field guide, decision guides. Reference pages.</td><td>Whether the AI material fits the tools you use.</td></tr>
+            <tr><td>7 · Whole-book pass</td><td>Cross-links, glossary completeness, cheat sheets, accessibility, a full accuracy review and a consistency edit.</td><td>Final sign-off.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="decisions">
+      <h2>Decisions for you</h2>
+      <p>Six choices shape the build. Each has a recommended default, and I will use it unless you say otherwise.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Decision</th><th>Recommended</th><th>Alternative</th></tr></thead>
+          <tbody>
+            <tr><td>Engine lens</td><td><span class="rec">Engine-neutral core</span> with an “in Unreal, Unity, Godot” box in every chapter.</td><td>Centre the book on one engine if your team has already chosen it.</td></tr>
+            <tr><td>Maths and code depth</td><td><span class="rec">Pictures first.</span> Maths in optional fold-outs. Short annotated shader snippets so the reader can read what AI writes.</td><td>No code at all, or a deeper track with runnable shaders.</td></tr>
+            <tr><td>Scope</td><td><span class="rec">All 64 chapters</span> across seven phases, with 34 marked as the core path.</td><td>Build only the core path first and decide on the rest later.</td></tr>
+            <tr><td>Pilot chapters</td><td><span class="rec">4.2 and 8.3:</span> one easy idea and one hard one, both from your brief.</td><td>Any two chapters you would rather judge the approach on.</td></tr>
+            <tr><td>Build approach</td><td><span class="rec">No build step.</span> GitHub Pages serves <code>docs/</code> from the main branch.</td><td>A site generator. Easier templating, but its output needs extra work to open from disk.</td></tr>
+            <tr><td>AI focus in Part 12</td><td><span class="rec">Both code and assets,</span> weighted toward AI-written engine and shader code and how to review it.</td><td>Weight toward AI-generated art assets, or name specific tools to cover.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="scope">
+      <h2>Out of scope</h2>
+      <p>The test for every topic: does it help the reader brief, judge or decide graphics work? If it only helps someone hand-write an engine, it stays out.</p>
+      <ul class="list">
+        <li>Gameplay programming, networking and audio, beyond where they share the frame budget.</li>
+        <li>Click-by-click engine tutorials. The handbook says what a setting does and where it lives; engine docs show the buttons.</li>
+        <li>Writing a renderer from scratch.</li>
+        <li>A full mathematics course. Only the vector and matrix ideas the pictures need.</li>
+        <li>Photos or screenshots from commercial games. Every image is drawn or rendered for the handbook.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<script>
+  // Chapter outline data. Each chapter: [number, title, key terms, lead visual, flags]
+  // flags: c = core path, i = interactive lead visual, n = teaches a term named in the brief
+  const PARTS = [
+    { n: 0, title: "Start here", blurb: "The whole route in one sitting, before any detail.", ch: [
+      ["0.1", "The whole journey on one page", "asset, draw call, frame, pass", "Poster: one triangle followed from the art tool to the screen", "c"],
+      ["0.2", "What a frame is", "fps, frame time, 16.6 ms, game loop, vsync", "Frame-time ruler: drag the fps and watch the budget shrink", "ci"],
+    ]},
+    { n: 1, title: "How games get made", blurb: "How a game moves from an idea to a shipped build, and who touches it on the way.", ch: [
+      ["1.1", "From idea to gold master", "concept, prototype, vertical slice, production, alpha, beta, gold, live ops", "Production timeline with team size and what “done” means at each gate", "c"],
+      ["1.2", "Who does what", "concept, 3D and technical artists; designers; gameplay, engine and graphics programmers; producers; QA", "Handoff map: who gives which file to whom", ""],
+      ["1.3", "The content pipeline", "DCC tool, source and cooked assets, FBX, glTF, USD, baking, import, build, Perforce, Git LFS", "One prop's journey: sculpt, retopologise, unwrap, bake, texture, export, import, cook", "c"],
+      ["1.4", "Platforms and what they change", "PC, console, mobile, VR, web; fixed and variable hardware; certification", "Platform matrix: resolution, fps target, memory, GPU type", ""],
+    ]},
+    { n: 2, title: "Inside a game engine", blurb: "What an engine is made of and how it spends each frame.", ch: [
+      ["2.1", "Anatomy of an engine", "renderer, physics, animation, audio, scripting, asset system, editor, RHI", "Exploded view of an engine with the renderer pulled forward", "c"],
+      ["2.2", "The game loop and threads", "update, fixed timestep, game thread, render thread, GPU queue, frame latency", "Three-lane timeline: one frame moving from game to render to GPU", "ci"],
+      ["2.3", "Scenes, objects and components", "scene graph, Actor, GameObject, Node, component, ECS, prefab, transform hierarchy", "The same scene drawn as a hierarchy tree and as ECS tables", ""],
+      ["2.4", "The engine landscape", "Unreal, Unity URP and HDRP, Godot, custom engines; Nanite, Lumen, VSM by name", "Translation table: same idea, different name in each engine", ""],
+    ]},
+    { n: 3, title: "Foundations", blurb: "The small set of ideas everything else leans on.", ch: [
+      ["3.1", "Pixels and displays", "framebuffer, resolution, refresh rate, tearing, vsync, VRR, double buffering", "Tearing simulator with a vsync toggle", "i"],
+      ["3.2", "Colour done right", "RGB, linear and sRGB, gamma, HDR, bit depth, banding", "Blend two colours in gamma space and in linear space, side by side", "ci"],
+      ["3.3", "Vectors you can see", "vector, normalise, dot product, cross product", "Drag two arrows; their dot product lights a surface", "i"],
+      ["3.4", "Spaces and transforms", "object, world, view, clip and screen space; matrix, MVP, frustum, FOV, near and far planes", "Space stepper: one cube carried through every space", "ci"],
+      ["3.5", "CPU, GPU and graphics APIs", "parallelism, VRAM, DirectX 12, Vulkan, Metal, WebGPU, driver, tile-based GPU", "A few fast workers against thousands of simple ones; the API layer cake", "c"],
+    ]},
+    { n: 4, title: "Geometry", blurb: "What actually gets sent to the GPU, and how engines avoid sending too much.", ch: [
+      ["4.1", "Meshes", "vertex, triangle, normal, tangent, UV, winding order, topology", "One mesh shown five ways: wireframe, normals, UV layout, vertex colour, shaded", "c"],
+      ["4.2", "Vertex buffers and index buffers", "vertex attribute, layout, stride, interleaving, index buffer, 16 and 32-bit indices, static and dynamic buffers", "Vertex buffer inspector: click a corner, see its bytes", "cin"],
+      ["4.3", "Draw calls, batching and instancing", "draw call, pipeline state, material sorting, static and dynamic batching, GPU instancing, indirect draws", "A forest as 1,000 draw calls, then as one instanced call", "ci"],
+      ["4.4", "Culling", "frustum, backface and occlusion culling, bounding volumes, Hi-Z, PVS", "Top-down map: move the camera, see what is rejected and why", "ci"],
+      ["4.5", "Level of detail", "LOD, popping, HLOD, impostor, meshlet, cluster, Nanite, tessellation", "Distance slider showing triangle count and pixels per triangle", "ci"],
+      ["4.6", "Moving geometry", "skeleton, skin weights, skinning, blend shapes, vertex animation textures", "Bend a two-bone arm and repaint its weights", "i"],
+    ]},
+    { n: 5, title: "The GPU pipeline", blurb: "The fixed route every triangle takes through the GPU.", ch: [
+      ["5.1", "The pipeline in one picture", "input assembly, vertex shader, rasterizer, pixel shader, output merger; programmable and fixed stages", "Step one triangle through every stage", "ci"],
+      ["5.2", "Vertex shaders", "transform, clip space, interpolators, vertex animation", "Before and after: a vertex shader waving a flag", ""],
+      ["5.3", "Rasterization", "coverage, sample point, barycentric interpolation, perspective correction, fill rule", "Triangle rasterizer: drag a triangle over a pixel grid", "ci"],
+      ["5.4", "Pixel shaders and overdraw", "fragment, early-Z, depth pre-pass, overdraw, quad overdraw, derivatives", "Overdraw heat map of a stack of particles", "ci"],
+      ["5.5", "Depth, stencil and blending", "z-buffer, z-fighting, reversed-Z, stencil, alpha blend, premultiplied alpha, alpha test, sort order, OIT", "Reorder transparent panes and watch the result break", "ci"],
+      ["5.6", "Shaders in practice", "HLSL, GLSL, constant buffer, shader variant, PSO, compile stutter, compute shader, render target, render pass, frame graph", "A 12-line shader, annotated; the pass graph of a small frame", ""],
+    ]},
+    { n: 6, title: "Textures and materials", blurb: "How flat triangles get their surface detail.", ch: [
+      ["6.1", "Textures and UVs", "texel, UV unwrap, seams, texel density, wrap modes, atlas, cubemap", "Unfold a cube into its UV layout", "ci"],
+      ["6.2", "Filtering and mipmaps", "nearest, bilinear, trilinear, anisotropic, mip chain, LOD bias, shimmer", "Filter floor: a checkerboard to the horizon under each filter", "ci"],
+      ["6.3", "Texture memory", "BC1 to BC7, ASTC, block compression, streaming, virtual textures", "One 4K texture in each format, drawn to scale by size", ""],
+      ["6.4", "Normal maps and fake detail", "tangent space, normal map, baking, height map, parallax occlusion, displacement, detail maps", "A flat plane with a movable light and a normal-map toggle", "i"],
+      ["6.5", "PBR materials", "base colour, metallic, roughness, F0, Fresnel, microfacets, GGX, BRDF, energy conservation, material instance, shader graph", "Material sphere with roughness and metallic sliders", "ci"],
+    ]},
+    { n: 7, title: "Lighting and shadows", blurb: "How surfaces get lit and shadowed, and the main ways renderers organise that work.", ch: [
+      ["7.1", "Lights", "directional, point, spot, area, sky and emissive lights; attenuation; lumen, lux, nit, EV", "Every light type shown on the same courtyard", ""],
+      ["7.2", "Shading models", "diffuse, specular, Lambert, Blinn-Phong, Cook-Torrance, N·L", "Build a lit sphere one term at a time", "i"],
+      ["7.3", "Forward, deferred and clustered", "forward, deferred, G-buffer, multiple render targets, tiled and clustered (Forward+), visibility buffer", "G-buffer viewer, and a cost graph as the light count rises", "ci"],
+      ["7.4", "Shadow maps", "light-space depth, shadow bias, acne, peter-panning, PCF, PCSS", "Shadow bias bench: side view of the depth test", "ci"],
+      ["7.5", "Shadows at scale", "cascades (CSM), shadow atlas, virtual shadow maps, contact shadows, distance-field shadows, ray-traced shadows", "Cascade splits painted over a long view", "i"],
+      ["7.6", "Reflections and image-based lighting", "environment map, reflection probe, box projection, irradiance, SSR, planar reflection", "What each reflection method can and cannot see", ""],
+    ]},
+    { n: 8, title: "Global illumination and ambient occlusion", blurb: "Bounced light and contact darkening: the home of most graphics acronyms.", ch: [
+      ["8.1", "Direct and indirect light", "bounce, colour bleeding, the rendering equation in pictures, diffuse and specular GI", "One room lit with 0, 1, 2 and many bounces", "ci"],
+      ["8.2", "Baked lighting", "lightmap, lightmap UVs, light probes, spherical harmonics, irradiance volume; static, stationary, movable", "A lightmap atlas beside the room it lights; the probe grid", ""],
+      ["8.3", "Ambient occlusion: SSAO to GTAO", "AO, SSAO, HBAO, GTAO, horizon angle, bent normal, multi-bounce, specular occlusion, RTAO", "Horizon explorer: drag pixel P along a depth slice", "cin"],
+      ["8.4", "Screen-space tricks and their blind spots", "ray marching, Hi-Z tracing, SSR, SSGI, thickness, off-screen misses, fallbacks", "Screen-space ray lab: see where rays lose the scene", "cin"],
+      ["8.5", "Real-time GI families", "LPV, VXGI, SDFGI, DDGI probes, Lumen surface cache, radiance cascades, light leaking", "Comparison board: how each method stores light and where it leaks", "c"],
+      ["8.6", "Ray tracing", "ray, BVH, BLAS and TLAS, DXR, hybrid rendering; ray-traced shadows, reflections and GI", "BVH traversal: one ray, boxes tested against boxes skipped", "i"],
+      ["8.7", "Path tracing and denoising", "samples per pixel, noise, fireflies, importance sampling, ReSTIR, SVGF, ray reconstruction", "A slider from 1 to 1,024 samples with a denoiser toggle", "i"],
+    ]},
+    { n: 9, title: "Post-processing and image quality", blurb: "Everything done to the image after the scene is lit.", ch: [
+      ["9.1", "HDR, exposure and tone mapping", "scene-referred light, exposure, auto-exposure, tone curve, ACES, AgX, LUT, colour grading", "An exposure slider against three tone curves", "ci"],
+      ["9.2", "Anti-aliasing", "jaggies, specular aliasing, SSAA, MSAA, FXAA, SMAA, TAA, jitter, history, motion vectors, ghosting", "TAA time machine, and one edge under every method", "ci"],
+      ["9.3", "Upscaling and frame generation", "DLSS, FSR, XeSS, TSR, internal resolution, dynamic resolution, VRS, frame generation, latency", "Pixels rendered against pixels shown; where upscaling sits in the frame", "c"],
+      ["9.4", "Camera effects", "bloom, depth of field, circle of confusion, bokeh, motion blur, velocity buffer, grain, vignette", "Effect stack you can toggle on the courtyard", "i"],
+      ["9.5", "Atmosphere", "height fog, volumetric fog, froxels, god rays, sky scattering, volumetric clouds", "Cutaway of the froxel grid inside the view frustum", ""],
+      ["9.6", "Special surfaces and effects", "particles, flipbooks, soft particles, decals, water, foliage, subsurface scattering, hair, terrain", "One “why this is hard” card per surface", ""],
+    ]},
+    { n: 10, title: "Anatomy of a frame", blurb: "Every earlier chapter replayed, in order, on real frames.", ch: [
+      ["10.1", "A deferred frame, pass by pass", "shadow pass, depth pre-pass, G-buffer, AO, lighting, SSR and SSGI, fog, transparents, post, UI", "Frame scrubber: step through every buffer of the live courtyard", "ci"],
+      ["10.2", "A mobile frame", "forward rendering, tile-based deferred rendering, load and store actions, bandwidth, heat", "A desktop frame and a mobile frame side by side", ""],
+      ["10.3", "A modern feature stack", "Nanite, Lumen, virtual shadow maps, TSR; how to read a feature list", "Pass diagram of a UE5-style frame with time per pass", ""],
+    ]},
+    { n: 11, title: "Performance", blurb: "Where the milliseconds go and how to find out.", ch: [
+      ["11.1", "Frame budgets", "fps and ms, CPU-bound and GPU-bound, 1% lows, frame pacing, input latency", "Budget builder: stack passes until the frame bursts", "ci"],
+      ["11.2", "Where GPU time goes", "resolution, fill rate, overdraw, shader cost, bandwidth, VRAM", "What doubles when resolution doubles", ""],
+      ["11.3", "Where CPU time goes", "draw calls, culling, animation, physics, scripts, garbage collection, job systems", "How to read a flame chart", ""],
+      ["11.4", "Memory, streaming and hitches", "texture pool, mesh streaming, loading, shader compile stutter, PSO cache", "A frame-time graph with each kind of hitch labelled", ""],
+      ["11.5", "Profilers and the settings menu", "RenderDoc, PIX, Unreal Insights, Unity Profiler; scalability tiers", "An annotated capture; the graphics settings menu decoded", ""],
+    ]},
+    { n: 12, title: "Working with AI", blurb: "Turning the vocabulary into briefs, reviews and decisions.", ch: [
+      ["12.1", "Where AI fits today", "shaders, engine code, tools, asset generation, review, log and capture analysis; where it falls short", "The pipeline map marked with where AI helps and where a person must check", ""],
+      ["12.2", "Briefing AI on graphics work", "engine and version, render pipeline, target platform, budget, reproduction steps, acceptance criteria", "A weak brief and a strong brief, annotated", "c"],
+      ["12.3", "Reviewing AI-written graphics code", "colour-space mix-ups, wrong coordinate space, API and version mismatch, per-frame allocation, precision, missing fallbacks", "Review checklist with a spot-the-bug shader", ""],
+      ["12.4", "Visual bug field guide", "acne, peter-panning, z-fighting, light leaks, ghosting, banding, fireflies, shimmer, seams, popping", "Symptom gallery: pick what you see, get name, cause and what to ask for", "ci"],
+      ["12.5", "Decision guides", "choosing a render path, shadows, GI and anti-aliasing per platform and team size", "Decision trees", ""],
+    ]},
+  ];
+  const REFERENCE = [
+    ["R.1", "Glossary", "about 300 terms", "Each entry links back to the chapter that teaches it and feeds the hover cards", ""],
+    ["R.2", "Acronym decoder", "SSGI, GTAO, CSM, PCF, TAA, BVH and the rest", "One line per acronym, sorted and searchable", ""],
+    ["R.3", "Cheat sheets", "pipeline, frame anatomy, budgets, settings", "Four printable one-page posters", ""],
+    ["R.4", "Sources and further reading", "papers, talks and documentation", "Grouped by chapter", ""],
+  ];
+
+  // Builds one chapter row with safe text nodes (no HTML from data).
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function chapterRow([num, title, terms, visual, flags]) {
+    const row = el("div", "ch");
+    row.append(el("span", "ch-num", num));
+    const main = el("div");
+    const heading = el("h4", "", title);
+    if (flags.includes("n")) heading.append(el("span", "tag is-named", "named"));
+    if (flags.includes("c")) heading.append(el("span", "tag", "core"));
+    main.append(heading, el("p", "ch-terms", terms));
+    const vis = el("p", "ch-visual");
+    if (flags.includes("i")) vis.append(el("span", "tag is-live", "interactive"), " ");
+    vis.append(visual);
+    row.append(main, vis);
+    return row;
+  }
+  function partBlock(label, title, blurb, chapters, countText) {
+    const part = el("div", "part");
+    const head = el("div", "part-head");
+    head.append(el("h3", "", label + " · " + title), el("span", "label", countText), el("p", "", blurb));
+    part.append(head, ...chapters.map(chapterRow));
+    return part;
+  }
+
+  const outline = document.getElementById("outline");
+  for (const p of PARTS) {
+    outline.append(partBlock("Part " + p.n, p.title, p.blurb, p.ch, p.ch.length + " chapters"));
+  }
+  outline.append(partBlock("Reference", "Look-up pages", "Not read in order. Linked from every chapter.", REFERENCE, REFERENCE.length + " pages"));
+
+  // Keep every count on the page in step with the outline data.
+  const all = PARTS.flatMap((p) => p.ch);
+  const counts = {
+    parts: PARTS.length,
+    chapters: all.length,
+    core: all.filter((c) => c[4].includes("c")).length,
+    live: all.filter((c) => c[4].includes("i")).length,
+  };
+  document.querySelectorAll("[data-count]").forEach((node) => {
+    node.textContent = counts[node.dataset.count];
+  });
+</script>
