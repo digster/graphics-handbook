@@ -1264,6 +1264,8 @@ table.engines tbody th {
 }
 
 .grows li {
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0;
   display: grid;
   gap: 0.15rem;

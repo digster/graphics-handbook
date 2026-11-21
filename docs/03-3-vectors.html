@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>3.3 Vectors you can see · Graphics Handbook</title>
+  <meta name="description" content="Vectors as arrows: length, normalising, points against directions, and what the dot and cross products do for lighting, vision cones, facing tests, normals and cameras.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="3.3">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 3 · Foundations</p>
+            <h1><span class="ch-num">3.3</span> Vectors you can see</h1>
+            <p class="lead">A vector is an arrow written as a few numbers. Games use arrows for almost everything that moves, faces or shines somewhere, and two operations on them, the dot product and the cross product, answer most of the questions a renderer asks about angles.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="0.1">0.1 The whole journey on one page</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>, <a class="xref" data-ch="4.1">4.1 Meshes</a>, <a class="xref" data-ch="7.2">7.2 Shading models</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 20 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Vector playground</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Three panels. Left: the vector (4, 3) drawn on a grid as an arrow 4 across and 3 up, with length 5. Middle: two arrows a and b at 60 degrees; b's shadow on a is half of b, because the cosine of 60 degrees is 0.5. Right: two arrows lying on a tilted floor span a shaded parallelogram, and their cross product stands straight up from it, at right angles to both.">
+                  <defs>
+                    <marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    <marker id="pic-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+                  <text class="t-caps" x="20" y="28">ONE VECTOR</text>
+                  <text class="t-muted t-small" x="20" y="44">an arrow stored as numbers</text>
+                  <path class="s-line" d="M50,76 V236 M90,76 V236 M130,76 V236 M170,76 V236 M210,76 V236 M250,76 V236 M50,76 H250 M50,116 H250 M50,156 H250 M50,196 H250 M50,236 H250"/>
+                  <path class="s-muted dash" d="M50,236 H210 V116"/>
+                  <line class="s-acc w3 round" x1="50" y1="236" x2="208" y2="117.5" marker-end="url(#pic-arr)"/>
+                  <circle class="f-ink" cx="50" cy="236" r="4"/>
+                  <text class="t-mono mid" x="130" y="254">x = 4</text>
+                  <text class="t-mono" x="218" y="182">y = 3</text>
+                  <text class="t-acc t-strong mid" x="122" y="166" transform="rotate(-36.87 122 166)">length 5</text>
+                  <text class="t-mono t-acc t-strong" x="186" y="104">v = (4, 3)</text>
+                  <text class="t-small t-muted" x="20" y="286">length = √(4² + 3²) = 5</text>
+
+                  <line class="s-line" x1="300" y1="20" x2="300" y2="290"/>
+
+                  <text class="t-caps" x="320" y="28">DOT PRODUCT</text>
+                  <text class="t-muted t-small" x="320" y="44">how much two arrows agree</text>
+                  <line class="s-acc round" x1="350" y1="226" x2="425" y2="226" stroke-width="9" stroke-opacity="0.4"/>
+                  <line class="s-ink w2" x1="350" y1="226" x2="548" y2="226" marker-end="url(#pic-arr-k)"/>
+                  <line class="s-ink w2" x1="350" y1="226" x2="424" y2="98" marker-end="url(#pic-arr-k)"/>
+                  <line class="s-muted dash" x1="425" y1="98" x2="425" y2="226"/>
+                  <path class="s-acc w15" d="M384,226 A34,34 0 0 0 367,196.6"/>
+                  <text class="t-acc t-small t-strong" x="390" y="206">60°</text>
+                  <text class="t-head" x="558" y="231">a</text>
+                  <text class="t-head" x="432" y="96">b</text>
+                  <text class="t-acc t-small mid" x="388" y="246">b's shadow on a</text>
+                  <text class="t-mono" x="320" y="272">a · b = |a| × |b| × cos 60°</text>
+                  <text class="t-small t-muted" x="320" y="288">unit arrows: 1 same way, 0 at right angles, −1 opposite</text>
+
+                  <line class="s-line" x1="600" y1="20" x2="600" y2="290"/>
+
+                  <text class="t-caps" x="620" y="28">CROSS PRODUCT</text>
+                  <text class="t-muted t-small" x="620" y="44">a new arrow at right angles to both</text>
+                  <polygon class="f-acc-soft s-acc" points="668,214 780,214 850,184.6 738,184.6"/>
+                  <line class="s-ink w2" x1="668" y1="214" x2="777" y2="214" marker-end="url(#pic-arr-k)"/>
+                  <line class="s-ink w2" x1="668" y1="214" x2="735.5" y2="185.6" marker-end="url(#pic-arr-k)"/>
+                  <line class="s-acc w3 round" x1="668" y1="214" x2="668" y2="98" marker-end="url(#pic-arr)"/>
+                  <path class="s-acc" d="M668,203 H678 V214"/>
+                  <text class="t-head" x="784" y="230">a</text>
+                  <text class="t-head" x="728" y="180">b</text>
+                  <text class="t-acc t-strong" x="678" y="104">a × b</text>
+                  <text class="t-small t-muted" x="684" y="128">length = shaded area</text>
+                  <text class="t-mono" x="620" y="272">a × b = −(b × a)</text>
+                  <text class="t-small t-muted" x="620" y="288">order decides which way it points</text>
+                </svg>
+              </div>
+              <figcaption><b>Three ideas carry most of the vector maths in a game.</b> A vector is an arrow stored as a few numbers. The dot product says how much two arrows point the same way. The cross product builds a third arrow at right angles to two others. Lighting, aiming, vision cones, surface normals and camera rigs are all built from these three.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Tell someone in a field to walk 4 steps east and 3 steps north, and you have given them a <dfn class="term" data-term="vector">vector</dfn>. It says which way to go and how far, written as two numbers, (4, 3). It does not say where to start. In 3D a vector needs a third number for up and down.</p>
+            <p>A <dfn class="term" data-term="point">point</dfn> is different: it is a place, such as the corner of a table or the position of a player. Points and vectors are both written as lists of numbers, which is why they get mixed up, but they behave differently. Subtract two points and you get the vector between them. Add a vector to a point and you get a new point. Adding two points together means nothing.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A treasure map says: from the old oak, 20 paces north, then 10 paces east. The oak is a point. The paces are a vector.</p>
+                <p>Start the same paces from a different tree and you end somewhere else. The instruction travels; the oak stays where it is.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>A game must describe where things are, how they move, which way they face and where light comes from. Vectors give all of these one shape: three numbers.</p>
+                <p>Two cheap operations then answer most questions about them: how much two directions agree, and which direction is at right angles to both.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Most features you will brief, from aim assist and AI vision to lighting and camera rigs, come down to a handful of dot and cross products. Most vector bugs come from three slips: forgetting to make a direction length 1, mixing up points and directions, and getting an order or a sign backwards. Knowing those three lets you read AI-written code and ask the questions that find them.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Seven steps: what a vector is, how it differs from a point, how long it is, then the two products and what games do with each.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="arrows-as-numbers"><span class="step-num">1</span> An arrow is a list of numbers</h3>
+              <p>A 2D vector is two numbers: how far along x and how far along y. A 3D vector adds z. The numbers are called components. The arrow they describe has a direction and a length but no position, so the same numbers drawn anywhere are the same vector.</p>
+              <p>Engines store each component as a 32-bit floating-point number, so one 3D vector takes 12 bytes. Shader code calls this type <code>float3</code>; engine code calls it <code>FVector</code> (Unreal) or <code>Vector3</code> (Unity, Godot).</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: a grid with the vector (3, 2) drawn three times starting at different places; all three arrows are identical. Right: 3D axes x, y and z with the vector (3, 2, 2), reached by going 3 along x, 2 along z and 2 up y.">
+                    <defs>
+                      <marker id="num-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="num-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="40" y="24">THE SAME VECTOR, DRAWN THREE TIMES</text>
+                    <path class="s-line" d="M40,40 V220 M70,40 V220 M100,40 V220 M130,40 V220 M160,40 V220 M190,40 V220 M220,40 V220 M250,40 V220 M280,40 V220 M310,40 V220 M340,40 V220 M370,40 V220 M400,40 V220 M430,40 V220 M40,40 H430 M40,70 H430 M40,100 H430 M40,130 H430 M40,160 H430 M40,190 H430 M40,220 H430"/>
+                    <line class="s-acc w3 round" x1="70" y1="190" x2="158" y2="131.3" marker-end="url(#num-arr)"/>
+                    <line class="s-acc w3 round" x1="220" y1="130" x2="308" y2="71.3" marker-end="url(#num-arr)"/>
+                    <line class="s-acc w3 round" x1="310" y1="190" x2="398" y2="131.3" marker-end="url(#num-arr)"/>
+                    <text class="t-mono t-acc" x="166" y="128">(3, 2)</text>
+                    <text class="t-mono t-acc" x="316" y="68">(3, 2)</text>
+                    <text class="t-mono t-acc" x="406" y="128">(3, 2)</text>
+                    <text class="t-small t-muted" x="40" y="242">Same numbers, same arrow: a vector has no fixed place.</text>
+
+                    <text class="t-caps" x="500" y="24">IN 3D: THREE NUMBERS</text>
+                    <line class="s-muted" x1="610" y1="196" x2="796" y2="196" marker-end="url(#num-arr-m)"/>
+                    <line class="s-muted" x1="610" y1="196" x2="610" y2="60" marker-end="url(#num-arr-m)"/>
+                    <line class="s-muted" x1="610" y1="196" x2="552" y2="239.5" marker-end="url(#num-arr-m)"/>
+                    <text class="t-mono t-muted" x="802" y="200">x</text>
+                    <text class="t-mono t-muted" x="604" y="58" text-anchor="end">y</text>
+                    <text class="t-mono t-muted" x="538" y="244">z</text>
+                    <path class="s-muted dash" d="M610,196 H730 L682,232 V152"/>
+                    <line class="s-acc w3 round" x1="610" y1="196" x2="680.5" y2="153.3" marker-end="url(#num-arr)"/>
+                    <text class="t-mono t-acc t-strong" x="690" y="146">(3, 2, 2)</text>
+                    <text class="t-small t-muted" x="742" y="216">3 along x,</text>
+                    <text class="t-small t-muted" x="742" y="232">2 along z, 2 up</text>
+                    <text class="t-small" x="760" y="96">Stored as three</text>
+                    <text class="t-small" x="760" y="112">32-bit floats:</text>
+                    <text class="t-small t-strong" x="760" y="128">12 bytes</text>
+                  </svg>
+                </div>
+                <figcaption><b>A vector is its numbers, nothing more.</b> Move the arrow anywhere and it is still (3, 2). In 3D the third number adds depth. What the numbers are measured against, which way x points and which axis is up, is the subject of <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="points-and-directions"><span class="step-num">2</span> Points and directions in a game</h3>
+              <p>A game scene is full of both kinds of thing. Positions of characters, props and the camera are points. Movement, facing and light are vectors. A velocity is a vector measured per second: (4, 3) m/s moves an object 4 m across and 3 m up every second, wherever it happens to be.</p>
+              <p>The most common operation in gameplay code links the two: subtract one point from another to get the vector from the first to the second. Enemy position minus player position is the arrow from the player to the enemy; its length is the distance between them.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="A side view of a game scene. The player stands at point P, 2 metres from the origin, and an enemy at point E, 9 metres along. The arrow E minus P, 7 metres long, runs from the player to the enemy. A thrown ball has a velocity arrow of (4, 3) metres per second. On a ramp, the surface normal N points out of the slope and the arrow L points towards the sun. A camera at top left has a forward arrow.">
+                    <defs>
+                      <marker id="gm-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="gm-arr-g" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-geo" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="gm-arr-l" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <circle class="f-ink" cx="30" cy="22" r="4.5"/>
+                    <text class="t-small" x="42" y="26">point: a place</text>
+                    <line class="s-acc w2" x1="150" y1="22" x2="182" y2="22" marker-end="url(#gm-arr)"/>
+                    <text class="t-small" x="192" y="26">vector: a move or a direction</text>
+
+                    <rect class="f-solid" x="20" y="262" width="860" height="28"/>
+                    <line class="s-strong" x1="20" y1="262" x2="880" y2="262"/>
+                    <polygon class="f-solid s-strong" points="540,262 740,262 740,172"/>
+
+                    <rect class="f-surface s-ink" x="30" y="80" width="34" height="22" rx="3"/>
+                    <polygon class="f-surface s-ink" points="64,86 76,80 76,102 64,96"/>
+                    <line class="s-acc w2" x1="80" y1="96" x2="128" y2="168" marker-end="url(#gm-arr)"/>
+                    <text class="t-small t-acc" x="86" y="74">camera forward</text>
+
+                    <rect class="f-solid s-strong" x="130" y="214" width="20" height="48" rx="8"/>
+                    <circle class="f-solid s-strong" cx="140" cy="202" r="10"/>
+                    <circle class="f-ink" cx="140" cy="262" r="4.5"/>
+                    <text class="t-mono mid" x="140" y="284">P = (2, 0)</text>
+                    <rect class="f-solid s-strong" x="410" y="214" width="20" height="48" rx="8"/>
+                    <circle class="f-solid s-strong" cx="420" cy="202" r="10"/>
+                    <circle class="f-ink" cx="420" cy="262" r="4.5"/>
+                    <text class="t-mono mid" x="420" y="284">E = (9, 0)</text>
+
+                    <path class="s-muted dash" d="M140,190 V154 M420,190 V154"/>
+                    <line class="s-acc w3 round" x1="140" y1="150" x2="416" y2="150" marker-end="url(#gm-arr)"/>
+                    <text class="t-acc t-strong mid" x="280" y="140">E − P = (7, 0)</text>
+                    <text class="t-small t-muted mid" x="280" y="124">from player to enemy, 7 m</text>
+
+                    <circle class="f-surface s-strong" cx="240" cy="238" r="7"/>
+                    <line class="s-acc w2" x1="245" y1="234" x2="298" y2="194" marker-end="url(#gm-arr)"/>
+                    <text class="t-small t-acc" x="306" y="196">velocity (4, 3) m/s</text>
+
+                    <line class="s-geo w3 round" x1="650" y1="212.5" x2="628" y2="163.5" marker-end="url(#gm-arr-g)"/>
+                    <text class="t-small t-geo t-strong end" x="622" y="160">N: surface normal</text>
+                    <line class="s-lit w3 round" x1="650" y1="212.5" x2="698" y2="175" marker-end="url(#gm-arr-l)"/>
+                    <text class="t-small t-lit t-strong" x="672" y="160">L: towards the sun</text>
+                    <circle class="f-lit-soft s-lit w2" cx="846" cy="58" r="16"/>
+                    <path class="s-lit w15 round" d="M846,30 V36 M846,80 V86 M818,58 H824 M868,58 H874 M826,38 L830,42 M862,74 L866,78 M866,38 L862,42 M830,74 L826,78"/>
+                  </svg>
+                </div>
+                <figcaption><b>Dots are places; arrows are moves and directions.</b> Positions are points. Velocity, facing, the surface <a class="term" data-term="normal" data-forward href="glossary.html#normal">normal</a> and the direction to the light are vectors. Subtracting two points gives the vector between them, and that is how most gameplay code finds out where something is relative to something else.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Engines usually store points and vectors in the same type: Unity's documentation describes <code>Vector3</code> as a "representation of 3D vectors and points". The code has to know which one it holds. Matrices treat them differently, moving points but only turning directions, which <a class="xref" data-ch="3.4">3.4</a> explains.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="length-normalise"><span class="step-num">3</span> Length, and making it one</h3>
+              <p>The length of a vector, its <dfn class="term" data-term="magnitude">magnitude</dfn>, comes from Pythagoras: square each component, add them, take the square root. (4, 3) has length 5. In 3D the same rule applies with three components.</p>
+              <p>Many questions only care about direction. For those, code scales the vector so its length is exactly 1, making it a <dfn class="term" data-term="unit-vector">unit vector</dfn>. This is called normalising: divide every component by the length. A normalised (4, 3) is (0.8, 0.6). Directions such as normals and light directions are almost always stored as unit vectors.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="Left: three arrows pointing the same way with lengths 0.5, 1.6 and 2.6 are each divided by their own length and become the same arrow of length 1. Right: movement input to the right has length 1, but right plus up has length 1.41, reaching past a circle of radius 1; the normalised diagonal stops on the circle.">
+                    <defs>
+                      <marker id="nrm-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="nrm-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="nrm-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="30" y="24">BEFORE</text>
+                    <text class="t-caps" x="330" y="24">AFTER NORMALISING</text>
+                    <circle class="f-ink" cx="30" cy="78" r="3.5"/>
+                    <line class="s-ink w2" x1="30" y1="78" x2="57" y2="70.7" marker-end="url(#nrm-arr-k)"/>
+                    <text class="t-small" x="70" y="78">length 0.5</text>
+                    <circle class="f-ink" cx="30" cy="138" r="3.5"/>
+                    <line class="s-ink w2" x1="30" y1="138" x2="120.7" y2="113.6" marker-end="url(#nrm-arr-k)"/>
+                    <text class="t-small" x="132" y="122">length 1.6</text>
+                    <circle class="f-ink" cx="30" cy="198" r="3.5"/>
+                    <line class="s-ink w2" x1="30" y1="198" x2="178.7" y2="158.1" marker-end="url(#nrm-arr-k)"/>
+                    <text class="t-small" x="190" y="164">length 2.6</text>
+                    <line class="s-muted" x1="252" y1="78" x2="306" y2="78" marker-end="url(#nrm-arr-m)"/>
+                    <line class="s-muted" x1="252" y1="138" x2="306" y2="138" marker-end="url(#nrm-arr-m)"/>
+                    <line class="s-muted" x1="252" y1="198" x2="306" y2="198" marker-end="url(#nrm-arr-m)"/>
+                    <text class="t-mono t-small t-muted mid" x="279" y="70">÷ 0.5</text>
+                    <text class="t-mono t-small t-muted mid" x="279" y="130">÷ 1.6</text>
+                    <text class="t-mono t-small t-muted mid" x="279" y="190">÷ 2.6</text>
+                    <circle class="f-ink" cx="330" cy="78" r="3.5"/>
+                    <line class="s-acc w3 round" x1="330" y1="78" x2="386" y2="63" marker-end="url(#nrm-arr)"/>
+                    <circle class="f-ink" cx="330" cy="138" r="3.5"/>
+                    <line class="s-acc w3 round" x1="330" y1="138" x2="386" y2="123" marker-end="url(#nrm-arr)"/>
+                    <circle class="f-ink" cx="330" cy="198" r="3.5"/>
+                    <line class="s-acc w3 round" x1="330" y1="198" x2="386" y2="183" marker-end="url(#nrm-arr)"/>
+                    <text class="t-small t-acc" x="398" y="74">length 1</text>
+                    <text class="t-small t-acc" x="398" y="134">length 1</text>
+                    <text class="t-small t-acc" x="398" y="194">length 1</text>
+
+                    <line class="s-line" x1="500" y1="16" x2="500" y2="224"/>
+
+                    <text class="t-caps" x="530" y="24">WHY IT MATTERS: DIAGONAL MOVEMENT</text>
+                    <path class="s-muted dot-dash" d="M720,196 A100,100 0 0 0 620,96"/>
+                    <circle class="f-ink" cx="620" cy="196" r="3.5"/>
+                    <line class="s-ink w2" x1="620" y1="196" x2="717" y2="196" marker-end="url(#nrm-arr-k)"/>
+                    <line class="s-ink w15" x1="620" y1="196" x2="718" y2="98" marker-end="url(#nrm-arr-k)"/>
+                    <line class="s-acc w3 round" x1="620" y1="196" x2="688.5" y2="127.5" marker-end="url(#nrm-arr)"/>
+                    <text class="t-small" x="728" y="200">right: length 1.00</text>
+                    <text class="t-small" x="728" y="96">right + up (1, 1):</text>
+                    <text class="t-small t-strong" x="728" y="112">length 1.41</text>
+                    <text class="t-small t-acc t-strong end" x="672" y="112">normalised</text>
+                    <text class="t-small t-acc end" x="672" y="128">(0.71, 0.71): 1.00</text>
+                    <text class="t-small t-muted" x="530" y="226">Unnormalised, diagonal movement is 41% faster.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Normalising keeps the direction and throws away the length.</b> Three different arrows become the same unit vector. The classic game bug on the right comes from skipping this: stick input of right plus up is (1, 1), whose length is 1.41, so the character runs 41% faster diagonally.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> Length and normalising as formulas</summary>
+                <div class="fold-body">
+                  <p class="formula">length of (x, y, z) = √(x² + y² + z²)</p>
+                  <p class="formula">normalised v = v ÷ length of v</p>
+                  <p>A vector of length 0 has no direction, so it cannot be normalised: the division is by zero. Engines guard against this and return a zero vector instead (see section 6). Code that compares distances often skips the square root and compares squared lengths, which gives the same answer for "which is closer" and saves work.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="dot-product"><span class="step-num">4</span> The dot product: how much two arrows agree</h3>
+              <p>The <dfn class="term" data-term="dot-product">dot product</dfn> of two vectors is one number. To compute it, multiply the matching components and add the results: (1, 2, 3) · (4, 5, 6) = 4 + 10 + 18 = 32.</p>
+              <p>What makes it useful is what that number means. It equals the two lengths multiplied together and then by the cosine of the angle between the arrows. So for two unit vectors the dot product is the cosine itself: 1 when they point the same way, 0 when they are at right angles, −1 when they point in opposite directions. Geometrically it is the length of one arrow's shadow on the other.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 252" role="img" aria-label="Five pairs of length-1 arrows a and b, with b turned 0, 45, 90, 135 and 180 degrees away from a. The shaded shadow of b on a shrinks from full length to nothing and then points backwards. The dot products are 1, 0.71, 0, minus 0.71 and minus 1.">
+                    <defs>
+                      <marker id="dot-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="dot-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">a IS THE PLAIN ARROW, b THE BLUE ONE, BOTH LENGTH 1 · SHADED: b'S SHADOW ON a</text>
+
+                    <line class="s-acc round" x1="90" y1="125" x2="90" y2="55" stroke-width="12" stroke-opacity="0.35"/>
+                    <line class="s-ink w3" x1="90" y1="125" x2="90" y2="58" marker-end="url(#dot-arr-k)"/>
+                    <line class="s-acc w15" x1="90" y1="125" x2="90" y2="58" marker-end="url(#dot-arr)"/>
+                    <text class="t-small t-muted mid" x="90" y="150">0°</text>
+
+                    <line class="s-acc round" x1="270" y1="125" x2="270" y2="75.5" stroke-width="12" stroke-opacity="0.35"/>
+                    <line class="s-ink w3" x1="270" y1="125" x2="270" y2="58" marker-end="url(#dot-arr-k)"/>
+                    <line class="s-acc w2" x1="270" y1="125" x2="317.4" y2="77.6" marker-end="url(#dot-arr)"/>
+                    <line class="s-muted dash" x1="319.5" y1="75.5" x2="270" y2="75.5"/>
+                    <path class="s-acc" d="M270,101 A24,24 0 0 1 287,108"/>
+                    <text class="t-small t-muted mid" x="270" y="150">45°</text>
+
+                    <line class="s-ink w3" x1="450" y1="125" x2="450" y2="58" marker-end="url(#dot-arr-k)"/>
+                    <line class="s-acc w2" x1="450" y1="125" x2="517" y2="125" marker-end="url(#dot-arr)"/>
+                    <path class="s-acc" d="M450,113 H462 V125"/>
+                    <circle class="f-acc" cx="450" cy="125" r="4"/>
+                    <text class="t-small t-muted mid" x="450" y="150">90°</text>
+
+                    <line class="s-acc round" x1="630" y1="125" x2="630" y2="174.5" stroke-width="12" stroke-opacity="0.35"/>
+                    <line class="s-muted dash" x1="630" y1="125" x2="630" y2="180"/>
+                    <line class="s-ink w3" x1="630" y1="125" x2="630" y2="58" marker-end="url(#dot-arr-k)"/>
+                    <line class="s-acc w2" x1="630" y1="125" x2="677.4" y2="172.4" marker-end="url(#dot-arr)"/>
+                    <line class="s-muted dash" x1="679.5" y1="174.5" x2="630" y2="174.5"/>
+                    <path class="s-acc" d="M630,101 A24,24 0 0 1 647,142"/>
+                    <text class="t-small t-muted" x="662" y="112">135°</text>
+
+                    <line class="s-acc round" x1="810" y1="125" x2="810" y2="195" stroke-width="12" stroke-opacity="0.35"/>
+                    <line class="s-ink w3" x1="810" y1="125" x2="810" y2="58" marker-end="url(#dot-arr-k)"/>
+                    <line class="s-acc w2" x1="810" y1="125" x2="810" y2="192" marker-end="url(#dot-arr)"/>
+                    <path class="s-acc" d="M810,101 A24,24 0 0 1 810,149"/>
+                    <text class="t-small t-muted" x="840" y="129">180°</text>
+
+                    <text class="t-head mid" x="90" y="222">a · b = 1</text>
+                    <text class="t-head mid" x="270" y="222">0.71</text>
+                    <text class="t-head mid" x="450" y="222">0</text>
+                    <text class="t-head mid" x="630" y="222">−0.71</text>
+                    <text class="t-head mid" x="810" y="222">−1</text>
+                    <text class="t-small t-muted mid" x="90" y="240">same way</text>
+                    <text class="t-small t-muted mid" x="270" y="240">mostly the same way</text>
+                    <text class="t-small t-muted mid" x="450" y="240">at right angles</text>
+                    <text class="t-small t-muted mid" x="630" y="240">mostly opposite</text>
+                    <text class="t-small t-muted mid" x="810" y="240">opposite</text>
+                  </svg>
+                </div>
+                <figcaption><b>For unit vectors, the dot product is the cosine of the angle between them.</b> It runs smoothly from 1 through 0 to −1 as the arrows turn apart, and its sign alone says whether they point broadly the same way. One multiply-and-add per component is all it costs, which is why code uses it instead of measuring angles.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The dot product two ways</summary>
+                <div class="fold-body">
+                  <p class="formula">a · b = ax·bx + ay·by + az·bz</p>
+                  <p class="formula">a · b = |a| × |b| × cos θ</p>
+                  <p>The first line is how it is computed. The second is what it means, where |a| is the length of a and θ the angle between the arrows. If both are unit vectors the lengths are 1 and the result is cos θ. If they are not, the answer is scaled by both lengths, which is the source of most dot-product bugs. The angle itself, if needed, is the arccosine of the dot product of the two unit vectors.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="dot-at-work"><span class="step-num">5</span> The dot product at work: light, sight and facing</h3>
+              <p><strong>Lighting.</strong> A surface lit straight on is brightest. Tilt it away and the same beam of light spreads over more surface, so each part receives less. The amount it receives is the dot product of the surface normal N and the direction towards the light L, both unit vectors. Negative values mean the light is behind the surface, so shaders clamp them to zero: brightness = max(0, N · L). This is the heart of diffuse lighting, covered in <a class="xref" data-ch="7.2">7.2 Shading models</a>, and a <a class="term" data-term="pixel-shader" data-forward href="glossary.html#pixel-shader">pixel shader</a> computes it for every <a class="term" data-term="pixel" href="glossary.html#pixel">pixel</a> of every lit surface.</p>
+              <p>Try it below. Drag L around N and watch the readout and the patch. Then drag either arrow longer: the raw dot product grows past 1, while the brightness, computed from normalised copies, stays between 0 and 1. Tick "Normalise both" to see the two agree.</p>
+              <figure>
+                <div class="demo" data-demo="vector-playground">
+                  <p class="demo-hint">The vector playground needs JavaScript. Without it: with the normal N pointing straight up and the light 45° away, N · L for unit vectors is cos 45° = 0.71, so the surface receives 71% of the light it would get head-on.</p>
+                </div>
+                <figcaption><b>Vector playground.</b> N and L are any two arrows; here N is a surface normal and L points towards a light. The shaded line along N is L's shadow on it, and N · L equals the length of N times that shadow. The patch on the right is the same surface turned upright, with a beam of fixed width arriving along L. The cross product option shows the third arrow, sticking out of the page.</figcaption>
+              </figure>
+              <p><strong>Sight.</strong> An AI guard with a 90° vision cone sees the player if the angle between its forward direction and the direction to the player is under 45°. Comparing angles needs an arccosine; comparing dot products does not. Normalise the direction to the player, take its dot product with the guard's forward vector, and compare the result with cos 45°, which is 0.71.</p>
+              <p><strong>Facing.</strong> The sign of a dot product says whether two directions are on the same side. A surface faces the camera when the dot product of its normal and the direction to the camera is positive. Gameplay uses the same test for "is the enemy behind me?". The GPU makes its own front-or-back decision for <a class="term" data-term="backface-culling" data-forward href="glossary.html#backface-culling">backface culling</a> a different way, from the order of each triangle's corners on screen.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="Left: a guard seen from above with a 90 degree vision cone. Player A is 20 degrees off the guard's forward direction, dot product 0.94, and is seen. Player B is 70 degrees off, dot product 0.34, outside the cone. Player C is behind, dot product minus 0.94. Right: a box seen from above with a camera to its left. The face towards the camera has a normal whose dot product with the direction to the camera is plus 0.98; the far face has minus 0.99.">
+                    <defs>
+                      <marker id="use-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="use-arr-g" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-geo" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">VISION CONE · SEEN FROM ABOVE</text>
+                    <polygon class="f-acc-soft" points="150,170 37,57 263,57"/>
+                    <path class="s-acc dash" d="M37,57 L150,170 L263,57"/>
+                    <line class="s-ink w2" x1="150" y1="170" x2="150" y2="98" marker-end="url(#use-arr)"/>
+                    <text class="t-small t-muted end" x="144" y="112">forward</text>
+                    <circle class="f-surface s-ink w2" cx="150" cy="170" r="9"/>
+                    <text class="t-small end" x="134" y="186">guard</text>
+                    <circle class="f-acc" cx="184.2" cy="76" r="5.5"/>
+                    <text class="t-small t-acc t-strong" x="194" y="80">A: 0.94, seen</text>
+                    <circle class="f-muted" cx="272.2" cy="125.5" r="5.5"/>
+                    <text class="t-small" x="282" y="129">B: 0.34, outside</text>
+                    <circle class="f-muted" cx="173.9" cy="235.8" r="5.5"/>
+                    <text class="t-small" x="184" y="240">C: −0.94, behind</text>
+                    <text class="t-small t-strong" x="282" y="192">seen if forward · d ≥ 0.71</text>
+                    <text class="t-small t-muted" x="282" y="208">d: direction to the player,</text>
+                    <text class="t-small t-muted" x="282" y="224">normalised; 0.71 = cos 45°</text>
+
+                    <line class="s-line" x1="470" y1="16" x2="470" y2="248"/>
+
+                    <text class="t-caps" x="490" y="24">FACING TEST · SEEN FROM ABOVE</text>
+                    <text class="t-small t-muted" x="490" y="42">V: direction from the face to the camera</text>
+                    <rect class="f-surface s-ink" x="502" y="100" width="26" height="20" rx="3"/>
+                    <polygon class="f-surface s-ink" points="528,104 538,99 538,121 528,116"/>
+                    <text class="t-small mid" x="520" y="140">camera</text>
+                    <path class="s-muted dash" d="M710,150 L544,112 M810,150 L544,112"/>
+                    <rect class="f-solid" x="710" y="100" width="100" height="100"/>
+                    <path class="s-strong" d="M710,100 H810 M710,200 H810"/>
+                    <line class="s-geo w3" x1="710" y1="100" x2="710" y2="200"/>
+                    <line class="s-geo w3 dash" x1="810" y1="100" x2="810" y2="200"/>
+                    <line class="s-geo w2" x1="710" y1="150" x2="664" y2="150" marker-end="url(#use-arr-g)"/>
+                    <line class="s-geo w2" x1="810" y1="150" x2="856" y2="150" marker-end="url(#use-arr-g)"/>
+                    <text class="t-small t-geo t-strong" x="662" y="168" text-anchor="end">N</text>
+                    <text class="t-small t-geo t-strong" x="858" y="168">N</text>
+                    <text class="t-small t-strong mid" x="690" y="226">N · V = +0.98</text>
+                    <text class="t-small t-muted mid" x="690" y="242">faces the camera</text>
+                    <text class="t-small t-strong mid" x="830" y="226">N · V = −0.99</text>
+                    <text class="t-small t-muted mid" x="830" y="242">faces away</text>
+                  </svg>
+                </div>
+                <figcaption><b>Two everyday uses of one number.</b> A vision cone is a dot product compared with the cosine of half the cone's angle. A facing test is the sign of a dot product. Both are a few multiplies, cheap enough to run for every enemy and every surface, every frame.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Code</span> A vision cone in six lines</summary>
+                <div class="fold-body">
+                  <p>The same shape works in any engine language. This is C#-like pseudocode.</p>
+<pre class="code"><span class="k">Vector3</span> toPlayer = player.position - guard.position;   <span class="c">// point - point = vector</span>
+<span class="k">float</span> distance = toPlayer.magnitude;
+<span class="k">if</span> (distance &lt; <span class="n">0.001f</span> || distance &gt; viewRange) <span class="k">return</span> <span class="k">false</span>;  <span class="c">// zero length: cannot normalise</span>
+<span class="k">Vector3</span> d = toPlayer / distance;                       <span class="c">// normalise</span>
+<span class="k">float</span> cosHalfAngle = <span class="n">0.71f</span>;                            <span class="c">// cos 45° for a 90° cone; compute once</span>
+<span class="k">return</span> Dot(guard.forward, d) &gt;= cosHalfAngle;        <span class="c">// forward must be unit length too</span></pre>
+                  <p>When reviewing code like this, check that both vectors in the dot product have length 1, that the threshold is a cosine and not an angle in degrees, and that the zero-distance case is handled.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cross-product"><span class="step-num">6</span> The cross product: the arrow that sticks out</h3>
+              <p>The <dfn class="term" data-term="cross-product">cross product</dfn> takes two 3D vectors and returns a third, at right angles to both. Its length equals the area of the parallelogram the two inputs span, so it is longest when they are at right angles and zero when they are parallel.</p>
+              <p>Order matters. b × a points exactly the opposite way to a × b. Which of the two directions counts as "up" also depends on the <a class="term" data-term="handedness" data-forward href="glossary.html#handedness">handedness</a> of the coordinate system: the same numbers point out of the screen in one convention and into it in the other. Unity's documentation describes its <code>Vector3.Cross</code> with a left-hand rule for this reason.</p>
+              <p>In 2D the third arrow has nowhere to go but straight out of the page, so only its sign is left. That sign is useful on its own: it says whether the second arrow turns left or right from the first, which is how a car's AI decides which way to steer towards a target.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 252" role="img" aria-label="Left: arrows a and b lie on a tilted floor and span a shaded parallelogram of area 6.6; a cross b stands straight up from the floor. Middle: the same parallelogram, with b cross a pointing straight down. Right: a car seen from above facing forward. A target up and to the left gives a positive cross product, so turn left; a target to the right gives a negative one, so turn right.">
+                    <defs>
+                      <marker id="crs-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="crs-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">a × b POINTS UP</text>
+                    <polygon class="f-acc-soft s-acc" points="80,180 188,180 263.6,152.3 155.6,152.3"/>
+                    <line class="s-ink w2" x1="80" y1="180" x2="185" y2="180" marker-end="url(#crs-arr-k)"/>
+                    <line class="s-ink w2" x1="80" y1="180" x2="152.8" y2="153.3" marker-end="url(#crs-arr-k)"/>
+                    <line class="s-acc w3 round" x1="80" y1="180" x2="80" y2="74" marker-end="url(#crs-arr)"/>
+                    <text class="t-head" x="190" y="198">a</text>
+                    <text class="t-head end" x="150" y="148">b</text>
+                    <text class="t-acc t-strong" x="90" y="80">a × b</text>
+                    <text class="t-small t-muted" x="20" y="228">a = (3, 0, 0), b = (1, 2.2, 0)</text>
+                    <text class="t-small t-muted" x="20" y="244">a × b = (0, 0, 6.6): area 6.6</text>
+
+                    <line class="s-line" x1="300" y1="16" x2="300" y2="244"/>
+
+                    <text class="t-caps" x="320" y="24">b × a POINTS DOWN</text>
+                    <polygon class="f-acc-soft s-acc" points="370,110 478,110 553.6,82.3 445.6,82.3"/>
+                    <line class="s-ink w2" x1="370" y1="110" x2="475" y2="110" marker-end="url(#crs-arr-k)"/>
+                    <line class="s-ink w2" x1="370" y1="110" x2="442.8" y2="83.3" marker-end="url(#crs-arr-k)"/>
+                    <line class="s-acc w3 round" x1="370" y1="110" x2="370" y2="216" marker-end="url(#crs-arr)"/>
+                    <text class="t-head" x="482" y="128">a</text>
+                    <text class="t-head end" x="440" y="78">b</text>
+                    <text class="t-acc t-strong" x="380" y="214">b × a</text>
+                    <text class="t-small t-muted" x="420" y="174">same length,</text>
+                    <text class="t-small t-muted" x="420" y="190">opposite direction</text>
+
+                    <line class="s-line" x1="610" y1="16" x2="610" y2="244"/>
+
+                    <text class="t-caps" x="630" y="24">IN 2D: ONLY THE SIGN</text>
+                    <rect class="f-surface s-ink" x="730" y="200" width="20" height="32" rx="5"/>
+                    <line class="s-ink w2" x1="740" y1="198" x2="740" y2="124" marker-end="url(#crs-arr-k)"/>
+                    <text class="t-small t-muted" x="746" y="140">a: forward</text>
+                    <line class="s-acc w15 dash" x1="740" y1="200" x2="683" y2="84"/>
+                    <line class="s-acc w15 dash" x1="740" y1="200" x2="846" y2="106"/>
+                    <circle class="f-acc" cx="680" cy="80" r="6"/>
+                    <circle class="f-acc" cx="850" cy="102" r="6"/>
+                    <text class="t-small t-acc t-strong mid" x="680" y="62">a × b &gt; 0</text>
+                    <text class="t-small t-muted mid" x="680" y="48">target on the left</text>
+                    <text class="t-small t-acc t-strong end" x="884" y="84">a × b &lt; 0</text>
+                    <text class="t-small t-muted end" x="884" y="70">target on the right</text>
+                    <text class="t-mono t-small" x="630" y="244">a × b = ax·by − ay·bx</text>
+                  </svg>
+                </div>
+                <figcaption><b>The cross product makes a perpendicular arrow, and its direction depends on the order.</b> In 3D it gives a direction at right angles to two others. In 2D its sign tells left from right. The pictures use the right-handed convention, where a × b points towards you when b turns anticlockwise from a.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The cross product, component by component</summary>
+                <div class="fold-body">
+                  <p class="formula">a × b = (ay·bz − az·by,  az·bx − ax·bz,  ax·by − ay·bx)</p>
+                  <p class="formula">length of a × b = |a| × |b| × sin θ</p>
+                  <p>Six multiplies and three subtractions. The result is usually not unit length, so code that wants a direction normalises it afterwards. If a and b are parallel, sin θ is 0 and the result is the zero vector, which cannot be normalised.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cross-at-work"><span class="step-num">7</span> The cross product at work: normals and camera axes</h3>
+              <p><strong>Normals from triangles.</strong> A <a class="term" data-term="triangle" data-forward href="glossary.html#triangle">triangle</a> with corners A, B and C has two edges from A: B − A and C − A. Their cross product is perpendicular to both edges, so it is perpendicular to the triangle. Normalise it and you have the triangle's normal. Tools use this to compute normals for a <a class="term" data-term="mesh" data-forward href="glossary.html#mesh">mesh</a> that has none. Which side it points out of depends on the order of the corners, the triangle's <a class="term" data-term="winding-order" data-forward href="glossary.html#winding-order">winding order</a>.</p>
+              <p><strong>Camera axes.</strong> A camera needs three directions: forward, right and up, each at right angles to the others. Code usually knows only where the camera looks and which way the world's up is. Two cross products fill in the rest: right from forward and world up, then the camera's own up from right and forward. When the camera looks straight up or down, forward and world up are parallel, the first cross product is zero, and the camera has no idea which way is right.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Left: a triangle A, B, C lying on a tilted floor, with edge arrows B minus A and C minus A. Their cross product, normalised, stands straight up as the normal n. Right: a camera seen from the side, tilted down 30 degrees. Its forward arrow points down and ahead, world up is a dashed vertical arrow, right equals forward cross world up and points out of the page, and the camera's own up equals right cross forward, tilted 30 degrees from vertical.">
+                    <defs>
+                      <marker id="cax-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="cax-arr-g" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-geo" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="cax-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">A TRIANGLE'S NORMAL FROM TWO EDGES</text>
+                    <polygon class="f-geo-soft s-geo" points="80,214 240,214 200,172"/>
+                    <line class="s-geo w2" x1="80" y1="214" x2="236" y2="214" marker-end="url(#cax-arr-g)"/>
+                    <line class="s-geo w2" x1="80" y1="214" x2="196.2" y2="173.3" marker-end="url(#cax-arr-g)"/>
+                    <line class="s-acc w3 round" x1="173.3" y1="200" x2="173.3" y2="94" marker-end="url(#cax-arr)"/>
+                    <text class="t-head end" x="72" y="222">A</text>
+                    <text class="t-head" x="248" y="222">B</text>
+                    <text class="t-head" x="206" y="168">C</text>
+                    <text class="t-small t-geo t-strong mid" x="160" y="234">B − A</text>
+                    <text class="t-small t-geo t-strong end" x="128" y="186">C − A</text>
+                    <text class="t-acc t-strong" x="184" y="100">n</text>
+                    <text class="t-small t-acc" x="184" y="116">= (B − A) × (C − A),</text>
+                    <text class="t-small t-acc" x="184" y="132">then normalised</text>
+                    <text class="t-small t-muted" x="20" y="258">Swap the two edges and n points down, into the surface.</text>
+
+                    <line class="s-line" x1="460" y1="16" x2="460" y2="262"/>
+
+                    <text class="t-caps" x="480" y="24">A CAMERA'S AXES, SEEN FROM THE SIDE</text>
+                    <line class="s-muted w15 dash" x1="680" y1="170" x2="680" y2="62" marker-end="url(#cax-arr-m)"/>
+                    <text class="t-small t-muted end" x="672" y="70">world up</text>
+                    <line class="s-ink w3 round" x1="680" y1="170" x2="772.7" y2="223.5" marker-end="url(#cax-arr-m)"/>
+                    <text class="t-small t-strong" x="784" y="214">forward</text>
+                    <text class="t-small t-muted" x="784" y="230">looking 30° down</text>
+                    <line class="s-acc w3 round" x1="680" y1="170" x2="723.5" y2="94.7" marker-end="url(#cax-arr)"/>
+                    <text class="t-small t-acc t-strong" x="732" y="92">camera up</text>
+                    <text class="t-small t-acc" x="732" y="108">= right × forward</text>
+                    <circle class="f-surface s-acc w2" cx="680" cy="170" r="10"/>
+                    <circle class="f-acc" cx="680" cy="170" r="3.5"/>
+                    <text class="t-small t-acc t-strong end" x="662" y="196">right = forward × world up</text>
+                    <text class="t-small t-muted end" x="662" y="212">out of the page, towards you</text>
+                    <text class="t-small t-muted" x="480" y="258">Right-handed rules. Left-handed engines use world up × forward.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Cross products turn two known directions into the missing third.</b> A triangle's normal comes from its edges. A camera's right and up come from where it looks and which way the world's up is. In both cases the order of the inputs decides which way the answer points, and parallel inputs give no answer at all.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Vector maths is close to free. A 3D dot product is three multiplies and two additions, which a <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a> does as one multiply and two fused multiply-adds: five floating-point operations. The cost that matters is how many times you do it.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th scope="col">Operation</th><th scope="col">Arithmetic for 3D vectors</th><th scope="col">Typical use</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Add, subtract</th><td>3 additions</td><td>Moving a point, the vector between two points</td></tr>
+                  <tr><th scope="row">Dot product</th><td>3 multiplies, 2 additions</td><td>Lighting, vision cones, facing tests</td></tr>
+                  <tr><th scope="row">Length</th><td>A dot product with itself, then a square root</td><td>Distances, speeds</td></tr>
+                  <tr><th scope="row">Normalise</th><td>A dot product, a reciprocal square root, 3 multiplies</td><td>Every direction before a dot product</td></tr>
+                  <tr><th scope="row">Cross product</th><td>6 multiplies, 3 subtractions</td><td>Normals, camera axes, left-or-right tests</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Take diffuse lighting at 1080p with four lights: one N · L per light per pixel. That is 2,073,600 × 4 = 8,294,400 dot products per frame, or about 498 million per second at 60 fps. At five operations each, that is about 2.5 billion operations per second. The PlayStation 5's GPU is rated at up to 10.3 trillion.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">5</span><span class="what">floating-point operations in one 3D dot product on a GPU</span></div>
+              <div class="stat"><span class="value">12 B</span><span class="what">one 3D vector as three 32-bit floats; 24 B in 64-bit doubles</span></div>
+              <div class="stat"><span class="value">8.3 M</span><span class="what">N · L tests per frame at 1920 × 1080 with four lights</span></div>
+              <div class="stat"><span class="value">0.02%</span><span class="what">of a PlayStation 5 GPU's peak arithmetic for those tests at 60 fps</span></div>
+            </div>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Per pixel, not per vertex</strong><span>A 1080p frame has about 2 million pixels; a character has tens of thousands of vertices.</span></li>
+              <li><strong>Per light</strong><span>Every light that reaches a pixel adds its own N · L and normalising.</span></li>
+              <li><strong>Memory, not maths</strong><span>Fetching a vector costs more than the arithmetic on it, so meshes pack normals small (<a class="xref" data-ch="4.2">4.2</a>).</span></li>
+              <li><strong>Bugs</strong><span>A missing normalise or a flipped sign can take days to trace. People-time is the real cost.</span></li>
+            </ul>
+            <aside class="note" data-kind="simplified">
+              <p class="note-label">Simplified</p>
+              <p>Real shaders do more than one dot product per light, and the peak figure is a ceiling no game reaches. The point stands: vector arithmetic is rarely what makes a frame slow. Memory traffic and the number of pixels and lights are.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Vector bugs tend to look like design problems or lighting problems. These six cover most of them.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A right arrow of length 1 and a diagonal arrow that reaches past a quarter circle of radius 1, labelled 1.41 times.">
+                    <defs><marker id="sy1-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                    <path class="s-muted dot-dash" d="M150,110 A80,80 0 0 0 70,30"/>
+                    <line class="s-ink w2" x1="70" y1="110" x2="150" y2="110"/>
+                    <line class="s-pix w2" x1="70" y1="110" x2="148" y2="32" marker-end="url(#sy1-arr)"/>
+                    <text class="t-pix t-strong" x="156" y="34">1.41×</text>
+                  </svg>
+                </div>
+                <h4>Faster on the diagonal</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Movement input was not normalised, so right plus forward has length 1.41. The same bug makes strafing and aiming feel uneven.</dd></div>
+                  <div><dt>Ask for</dt><dd>Normalising the input direction, or clamping its length to 1 so analogue sticks keep partial speeds.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A shaded sphere with a large flat white area where the lighting has saturated.">
+                    <defs><clipPath id="sy2-clip"><circle cx="120" cy="65" r="50"/></clipPath></defs>
+                    <circle class="f-buf-lo" cx="120" cy="65" r="50"/>
+                    <g clip-path="url(#sy2-clip)">
+                      <circle class="f-buf-hi" cx="112" cy="58" r="52" fill-opacity="0.45"/>
+                      <circle class="f-buf-hi" cx="106" cy="52" r="38"/>
+                    </g>
+                    <circle class="s-strong" cx="120" cy="65" r="50"/>
+                  </svg>
+                </div>
+                <h4>Lighting blown out or too dark</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A normal or light direction was not unit length when it reached N · L, often after scaling an object or blending normals. The dot product then exceeds 1 or falls short.</dd></div>
+                  <div><dt>Ask for</dt><dd>Normalising both vectors in the shader just before the dot product, and a test scene with scaled objects.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A sun on the left and a sphere lit on its right side, away from the sun.">
+                    <defs><clipPath id="sy3-clip"><circle cx="150" cy="68" r="46"/></clipPath></defs>
+                    <circle class="f-lit-soft s-lit w2" cx="36" cy="40" r="14"/>
+                    <path class="s-lit dash" d="M56,46 L100,58"/>
+                    <circle class="f-buf-lo" cx="150" cy="68" r="46"/>
+                    <g clip-path="url(#sy3-clip)"><circle class="f-buf-hi" cx="188" cy="60" r="44" fill-opacity="0.9"/></g>
+                    <circle class="s-strong" cx="150" cy="68" r="46"/>
+                    <text class="t-small t-pix t-strong" x="12" y="120">lit side faces away</text>
+                  </svg>
+                </div>
+                <h4>Lit from the wrong side</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The light vector points from the light to the surface where the formula expects surface to light, so N · L has the wrong sign. A mirrored normal does the same.</dd></div>
+                  <div><dt>Ask for</dt><dd>A statement of which way each vector points, named in the code (<code>toLight</code>, not <code>lightDir</code>), and a check against a single known light.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A grey surface scattered with black square pixels and the label NaN.">
+                    <rect class="f-solid s-strong" x="24" y="18" width="192" height="94"/>
+                    <rect class="f-buf-lo" x="60" y="40" width="8" height="8"/>
+                    <rect class="f-buf-lo" x="68" y="48" width="8" height="8"/>
+                    <rect class="f-buf-lo" x="124" y="30" width="8" height="8"/>
+                    <rect class="f-buf-lo" x="150" y="72" width="8" height="8"/>
+                    <rect class="f-buf-lo" x="158" y="72" width="8" height="8"/>
+                    <rect class="f-buf-lo" x="92" y="86" width="8" height="8"/>
+                    <rect class="f-buf-lo" x="190" y="44" width="8" height="8"/>
+                    <text class="t-mono t-pix t-strong" x="34" y="104">NaN</text>
+                  </svg>
+                </div>
+                <h4>Black pixels or vanishing objects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A zero-length vector was normalised, dividing by zero and producing NaN ("not a number"), which spreads through every calculation it touches. Common when two points coincide or a velocity is zero.</dd></div>
+                  <div><dt>Ask for</dt><dd>The engine's safe normalise, or an explicit length check first, and a search for raw divisions by a length.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A camera looking straight up, its forward arrow on top of the world up arrow, with a circular arrow showing it spinning.">
+                    <defs><marker id="sy5-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                    <rect class="f-surface s-ink" x="108" y="92" width="24" height="26" rx="3"/>
+                    <line class="s-ink w3" x1="120" y1="90" x2="120" y2="22"/>
+                    <line class="s-muted dash" x1="126" y1="90" x2="126" y2="22"/>
+                    <path class="s-pix w2" d="M86,64 A34,14 0 1 0 154,64" marker-end="url(#sy5-arr)"/>
+                    <text class="t-small t-pix t-strong" x="160" y="40">forward = up</text>
+                  </svg>
+                </div>
+                <h4>Camera flips looking straight up</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The camera's right axis is forward × world up, which is zero when the two are parallel. The camera spins or snaps as it passes the vertical.</dd></div>
+                  <div><dt>Ask for</dt><dd>Limiting pitch to just short of ±90°, or keeping the previous right axis when the cross product is near zero.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A six-sided outline whose normal arrows all point inwards.">
+                    <defs><marker id="sy6-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                    <polygon class="f-solid s-strong" points="120,14 168,40 168,92 120,118 72,92 72,40"/>
+                    <line class="s-pix w2" x1="144" y1="27" x2="134" y2="45" marker-end="url(#sy6-arr)"/>
+                    <line class="s-pix w2" x1="168" y1="66" x2="148" y2="66" marker-end="url(#sy6-arr)"/>
+                    <line class="s-pix w2" x1="144" y1="105" x2="134" y2="87" marker-end="url(#sy6-arr)"/>
+                    <line class="s-pix w2" x1="96" y1="105" x2="106" y2="87" marker-end="url(#sy6-arr)"/>
+                    <line class="s-pix w2" x1="72" y1="66" x2="92" y2="66" marker-end="url(#sy6-arr)"/>
+                    <line class="s-pix w2" x1="96" y1="27" x2="106" y2="45" marker-end="url(#sy6-arr)"/>
+                  </svg>
+                </div>
+                <h4>Normals pointing inwards</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Generated normals used the edges in the wrong order, or a conversion between left- and right-handed coordinates flipped them. Lighting looks inverted.</dd></div>
+                  <div><dt>Ask for</dt><dd>A debug view that draws normals as lines, and a check of the cross product order against the engine's handedness.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>Most engines can draw vectors in the viewport for debugging. A few lines that draw a velocity, a normal or a vision cone in the game view settle most of these arguments in minutes.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Every engine has a 3D vector type with the same handful of operations. The names differ, and so does what "forward" means.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Vector type</th>
+                    <td><code>FVector</code>. In UE5 its components are 64-bit doubles, to support very large worlds.</td>
+                    <td><code>Vector3</code>, three 32-bit floats. The documentation describes it as a "representation of 3D vectors and points".</td>
+                    <td><code>Vector3</code>, 32-bit floats unless the engine is compiled with <code>precision=double</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Length</th>
+                    <td><code>Size()</code> in C++; <code>length()</code> in Python.</td>
+                    <td><code>magnitude</code>; <code>sqrMagnitude</code> skips the square root.</td>
+                    <td><code>length()</code>; <code>length_squared()</code> skips the square root.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Normalise</th>
+                    <td><code>GetSafeNormal()</code> returns a zero vector if the length is too small to normalise safely.</td>
+                    <td><code>normalized</code> returns the zero vector if the vector is too small to normalise.</td>
+                    <td><code>normalized()</code> returns (0, 0, 0) for a zero vector, and the documentation warns results may be wrong near zero.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Dot and cross</th>
+                    <td><code>FVector::DotProduct(A, B)</code>, <code>FVector::CrossProduct(A, B)</code>.</td>
+                    <td><code>Vector3.Dot(a, b)</code>, <code>Vector3.Cross(a, b)</code>. The cross product is documented with the left-hand rule.</td>
+                    <td><code>a.dot(b)</code>, <code>a.cross(b)</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Angle between</th>
+                    <td>Usually written as the arccosine of the dot product of two unit vectors.</td>
+                    <td><code>Vector3.Angle(a, b)</code>, in degrees from 0 to 180; <code>Vector3.SignedAngle</code> for a signed result.</td>
+                    <td><code>a.angle_to(b)</code>, unsigned, in radians.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">"Forward"</th>
+                    <td>+X is forward, +Y right, +Z up.</td>
+                    <td><code>Vector3.forward</code> is (0, 0, 1).</td>
+                    <td><code>Vector3.FORWARD</code> is (0, 0, −1); <code>Vector3.MODEL_FRONT</code>, the front of imported models, is (0, 0, 1).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">In shaders</th>
+                    <td>Material nodes <strong>DotProduct</strong>, <strong>CrossProduct</strong> and <strong>Normalize</strong>; HLSL <code>dot</code>, <code>cross</code>, <code>normalize</code>.</td>
+                    <td>Shader Graph <strong>Dot Product</strong> and <strong>Cross Product</strong> nodes; HLSL <code>dot</code>, <code>cross</code>, <code>normalize</code>.</td>
+                    <td>Shading language <code>dot</code>, <code>cross</code>, <code>normalize</code>, <code>length</code>.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9 (and its Python API for 5.8), Unity 6.6 (6000.6) with Shader Graph 17.0, and Godot 4.7 in November 2026. Engines rename functions between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Porting caveat</p>
+              <p>Code moved between engines keeps compiling and quietly breaks: "forward" changes axis and sign, and the same cross product points the other way under a different handedness. When an AI ports gameplay maths from one engine to another, ask it to list every axis, sign and cross product order it changed. <a class="xref" data-ch="3.4">3.4</a> has the full comparison of axes.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good vector briefs say which vectors are points and which are directions, insist on unit length where it matters, and ask for the edge cases: zero length, parallel inputs, the vertical. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding a vision cone or aim check</span></div>
+              <pre class="prompt-body">Engine: Godot 4.7, GDScript. Enemies need a vision cone: 100° wide, 15 m range, blocked by walls.
+
+1. Implement the check with a dot product against the enemy's forward vector. Normalise the direction to the player first and compare with the cosine of half the cone angle, computed once, not with an angle.
+2. Use Godot's conventions for forward and say which axis that is. Name each variable as a point or a direction.
+3. Handle the player standing exactly on the enemy (a zero-length vector) and players above or below the enemy.
+4. Add a debug draw of the cone and tests with players at 49°, 51° and directly behind.</pre>
+              <ul class="prompt-why">
+                <li>Naming the dot product and the cosine stops a slower, error-prone angle comparison.</li>
+                <li>Asking for the engine's forward axis catches the most common porting mistake.</li>
+                <li>The 49° and 51° tests sit either side of the 50° edge, so they prove the threshold is right.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when lighting changes with an object's scale</span></div>
+              <pre class="prompt-body">Unity 6, URP, custom HLSL shader. Objects we stretch unevenly, such as a crate scaled 3 × 1 × 1, look too bright on some faces and too dark on others. With even scaling they look correct.
+
+Find where the shader transforms and normalises the normal and the light direction. Check that both are unit length at the moment of the N · L dot product, after transformation and after interpolation between vertices. Explain why uneven scale changes the normal, show the fix, and give me a test scene that would have caught it.</pre>
+              <ul class="prompt-why">
+                <li>The pattern (only uneven scale) points at normals losing unit length or direction.</li>
+                <li>Naming the two moments where length is lost keeps the search narrow.</li>
+                <li>Asking for a test scene turns one fix into a guard.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing vector code</h3>
+            <ol class="review-list">
+              <li>Are both vectors in this dot product unit length, and where were they normalised?<span class="why">Otherwise the result is not a cosine, and thresholds and lighting drift.</span></li>
+              <li>Does this light vector point towards the light or away from it?<span class="why">The wrong one flips the sign of N · L and lights the back of everything.</span></li>
+              <li>What happens when this vector is zero?<span class="why">Normalising it divides by zero, and NaN spreads.</span></li>
+              <li>Is this variable a point or a direction, and which space is it in?<span class="why">Mixing them compiles and runs, and is wrong. Spaces are the subject of <a class="xref" data-ch="3.4">3.4</a>.</span></li>
+              <li>Which order is this cross product in, and does it match the engine's handedness?<span class="why">Swapping the inputs reverses the result.</span></li>
+              <li>Is it comparing cosines or angles?<span class="why">Comparing dot products with a precomputed cosine avoids an arccosine per check.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Movement code multiplies the stick input by a speed of 5 m/s without normalising it. How fast does the character run when the stick is pushed fully up and right, giving (1, 1)? What should it be?</p>
+                <details><summary>Show answer</summary><p>The length of (1, 1) is √2 ≈ 1.41, so the character runs at about 7.07 m/s instead of 5 m/s. Normalising the input to (0.71, 0.71) fixes it.</p></details>
+              </li>
+              <li>
+                <p class="q">A guard faces (0, 1). The normalised direction to the player is (0.6, 0.8). The guard's vision cone is 90° wide. Can it see the player?</p>
+                <details><summary>Show answer</summary><p>Yes. The dot product is 0 × 0.6 + 1 × 0.8 = 0.8, which is above cos 45° ≈ 0.71. The player is about 37° off centre, inside the 45° half-angle.</p></details>
+              </li>
+              <li>
+                <p class="q">Normals computed with a cross product point into the model instead of out of it. Name two likely causes.</p>
+                <details><summary>Show answer</summary><p>The edges went into the cross product in the wrong order, or the triangle's corners are listed in the opposite winding order. A conversion between left- and right-handed coordinates can cause either.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#vector">vector</a></li>
+              <li><a class="chip" href="glossary.html#point">point</a></li>
+              <li><a class="chip" href="glossary.html#magnitude">magnitude</a></li>
+              <li><a class="chip" href="glossary.html#unit-vector">unit vector</a></li>
+              <li><a class="chip" href="glossary.html#dot-product">dot product</a></li>
+              <li><a class="chip" href="glossary.html#cross-product">cross product</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="3.4"></a> asks what the numbers in a vector are measured against, and follows one model through the chain of spaces from its own origin to a pixel on screen.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://docs.godotengine.org/en/4.7/tutorials/math/vector_math.html">Vector math</a>, Godot Engine documentation 4.7. A gentle, illustrated tour of vectors, normalising, and the dot and cross products in game code.</li>
+              <li><a href="https://learnopengl.com/Lighting/Basic-Lighting">Basic Lighting</a>, LearnOpenGL, Joey de Vries. Diffuse lighting as max(0, N · L), and why both vectors must be normalised.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/vector3/dot">Vector3.Dot</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/vector3/cross">Vector3.Cross</a>, Unity 6.6 scripting reference.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/classes/class_vector3.html">Vector3</a>, Godot Engine 4.7 class reference. Includes the FORWARD and MODEL_FRONT constants.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/Vector">unreal.Vector</a>, Unreal Engine Python API, and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/math-material-expressions-in-unreal-engine">Math material expressions</a>, Unreal Engine 5.9 documentation.</li>
+              <li><a href="https://blog.playstation.com/2020/03/18/unveiling-new-details-of-playstation-5-hardware-technical-specs/">Unveiling new details of PlayStation 5: hardware technical specs</a>, PlayStation Blog, 2020. Source of the 10.3 TFLOPS figure.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/vector-playground.js"></script>
+</body>
+</html>

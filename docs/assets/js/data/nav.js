@@ -54,8 +54,8 @@
       chapters: [
         { num: "3.1", slug: "pixels-displays", title: "Pixels and displays", terms: "framebuffer, resolution, refresh rate, tearing, vsync, VRR, double buffering", core: false, status: "published" },
         { num: "3.2", slug: "colour", title: "Colour done right", terms: "RGB, linear and sRGB, gamma, HDR, bit depth, banding", core: true, status: "published" },
-        { num: "3.3", slug: "vectors", title: "Vectors you can see", terms: "vector, normalise, dot product, cross product", core: false, status: "planned" },
-        { num: "3.4", slug: "spaces-transforms", title: "Spaces and transforms", terms: "object, world, view, clip and screen space; matrix, MVP, frustum, FOV, near and far planes", core: true, status: "planned" },
+        { num: "3.3", slug: "vectors", title: "Vectors you can see", terms: "vector, normalise, dot product, cross product", core: false, status: "published" },
+        { num: "3.4", slug: "spaces-transforms", title: "Spaces and transforms", terms: "object, world, view, clip and screen space; matrix, MVP, frustum, FOV, near and far planes", core: true, status: "published" },
         { num: "3.5", slug: "cpu-gpu-apis", title: "CPU, GPU and graphics APIs", terms: "parallelism, VRAM, DirectX 12, Vulkan, Metal, WebGPU, driver, tile-based GPU", core: true, status: "published" }
       ]
     },

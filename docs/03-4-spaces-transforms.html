@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>3.4 Spaces and transforms · Graphics Handbook</title>
+  <meta name="description" content="Object, world, view, clip and screen space; the model, view and projection matrices; the view frustum, field of view and near and far planes; and the axis conventions that break imports between engines.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="3.4">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 3 · Foundations</p>
+            <h1><span class="ch-num">3.4</span> Spaces and transforms</h1>
+            <p class="lead">Every corner of every model starts as numbers measured from the model's own origin and ends as a pixel position on screen. In between it passes through a short, fixed chain of coordinate spaces, each reached by one matrix multiply. Knowing that chain lets you read camera settings, untangle import problems and spot a whole family of shader bugs.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="3.3">3.3 Vectors you can see</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="4.4">4.4 Culling</a>, <a class="xref" data-ch="5.2">5.2 Vertex shaders</a>, <a class="xref" data-ch="5.5">5.5 Depth, stencil and blending</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 35 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Space stepper</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 292" role="img" aria-label="Five panels connected by four arrows. Object space: a house seen from above, centred on its own origin. Times the model matrix gives world space: the house turned and placed in a level, with the camera and its wedge-shaped view. Times the view matrix gives view space: the camera at the origin looking up the page, the house ahead of it. Times the projection and divided by w gives a box from minus 1 to 1, where the wedge has become a rectangle and the house is squashed towards the far side. The viewport transform gives screen space: the house as a picture in a 1920 by 1080 rectangle.">
+                  <defs><marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="pic-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps mid" x="87" y="22">OBJECT</text>
+                  <text class="t-small t-muted mid" x="87" y="38">the model's own origin</text>
+                  <rect class="f-bg s-line" x="12" y="48" width="150" height="206" rx="8"/>
+                  <text class="t-caps mid" x="269" y="22">WORLD</text>
+                  <text class="t-small t-muted mid" x="269" y="38">one shared origin</text>
+                  <rect class="f-bg s-line" x="194" y="48" width="150" height="206" rx="8"/>
+                  <text class="t-caps mid" x="451" y="22">VIEW</text>
+                  <text class="t-small t-muted mid" x="451" y="38">the camera at the origin</text>
+                  <rect class="f-bg s-line" x="376" y="48" width="150" height="206" rx="8"/>
+                  <text class="t-caps mid" x="633" y="22">CLIP → NDC</text>
+                  <text class="t-small t-muted mid" x="633" y="38">a box, after ÷ w</text>
+                  <rect class="f-bg s-line" x="558" y="48" width="150" height="206" rx="8"/>
+                  <text class="t-caps mid" x="815" y="22">SCREEN</text>
+                  <text class="t-small t-muted mid" x="815" y="38">pixels</text>
+                  <rect class="f-bg s-line" x="740" y="48" width="150" height="206" rx="8"/>
+                  <line class="s-acc w2" x1="166" y1="151" x2="188" y2="151" marker-end="url(#pic-arr)"/>
+                  <text class="t-small t-acc t-strong mid" x="178" y="278">× model matrix</text>
+                  <line class="s-acc dot-dash" x1="178" y1="258" x2="178" y2="266"/>
+                  <line class="s-acc w2" x1="348" y1="151" x2="370" y2="151" marker-end="url(#pic-arr)"/>
+                  <text class="t-small t-acc t-strong mid" x="360" y="278">× view matrix</text>
+                  <line class="s-acc dot-dash" x1="360" y1="258" x2="360" y2="266"/>
+                  <line class="s-acc w2" x1="530" y1="151" x2="552" y2="151" marker-end="url(#pic-arr)"/>
+                  <text class="t-small t-acc t-strong mid" x="542" y="278">× projection, ÷ w</text>
+                  <line class="s-acc dot-dash" x1="542" y1="258" x2="542" y2="266"/>
+                  <line class="s-acc w2" x1="712" y1="151" x2="734" y2="151" marker-end="url(#pic-arr)"/>
+                  <text class="t-small t-acc t-strong mid" x="724" y="278">viewport</text>
+                  <line class="s-acc dot-dash" x1="724" y1="258" x2="724" y2="266"/>
+                  <polygon class="f-geo-soft s-geo w15" points="63,127 111,127 111,175 63,175"/>
+                  <line class="s-geo" x1="63" y1="151" x2="111" y2="151"/>
+                  <line class="s-geo w3" x1="79.8" y1="175" x2="94.2" y2="175"/>
+                  <line class="s-ink w15" x1="87" y1="151" x2="136" y2="151" marker-end="url(#pic-arr-k)"/>
+                  <line class="s-ink w15" x1="87" y1="151" x2="87" y2="200" marker-end="url(#pic-arr-k)"/>
+                  <text class="t-mono t-small t-strong" x="143" y="155">X</text>
+                  <text class="t-mono t-small t-strong" x="93" y="213">Z</text>
+                  <circle class="f-ink" cx="87" cy="151" r="3"/>
+                  <text class="t-small t-muted mid" x="87" y="238">seen from above</text>
+                  <line class="s-line" x1="201" y1="52" x2="201" y2="250"/>
+                  <line class="s-line" x1="214" y1="52" x2="214" y2="250"/>
+                  <line class="s-line" x1="227" y1="52" x2="227" y2="250"/>
+                  <line class="s-line" x1="240" y1="52" x2="240" y2="250"/>
+                  <line class="s-line" x1="253" y1="52" x2="253" y2="250"/>
+                  <line class="s-line" x1="266" y1="52" x2="266" y2="250"/>
+                  <line class="s-line" x1="279" y1="52" x2="279" y2="250"/>
+                  <line class="s-line" x1="292" y1="52" x2="292" y2="250"/>
+                  <line class="s-line" x1="305" y1="52" x2="305" y2="250"/>
+                  <line class="s-line" x1="318" y1="52" x2="318" y2="250"/>
+                  <line class="s-line" x1="331" y1="52" x2="331" y2="250"/>
+                  <line class="s-line" x1="198" y1="62" x2="340" y2="62"/>
+                  <line class="s-line" x1="198" y1="75" x2="340" y2="75"/>
+                  <line class="s-line" x1="198" y1="88" x2="340" y2="88"/>
+                  <line class="s-line" x1="198" y1="101" x2="340" y2="101"/>
+                  <line class="s-line" x1="198" y1="114" x2="340" y2="114"/>
+                  <line class="s-line" x1="198" y1="127" x2="340" y2="127"/>
+                  <line class="s-line" x1="198" y1="140" x2="340" y2="140"/>
+                  <line class="s-line" x1="198" y1="153" x2="340" y2="153"/>
+                  <line class="s-line" x1="198" y1="166" x2="340" y2="166"/>
+                  <line class="s-line" x1="198" y1="179" x2="340" y2="179"/>
+                  <line class="s-line" x1="198" y1="192" x2="340" y2="192"/>
+                  <line class="s-line" x1="198" y1="205" x2="340" y2="205"/>
+                  <line class="s-line" x1="198" y1="218" x2="340" y2="218"/>
+                  <line class="s-line" x1="198" y1="231" x2="340" y2="231"/>
+                  <line class="s-line" x1="198" y1="244" x2="340" y2="244"/>
+                  <polygon class="f-geo-soft s-geo w15" points="261.2,83.2 283.8,70.2 296.8,92.8 274.2,105.8"/>
+                  <line class="s-geo w3" x1="282.1" y1="101.2" x2="288.9" y2="97.3"/>
+                  <polygon class="f-acc-soft" fill-opacity="0.6" points="227,212.8 220.7,62.3 338.3,111.3"/>
+                  <path class="s-acc dash" d="M220.7,62.3 L227,212.8 L338.3,111.3"/>
+                  <circle class="f-acc" cx="227" cy="212.8" r="4.5"/>
+                  <text class="t-small t-acc t-strong" x="235" y="226.8">camera</text>
+                  <line class="s-ink w15" x1="240" y1="166" x2="267" y2="166" marker-end="url(#pic-arr-k)"/>
+                  <line class="s-ink w15" x1="240" y1="166" x2="240" y2="193" marker-end="url(#pic-arr-k)"/>
+                  <circle class="f-ink" cx="240" cy="166" r="3"/>
+                  <text class="t-small t-muted end" x="234" y="160">origin</text>
+                  <text class="t-mono t-small t-strong" x="274" y="170">X</text>
+                  <text class="t-mono t-small t-strong" x="246" y="206">Z</text>
+                  <polygon class="f-acc-soft" fill-opacity="0.6" points="451,236 386.6,63.5 515.4,63.5"/>
+                  <path class="s-acc dash" d="M386.6,63.5 L451,236 L515.4,63.5"/>
+                  <polygon class="f-geo-soft s-geo w15" points="434.2,82.8 448.7,59 467.8,77.2 453.3,101"/>
+                  <line class="s-geo w3" x1="458.3" y1="92.7" x2="462.7" y2="85.5"/>
+                  <line class="s-ink w15" x1="451" y1="236" x2="478" y2="236" marker-end="url(#pic-arr-k)"/>
+                  <line class="s-ink w15" x1="451" y1="236" x2="451" y2="205" marker-end="url(#pic-arr-k)"/>
+                  <text class="t-mono t-small t-strong" x="485" y="240">X</text>
+                  <text class="t-mono t-small t-strong" x="457" y="206">−Z</text>
+                  <circle class="f-acc" cx="451" cy="236" r="4.5"/>
+                  <rect class="f-acc-soft s-acc" fill-opacity="0.6" x="572" y="72" width="122" height="164"/>
+                  <line class="s-acc w3" x1="572" y1="236" x2="694" y2="236"/>
+                  <polygon class="f-geo-soft s-geo w15" points="615,74 630.9,70.2 650.3,73 635.7,77.8"/>
+                  <line class="s-geo w3" x1="641.4" y1="75.9" x2="645.7" y2="74.5"/>
+                  <text class="t-mono t-small t-muted" x="572" y="250">−1</text>
+                  <text class="t-mono t-small t-muted end" x="694" y="250">1</text>
+                  <text class="t-small t-acc mid" x="633" y="230">near: depth 0</text>
+                  <text class="t-small t-acc mid" x="633" y="64">far: depth 1</text>
+                  <rect class="f-sunken s-acc w2" x="750" y="112" width="130" height="73"/>
+                  <polygon class="f-geo-soft s-geo" stroke-linejoin="round" points="812.8,161.8 833.3,164 833.5,143.1 822.6,130.6 812.8,143"/>
+                  <polygon class="f-geo-soft s-geo" stroke-linejoin="round" points="796,164.8 812.8,161.8 812.8,143 795.9,143.2"/>
+                  <polygon class="f-surface s-geo" stroke-linejoin="round" points="795.9,143.2 812.8,143 822.6,130.6 806.1,128.7"/>
+                  <polygon class="f-surface s-geo" stroke-linejoin="round" points="817.9,143.4 833.5,143.1 822.6,130.6 806.1,128.7"/>
+                  <polygon class="f-geo-soft s-geo" stroke-linejoin="round" points="817.9,167.9 833.3,164 833.5,143.1 817.9,143.4"/>
+                  <polygon class="f-geo" points="823.9,166.4 828.5,165.3 828.5,150.1 823.9,150.5"/>
+                  <polygon class="f-geo-soft s-geo" stroke-linejoin="round" points="796,164.8 817.9,167.9 817.9,143.4 806.1,128.7 795.9,143.2"/>
+                  <text class="t-mono t-small" x="750" y="106">(0, 0)</text>
+                  <text class="t-mono t-small end" x="880" y="199">(1920, 1080)</text>
+                </svg>
+              </div>
+              <figcaption><b>Four multiplies take a model from its own coordinates to the screen.</b> The model matrix places it in the level. The view matrix moves everything so the camera is at the origin. The projection matrix and a divide turn the camera's wedge of vision into a box. The viewport transform stretches that box over the screen's pixels. Every 3D game does this for every vertex, every frame.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A position is only a list of numbers, and numbers mean nothing until you know what they are measured from. A <dfn class="term" data-term="coordinate-space">coordinate space</dfn> is that reference: an origin, a set of axes and a unit. "Three metres to the left" depends entirely on who is standing where and facing which way.</p>
+            <p>A renderer uses a handful of spaces because each one makes a different job easy. Artists build a model around its own origin. Level designers place it in a shared world. The camera needs everything measured from itself. The GPU needs a fixed box it can clip against, and the screen needs pixels. A <a class="term" data-term="transform" href="glossary.html#transform">transform</a>, a move, turn and resize, converts positions from one space to the next.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>"The stapler is 20 cm left of my keyboard" is object space. "My desk is in room 4.12, 3 m from the window" is world space. "From where you are standing, it is ahead and slightly to your left" is view space. A photo of it is screen space.</p>
+                <p>All four describe the same stapler. Each is easiest for a different person.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>One crate model may appear 500 times in a level, the camera moves every frame, and the screen might be 1280 or 3840 pixels wide.</p>
+                <p>Keeping each concern in its own space means the crate's vertices never change, moving the camera touches one matrix, and changing resolution touches one more.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>A large share of the graphics bugs you will triage are space bugs: models imported lying on their backs or 100 times too large, lighting that turns with an object, effects that drift when the camera moves, distant surfaces that flicker. Each has a short, specific cause in this chapter. Camera feel, too, from field of view to how close the player can get to a wall, is set by numbers explained here.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Ten steps: what a space is, how matrices carry transforms, the four links in the chain, then two practical matters, depth precision and the axis conventions that differ between tools.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="same-point"><span class="step-num">1</span> One point, many sets of numbers</h3>
+              <p>Take one corner of a crate. Measured from the crate's own centre, along the crate's own axes, it is at (1, 1). That is <dfn class="term" data-term="object-space">object space</dfn>, also called model or local space, and it is what a <a class="term" data-term="vertex-buffer" data-forward href="glossary.html#vertex-buffer">vertex buffer</a> stores. Measured from the level's origin, along the level's axes, the same corner is at (5.37, 3.37). That is <dfn class="term" data-term="world-space">world space</dfn>: the one space every object, light and camera in the level shares.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="A crate seen from above sits on a grid, centred at (5, 2) and turned 30 degrees. Its own axes x prime and y prime turn with it. One corner is at (1, 1) measured along the crate's axes, and at (5.37, 3.37) measured from the world origin along the world's axes.">
+                    <defs><marker id="pt-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="pt-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="pt-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps" x="20" y="22">A CRATE IN A LEVEL, SEEN FROM ABOVE</text>
+                  <line class="s-line" x1="50" y1="46" x2="50" y2="226"/>
+                  <line class="s-line" x1="90" y1="46" x2="90" y2="226"/>
+                  <line class="s-line" x1="130" y1="46" x2="130" y2="226"/>
+                  <line class="s-line" x1="170" y1="46" x2="170" y2="226"/>
+                  <line class="s-line" x1="210" y1="46" x2="210" y2="226"/>
+                  <line class="s-line" x1="250" y1="46" x2="250" y2="226"/>
+                  <line class="s-line" x1="290" y1="46" x2="290" y2="226"/>
+                  <line class="s-line" x1="330" y1="46" x2="330" y2="226"/>
+                  <line class="s-line" x1="370" y1="46" x2="370" y2="226"/>
+                  <line class="s-line" x1="410" y1="46" x2="410" y2="226"/>
+                  <line class="s-line" x1="50" y1="226" x2="410" y2="226"/>
+                  <line class="s-line" x1="50" y1="186" x2="410" y2="186"/>
+                  <line class="s-line" x1="50" y1="146" x2="410" y2="146"/>
+                  <line class="s-line" x1="50" y1="106" x2="410" y2="106"/>
+                  <line class="s-line" x1="50" y1="66" x2="410" y2="66"/>
+                  <line class="s-ink w15" x1="50" y1="226" x2="431" y2="226" marker-end="url(#pt-arr-k)"/>
+                  <line class="s-ink w15" x1="50" y1="226" x2="50" y2="33" marker-end="url(#pt-arr-k)"/>
+                  <text class="t-mono t-small t-strong" x="440" y="230">x</text>
+                  <text class="t-mono t-small t-strong" x="38" y="36">y</text>
+                  <circle class="f-ink" cx="50" cy="226" r="3.5"/>
+                  <text class="t-small t-strong" x="56" y="244">world origin</text>
+                  <polygon class="f-geo-soft s-geo w2" points="235.4,200.6 304.6,160.6 264.6,91.4 195.4,131.4"/>
+                  <line class="s-geo w15" x1="250" y1="146" x2="306.3" y2="113.5" marker-end="url(#pt-arr-m)"/>
+                  <line class="s-geo w15" x1="250" y1="146" x2="217.5" y2="89.7" marker-end="url(#pt-arr-m)"/>
+                  <text class="t-mono t-small t-geo t-strong" x="317.5" y="111">x'</text>
+                  <text class="t-mono t-small t-geo t-strong mid" x="211" y="78.5">y'</text>
+                  <circle class="f-geo" cx="250" cy="146" r="3.5"/>
+                  <path class="s-acc w2 dash" d="M250,146 L284.6,126 L264.6,91.4"/>
+                  <path class="s-muted w15 dash" d="M50,226 L264.6,226 L264.6,91.4"/>
+                  <circle class="f-pix" cx="264.6" cy="91.4" r="5"/>
+                  <text class="t-small t-pix t-strong" x="272.6" y="85.4">this corner</text>
+                  <line class="s-line" x1="500" y1="16" x2="500" y2="248"/>
+                  <text class="t-caps" x="520" y="22">ONE CORNER, TWO SETS OF NUMBERS</text>
+                  <rect class="f-acc-soft s-acc" x="520" y="44" width="360" height="76" rx="6"/>
+                  <text class="t-head" x="534" y="68">Object space: (1, 1)</text>
+                  <text class="t-small" x="534" y="88">Measured from the crate's own origin, along its</text>
+                  <text class="t-small" x="534" y="104">own axes x' and y'. Never changes as it moves.</text>
+                  <rect class="f-sunken s-strong" x="520" y="136" width="360" height="76" rx="6"/>
+                  <text class="t-head" x="534" y="160">World space: (5.37, 3.37)</text>
+                  <text class="t-small" x="534" y="180">Measured from the level's origin. The crate sits at</text>
+                  <text class="t-small" x="534" y="196">(5, 2), turned 30°. Move it and these numbers change.</text>
+                  <text class="t-small t-muted" x="520" y="240">Same place, different numbers: a position only means</text>
+                  <text class="t-small t-muted" x="520" y="254">something once you know which space it is in.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A position means nothing without its space.</b> The crate's corner has one pair of numbers relative to the crate and another relative to the level. Code that mixes the two compiles and runs, and puts things in the wrong place. Most space bugs are exactly this.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="matrices"><span class="step-num">2</span> Transforms live in matrices</h3>
+              <p>Moving from one space to another is a transform: some mix of moving (translation), turning (rotation) and resizing (scale). Graphics code stores each transform as a <dfn class="term" data-term="matrix">matrix</dfn>, a 4 × 4 grid of 16 numbers. Multiplying a position by the matrix applies the transform. Multiplying two matrices together gives one matrix that does both, which is how a long chain of transforms collapses into a single multiply per <a class="term" data-term="vertex" data-forward href="glossary.html#vertex">vertex</a>.</p>
+              <p>Order matters. Turning a crate and then moving it is not the same as moving it and then turning it, because a turn always happens around the origin. Engines fix one order for you, scale then rotate then translate, so the object turns around its own origin before it is placed.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Left: a crate is turned 45 degrees at the origin and then moved 3 units right, ending at (3, 0) turned. Right: the crate is moved 3 units right first and then turned 45 degrees, which swings it around the origin to (2.12, 2.12).">
+                    <defs><marker id="ord-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="ord-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps" x="20" y="22">A · TURN 45°, THEN MOVE 3 RIGHT</text>
+                  <line class="s-ink" x1="50" y1="196" x2="247" y2="196" marker-end="url(#ord-arr-k)"/><line class="s-ink" x1="60" y1="206" x2="60" y2="49" marker-end="url(#ord-arr-k)"/><circle class="f-ink" cx="60" cy="196" r="3"/>
+                  <polygon class="f-none s-muted dash"  points="40,216 80,216 80,176 40,176"/><polygon class="f-none s-muted dash"  points="80,188.8 80,203.2 91.2,196"/>
+                  <polygon class="f-none s-strong dash"  points="60,224.3 88.3,196 60,167.7 31.7,196"/><polygon class="f-none s-strong dash"  points="69.1,176.8 79.2,186.9 82.1,173.9"/>
+                  <line class="s-acc w15" x1="100" y1="162" x2="149" y2="162" marker-end="url(#ord-arr)"/>
+                  <polygon class="f-geo-soft s-geo w2"  points="180,224.3 208.3,196 180,167.7 151.7,196"/><polygon class="f-geo-soft s-geo w2"  points="189.1,176.8 199.2,186.9 202.1,173.9"/>
+                  <text class="t-small t-muted mid" x="60" y="236">start</text>
+                  <text class="t-small t-strong mid" x="180" y="236">ends at (3, 0), turned</text>
+                  <text class="t-mono t-small t-acc" x="20" y="252">matrix: T × R (R applied first)</text>
+                  <line class="s-line" x1="450" y1="16" x2="450" y2="256"/>
+                  <text class="t-caps" x="470" y="22">B · MOVE 3 RIGHT, THEN TURN 45°</text>
+                  <line class="s-ink" x1="510" y1="196" x2="707" y2="196" marker-end="url(#ord-arr-k)"/><line class="s-ink" x1="520" y1="206" x2="520" y2="49" marker-end="url(#ord-arr-k)"/><circle class="f-ink" cx="520" cy="196" r="3"/>
+                  <polygon class="f-none s-muted dash"  points="500,216 540,216 540,176 500,176"/><polygon class="f-none s-muted dash"  points="540,188.8 540,203.2 551.2,196"/>
+                  <polygon class="f-none s-strong dash"  points="620,216 660,216 660,176 620,176"/><polygon class="f-none s-strong dash"  points="660,188.8 660,203.2 671.2,196"/>
+                  <path class="s-acc w15" d="M640,168 A120,120 0 0 0 624.9,109.1" marker-end="url(#ord-arr)"/>
+                  <path class="s-muted dot-dash" d="M640,196 A120,120 0 0 0 604.9,111.1"/>
+                  <polygon class="f-geo-soft s-geo w2"  points="604.9,139.4 633.1,111.1 604.9,82.9 576.6,111.1"/><polygon class="f-geo-soft s-geo w2"  points="613.9,91.9 624.1,102.1 626.9,89.1"/>
+                  <text class="t-small t-strong" x="638.9" y="89.1">ends at (2.12, 2.12):</text>
+                  <text class="t-small t-strong" x="638.9" y="103.1">swung round the origin</text>
+                  <text class="t-mono t-small t-acc" x="470" y="252">matrix: R × T (T applied first)</text>
+                  </svg>
+                </div>
+                <figcaption><b>The same two transforms in a different order give a different result.</b> Rotation turns everything around the origin, so a crate that has already moved swings around in a wide arc. In matrix notation the transform nearest the position applies first, which is why the left case is written T × R.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> What the 16 numbers mean, and why there is a fourth coordinate</summary>
+                <div class="fold-body">
+                  <p>A 3D position is written with a fourth number, w, set to 1: (x, y, z, 1). A direction gets w = 0. In the matrix, the first three columns say where the x, y and z axes end up, which handles rotation and scale; the fourth column holds the translation.</p>
+                  <p class="formula">[ Xx  Yx  Zx  Tx ]   [ x ]<br>[ Xy  Yy  Zy  Ty ] × [ y ]<br>[ Xz  Yz  Zz  Tz ]   [ z ]<br>[ 0   0   0   1  ]   [ w ]</p>
+                  <p>Because the translation is multiplied by w, a <a class="term" data-term="point" href="glossary.html#point">point</a> (w = 1) moves and a direction (w = 0) only turns. That is the matrix form of the difference between points and <a class="term" data-term="vector" href="glossary.html#vector">vectors</a> from <a class="xref" data-ch="3.3">3.3</a>. Some engines and APIs write vectors as rows instead of columns, which flips the multiplication order on paper; the result is the same.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="model-matrix"><span class="step-num">3</span> Object to world: the model matrix</h3>
+              <p>Every object in a scene has a transform: a position, a rotation and a scale, the three fields you see in any engine's inspector. Together they make its <dfn class="term" data-term="model-matrix">model matrix</dfn>, which takes the mesh's vertices from object space into world space. Five hundred crates share one <a class="term" data-term="mesh" data-forward href="glossary.html#mesh">mesh</a>; only their model matrices differ. When an object is the child of another, its matrix is multiplied by its parent's, so moving a ship moves its crew.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 302" role="img" aria-label="Left: one crate mesh around its own origin. An arrow labelled times M1, M2, M3 leads to a world grid with three copies: one at (1.6, 1.2) with no turn and scale 1, one at (5, 2.4) turned 30 degrees and scaled 1.6, and one at (8.4, 1) turned minus 20 degrees and scaled 0.7.">
+                    <defs><marker id="inst-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="inst-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps" x="20" y="22">ONE MESH, IN OBJECT SPACE</text>
+                  <line class="s-ink" x1="50" y1="140" x2="177" y2="140" marker-end="url(#inst-arr-k)"/>
+                  <line class="s-ink" x1="110" y1="200" x2="110" y2="73" marker-end="url(#inst-arr-k)"/>
+                  <polygon class="f-geo-soft s-geo w2" points="80,170 140,170 140,110 80,110"/><polygon class="f-geo-soft s-geo w2" points="140,129.2 140,150.8 156.8,140"/>
+                  <circle class="f-ink" cx="110" cy="140" r="3"/>
+                  <text class="t-small mid" x="110" y="232">vertices stored once,</text>
+                  <text class="t-small mid" x="110" y="248">around the crate's own origin</text>
+                  <line class="s-acc w2" x1="214" y1="140" x2="293" y2="140" marker-end="url(#inst-arr)"/>
+                  <text class="t-small t-acc t-strong mid" x="255" y="128">× M₁, M₂, M₃</text>
+                  <text class="t-caps" x="330" y="22">THREE COPIES, IN WORLD SPACE</text>
+                  <line class="s-line" x1="330" y1="40" x2="330" y2="230"/>
+                  <line class="s-line" x1="380" y1="40" x2="380" y2="230"/>
+                  <line class="s-line" x1="430" y1="40" x2="430" y2="230"/>
+                  <line class="s-line" x1="480" y1="40" x2="480" y2="230"/>
+                  <line class="s-line" x1="530" y1="40" x2="530" y2="230"/>
+                  <line class="s-line" x1="580" y1="40" x2="580" y2="230"/>
+                  <line class="s-line" x1="630" y1="40" x2="630" y2="230"/>
+                  <line class="s-line" x1="680" y1="40" x2="680" y2="230"/>
+                  <line class="s-line" x1="730" y1="40" x2="730" y2="230"/>
+                  <line class="s-line" x1="780" y1="40" x2="780" y2="230"/>
+                  <line class="s-line" x1="830" y1="40" x2="830" y2="230"/>
+                  <line class="s-line" x1="330" y1="230" x2="830" y2="230"/>
+                  <line class="s-line" x1="330" y1="180" x2="830" y2="180"/>
+                  <line class="s-line" x1="330" y1="130" x2="830" y2="130"/>
+                  <line class="s-line" x1="330" y1="80" x2="830" y2="80"/>
+                  <polygon class="f-geo-soft s-geo w2" points="385,195 435,195 435,145 385,145"/><polygon class="f-geo-soft s-geo w2" points="435,161 435,179 449,170"/>
+                  <text class="t-small t-geo t-strong mid" x="410" y="174">1</text>
+                  <polygon class="f-geo-soft s-geo w2" points="565.4,164.6 634.6,124.6 594.6,55.4 525.4,95.4"/><polygon class="f-geo-soft s-geo w2" points="607.4,77.5 621.8,102.5 634,78.8"/>
+                  <text class="t-small t-geo t-strong mid" x="580" y="114">2</text>
+                  <polygon class="f-geo-soft s-geo w2" points="727.6,190.5 760.5,202.4 772.4,169.5 739.5,157.6"/><polygon class="f-geo-soft s-geo w2" points="768.6,180.1 764.3,191.9 775.7,189.3"/>
+                  <text class="t-small t-geo t-strong mid" x="750" y="184">3</text>
+                  <circle class="f-ink" cx="330" cy="230" r="3"/>
+                  <text class="t-small" x="330" y="262">M₁: at (1.6, 1.2), no turn, scale 1</text>
+                  <text class="t-small" x="330" y="278">M₂: at (5, 2.4), turned 30°, scale 1.6</text>
+                  <text class="t-small" x="330" y="294">M₃: at (8.4, 1), turned −20°, scale 0.7</text>
+                  <text class="t-small t-muted" x="20" y="294">Same 8 corners each time; only 16 numbers differ.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One mesh, many placements.</b> The vertex data is stored once. Each copy adds only a model matrix, 16 numbers, which is what makes it cheap to fill a level with repeated props and why <a class="term" data-term="instancing" data-forward href="glossary.html#instancing">GPU instancing</a> works.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="view-matrix"><span class="step-num">4</span> World to view: the view matrix</h3>
+              <p>The camera is an object in the world too, with its own position and rotation. Rendering is simpler if everything is measured from the camera, so the next step moves the entire world until the camera sits at the origin, looking straight along one axis. That is <dfn class="term" data-term="view-space">view space</dfn>, and the matrix that gets there is the <dfn class="term" data-term="view-matrix">view matrix</dfn>. It is the exact opposite, the inverse, of the camera's own transform.</p>
+              <p>Nothing moves relative to anything else in this step. Distances and angles between objects stay the same; only the point of view changes. Which axis the camera looks along is a convention: Godot and OpenGL look along −Z, and Unity's documentation notes that its camera space follows the same rule, even though "forward" in a Unity scene is +Z.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 282" role="img" aria-label="Left: the world from above, with the world origin, three round props, a house at (3, -6) and a camera at (-2, 3) looking towards the house. Right: the same scene in view space. The camera is at the origin at the bottom, looking straight up the page along minus Z; the house is 10.3 metres ahead; the old world origin has moved behind and beside the camera.">
+                    <defs><marker id="vw-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="vw-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps" x="20" y="22">WORLD SPACE, SEEN FROM ABOVE</text>
+                  <line class="s-line" x1="28" y1="31.5" x2="28" y2="261"/>
+                  <line class="s-line" x1="62" y1="31.5" x2="62" y2="261"/>
+                  <line class="s-line" x1="96" y1="31.5" x2="96" y2="261"/>
+                  <line class="s-line" x1="130" y1="31.5" x2="130" y2="261"/>
+                  <line class="s-line" x1="164" y1="31.5" x2="164" y2="261"/>
+                  <line class="s-line" x1="198" y1="31.5" x2="198" y2="261"/>
+                  <line class="s-line" x1="232" y1="31.5" x2="232" y2="261"/>
+                  <line class="s-line" x1="266" y1="31.5" x2="266" y2="261"/>
+                  <line class="s-line" x1="28" y1="40" x2="291.5" y2="40"/>
+                  <line class="s-line" x1="28" y1="74" x2="291.5" y2="74"/>
+                  <line class="s-line" x1="28" y1="108" x2="291.5" y2="108"/>
+                  <line class="s-line" x1="28" y1="142" x2="291.5" y2="142"/>
+                  <line class="s-line" x1="28" y1="176" x2="291.5" y2="176"/>
+                  <line class="s-line" x1="28" y1="210" x2="291.5" y2="210"/>
+                  <line class="s-line" x1="28" y1="244" x2="291.5" y2="244"/>
+                  <line class="s-ink w15" x1="130" y1="176" x2="167" y2="176" marker-end="url(#vw-arr-k)"/>
+                  <line class="s-ink w15" x1="130" y1="176" x2="130" y2="213" marker-end="url(#vw-arr-k)"/>
+                  <text class="t-mono t-small t-strong" x="174" y="180">X</text>
+                  <text class="t-mono t-small t-strong" x="134" y="230">Z</text>
+                  <circle class="f-ink" cx="130" cy="176" r="3.5"/>
+                  <text class="t-small end" x="124" y="170">world origin</text>
+                  <circle class="f-solid s-strong" cx="104.5" cy="116.5" r="10.2"/>
+                  <circle class="f-solid s-strong" cx="223.5" cy="201.5" r="10.2"/>
+                  <circle class="f-solid s-strong" cx="240.5" cy="48.5" r="10.2"/>
+                  <polygon class="f-geo-soft s-geo w2" points="157.8,67.8 187.2,50.8 204.2,80.2 174.8,97.2"/>
+                  <line class="s-geo w3" x1="185.1" y1="91.3" x2="193.9" y2="86.2"/>
+                  <line class="s-acc w2" x1="96" y1="227" x2="116.9" y2="189.4" marker-end="url(#vw-arr)"/>
+                  <circle class="f-acc" cx="96" cy="227" r="5"/>
+                  <text class="t-small t-acc t-strong" x="106" y="243">camera at (−2, 3)</text>
+                  <text class="t-small t-acc" x="106" y="257">looking at the house</text>
+                  <line class="s-acc w2" x1="420" y1="150" x2="485" y2="150" marker-end="url(#vw-arr)"/>
+                  <text class="t-small t-acc t-strong mid" x="454" y="138">× V</text>
+                  <text class="t-caps" x="500" y="22">VIEW SPACE, SEEN FROM ABOVE</text>
+                  <line class="s-line" x1="520" y1="34" x2="520" y2="263.6"/>
+                  <line class="s-line" x1="554" y1="34" x2="554" y2="263.6"/>
+                  <line class="s-line" x1="588" y1="34" x2="588" y2="263.6"/>
+                  <line class="s-line" x1="622" y1="34" x2="622" y2="263.6"/>
+                  <line class="s-line" x1="656" y1="34" x2="656" y2="263.6"/>
+                  <line class="s-line" x1="690" y1="34" x2="690" y2="263.6"/>
+                  <line class="s-line" x1="724" y1="34" x2="724" y2="263.6"/>
+                  <line class="s-line" x1="758" y1="34" x2="758" y2="263.6"/>
+                  <line class="s-line" x1="792" y1="34" x2="792" y2="263.6"/>
+                  <line class="s-line" x1="826" y1="34" x2="826" y2="263.6"/>
+                  <line class="s-line" x1="860" y1="34" x2="860" y2="263.6"/>
+                  <line class="s-line" x1="504" y1="46" x2="877" y2="46"/>
+                  <line class="s-line" x1="504" y1="80" x2="877" y2="80"/>
+                  <line class="s-line" x1="504" y1="114" x2="877" y2="114"/>
+                  <line class="s-line" x1="504" y1="148" x2="877" y2="148"/>
+                  <line class="s-line" x1="504" y1="182" x2="877" y2="182"/>
+                  <line class="s-line" x1="504" y1="216" x2="877" y2="216"/>
+                  <line class="s-line" x1="504" y1="250" x2="877" y2="250"/>
+                  <circle class="f-solid s-strong" cx="643.8" cy="149.3" r="10.2"/>
+                  <circle class="f-solid s-strong" cx="789.1" cy="165.8" r="10.2"/>
+                  <polygon class="f-geo-soft s-geo w2" points="666.7,80.8 684.2,51.7 713.3,69.1 695.8,98.3"/>
+                  <line class="s-geo w3" x1="702" y1="88.1" x2="707.2" y2="79.3"/>
+                  <circle class="f-ink" cx="695" cy="188.9" r="3.5"/>
+                  <text class="t-small t-muted" x="703" y="192.9">old world origin</text>
+                  <line class="s-ink w15" x1="690" y1="250" x2="727" y2="250" marker-end="url(#vw-arr-k)"/>
+                  <line class="s-acc w2" x1="690" y1="250" x2="690" y2="207" marker-end="url(#vw-arr)"/>
+                  <text class="t-mono t-small t-strong" x="734" y="254">X</text>
+                  <text class="t-mono t-small t-acc t-strong" x="696" y="210">−Z: forward</text>
+                  <circle class="f-acc" cx="690" cy="250" r="5"/>
+                  <text class="t-small t-acc t-strong end" x="680" y="254">camera at (0, 0, 0)</text>
+                  </svg>
+                </div>
+                <figcaption><b>The view matrix moves the world, not the camera.</b> After it, "straight ahead" is always the same axis and distance from the camera is easy to read. Turning the camera in a game changes one matrix; every vertex in view then lands somewhere new.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="frustum"><span class="step-num">5</span> What the camera can see: the view frustum</h3>
+              <p>A camera sees a pyramid-shaped region with its tip cut off: the <dfn class="term" data-term="frustum">view frustum</dfn>. Four numbers define it. The <dfn class="term" data-term="fov">field of view</dfn> is how wide it opens, as an angle. The aspect ratio, such as 16:9, sets how much wider it is than tall. The <dfn class="term" data-term="near-plane">near plane</dfn> is where drawing starts; anything closer to the camera is cut away. The <dfn class="term" data-term="far-plane">far plane</dfn> is where drawing stops.</p>
+              <p>Field of view needs care in briefs: some engines measure it across the height of the screen and others across the width. A vertical 60° on a 16:9 screen is about 91.5° horizontally. Mixing the two up is a common reason a camera "feels wrong" after a port.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left: a frustum drawn in 3D from its apex at the camera, with a small near plane and a large far plane. A tree inside it is drawn; a rock outside it is skipped. Right: the same frustum seen from the side: the camera, a 36 degree field of view, the near plane at 2 metres and the far plane at 14 metres.">
+                    <defs><marker id="fr-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="fr-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps" x="20" y="22">THE VIEW FRUSTUM</text>
+                  <polygon class="f-acc-soft s-acc" fill-opacity="0.35" points="246.6,270.2 353.4,193.8 353.4,49.8 246.6,126.2"/>
+                  <line class="s-acc" x1="60" y1="160" x2="246.6" y2="270.2"/>
+                  <line class="s-acc" x1="60" y1="160" x2="353.4" y2="193.8"/>
+                  <line class="s-acc" x1="60" y1="160" x2="353.4" y2="49.8"/>
+                  <line class="s-acc" x1="60" y1="160" x2="246.6" y2="126.2"/>
+                  <line class="s-geo w3" x1="240.1" y1="175.4" x2="240.1" y2="145.4"/>
+                  <circle class="f-geo-soft s-geo w15" cx="240.1" cy="133.4" r="16"/>
+                  <text class="t-small t-geo t-strong" x="260.1" y="135.4">inside: drawn</text>
+                  <ellipse class="f-none s-pix w15 dash" cx="153.5" cy="247.8" rx="18" ry="11"/>
+                  <text class="t-small t-pix t-strong" x="177.5" y="265.8">outside: skipped</text>
+                  <polygon class="f-acc-soft s-acc w15" points="97.3,182 118.7,166.8 118.7,138 97.3,153.2"/>
+                  <circle class="f-acc" cx="60" cy="160" r="5"/>
+                  <text class="t-small t-acc t-strong" x="52" y="182">camera</text>
+                  <line class="s-acc" x1="101.3" y1="151.2" x2="91.3" y2="131.2"/>
+                  <text class="t-small t-acc t-strong end" x="89.3" y="127.2">near plane</text>
+                  <text class="t-small t-acc t-strong end" x="353.4" y="41.8">far plane</text>
+                  <text class="t-small t-muted" x="20" y="288">Anything outside the six faces cannot appear on screen.</text>
+                  <line class="s-line" x1="470" y1="16" x2="470" y2="292"/>
+                  <text class="t-caps" x="490" y="22">SEEN FROM THE SIDE</text>
+                  <polygon class="f-acc-soft" fill-opacity="0.45" points="560,143.8 860,46.3 860,273.7 560,176.2"/>
+                  <path class="s-acc" d="M860,46.3 L510,160 L860,273.7"/>
+                  <line class="s-acc w3" x1="560" y1="143.8" x2="560" y2="176.2"/>
+                  <line class="s-acc w3" x1="860" y1="46.3" x2="860" y2="273.7"/>
+                  <line class="s-muted dash" x1="510" y1="160" x2="870" y2="160"/>
+                  <path class="s-ink w15" d="M546.1,148.3 A38,38 0 0 1 546.1,171.7"/>
+                  <text class="t-small t-strong" x="580" y="126">field of view, 36°</text>
+                  <circle class="f-acc" cx="510" cy="160" r="5"/>
+                  <text class="t-small t-acc t-strong" x="506" y="186">camera</text>
+                  <text class="t-small t-acc t-strong end" x="554" y="216.2">near</text>
+                  <text class="t-small t-acc mid" x="560" y="232.2">2 m</text>
+                  <text class="t-small t-acc t-strong end" x="854" y="289.7">far plane, 14 m</text>
+                  <line class="s-muted" x1="560" y1="180.2" x2="560" y2="202.2"/>
+                  </svg>
+                </div>
+                <figcaption><b>The frustum is everything the camera could possibly draw.</b> Its shape comes from the field of view, the aspect ratio and the near and far planes. Objects entirely outside it can be skipped before any drawing, which is the subject of <a class="xref" data-ch="4.4">4.4 Culling</a>.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> Converting between vertical and horizontal field of view</summary>
+                <div class="fold-body">
+                  <p class="formula">tan(horizontal FOV ÷ 2) = tan(vertical FOV ÷ 2) × aspect ratio</p>
+                  <p>For a vertical 60° at 16:9: tan 30° × 16 ÷ 9 = 0.577 × 1.778 = 1.026, and 2 × arctan 1.026 ≈ 91.5°. Godot's documentation gives the same kind of table for its default vertical 75°, which is about 107.5° horizontally at 16:9.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="projection"><span class="step-num">6</span> View to clip: the projection matrix</h3>
+              <p>The <dfn class="term" data-term="projection-matrix">projection matrix</dfn> holds the frustum's numbers and takes positions from view space into <dfn class="term" data-term="clip-space">clip space</dfn>. Its output has four numbers per vertex, x, y, z and w, and it is what a <a class="term" data-term="vertex-shader" data-forward href="glossary.html#vertex-shader">vertex shader</a> must hand to the GPU. The GPU uses them to cut triangles at the frustum's edges, which is where the name comes from.</p>
+              <p>The projection decides what kind of picture you get. A <dfn class="term" data-term="perspective-projection">perspective projection</dfn> makes lines of sight meet at the camera, so distant things look smaller, the way eyes and lenses work. An <dfn class="term" data-term="orthographic-projection">orthographic projection</dfn> keeps lines of sight parallel, so size never changes with distance. Its frustum is a plain box. Orthographic views suit 2D games, UI, isometric strategy games, level-editor views and the shadow maps of a sun (<a class="xref" data-ch="7.4">7.4 Shadow maps</a>).</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left, perspective: lines of sight from the top and bottom of two equal posts meet at the eye; on the image plane the far post, twice as far away, is half as tall. Right, orthographic: the lines of sight run parallel, and both posts are the same height on the image.">
+                    <defs><marker id="pj-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps" x="20" y="22">PERSPECTIVE · LINES OF SIGHT MEET AT THE EYE</text>
+                  <line class="s-strong dash" x1="110" y1="62" x2="110" y2="218"/>
+                  <text class="t-small t-muted mid" x="110" y="234">image</text>
+                  <rect class="f-geo-soft s-geo w15" x="214" y="100" width="12" height="80" rx="3"/>
+                  <text class="t-small mid" x="220" y="198">near post</text>
+                  <line class="s-muted" x1="220" y1="100" x2="50" y2="140"/>
+                  <line class="s-muted" x1="220" y1="180" x2="50" y2="140"/>
+                  <line class="s-geo" stroke-width="5" x1="105" y1="125.9" x2="105" y2="154.1"/>
+                  <rect class="f-geo-soft s-geo w15" x="394" y="100" width="12" height="80" rx="3"/>
+                  <text class="t-small mid" x="400" y="198">far post</text>
+                  <line class="s-muted" x1="400" y1="100" x2="50" y2="140"/>
+                  <line class="s-muted" x1="400" y1="180" x2="50" y2="140"/>
+                  <line class="s-geo" stroke-width="5" x1="115" y1="133.1" x2="115" y2="146.9"/>
+                  <circle class="f-ink" cx="50" cy="140" r="5"/>
+                  <text class="t-small t-strong mid" x="50" y="164">eye</text>
+                  <text class="t-small t-strong" x="140" y="72">twice as far, half as tall</text>
+                  <line class="s-line" x1="450" y1="16" x2="450" y2="244"/>
+                  <text class="t-caps" x="470" y="22">ORTHOGRAPHIC · LINES OF SIGHT RUN PARALLEL</text>
+                  <line class="s-strong dash" x1="560" y1="62" x2="560" y2="218"/>
+                  <text class="t-small t-muted mid" x="560" y="234">image</text>
+                  <rect class="f-geo-soft s-geo w15" x="664" y="100" width="12" height="80" rx="3"/>
+                  <text class="t-small mid" x="670" y="198">near post</text>
+                  <line class="s-muted" x1="670" y1="100" x2="560" y2="100"/>
+                  <line class="s-muted" x1="670" y1="180" x2="560" y2="180"/>
+                  <line class="s-geo" stroke-width="5" x1="555" y1="100" x2="555" y2="180"/>
+                  <rect class="f-geo-soft s-geo w15" x="844" y="100" width="12" height="80" rx="3"/>
+                  <text class="t-small mid" x="850" y="198">far post</text>
+                  <line class="s-muted" x1="850" y1="100" x2="560" y2="100"/>
+                  <line class="s-muted" x1="850" y1="180" x2="560" y2="180"/>
+                  <line class="s-geo" stroke-width="5" x1="565" y1="100" x2="565" y2="180"/>
+                  <text class="t-small t-strong" x="590" y="72">same size at any distance</text>
+                  </svg>
+                </div>
+                <figcaption><b>Perspective shrinks things with distance; orthographic does not.</b> Under perspective an object twice as far away covers half the height on screen. Under orthographic it covers the same height at any distance, which reads as a technical drawing rather than a view through a lens.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="divide-viewport"><span class="step-num">7</span> Clip to screen: the divide and the viewport</h3>
+              <p>After clipping, the GPU performs the <dfn class="term" data-term="perspective-divide">perspective divide</dfn>: it divides x, y and z by w. A perspective projection sets w to the vertex's distance in front of the camera, so the divide is literally "divide by distance", and that is what makes far things small. The result is <dfn class="term" data-term="ndc">normalised device coordinates</dfn> (NDC): everything visible now lies between −1 and 1 across and up. Depth lies between 0 and 1 in Direct3D, Vulkan and Metal, and between −1 and 1 in classic OpenGL.</p>
+              <p>Last, the viewport transform stretches that square over the actual screen, giving <dfn class="term" data-term="screen-space">screen space</dfn>: pixel positions, usually counted from the top-left corner with y going down. Techniques described as screen-space work from this rendered image and its depth, which is fast but blind to anything the camera does not currently see.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Left: the NDC square from minus 1 to 1 on both axes, y pointing up, with a point at (0.5, 0.5). Right: a 1920 by 1080 screen with (0, 0) at the top left and y pointing down; the same point lands on pixel (1440, 270).">
+                    <defs>
+                      <marker id="sc-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="sc-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="40" y="22">NDC · THE SAME FOR EVERY SCREEN</text>
+                    <rect class="f-acc-soft s-acc w15" x="60" y="44" width="180" height="180"/>
+                    <path class="s-muted" d="M150,44 V224 M60,134 H240"/>
+                    <line class="s-ink w15" x1="150" y1="134" x2="262" y2="134" marker-end="url(#sc-arr-k)"/>
+                    <line class="s-ink w15" x1="150" y1="134" x2="150" y2="34" marker-end="url(#sc-arr-k)"/>
+                    <text class="t-mono t-small t-strong" x="268" y="138">x</text>
+                    <text class="t-mono t-small t-strong" x="158" y="38">y</text>
+                    <text class="t-mono t-small t-muted mid" x="60" y="240">−1</text>
+                    <text class="t-mono t-small t-muted mid" x="240" y="240">1</text>
+                    <text class="t-mono t-small t-muted end" x="54" y="228">−1</text>
+                    <text class="t-mono t-small t-muted end" x="54" y="50">1</text>
+                    <path class="s-pix dash" d="M150,89 H195 V134"/>
+                    <circle class="f-pix" cx="195" cy="89" r="5"/>
+                    <text class="t-mono t-small t-pix t-strong" x="166" y="76">(0.5, 0.5)</text>
+
+                    <line class="s-acc w2" x1="300" y1="134" x2="404" y2="134" marker-end="url(#sc-arr)"/>
+                    <text class="t-small t-acc t-strong mid" x="352" y="122">viewport</text>
+                    <text class="t-small t-acc mid" x="352" y="154">scale to pixels,</text>
+                    <text class="t-small t-acc mid" x="352" y="168">flip y</text>
+
+                    <text class="t-caps" x="430" y="22">SCREEN SPACE · 1920 × 1080 PIXELS</text>
+                    <rect class="f-sunken s-acc w15" x="430" y="44" width="384" height="216"/>
+                    <path class="s-line" d="M622,44 V260 M430,152 H814"/>
+                    <path class="s-pix dash" d="M430,98 H718 M718,44 V98"/>
+                    <circle class="f-pix" cx="718" cy="98" r="5"/>
+                    <text class="t-mono t-small t-pix t-strong" x="728" y="94">(1440, 270)</text>
+                    <text class="t-mono t-small" x="434" y="38">(0, 0)</text>
+                    <line class="s-ink w15" x1="440" y1="226" x2="500" y2="226" marker-end="url(#sc-arr-k)"/>
+                    <line class="s-ink w15" x1="440" y1="226" x2="440" y2="252" marker-end="url(#sc-arr-k)"/>
+                    <text class="t-small" x="506" y="230">x pixels</text>
+                    <text class="t-small" x="448" y="252">y pixels, downwards</text>
+                    <text class="t-mono t-small end" x="814" y="276">(1920, 1080)</text>
+                    <text class="t-small t-muted" x="626" y="182">x: (0.5 + 1) ÷ 2 × 1920 = 1440</text>
+                    <text class="t-small t-muted" x="626" y="198">y: (1 − 0.5) ÷ 2 × 1080 = 270</text>
+                  </svg>
+                </div>
+                <figcaption><b>NDC is resolution-free; the viewport adds the pixels.</b> Everything up to NDC is identical whether the game runs at 720p or 4K. Only the last step knows the screen's size, which is why changing resolution, or rendering effects at a lower internal resolution, does not change any matrix before it.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="mvp"><span class="step-num">8</span> The whole chain in one multiply</h3>
+              <p>A vertex shader does not apply the model, view and projection matrices one at a time. The engine multiplies them together once per object, projection × view × model, into a single <dfn class="term" data-term="mvp">MVP matrix</dfn>. The shader then takes each vertex from object space to clip space with one 4 × 4 multiply, and the fixed hardware does the divide and the viewport. Shaders often keep the world-space and view-space positions along the way too, because lighting, fog and other effects need them.</p>
+              <p>Walk the chain below. Each click applies one transform. The table follows one corner of the house through every space, and the slider and projection switch change what the last two steps do.</p>
+              <figure>
+                <div class="demo" data-demo="space-stepper">
+                  <p class="demo-hint">The space stepper needs JavaScript. Without it: the house's corner at (1, 1.6, 1) in object space lands at (4.37, 1.6, −5.63) in world space after the model matrix turns the house 30° and moves it to (3, 0, −6). The view, projection and viewport transforms then carry it to a pixel on a 1920 × 1080 screen.</p>
+                </div>
+                <figcaption><b>Space stepper.</b> One house, carried through object, world, view, clip and screen space. The axes drawn are always those of the current space, so what moves on each click is everything else. Watch the clip step: the frustum becomes a box, and the house lands far towards the back in depth even though it is not near the far plane. Step 9 explains why.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Code</span> The chain in a vertex shader</summary>
+                <div class="fold-body">
+                  <p>HLSL-style pseudocode. Engines generate this for you; you meet it in custom shaders and in AI-written ones.</p>
+<pre class="code"><span class="k">float4</span> worldPos = mul(Model, <span class="k">float4</span>(positionOS, <span class="n">1</span>));   <span class="c">// object -&gt; world; w = 1: a point</span>
+<span class="k">float4</span> viewPos  = mul(View, worldPos);                  <span class="c">// world -&gt; view</span>
+<span class="k">float4</span> clipPos  = mul(Projection, viewPos);             <span class="c">// view -&gt; clip; the GPU divides by w later</span>
+<span class="k">float3</span> normalWS = normalize(mul((<span class="k">float3x3</span>)NormalMatrix, normalOS)); <span class="c">// directions: no translation</span>
+<span class="k">return</span> clipPos;                                          <span class="c">// equivalently mul(MVP, float4(positionOS, 1))</span></pre>
+                  <p>The suffixes OS and WS (object space, world space) are a common naming habit worth asking for. The normal uses a separate matrix, the inverse transpose of the model matrix, so that uneven scaling does not bend it.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="depth-precision"><span class="step-num">9</span> Why the near plane matters more than the far plane</h3>
+              <p>The z value after the divide is what goes into the <a class="term" data-term="depth-buffer" data-forward href="glossary.html#depth-buffer">depth buffer</a>, and it is not spread evenly. Because the divide is by distance, depth changes quickly close to the camera and slowly far away. The near plane controls how lopsided this is. Pull it in from 1 m to 0.1 m and the first metre in front of the camera uses up about 90% of all depth values, leaving very little to tell apart two surfaces 50 m away. Pushing the far plane out barely matters by comparison.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 284" role="img" aria-label="A plot of stored depth from 0 to 1 against distance from 0 to 20 metres, far plane 100 metres. With the near plane at 0.1 metres the curve shoots up to 0.90 within the first metre. With the near plane at 1 metre it reaches 0.5 at 2 metres and rises more gently. Moving the far plane to 1000 metres barely changes the first curve. A side panel shows that 0.9 percent of depth values are left for everything beyond 10 metres with the near plane at 0.1 metres, against 9.1 percent with it at 1 metre.">
+                    <defs><marker id="dp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-caps" x="20" y="22">STORED DEPTH AGAINST DISTANCE · FAR PLANE 100 M</text>
+                  <line class="s-strong" x1="70" y1="236" x2="590" y2="236"/>
+                  <text class="t-mono t-small t-muted end" x="62" y="240">0</text>
+                  <line class="s-line" x1="70" y1="187" x2="590" y2="187"/>
+                  <text class="t-mono t-small t-muted end" x="62" y="191">0.25</text>
+                  <line class="s-line" x1="70" y1="138" x2="590" y2="138"/>
+                  <text class="t-mono t-small t-muted end" x="62" y="142">0.5</text>
+                  <line class="s-line" x1="70" y1="89" x2="590" y2="89"/>
+                  <text class="t-mono t-small t-muted end" x="62" y="93">0.75</text>
+                  <line class="s-line" x1="70" y1="40" x2="590" y2="40"/>
+                  <text class="t-mono t-small t-muted end" x="62" y="44">1</text>
+                  <line class="s-line" x1="70" y1="40" x2="70" y2="236"/>
+                  <text class="t-mono t-small t-muted mid" x="70" y="252">0 m</text>
+                  <line class="s-line" x1="200" y1="40" x2="200" y2="236"/>
+                  <text class="t-mono t-small t-muted mid" x="200" y="252">5 m</text>
+                  <line class="s-line" x1="330" y1="40" x2="330" y2="236"/>
+                  <text class="t-mono t-small t-muted mid" x="330" y="252">10 m</text>
+                  <line class="s-line" x1="460" y1="40" x2="460" y2="236"/>
+                  <text class="t-mono t-small t-muted mid" x="460" y="252">15 m</text>
+                  <line class="s-line" x1="590" y1="40" x2="590" y2="236"/>
+                  <text class="t-mono t-small t-muted mid" x="590" y="252">20 m</text>
+                  <text class="t-small t-muted mid" x="330" y="270">distance from the camera</text>
+                  <path class="s-pix w3 round" d="M72.6,236 L73.1,203.3 L73.6,179.9 L74.2,162.4 L74.7,148.8 L75.2,137.9 L75.7,129 L76.2,121.6 L76.8,115.3 L77.3,109.9 L77.8,105.2 L78.3,101.1 L78.8,97.5 L79.4,94.3 L79.9,91.4 L80.4,88.9 L80.9,86.5 L81.4,84.4 L82,82.5 L82.5,80.7 L83,79 L83.5,77.5 L84,76.1 L84.6,74.8 L85.1,73.6 L85.6,72.5 L86.1,71.4 L86.6,70.5 L87.2,69.5 L87.7,68.7 L88.2,67.8 L88.7,67.1 L89.2,66.3 L89.8,65.6 L90.3,65 L90.8,64.3 L91.3,63.7 L91.8,63.2 L92.4,62.6 L92.9,62.1 L93.4,61.6 L93.9,61.1 L94.4,60.7 L95,60.2 L95.5,59.8 L96,59.4 L96.5,59 L97,58.7 L97.6,58.3 L98.1,58 L98.6,57.6 L99.1,57.3 L99.6,57 L100.2,56.7 L100.7,56.4 L101.2,56.2 L101.7,55.9 L102.2,55.6 L102.8,55.4 L103.3,55.1 L103.8,54.9 L104.3,54.7 L104.8,54.4 L105.4,54.2 L105.9,54 L106.4,53.8 L106.9,53.6 L107.4,53.4 L108,53.2 L108.5,53.1 L109,52.9 L109.5,52.7 L110,52.5 L110.6,52.4 L111.1,52.2 L111.6,52.1 L112.1,51.9 L112.6,51.8 L113.2,51.6 L113.7,51.5 L114.2,51.3 L114.7,51.2 L115.2,51.1 L115.8,51 L116.3,50.8 L116.8,50.7 L117.3,50.6 L117.8,50.5 L118.4,50.4 L118.9,50.2 L119.4,50.1 L119.9,50 L120.4,49.9 L121,49.8 L121.5,49.7 L122,49.6 L124.6,49.1 L127.2,48.7 L129.8,48.3 L132.4,48 L135,47.7 L137.6,47.3 L140.2,47.1 L142.8,46.8 L145.4,46.6 L148,46.3 L150.6,46.1 L153.2,45.9 L155.8,45.7 L158.4,45.6 L161,45.4 L163.6,45.3 L166.2,45.1 L168.8,45 L171.4,44.8 L174,44.7 L176.6,44.6 L179.2,44.5 L181.8,44.4 L184.4,44.3 L187,44.2 L189.6,44.1 L192.2,44 L194.8,43.9 L197.4,43.8 L200,43.7 L202.6,43.7 L205.2,43.6 L207.8,43.5 L210.4,43.4 L213,43.4 L215.6,43.3 L218.2,43.2 L220.8,43.2 L223.4,43.1 L226,43.1 L228.6,43 L231.2,43 L233.8,42.9 L236.4,42.9 L239,42.8 L241.6,42.8 L244.2,42.7 L246.8,42.7 L249.4,42.6 L252,42.6 L254.6,42.6 L257.2,42.5 L259.8,42.5 L262.4,42.5 L265,42.4 L267.6,42.4 L270.2,42.4 L272.8,42.3 L275.4,42.3 L278,42.3 L280.6,42.2 L283.2,42.2 L285.8,42.2 L288.4,42.1 L291,42.1 L293.6,42.1 L296.2,42.1 L298.8,42 L301.4,42 L304,42 L306.6,42 L309.2,41.9 L311.8,41.9 L314.4,41.9 L317,41.9 L319.6,41.8 L322.2,41.8 L324.8,41.8 L327.4,41.8 L330,41.8 L332.6,41.7 L335.2,41.7 L337.8,41.7 L340.4,41.7 L343,41.7 L345.6,41.7 L348.2,41.6 L350.8,41.6 L353.4,41.6 L356,41.6 L358.6,41.6 L361.2,41.6 L363.8,41.5 L366.4,41.5 L369,41.5 L371.6,41.5 L374.2,41.5 L376.8,41.5 L379.4,41.5 L382,41.4 L384.6,41.4 L387.2,41.4 L389.8,41.4 L392.4,41.4 L395,41.4 L397.6,41.4 L400.2,41.3 L402.8,41.3 L405.4,41.3 L408,41.3 L410.6,41.3 L413.2,41.3 L415.8,41.3 L418.4,41.3 L421,41.3 L423.6,41.2 L426.2,41.2 L428.8,41.2 L431.4,41.2 L434,41.2 L436.6,41.2 L439.2,41.2 L441.8,41.2 L444.4,41.2 L447,41.2 L449.6,41.1 L452.2,41.1 L454.8,41.1 L457.4,41.1 L460,41.1 L462.6,41.1 L465.2,41.1 L467.8,41.1 L470.4,41.1 L473,41.1 L475.6,41.1 L478.2,41.1 L480.8,41 L483.4,41 L486,41 L488.6,41 L491.2,41 L493.8,41 L496.4,41 L499,41 L501.6,41 L504.2,41 L506.8,41 L509.4,41 L512,41 L514.6,41 L517.2,40.9 L519.8,40.9 L522.4,40.9 L525,40.9 L527.6,40.9 L530.2,40.9 L532.8,40.9 L535.4,40.9 L538,40.9 L540.6,40.9 L543.2,40.9 L545.8,40.9 L548.4,40.9 L551,40.9 L553.6,40.9 L556.2,40.9 L558.8,40.8 L561.4,40.8 L564,40.8 L566.6,40.8 L569.2,40.8 L571.8,40.8 L574.4,40.8 L577,40.8 L579.6,40.8 L582.2,40.8 L584.8,40.8 L587.4,40.8 L590,40.8"/>
+                  <path class="s-acc w3 round" d="M96,236 L96.5,232.1 L97,228.4 L97.6,224.8 L98.1,221.3 L98.6,218 L99.1,214.8 L99.6,211.7 L100.2,208.7 L100.7,205.8 L101.2,203 L101.7,200.3 L102.2,197.7 L102.8,195.1 L103.3,192.7 L103.8,190.3 L104.3,188 L104.8,185.8 L105.4,183.6 L105.9,181.5 L106.4,179.4 L106.9,177.4 L107.4,175.5 L108,173.6 L108.5,171.8 L109,170 L109.5,168.3 L110,166.6 L110.6,164.9 L111.1,163.3 L111.6,161.8 L112.1,160.2 L112.6,158.7 L113.2,157.3 L113.7,155.9 L114.2,154.5 L114.7,153.1 L115.2,151.8 L115.8,150.5 L116.3,149.2 L116.8,148 L117.3,146.8 L117.8,145.6 L118.4,144.5 L118.9,143.3 L119.4,142.2 L119.9,141.1 L120.4,140.1 L121,139 L121.5,138 L122,137 L124.6,132.3 L127.2,128 L129.8,124.1 L132.4,120.5 L135,117.2 L137.6,114.2 L140.2,111.3 L142.8,108.7 L145.4,106.3 L148,104 L150.6,101.9 L153.2,99.9 L155.8,98 L158.4,96.2 L161,94.6 L163.6,93 L166.2,91.5 L168.8,90.1 L171.4,88.8 L174,87.5 L176.6,86.3 L179.2,85.2 L181.8,84.1 L184.4,83 L187,82 L189.6,81.1 L192.2,80.1 L194.8,79.3 L197.4,78.4 L200,77.6 L202.6,76.8 L205.2,76.1 L207.8,75.4 L210.4,74.7 L213,74 L215.6,73.4 L218.2,72.8 L220.8,72.2 L223.4,71.6 L226,71 L228.6,70.5 L231.2,70 L233.8,69.4 L236.4,69 L239,68.5 L241.6,68 L244.2,67.6 L246.8,67.1 L249.4,66.7 L252,66.3 L254.6,65.9 L257.2,65.5 L259.8,65.1 L262.4,64.8 L265,64.4 L267.6,64.1 L270.2,63.7 L272.8,63.4 L275.4,63.1 L278,62.8 L280.6,62.5 L283.2,62.2 L285.8,61.9 L288.4,61.6 L291,61.3 L293.6,61 L296.2,60.8 L298.8,60.5 L301.4,60.3 L304,60 L306.6,59.8 L309.2,59.5 L311.8,59.3 L314.4,59.1 L317,58.9 L319.6,58.6 L322.2,58.4 L324.8,58.2 L327.4,58 L330,57.8 L332.6,57.6 L335.2,57.4 L337.8,57.2 L340.4,57.1 L343,56.9 L345.6,56.7 L348.2,56.5 L350.8,56.4 L353.4,56.2 L356,56 L358.6,55.9 L361.2,55.7 L363.8,55.5 L366.4,55.4 L369,55.2 L371.6,55.1 L374.2,54.9 L376.8,54.8 L379.4,54.7 L382,54.5 L384.6,54.4 L387.2,54.2 L389.8,54.1 L392.4,54 L395,53.9 L397.6,53.7 L400.2,53.6 L402.8,53.5 L405.4,53.4 L408,53.2 L410.6,53.1 L413.2,53 L415.8,52.9 L418.4,52.8 L421,52.7 L423.6,52.6 L426.2,52.5 L428.8,52.4 L431.4,52.3 L434,52.2 L436.6,52.1 L439.2,52 L441.8,51.9 L444.4,51.8 L447,51.7 L449.6,51.6 L452.2,51.5 L454.8,51.4 L457.4,51.3 L460,51.2 L462.6,51.1 L465.2,51 L467.8,51 L470.4,50.9 L473,50.8 L475.6,50.7 L478.2,50.6 L480.8,50.6 L483.4,50.5 L486,50.4 L488.6,50.3 L491.2,50.2 L493.8,50.2 L496.4,50.1 L499,50 L501.6,49.9 L504.2,49.9 L506.8,49.8 L509.4,49.7 L512,49.7 L514.6,49.6 L517.2,49.5 L519.8,49.5 L522.4,49.4 L525,49.3 L527.6,49.3 L530.2,49.2 L532.8,49.1 L535.4,49.1 L538,49 L540.6,49 L543.2,48.9 L545.8,48.8 L548.4,48.8 L551,48.7 L553.6,48.7 L556.2,48.6 L558.8,48.6 L561.4,48.5 L564,48.4 L566.6,48.4 L569.2,48.3 L571.8,48.3 L574.4,48.2 L577,48.2 L579.6,48.1 L582.2,48.1 L584.8,48 L587.4,48 L590,47.9"/>
+                  <path class="s-ink w15 dash" d="M72.6,236 L73.1,203.3 L73.6,180 L74.2,162.5 L74.7,148.9 L75.2,138 L75.7,129.1 L76.2,121.7 L76.8,115.4 L77.3,110 L77.8,105.3 L78.3,101.2 L78.8,97.6 L79.4,94.4 L79.9,91.6 L80.4,89 L80.9,86.7 L81.4,84.5 L82,82.6 L82.5,80.8 L83,79.2 L83.5,77.7 L84,76.3 L84.6,75 L85.1,73.8 L85.6,72.7 L86.1,71.6 L86.6,70.6 L87.2,69.7 L87.7,68.8 L88.2,68 L88.7,67.2 L89.2,66.5 L89.8,65.8 L90.3,65.1 L90.8,64.5 L91.3,63.9 L91.8,63.3 L92.4,62.8 L92.9,62.3 L93.4,61.8 L93.9,61.3 L94.4,60.8 L95,60.4 L95.5,60 L96,59.6 L96.5,59.2 L97,58.8 L97.6,58.5 L98.1,58.1 L98.6,57.8 L99.1,57.5 L99.6,57.2 L100.2,56.9 L100.7,56.6 L101.2,56.3 L101.7,56 L102.2,55.8 L102.8,55.5 L103.3,55.3 L103.8,55.1 L104.3,54.8 L104.8,54.6 L105.4,54.4 L105.9,54.2 L106.4,54 L106.9,53.8 L107.4,53.6 L108,53.4 L108.5,53.2 L109,53 L109.5,52.9 L110,52.7 L110.6,52.5 L111.1,52.4 L111.6,52.2 L112.1,52.1 L112.6,51.9 L113.2,51.8 L113.7,51.6 L114.2,51.5 L114.7,51.4 L115.2,51.2 L115.8,51.1 L116.3,51 L116.8,50.9 L117.3,50.8 L117.8,50.6 L118.4,50.5 L118.9,50.4 L119.4,50.3 L119.9,50.2 L120.4,50.1 L121,50 L121.5,49.9 L122,49.8 L124.6,49.3 L127.2,48.9 L129.8,48.5 L132.4,48.1 L135,47.8 L137.6,47.5 L140.2,47.2 L142.8,47 L145.4,46.7 L148,46.5 L150.6,46.3 L153.2,46.1 L155.8,45.9 L158.4,45.7 L161,45.6 L163.6,45.4 L166.2,45.3 L168.8,45.1 L171.4,45 L174,44.9 L176.6,44.8 L179.2,44.6 L181.8,44.5 L184.4,44.4 L187,44.3 L189.6,44.2 L192.2,44.2 L194.8,44.1 L197.4,44 L200,43.9 L202.6,43.8 L205.2,43.8 L207.8,43.7 L210.4,43.6 L213,43.5 L215.6,43.5 L218.2,43.4 L220.8,43.4 L223.4,43.3 L226,43.2 L228.6,43.2 L231.2,43.1 L233.8,43.1 L236.4,43 L239,43 L241.6,43 L244.2,42.9 L246.8,42.9 L249.4,42.8 L252,42.8 L254.6,42.7 L257.2,42.7 L259.8,42.7 L262.4,42.6 L265,42.6 L267.6,42.6 L270.2,42.5 L272.8,42.5 L275.4,42.5 L278,42.4 L280.6,42.4 L283.2,42.4 L285.8,42.3 L288.4,42.3 L291,42.3 L293.6,42.3 L296.2,42.2 L298.8,42.2 L301.4,42.2 L304,42.2 L306.6,42.1 L309.2,42.1 L311.8,42.1 L314.4,42.1 L317,42 L319.6,42 L322.2,42 L324.8,42 L327.4,42 L330,41.9 L332.6,41.9 L335.2,41.9 L337.8,41.9 L340.4,41.9 L343,41.8 L345.6,41.8 L348.2,41.8 L350.8,41.8 L353.4,41.8 L356,41.8 L358.6,41.7 L361.2,41.7 L363.8,41.7 L366.4,41.7 L369,41.7 L371.6,41.7 L374.2,41.7 L376.8,41.6 L379.4,41.6 L382,41.6 L384.6,41.6 L387.2,41.6 L389.8,41.6 L392.4,41.6 L395,41.5 L397.6,41.5 L400.2,41.5 L402.8,41.5 L405.4,41.5 L408,41.5 L410.6,41.5 L413.2,41.5 L415.8,41.5 L418.4,41.4 L421,41.4 L423.6,41.4 L426.2,41.4 L428.8,41.4 L431.4,41.4 L434,41.4 L436.6,41.4 L439.2,41.4 L441.8,41.4 L444.4,41.3 L447,41.3 L449.6,41.3 L452.2,41.3 L454.8,41.3 L457.4,41.3 L460,41.3 L462.6,41.3 L465.2,41.3 L467.8,41.3 L470.4,41.3 L473,41.2 L475.6,41.2 L478.2,41.2 L480.8,41.2 L483.4,41.2 L486,41.2 L488.6,41.2 L491.2,41.2 L493.8,41.2 L496.4,41.2 L499,41.2 L501.6,41.2 L504.2,41.2 L506.8,41.1 L509.4,41.1 L512,41.1 L514.6,41.1 L517.2,41.1 L519.8,41.1 L522.4,41.1 L525,41.1 L527.6,41.1 L530.2,41.1 L532.8,41.1 L535.4,41.1 L538,41.1 L540.6,41.1 L543.2,41.1 L545.8,41.1 L548.4,41 L551,41 L553.6,41 L556.2,41 L558.8,41 L561.4,41 L564,41 L566.6,41 L569.2,41 L571.8,41 L574.4,41 L577,41 L579.6,41 L582.2,41 L584.8,41 L587.4,41 L590,41"/>
+                  <circle class="f-pix" cx="96" cy="59.4" r="4.5"/>
+                  <line class="s-pix w3" x1="265" y1="149.7" x2="287" y2="149.7"/>
+                  <text class="t-small t-pix t-strong" x="295" y="153.7">near 0.1 m: 90% of the range used by 1 m</text>
+                  <circle class="f-acc" cx="122" cy="137" r="4.5"/>
+                  <line class="s-acc w3" x1="265" y1="171.7" x2="287" y2="171.7"/>
+                  <text class="t-small t-acc t-strong" x="295" y="175.7">near 1 m: half the range used by 2 m</text>
+                  <line class="s-ink w15 dash" x1="265" y1="193.7" x2="287" y2="193.7"/>
+                  <text class="t-small" x="295" y="197.7">near 0.1 m, far 1000 m: almost the same</text>
+                  <line class="s-line" x1="616" y1="16" x2="616" y2="268"/>
+                  <text class="t-caps" x="630" y="22">VALUES LEFT FOR 10 M AND BEYOND</text>
+                  <text class="t-small t-strong" x="630" y="56">near 0.1 m</text>
+                  <rect class="f-sunken s-line" x="630" y="64" width="200" height="16"/>
+                  <rect class="f-pix" x="630" y="64" width="18" height="16"/>
+                  <text class="t-mono t-small" x="838" y="76">0.9%</text>
+                  <text class="t-small t-strong" x="630" y="112">near 1 m</text>
+                  <rect class="f-sunken s-line" x="630" y="120" width="200" height="16"/>
+                  <rect class="f-acc" x="630" y="120" width="181.8" height="16"/>
+                  <text class="t-mono t-small" x="838" y="132">9.1%</text>
+                  <text class="t-small t-muted" x="630" y="160">bar scale: 10% of all depth values</text>
+                  <text class="t-small" x="630" y="190">With a 24-bit depth buffer that is</text>
+                  <text class="t-small" x="630" y="206">about 151 thousand values against</text>
+                  <text class="t-small" x="630" y="222">about 1.5 million: ten times more room</text>
+                  <text class="t-small" x="630" y="238">for everything 10 m away or more.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Depth precision is spent close to the camera, and the near plane decides how much.</b> The curves show where the depth range goes for a standard projection. A tiny near plane wastes most of it on the space just in front of the lens, which shows up as flickering, overlapping surfaces in the distance. Modern engines also reverse the depth range to fight this; <a class="xref" data-ch="5.5">5.5 Depth, stencil and blending</a> covers how.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The depth curve</summary>
+                <div class="fold-body">
+                  <p>For a standard perspective projection with depth from 0 to 1, near plane n and far plane f, a surface at distance d gets</p>
+                  <p class="formula">depth = f ÷ (f − n) × (1 − n ÷ d)</p>
+                  <p>With n = 0.1 and f = 100, a surface 1 m away already has depth 0.90 and one 10 m away has 0.991. With n = 1, they get 0 and 0.909. Changing f from 100 to 1000 moves the first factor from 1.001 to 1.0001, which is why the far plane hardly matters.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="conventions"><span class="step-num">10</span> Handedness, up axis and units</h3>
+              <p>Every tool picks its own axes. The <dfn class="term" data-term="up-axis">up axis</dfn> is the one it treats as vertical: Y in Unity, Godot and glTF files; Z in Unreal Engine, Blender and 3ds Max. <dfn class="term" data-term="handedness">Handedness</dfn> says which way the third axis points once two are fixed. Point the thumb of one hand along x and the index finger along y: the middle finger is z. Whether your left or your right hand matches the tool's axes is its handedness. Units differ too: Unreal measures in centimetres, Unity and Godot in metres.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 256" role="img" aria-label="Five axis diagrams, each with an up arrow, a right arrow and a third arrow either going into the screen or coming out towards the viewer. Unreal Engine: Z up, Y right, X into the screen, left-handed, 1 unit is 1 centimetre. Unity: Y up, X right, Z into the screen, left-handed, 1 unit is 1 metre. Godot: Y up, X right, Z towards the viewer, right-handed, metres, cameras look along minus Z. Blender: Z up, X right, Y into the screen, right-handed. glTF 2.0: Y up, X right, Z towards the viewer, right-handed, metres, asset fronts face plus Z.">
+                    <defs><marker id="ax-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="ax-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <text class="t-head mid" x="90" y="30">Unreal Engine</text>
+                  <line class="s-ink w2" x1="90" y1="140" x2="90" y2="76" marker-end="url(#ax-arr)"/>
+                  <line class="s-ink w2" x1="90" y1="140" x2="154" y2="140" marker-end="url(#ax-arr)"/>
+                  <line class="s-acc w2" x1="90" y1="140" x2="128" y2="113" marker-end="url(#ax-arr-a)"/>
+                  <text class="t-mono t-small t-acc t-strong" x="134" y="110">+X</text>
+                  <text class="t-small t-muted" x="134" y="96">into</text>
+                  <text class="t-mono t-small t-strong mid" x="90" y="68">+Z</text>
+                  <text class="t-mono t-small t-strong" x="160" y="144">+Y</text>
+                  <circle class="f-ink" cx="90" cy="140" r="3"/>
+                  <text class="t-small t-strong mid" x="90" y="204">Z up, left-handed</text>
+                  <text class="t-small t-muted mid" x="90" y="220">1 unit = 1 cm</text>
+                  <text class="t-small t-muted mid" x="90" y="236">forward is +X</text>
+                  <line class="s-line" x1="180" y1="20" x2="180" y2="246"/>
+                  <text class="t-head mid" x="270" y="30">Unity</text>
+                  <line class="s-ink w2" x1="270" y1="140" x2="270" y2="76" marker-end="url(#ax-arr)"/>
+                  <line class="s-ink w2" x1="270" y1="140" x2="334" y2="140" marker-end="url(#ax-arr)"/>
+                  <line class="s-acc w2" x1="270" y1="140" x2="308" y2="113" marker-end="url(#ax-arr-a)"/>
+                  <text class="t-mono t-small t-acc t-strong" x="314" y="110">+Z</text>
+                  <text class="t-small t-muted" x="314" y="96">into</text>
+                  <text class="t-mono t-small t-strong mid" x="270" y="68">+Y</text>
+                  <text class="t-mono t-small t-strong" x="340" y="144">+X</text>
+                  <circle class="f-ink" cx="270" cy="140" r="3"/>
+                  <text class="t-small t-strong mid" x="270" y="204">Y up, left-handed</text>
+                  <text class="t-small t-muted mid" x="270" y="220">1 unit = 1 m</text>
+                  <text class="t-small t-muted mid" x="270" y="236">forward is +Z</text>
+                  <line class="s-line" x1="360" y1="20" x2="360" y2="246"/>
+                  <text class="t-head mid" x="450" y="30">Godot</text>
+                  <line class="s-ink w2" x1="450" y1="140" x2="450" y2="76" marker-end="url(#ax-arr)"/>
+                  <line class="s-ink w2" x1="450" y1="140" x2="514" y2="140" marker-end="url(#ax-arr)"/>
+                  <line class="s-acc w2" x1="450" y1="140" x2="412" y2="167" marker-end="url(#ax-arr-a)"/>
+                  <text class="t-mono t-small t-acc t-strong end" x="406" y="176">+Z</text>
+                  <text class="t-small t-muted end" x="406" y="190">at you</text>
+                  <text class="t-mono t-small t-strong mid" x="450" y="68">+Y</text>
+                  <text class="t-mono t-small t-strong" x="520" y="144">+X</text>
+                  <circle class="f-ink" cx="450" cy="140" r="3"/>
+                  <text class="t-small t-strong mid" x="450" y="204">Y up, right-handed</text>
+                  <text class="t-small t-muted mid" x="450" y="220">1 unit = 1 m</text>
+                  <text class="t-small t-muted mid" x="450" y="236">cameras look along −Z</text>
+                  <line class="s-line" x1="540" y1="20" x2="540" y2="246"/>
+                  <text class="t-head mid" x="630" y="30">Blender</text>
+                  <line class="s-ink w2" x1="630" y1="140" x2="630" y2="76" marker-end="url(#ax-arr)"/>
+                  <line class="s-ink w2" x1="630" y1="140" x2="694" y2="140" marker-end="url(#ax-arr)"/>
+                  <line class="s-acc w2" x1="630" y1="140" x2="668" y2="113" marker-end="url(#ax-arr-a)"/>
+                  <text class="t-mono t-small t-acc t-strong" x="674" y="110">+Y</text>
+                  <text class="t-small t-muted" x="674" y="96">into</text>
+                  <text class="t-mono t-small t-strong mid" x="630" y="68">+Z</text>
+                  <text class="t-mono t-small t-strong" x="700" y="144">+X</text>
+                  <circle class="f-ink" cx="630" cy="140" r="3"/>
+                  <text class="t-small t-strong mid" x="630" y="204">Z up, right-handed</text>
+                  <text class="t-small t-muted mid" x="630" y="220">front view looks</text>
+                  <text class="t-small t-muted mid" x="630" y="236">along +Y</text>
+                  <line class="s-line" x1="720" y1="20" x2="720" y2="246"/>
+                  <text class="t-head mid" x="810" y="30">glTF 2.0</text>
+                  <line class="s-ink w2" x1="810" y1="140" x2="810" y2="76" marker-end="url(#ax-arr)"/>
+                  <line class="s-ink w2" x1="810" y1="140" x2="874" y2="140" marker-end="url(#ax-arr)"/>
+                  <line class="s-acc w2" x1="810" y1="140" x2="772" y2="167" marker-end="url(#ax-arr-a)"/>
+                  <text class="t-mono t-small t-acc t-strong end" x="766" y="176">+Z</text>
+                  <text class="t-small t-muted end" x="766" y="190">at you</text>
+                  <text class="t-mono t-small t-strong mid" x="810" y="68">+Y</text>
+                  <text class="t-mono t-small t-strong" x="880" y="144">+X</text>
+                  <circle class="f-ink" cx="810" cy="140" r="3"/>
+                  <text class="t-small t-strong mid" x="810" y="204">Y up, right-handed</text>
+                  <text class="t-small t-muted mid" x="810" y="220">units are metres</text>
+                  <text class="t-small t-muted mid" x="810" y="236">asset front faces +Z</text>
+                  </svg>
+                </div>
+                <figcaption><b>Five common conventions, drawn the same way round.</b> Up is up and right is right in every panel; the coloured arrow is the third axis. Two tools can agree on up and still differ in handedness, as Unity and Godot do, or agree on handedness and differ on up, as Unity and Unreal do.</figcaption>
+              </figure>
+              <p>Moving a model between two conventions needs some combination of three fixes: a turn to change the up axis, a mirror to change handedness, and a scale to change units. Importers apply these automatically when their settings are right. A mirror also reverses the order of every triangle's corners, its <a class="term" data-term="winding-order" data-forward href="glossary.html#winding-order">winding order</a>, so a correct importer reverses the winding too; one that forgets shows you the inside of every model.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="A source file that is Z up, right-handed and in metres goes to three engines. To Godot, which is Y up, right-handed and metres: one turn of minus 90 degrees about X. To Unity, which is Y up, left-handed and metres: one mirror, swapping Y and Z. To Unreal Engine, which is Z up, left-handed and centimetres: a mirror flipping Y, and a scale of 100.">
+                    <defs><marker id="imp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <rect class="f-sunken s-strong" x="20" y="88" width="190" height="84" rx="8"/>
+                  <text class="t-caps" x="36" y="112">SOURCE FILE</text>
+                  <text class="t-head" x="36" y="136">Z up, right-handed</text>
+                  <text class="t-small t-muted" x="36" y="156">in metres</text>
+                  <path class="s-muted" d="M210,130 C250,130 250,50 290,50"/>
+                  <line class="s-muted" x1="572" y1="50" x2="620" y2="50" marker-end="url(#imp-arr)"/>
+                  <rect class="f-acc-soft s-acc w15" x="300" y="36" width="70" height="28" rx="14"/>
+                  <text class="t-small t-acc t-strong mid" x="335" y="54">turn</text>
+                  <rect class="f-none s-line dash" x="392" y="36" width="78" height="28" rx="14"/>
+                  <text class="t-small t-muted mid" x="431" y="54">mirror</text>
+                  <rect class="f-none s-line dash" x="492" y="36" width="70" height="28" rx="14"/>
+                  <text class="t-small t-muted mid" x="527" y="54">× 100</text>
+                  <rect class="f-surface s-strong" x="624" y="20" width="256" height="60" rx="8"/>
+                  <text class="t-head" x="640" y="42">Godot</text>
+                  <text class="t-small t-muted" x="640" y="58">Y up, right-handed, metres</text>
+                  <text class="t-small t-acc" x="640" y="73">turn −90° about X</text>
+                  <path class="s-muted" d="M210,130 C250,130 250,130 290,130"/>
+                  <line class="s-muted" x1="572" y1="130" x2="620" y2="130" marker-end="url(#imp-arr)"/>
+                  <rect class="f-none s-line dash" x="300" y="116" width="70" height="28" rx="14"/>
+                  <text class="t-small t-muted mid" x="335" y="134">turn</text>
+                  <rect class="f-acc-soft s-acc w15" x="392" y="116" width="78" height="28" rx="14"/>
+                  <text class="t-small t-acc t-strong mid" x="431" y="134">mirror</text>
+                  <rect class="f-none s-line dash" x="492" y="116" width="70" height="28" rx="14"/>
+                  <text class="t-small t-muted mid" x="527" y="134">× 100</text>
+                  <rect class="f-surface s-strong" x="624" y="100" width="256" height="60" rx="8"/>
+                  <text class="t-head" x="640" y="122">Unity</text>
+                  <text class="t-small t-muted" x="640" y="138">Y up, left-handed, metres</text>
+                  <text class="t-small t-acc" x="640" y="153">swap Y and Z: one mirror</text>
+                  <path class="s-muted" d="M210,130 C250,130 250,210 290,210"/>
+                  <line class="s-muted" x1="572" y1="210" x2="620" y2="210" marker-end="url(#imp-arr)"/>
+                  <rect class="f-none s-line dash" x="300" y="196" width="70" height="28" rx="14"/>
+                  <text class="t-small t-muted mid" x="335" y="214">turn</text>
+                  <rect class="f-acc-soft s-acc w15" x="392" y="196" width="78" height="28" rx="14"/>
+                  <text class="t-small t-acc t-strong mid" x="431" y="214">mirror</text>
+                  <rect class="f-acc-soft s-acc w15" x="492" y="196" width="70" height="28" rx="14"/>
+                  <text class="t-small t-acc t-strong mid" x="527" y="214">× 100</text>
+                  <rect class="f-surface s-strong" x="624" y="180" width="256" height="60" rx="8"/>
+                  <text class="t-head" x="640" y="202">Unreal Engine</text>
+                  <text class="t-small t-muted" x="640" y="218">Z up, left-handed, centimetres</text>
+                  <text class="t-small t-acc" x="640" y="233">flip Y, then × 100</text>
+                  </svg>
+                </div>
+                <figcaption><b>What an importer must do depends on both ends.</b> Swapping two axes is a mirror, so a single swap changes both the up axis and the handedness. Any lane with a mirror also needs the triangle winding reversed. When an import goes wrong, check these three fixes in order.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real importers also decide which way a model's front faces: Unreal treats +X as forward, while glTF and Godot expect a model's front to face +Z. That can add a further turn about the up axis. FBX files can also declare their own axes and units, which importers read and convert.</p>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>The arithmetic is cheap and the GPU does most of it. Transforming one vertex by a 4 × 4 matrix is 16 multiply-adds. A scene with a million visible vertices, drawn in a depth pass, three shadow cascades and a main pass, transforms 5 million vertices per frame: 80 million multiply-adds, or 4.8 billion per second at 60 fps. That is under 0.1% of the 10.3 trillion operations per second the PlayStation 5's GPU is rated for.</p>
+            <p>The real costs sit elsewhere: on the CPU, which builds a matrix for every moving object every frame and walks the parent-child hierarchy to do it; in the data sent to the GPU; and in people-time when conventions go wrong.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">64 B</span><span class="what">one 4 × 4 matrix of 32-bit floats</span></div>
+              <div class="stat"><span class="value">16</span><span class="what">multiply-adds to take one vertex through the MVP matrix</span></div>
+              <div class="stat"><span class="value">0.61 MB</span><span class="what">of model matrices for 10,000 moving objects, every frame: 37 MB/s at 60 fps</span></div>
+              <div class="stat"><span class="value">~1 mm</span><span class="what">gap between neighbouring 32-bit positions 10 km from the origin</span></div>
+            </div>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Moving objects</strong><span>Static objects keep their matrices; each moving one needs a new matrix and an upload every frame.</span></li>
+              <li><strong>Deep hierarchies</strong><span>Each parent-child link is another 4 × 4 multiply on the CPU, every frame the parent moves.</span></li>
+              <li><strong>More passes</strong><span>Every shadow cascade or extra view runs every vertex through a different view and projection.</span></li>
+              <li><strong>Large worlds</strong><span>Precision falls with distance from the origin. Fixes such as 64-bit positions cost memory and engineering.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The expensive part is people</p>
+              <p>A wrong up axis, unit or handedness on import is cheap to fix on day one and expensive after 2,000 assets have been made, placed and hand-corrected. Decide the pipeline's conventions, and the export settings that produce them, before production starts, and test them with one asset end to end.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Space and transform bugs have distinctive looks. These six account for most of what you will see.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A figure lying flat on its back on the ground, with a dashed outline showing where it should be standing.">
+                    <line class="s-strong" x1="16" y1="112" x2="224" y2="112"/>
+                    <rect class="f-none s-muted dash" x="40" y="36" width="20" height="62" rx="8"/>
+                    <circle class="f-none s-muted dash" cx="50" cy="26" r="10"/>
+                    <rect class="f-pix-soft s-pix w15" x="102" y="88" width="76" height="20" rx="8"/>
+                    <circle class="f-pix-soft s-pix w15" cx="190" cy="98" r="10"/>
+                  </svg>
+                </div>
+                <h4>Lying on its back</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The up axis was not converted between a Z-up source and a Y-up engine, or it was converted twice: once at export and again at import.</dd></div>
+                  <div><dt>Ask for</dt><dd>One agreed place for the conversion, the exporter or the importer, written down, and a test asset with a clear top and front.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A doorway beside a tiny figure barely visible at its foot, labelled 1 percent.">
+                    <line class="s-strong" x1="16" y1="112" x2="224" y2="112"/>
+                    <rect class="f-solid s-strong" x="90" y="24" width="56" height="88"/>
+                    <rect class="f-pix-soft s-pix" x="160" y="106" width="3" height="6"/>
+                    <circle class="f-pix" cx="161.5" cy="104" r="1.5"/>
+                    <text class="t-small t-pix t-strong" x="168" y="102">1%</text>
+                  </svg>
+                </div>
+                <h4>A hundred times too small or too big</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A unit mismatch: centimetres read as metres or the reverse. Physics then misbehaves too, because gravity and mass assume a scale.</dd></div>
+                  <div><dt>Ask for</dt><dd>The importer's unit setting (Unity's Convert Units, Unreal's Convert Scene Unit) and a reference object of known size in every test level.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="The letter R beside its mirror image, and a box whose front faces are missing.">
+                    <text class="t-muted" x="34" y="90" style="font-size:64px;font-weight:600">R</text>
+                    <text class="t-pix" x="-128" y="90" style="font-size:64px;font-weight:600" transform="scale(-1,1)">R</text>
+                    <polygon class="f-solid s-strong" points="160,46 210,46 210,96 160,96"/>
+                    <polygon class="s-pix dash" points="144,58 194,58 194,108 144,108"/>
+                    <path class="s-pix dash" d="M144,58 L160,46 M194,58 L210,46 M194,108 L210,96 M144,108 L160,96"/>
+                  </svg>
+                </div>
+                <h4>Mirrored, or inside out</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A handedness change mirrored the model without reversing its winding, or a negative scale on an object flipped it. Text reads backwards; faces vanish.</dd></div>
+                  <div><dt>Ask for</dt><dd>A check of the importer's axis settings, a search for negative scales in the scene, and a test asset with lettering on it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A sun on the left. Two boxes turned to different angles both have their lit side on the same face, not the side towards the sun.">
+                    <circle class="f-lit-soft s-lit w2" cx="26" cy="30" r="12"/>
+                    <g transform="translate(96,72) rotate(20)"><rect class="f-buf-lo" x="-26" y="-26" width="52" height="52"/><rect class="f-buf-hi" x="6" y="-26" width="20" height="52"/><rect class="s-strong" x="-26" y="-26" width="52" height="52"/></g>
+                    <g transform="translate(184,72) rotate(-50)"><rect class="f-buf-lo" x="-26" y="-26" width="52" height="52"/><rect class="f-buf-hi" x="6" y="-26" width="20" height="52"/><rect class="s-strong" x="-26" y="-26" width="52" height="52"/></g>
+                  </svg>
+                </div>
+                <h4>Lighting turns with the object</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A shader compared a normal in object space with a light direction in world space. It looks right until the object rotates.</dd></div>
+                  <div><dt>Ask for</dt><dd>The space of every vector in the lighting code, named in the variable (<code>normalWS</code>, <code>lightDirWS</code>), and a test that spins the object.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two overlapping surfaces far away break up into an irregular striped pattern where each wins in turn.">
+                    <rect class="f-solid s-strong" x="20" y="34" width="200" height="62"/>
+                    <path class="f-pix-soft" d="M20,34 L44,34 L36,50 L58,50 L50,68 L76,68 L66,96 L20,96 Z"/>
+                    <path class="f-pix-soft" d="M96,34 L126,34 L116,58 L142,58 L132,80 L160,80 L152,96 L104,96 L112,72 L88,72 Z"/>
+                    <path class="f-pix-soft" d="M178,34 L220,34 L220,62 L198,62 L206,84 L186,84 L192,96 L170,96 Z"/>
+                  </svg>
+                </div>
+                <h4>Distant surfaces flicker</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Z-fighting: two surfaces closer together than the depth buffer can tell apart at that distance, usually because the near plane is very small.</dd></div>
+                  <div><dt>Ask for</dt><dd>The near and far planes in use and the largest near plane the camera can live with; then whether the engine uses reversed depth (<a class="xref" data-ch="5.5">5.5</a>).</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="An object drawn three times at slightly different positions, as if shaking, labelled 10 km from origin.">
+                    <polygon class="f-none s-muted dash" points="86,30 150,30 150,94 86,94"/>
+                    <polygon class="f-none s-muted dash" points="94,36 158,36 158,100 94,100"/>
+                    <polygon class="f-pix-soft s-pix w2" points="90,33 154,33 154,97 90,97"/>
+                    <text class="t-small t-pix t-strong" x="20" y="120">10 km from the origin</text>
+                  </svg>
+                </div>
+                <h4>Shaking far from the origin</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>32-bit floats lose precision as numbers grow. About 10 km from the origin, positions can only land on a grid about 1 mm apart, and animation, physics and cameras start to jitter.</dd></div>
+                  <div><dt>Ask for</dt><dd>The world's size against the engine's limits, and a plan: keeping play near the origin, moving the origin with the player, or 64-bit positions.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>A camera that clips into walls is the near plane's other failure: set it too large and the camera cuts away geometry the player should see up close. Near-plane values are a negotiation between that and flickering in the distance.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines run the same chain. What differs is the axes, the units, how field of view is measured and what the importer converts for you.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Axes</th>
+                    <td>Left-handed, Z up. +X forward, +Y right.</td>
+                    <td>Left-handed, Y up. +X right, +Z forward.</td>
+                    <td>Right-handed, Y up. Cameras look along −Z; imported models face +Z (<code>Vector3.MODEL_FRONT</code>).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Units</th>
+                    <td>1 unit = 1 cm.</td>
+                    <td>1 unit = 1 m; the physics system assumes it.</td>
+                    <td>1 unit = 1 m; physics is tuned for it.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Field of view</th>
+                    <td>Camera <strong>Field of View</strong>, documented in the API as the horizontal angle in degrees.</td>
+                    <td>Camera <strong>Field of View</strong> in degrees along the chosen <strong>FOV Axis</strong> (Vertical or Horizontal). <code>Camera.fieldOfView</code> in scripts is vertical.</td>
+                    <td><code>Camera3D.fov</code>, 75° by default, applied to the height with the default <strong>Keep Height</strong> aspect mode.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Near and far planes</th>
+                    <td>A project-wide <strong>Near Clip Plane</strong> in Project Settings, General Settings. Orthographic cameras have their own near and far clip planes.</td>
+                    <td>Per camera: <strong>Clipping Planes</strong>, Near and Far.</td>
+                    <td>Per camera: <code>near</code> 0.05 m and <code>far</code> 4000 m by default. The documentation warns that lower near values cost precision across the whole range.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Orthographic</th>
+                    <td><strong>Projection Mode</strong> Orthographic, with <strong>Ortho Width</strong> in world units.</td>
+                    <td><strong>Projection</strong> Orthographic, with <strong>Size</strong>, which is half the view's height.</td>
+                    <td><code>projection</code> Orthogonal, with <code>size</code> in metres across the kept axis.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Spaces in shaders</th>
+                    <td>Material nodes <strong>Transform</strong> and <strong>Transform Position</strong> convert between spaces such as Local, World, View and Camera.</td>
+                    <td>URP: <code>GetVertexPositionInputs</code> returns world, view, clip and NDC positions; <code>TransformObjectToHClip</code> goes straight to clip space. Camera space follows the OpenGL rule: forward is −Z.</td>
+                    <td>Spatial shaders get <code>MODEL_MATRIX</code>, <code>VIEW_MATRIX</code>, <code>PROJECTION_MATRIX</code> and <code>MODELVIEW_MATRIX</code>; <code>VERTEX</code> starts in model space.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Import conversion</th>
+                    <td>FBX import options <strong>Convert Scene</strong>, <strong>Force Front XAxis</strong> and <strong>Convert Scene Unit</strong>. Epic's guide for assets from Unity enables the first two.</td>
+                    <td>Model import <strong>Convert Units</strong> (on by default), <strong>Scale Factor</strong> and <strong>Bake Axis Conversion</strong>. Without baking, Z-up files get a −90° X rotation on their root object.</td>
+                    <td>glTF needs no conversion: it is Y up, right-handed, in metres. FBX uses the built-in ufbx importer from Godot 4.3; <code>.blend</code> files are converted through Blender's glTF exporter.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Large worlds</th>
+                    <td>Large World Coordinates: core types use 64-bit doubles, for worlds far beyond UE4's 21 km limit.</td>
+                    <td>Positions are 32-bit floats.</td>
+                    <td>32-bit by default. A custom build with <code>precision=double</code> enables large world coordinates; the documentation suggests about 8 km for third-person games in single precision.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names and defaults checked against the documentation for Unreal Engine 5.9 (and its Python API for 5.8), Unity 6.6 (6000.6) and 6.4 for the model importer, Godot 4.7, the glTF 2.0 specification and the Blender 4.5 LTS manual in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Porting caveat</p>
+              <p>A field of view of 90 in Unreal and 90 in Unity are different cameras: one is measured across the width, the other by default across the height. When moving a camera between engines, convert the angle, and check which axis each engine's "forward" is before copying any rotation values.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about spaces name the engine, its conventions and the source tool, state the numbers in use, and ask the AI to say which space every value is in. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when imported models arrive rotated or at the wrong size</span></div>
+              <pre class="prompt-body">We model in Blender 4.5 and import FBX into Unreal Engine 5. Props arrive lying on their backs and about 100 times too small. Characters look correct.
+
+1. List the axis, handedness and unit conventions at each end, and every place in our pipeline that converts them: Blender export settings, FBX import options, any scripts.
+2. Find where props and characters take different paths, and why.
+3. Propose one place to do each conversion, the exact settings, and a test asset with a known size, top and front that we can import after every pipeline change.</pre>
+              <ul class="prompt-why">
+                <li>The two symptoms together point at an up-axis and a unit conversion, not a single bug.</li>
+                <li>"Characters look correct" tells the AI to look for two export paths.</li>
+                <li>A fixed test asset turns the fix into a check that stays.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when distant surfaces flicker or the camera clips into walls</span></div>
+              <pre class="prompt-body">Unity 6, URP, PC and consoles. Our third-person camera uses a near plane of 0.01 m and a far plane of 20,000 m. Distant terrain and buildings flicker where surfaces overlap, and we have had complaints about the camera seeing through walls when backed into corners.
+
+1. Explain how near and far affect depth precision for our setup, with numbers.
+2. Recommend near and far values and anything else in the camera rig, such as collision or a minimum distance, so that we never need a near plane below that value.
+3. Tell us whether our pipeline uses reversed depth and what that changes.
+4. Give us a test scene with surfaces 10 cm apart at 50 m, 500 m and 5 km to verify the result.</pre>
+              <ul class="prompt-why">
+                <li>Stating both numbers lets the AI reason from the actual ratio.</li>
+                <li>Asking for the camera rig keeps it from fixing one symptom by causing the other.</li>
+                <li>The test scene makes the improvement measurable.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing transform code</h3>
+            <ol class="review-list">
+              <li>Which space is each position and direction in?<span class="why">Mixing spaces is the most common transform bug. Names such as <code>positionWS</code> make it visible.</span></li>
+              <li>Is this a point, with w = 1, or a direction, with w = 0?<span class="why">A direction that gets translated is wrong as soon as the object moves.</span></li>
+              <li>In which order are the matrices multiplied, and does the engine use row or column vectors?<span class="why">The wrong order swings objects around the origin.</span></li>
+              <li>What are the near and far planes, and why those values?<span class="why">A tiny near plane is the usual cause of distant flicker.</span></li>
+              <li>Where are axes and units converted on import, and is it done exactly once?<span class="why">Converting twice is as broken as never converting.</span></li>
+              <li>Does anything rely on negative scale?<span class="why">Negative scale mirrors geometry and flips its winding.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A crate sits at world position (10, 0, 5) with no rotation and a scale of 1. One of its corners is at (0.5, 0.5, 0.5) in object space. Where is that corner in world space?</p>
+                <details><summary>Show answer</summary><p>(10.5, 0.5, 5.5). With no rotation or scale, the model matrix only adds the crate's position.</p></details>
+              </li>
+              <li>
+                <p class="q">Distant buildings flicker. The camera uses near 0.01 m and far 5,000 m. Which single change will help most: far to 1,000 m, or near to 0.1 m?</p>
+                <details><summary>Show answer</summary><p>Near to 0.1 m. Depth precision is set mostly by the near plane; a ten times larger near plane leaves roughly ten times more depth values for distant surfaces, while shortening the far plane barely changes them.</p></details>
+              </li>
+              <li>
+                <p class="q">Props made in Blender appear lying on their backs in a Y-up engine, but at the right size. What is the likely cause, and what is not the cause?</p>
+                <details><summary>Show answer</summary><p>The up axis was not converted from Blender's Z-up, or was converted twice. Units are not the cause, since the size is right. Check the export and import axis settings and make sure exactly one of them converts.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#coordinate-space">coordinate space</a></li>
+              <li><a class="chip" href="glossary.html#object-space">object space</a></li>
+              <li><a class="chip" href="glossary.html#world-space">world space</a></li>
+              <li><a class="chip" href="glossary.html#view-space">view space</a></li>
+              <li><a class="chip" href="glossary.html#clip-space">clip space</a></li>
+              <li><a class="chip" href="glossary.html#ndc">NDC</a></li>
+              <li><a class="chip" href="glossary.html#screen-space">screen space</a></li>
+              <li><a class="chip" href="glossary.html#matrix">matrix</a></li>
+              <li><a class="chip" href="glossary.html#model-matrix">model matrix</a></li>
+              <li><a class="chip" href="glossary.html#view-matrix">view matrix</a></li>
+              <li><a class="chip" href="glossary.html#projection-matrix">projection matrix</a></li>
+              <li><a class="chip" href="glossary.html#mvp">MVP matrix</a></li>
+              <li><a class="chip" href="glossary.html#perspective-projection">perspective projection</a></li>
+              <li><a class="chip" href="glossary.html#orthographic-projection">orthographic projection</a></li>
+              <li><a class="chip" href="glossary.html#perspective-divide">perspective divide</a></li>
+              <li><a class="chip" href="glossary.html#frustum">view frustum</a></li>
+              <li><a class="chip" href="glossary.html#fov">field of view</a></li>
+              <li><a class="chip" href="glossary.html#near-plane">near plane</a></li>
+              <li><a class="chip" href="glossary.html#far-plane">far plane</a></li>
+              <li><a class="chip" href="glossary.html#handedness">handedness</a></li>
+              <li><a class="chip" href="glossary.html#up-axis">up axis</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="3.5"></a> looks at the two processors that run this chain, the CPU that builds the matrices and the GPU that applies them, and the APIs between them.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://learnopengl.com/Getting-started/Coordinate-Systems">Coordinate Systems</a>, LearnOpenGL, Joey de Vries. The five spaces, the model, view and projection matrices and the perspective divide, with runnable code.</li>
+              <li><a href="https://developer.nvidia.com/blog/visualizing-depth-precision/">Visualizing Depth Precision</a>, Nathan Reed, NVIDIA Technical Blog. Why the near plane dominates depth precision, and how reversed depth helps.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/coordinate-system-and-spaces-in-unreal-engine">Coordinate System and Spaces</a>, <a href="https://dev.epicgames.com/documentation/unreal-engine/units-of-measurement-in-unreal-engine">Units of Measurement</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/large-world-coordinates-in-unreal-engine-5">Large World Coordinates</a>, Unreal Engine 5.9 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/migrating-assets-from-unity-to-unreal-engine">Importing and Converting Assets</a>, Unreal Engine documentation. Axes, units and FBX import settings when moving assets from Unity.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/scripting/programming-math/unity-engine-math/class-quaternion">Controlling rotation with the Quaternion class</a> (Unity's left-handed axes) and <a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/camera/worldtocameramatrix">Camera.worldToCameraMatrix</a>, Unity 6.6 documentation.</li>
+              <li><a href="https://support.unity.com/hc/en-us/articles/10706367652756-Why-does-the-imported-FBX-model-look-different-from-other-applications">Why does the imported FBX model look different from other applications?</a>, Unity Support. Axis conversion, units and scale on import.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/tutorials/3d/introduction_to_3d.html">Introduction to 3D</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/assets_pipeline/importing_3d_scenes/model_export_considerations.html">Model export considerations</a>, <a href="https://docs.godotengine.org/en/stable/classes/class_camera3d.html">Camera3D</a> and <a href="https://docs.godotengine.org/en/4.7/tutorials/physics/large_world_coordinates.html">Large world coordinates</a>, Godot Engine 4.7 documentation.</li>
+              <li><a href="https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc">glTF 2.0 Specification</a> (source), Khronos Group. Section "Coordinate System and Units".</li>
+              <li><a href="https://blog.playstation.com/2020/03/18/unveiling-new-details-of-playstation-5-hardware-technical-specs/">Unveiling new details of PlayStation 5: hardware technical specs</a>, PlayStation Blog, 2020.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/space-stepper.js"></script>
+</body>
+</html>
