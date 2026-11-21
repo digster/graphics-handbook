@@ -17,13 +17,15 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, extname } from "node:path";
 import {
-  DOCS, loadData, listPages, readPage, pageId, tags, attr, idsIn, compareNum,
+  DOCS, loadData, listPages, readPage, pageId, tags, attr, idsIn, compareNum, pagesInScope, DRAFT_MODE,
 } from "../tools/lib/site.mjs";
 import { buildIndex, renderIndexFile } from "../tools/build-search-index.mjs";
 
 const { nav, glossary } = loadData();
-const pages = listPages();
-const html = Object.fromEntries(pages.map((p) => [p, readPage(p)]));
+// In draft mode (HB_ONLY set by tools/check-chapter.mjs) only the named
+// pages are checked, and whole-site checks are skipped.
+const pages = pagesInScope();
+const html = Object.fromEntries(listPages().map((p) => [p, readPage(p)]));
 const chapterPages = pages.filter((p) => nav.chapters.some((c) => c.file === p));
 const BEATS = ["picture", "plain", "how", "cost", "breaks", "engines", "ai", "check"];
 
@@ -48,7 +50,7 @@ test("nav: chapter numbers and files are unique and sequential", () => {
   }
 });
 
-test("nav and disk agree: published chapters have pages, planned ones do not", () => {
+test("nav and disk agree: published chapters have pages, planned ones do not", { skip: DRAFT_MODE }, () => {
   for (const ch of nav.chapters) {
     const exists = existsSync(join(DOCS, ch.file));
     if (ch.status === "published") assert.ok(exists, `${ch.num} is published but ${ch.file} is missing`);
@@ -68,7 +70,7 @@ test("every page has the standard head, shell markup and script order", () => {
     "assets/js/data/search-index.js",
     "assets/js/shell.js",
   ];
-  for (const [page, src] of Object.entries(html)) {
+  for (const [page, src] of Object.entries(html).filter(([p]) => pages.includes(p))) {
     assert.match(src, /^<!doctype html>/i, `${page}: missing doctype`);
     assert.match(src, /<html lang="en">/, `${page}: missing lang`);
     assert.match(src, /<meta name="viewport"/, `${page}: missing viewport meta`);
@@ -107,7 +109,7 @@ test("chapter pages: correct id, title and the eight beats in order", () => {
 
 test("all local links, images and scripts resolve, including #anchors", () => {
   const glossaryIds = new Set(Object.keys(glossary));
-  for (const [page, src] of Object.entries(html)) {
+  for (const [page, src] of Object.entries(html).filter(([p]) => pages.includes(p))) {
     const refs = [...src.matchAll(/\s(?:href|src)="([^"]+)"/g)].map((m) => m[1]);
     for (const ref of refs) {
       if (/^(https?:|mailto:|tel:)/.test(ref)) continue;
@@ -137,7 +139,7 @@ test("works from file://: classic scripts, no fetch, no remote assets", () => {
     assert.ok(!/^\s*(import|export)\s/m.test(code), `${file}: ES modules fail from file://`);
     assert.ok(!/\bimport\s*\(/.test(code), `${file}: dynamic import fails from file://`);
   }
-  for (const [page, src] of Object.entries(html)) {
+  for (const [page, src] of Object.entries(html).filter(([p]) => pages.includes(p))) {
     assert.ok(!/type="module"/.test(src), `${page}: module scripts fail from file://`);
     for (const tag of [...tags(src, "script"), ...tags(src, "link"), ...tags(src, "img")]) {
       const url = attr(tag, "src") || attr(tag, "href");
@@ -201,7 +203,7 @@ test("every term a published chapter owns is introduced there with <dfn>", () =>
 });
 
 test("cross-references point at chapters that exist", () => {
-  for (const [page, src] of Object.entries(html)) {
+  for (const [page, src] of Object.entries(html).filter(([p]) => pages.includes(p))) {
     for (const tag of tags(src, "a")) {
       if (!/class="[^"]*\bxref\b/.test(tag)) continue;
       const num = attr(tag, "data-ch");
@@ -211,7 +213,7 @@ test("cross-references point at chapters that exist", () => {
 });
 
 test("diagrams are accessible, have unique ids and use theme classes only", () => {
-  for (const [page, src] of Object.entries(html)) {
+  for (const [page, src] of Object.entries(html).filter(([p]) => pages.includes(p))) {
     for (const tag of tags(src, "svg")) {
       if (attr(tag, "role") === "img") assert.ok(attr(tag, "aria-label"), `${page}: svg role="img" needs aria-label`);
     }
@@ -235,7 +237,7 @@ test("diagrams are accessible, have unique ids and use theme classes only", () =
   }
 });
 
-test("search index is up to date", () => {
+test("search index is up to date", { skip: DRAFT_MODE }, () => {
   const expected = renderIndexFile(buildIndex());
   const actual = readFileSync(join(DOCS, "assets", "js", "data", "search-index.js"), "utf8");
   assert.equal(actual, expected, "search-index.js is stale: run npm run build:search");

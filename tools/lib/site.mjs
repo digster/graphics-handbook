@@ -26,8 +26,37 @@ export function loadData() {
     vm.runInContext(readFileSync(join(DATA_DIR, file), "utf8"), sandbox, { filename: file });
   }
   const { nav, glossary } = sandbox.window.HB;
+  applyOverrides(nav, glossary);
   return { nav, glossary };
 }
+
+/**
+ * Draft overrides, used by tools/check-chapter.mjs while a chapter is being
+ * written and before it is merged into the shared data files:
+ *   HB_PUBLISH          comma-separated chapter numbers to treat as published
+ *   HB_GLOSSARY_EXTRA   comma-separated paths to JSON files of extra glossary
+ *                       entries, in the same shape as glossary.js
+ */
+function applyOverrides(nav, glossary) {
+  const publish = (process.env.HB_PUBLISH || "").split(",").map((s) => s.trim()).filter(Boolean);
+  for (const num of publish) {
+    const ch = nav.byNum(num);
+    if (ch) ch.status = "published";
+  }
+  const extras = (process.env.HB_GLOSSARY_EXTRA || "").split(",").map((s) => s.trim()).filter(Boolean);
+  for (const file of extras) {
+    Object.assign(glossary, JSON.parse(readFileSync(file, "utf8")));
+  }
+}
+
+/** Pages to check: HB_ONLY (comma-separated file names) or every page. */
+export function pagesInScope() {
+  const only = (process.env.HB_ONLY || "").split(",").map((s) => s.trim()).filter(Boolean);
+  return only.length ? only : listPages();
+}
+
+/** True when checking a draft subset of pages rather than the whole site. */
+export const DRAFT_MODE = Boolean(process.env.HB_ONLY);
 
 /** Evaluates the generated search index file and returns its array. */
 export function loadSearchIndex() {

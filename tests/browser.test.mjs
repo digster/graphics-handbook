@@ -14,13 +14,13 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
-import { DOCS, loadData, listPages } from "../tools/lib/site.mjs";
+import { DOCS, loadData, pagesInScope, DRAFT_MODE } from "../tools/lib/site.mjs";
 
 const require = createRequire(import.meta.url);
 const playwright = require("playwright");
 
 const { nav, glossary } = loadData();
-const PAGES = listPages();
+const PAGES = pagesInScope();
 const BROWSERS = (process.env.BROWSERS || "chromium").split(",").map((s) => s.trim()).filter(Boolean);
 const url = (page) => pathToFileURL(join(DOCS, page)).href;
 // Spread into a plain array: nav.js ran in a vm sandbox, and deepStrictEqual
@@ -93,7 +93,7 @@ for (const browserName of BROWSERS) {
     });
   }
 
-  test(`[${browserName}] shell: sidebar, rail, pager and cross-references`, async () => {
+  test(`[${browserName}] shell: sidebar, rail, pager and cross-references`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open(published[0].file, { viewport: { width: 1440, height: 900 } });
     const links = await tab.$$eval("#sidebar a.ch-link", (as) => as.map((a) => a.getAttribute("href")));
     assert.deepEqual(links.sort(), [...published.map((c) => c.file)].sort(), "sidebar should link every written chapter");
@@ -109,7 +109,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] term cards show the glossary definition on hover and focus`, async () => {
+  test(`[${browserName}] term cards show the glossary definition on hover and focus`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open(published[0].file);
     const term = tab.locator("main a.term[data-term]").first();
     const id = await term.getAttribute("data-term");
@@ -124,7 +124,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] search finds terms and chapters, with keyboard control`, async () => {
+  test(`[${browserName}] search finds terms and chapters, with keyboard control`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open("index.html");
     await tab.keyboard.press("/");
     const input = tab.locator("#search-input");
@@ -145,7 +145,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] theme toggle overrides the OS theme`, async () => {
+  test(`[${browserName}] theme toggle overrides the OS theme`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open("index.html", { colorScheme: "light" });
     assert.equal(await tab.getAttribute("html", "data-theme"), null, "no saved theme: follow the OS");
     await tab.click(".theme-toggle");
@@ -158,7 +158,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] home contents lists every chapter and filters`, async () => {
+  test(`[${browserName}] home contents lists every chapter and filters`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open("index.html");
     assert.equal(await tab.locator(".contents-ch").count(), nav.chapters.length);
     await tab.click('#contents-filter button:has-text("Written so far")');
@@ -168,7 +168,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] glossary renders every entry, filters and honours #anchors`, async () => {
+  test(`[${browserName}] glossary renders every entry, filters and honours #anchors`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open("glossary.html", { hash: "#stride" });
     assert.equal(await tab.locator(".g-entry").count(), Object.keys(glossary).length);
     assert.ok(await tab.locator("#stride").isVisible());
@@ -178,7 +178,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] vertex buffer inspector: rows, toggles and byte totals`, async () => {
+  test(`[${browserName}] vertex buffer inspector: rows, toggles and byte totals`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open("04-2-vertex-buffers.html");
     const demo = tab.locator('[data-demo="vertex-buffer-inspector"]');
     const rows = demo.locator(".byte-table tbody tr");
@@ -195,7 +195,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] horizon explorer: keyboard moves P and values stay in range`, async () => {
+  test(`[${browserName}] horizon explorer: keyboard moves P and values stay in range`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open("08-3-ambient-occlusion.html");
     const demo = tab.locator('[data-demo="horizon-explorer"]');
     const readout = async () => (await demo.locator(".demo-readout").textContent()).replace(/\s+/g, " ");
@@ -213,7 +213,7 @@ for (const browserName of BROWSERS) {
     await context.close();
   });
 
-  test(`[${browserName}] reaching "Check yourself" marks a chapter as read`, async () => {
+  test(`[${browserName}] reaching "Check yourself" marks a chapter as read`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open(published[0].file, { viewport: { width: 1280, height: 900 } });
     await tab.locator("#check").scrollIntoViewIfNeeded();
     await tab.waitForFunction(() => {
