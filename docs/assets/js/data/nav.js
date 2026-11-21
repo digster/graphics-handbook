@@ -56,13 +56,13 @@
         { num: "3.2", slug: "colour", title: "Colour done right", terms: "RGB, linear and sRGB, gamma, HDR, bit depth, banding", core: true, status: "published" },
         { num: "3.3", slug: "vectors", title: "Vectors you can see", terms: "vector, normalise, dot product, cross product", core: false, status: "planned" },
         { num: "3.4", slug: "spaces-transforms", title: "Spaces and transforms", terms: "object, world, view, clip and screen space; matrix, MVP, frustum, FOV, near and far planes", core: true, status: "planned" },
-        { num: "3.5", slug: "cpu-gpu-apis", title: "CPU, GPU and graphics APIs", terms: "parallelism, VRAM, DirectX 12, Vulkan, Metal, WebGPU, driver, tile-based GPU", core: true, status: "planned" }
+        { num: "3.5", slug: "cpu-gpu-apis", title: "CPU, GPU and graphics APIs", terms: "parallelism, VRAM, DirectX 12, Vulkan, Metal, WebGPU, driver, tile-based GPU", core: true, status: "published" }
       ]
     },
     {
       n: 4, title: "Geometry", blurb: "What actually gets sent to the GPU, and how engines avoid sending too much.",
       chapters: [
-        { num: "4.1", slug: "meshes", title: "Meshes", terms: "vertex, triangle, normal, tangent, UV, winding order, topology", core: true, status: "planned" },
+        { num: "4.1", slug: "meshes", title: "Meshes", terms: "vertex, triangle, normal, tangent, UV, winding order, topology", core: true, status: "published" },
         { num: "4.2", slug: "vertex-buffers", title: "Vertex buffers and index buffers", terms: "vertex attribute, layout, stride, interleaving, index buffer, 16 and 32-bit indices, static and dynamic buffers", core: true, status: "published" },
         { num: "4.3", slug: "draw-calls", title: "Draw calls, batching and instancing", terms: "draw call, pipeline state, material sorting, static and dynamic batching, GPU instancing, indirect draws", core: true, status: "planned" },
         { num: "4.4", slug: "culling", title: "Culling", terms: "frustum, backface and occlusion culling, bounding volumes, Hi-Z, PVS", core: true, status: "planned" },

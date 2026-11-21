@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>4.1 Meshes · Graphics Handbook</title>
+  <meta name="description" content="What a mesh is: triangles, vertices, normals, UVs, tangents and vertex colours; why GPUs draw triangles, how quads become triangles, winding order, hard and soft edges, seams, polygon budgets and how it all breaks.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="4.1">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 4 · Geometry</p>
+            <h1><span class="ch-num">4.1</span> Meshes</h1>
+            <p class="lead">Everything you see in a 3D game is a hollow shell of flat triangles. A mesh is that shell plus a few facts stored at every corner: where it is, which way the surface faces there, and how a flat image wraps over it.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="3.3">3.3 Vectors you can see</a>, <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>, <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="4.2">4.2 Vertex buffers and index buffers</a>, <a class="xref" data-ch="6.1">6.1 Textures and UVs</a>, <a class="xref" data-ch="6.4">6.4 Normal maps</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Mesh views</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 240" role="img" aria-label="One crate shown five ways. Wireframe: 12 triangles over 8 corners, with the far edges dashed. Normals: arrows at the corners of each visible face, three of them meeting at the nearest corner. UV layout: the six faces cut apart and laid flat in a cross, with the cut edges, the seams, in blue. Vertex colour: a dirt mask stored at each corner, dark at the bottom corners and blending to clean at the top. Shaded: the crate lit from above using its normals.">
+                  <defs>
+                    <marker id="pic-nrm" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    <linearGradient id="pic-vc-front" gradientUnits="userSpaceOnUse" x1="575.6" y1="160.1" x2="598.9" y2="96.8"><stop offset="0" class="stop-acc" stop-opacity="0.85"/><stop offset="1" class="stop-acc" stop-opacity="0"/></linearGradient><linearGradient id="pic-vc-right" gradientUnits="userSpaceOnUse" x1="636.9" y1="182.7" x2="607.4" y2="126.2"><stop offset="0" class="stop-acc" stop-opacity="0.85"/><stop offset="1" class="stop-acc" stop-opacity="0"/></linearGradient>
+                  </defs>
+                  <text class="t-caps mid" x="92" y="30">WIREFRAME</text>
+                  <text class="t-caps mid" x="272" y="30">NORMALS</text>
+                  <text class="t-caps mid" x="452" y="30">UV LAYOUT</text>
+                  <text class="t-caps mid" x="632" y="30">VERTEX COLOUR</text>
+                  <text class="t-caps mid" x="812" y="30">SHADED</text>
+                  <line class="s-muted dash" x1="148.4" y1="155.8" x2="87.1" y2="133.2"/><line class="s-muted dash" x1="87.1" y1="133.2" x2="87.1" y2="61.3"/><line class="s-muted dash" x1="148.4" y1="155.8" x2="87.1" y2="61.3"/><line class="s-muted dash" x1="87.1" y1="133.2" x2="35.6" y2="160.1"/><line class="s-muted dash" x1="87.1" y1="133.2" x2="35.6" y2="88.2"/><line class="s-muted dash" x1="87.1" y1="133.2" x2="96.9" y2="182.7"/>
+<line class="s-ink w15" x1="35.6" y1="160.1" x2="96.9" y2="182.7"/><line class="s-ink w15" x1="96.9" y1="182.7" x2="96.9" y2="110.8"/><line class="s-ink w15" x1="96.9" y1="110.8" x2="35.6" y2="88.2"/><line class="s-ink w15" x1="35.6" y1="88.2" x2="35.6" y2="160.1"/><line class="s-ink" x1="35.6" y1="160.1" x2="96.9" y2="110.8"/><line class="s-ink w15" x1="96.9" y1="182.7" x2="148.4" y2="155.8"/><line class="s-ink w15" x1="148.4" y1="155.8" x2="148.4" y2="83.9"/><line class="s-ink w15" x1="148.4" y1="83.9" x2="96.9" y2="110.8"/><line class="s-ink" x1="96.9" y1="182.7" x2="148.4" y2="83.9"/><line class="s-ink w15" x1="148.4" y1="83.9" x2="87.1" y2="61.3"/><line class="s-ink w15" x1="87.1" y1="61.3" x2="35.6" y2="88.2"/><line class="s-ink" x1="35.6" y1="88.2" x2="148.4" y2="83.9"/>
+<circle class="f-ink" cx="35.6" cy="160.1" r="2.6"/><circle class="f-ink" cx="87.1" cy="61.3" r="2.6"/><circle class="f-ink" cx="35.6" cy="88.2" r="2.6"/><circle class="f-ink" cx="148.4" cy="155.8" r="2.6"/><circle class="f-ink" cx="96.9" cy="182.7" r="2.6"/><circle class="f-ink" cx="148.4" cy="83.9" r="2.6"/><circle class="f-ink" cx="96.9" cy="110.8" r="2.6"/>
+                  <polygon class="f-sunken s-strong" points="215.6,160.1 276.9,182.7 276.9,110.8 215.6,88.2"/><polygon class="f-solid s-strong" points="276.9,182.7 328.4,155.8 328.4,83.9 276.9,110.8"/><polygon class="f-surface s-strong" points="215.6,88.2 276.9,110.8 328.4,83.9 267.1,61.3"/>
+<circle class="f-acc" cx="221.8" cy="155.2" r="2.2"/><line class="s-acc w15" x1="221.8" y1="155.2" x2="205.8" y2="163.5" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="270.8" cy="173.2" r="2.2"/><line class="s-acc w15" x1="270.8" y1="173.2" x2="254.9" y2="181.5" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="270.8" cy="115.7" r="2.2"/><line class="s-acc w15" x1="270.8" y1="115.7" x2="254.9" y2="124" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="221.8" cy="97.7" r="2.2"/><line class="s-acc w15" x1="221.8" y1="97.7" x2="205.8" y2="106" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="282.1" cy="172.8" r="2.2"/><line class="s-acc w15" x1="282.1" y1="172.8" x2="301.1" y2="179.8" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="323.2" cy="151.3" r="2.2"/><line class="s-acc w15" x1="323.2" y1="151.3" x2="342.2" y2="158.3" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="323.2" cy="93.8" r="2.2"/><line class="s-acc w15" x1="323.2" y1="93.8" x2="342.2" y2="100.8" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="282.1" cy="115.3" r="2.2"/><line class="s-acc w15" x1="282.1" y1="115.3" x2="301.1" y2="122.2" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="226.9" cy="87.8" r="2.2"/><line class="s-acc w15" x1="226.9" y1="87.8" x2="226.9" y2="65.5" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="275.9" cy="105.8" r="2.2"/><line class="s-acc w15" x1="275.9" y1="105.8" x2="275.9" y2="83.5" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="317.1" cy="84.3" r="2.2"/><line class="s-acc w15" x1="317.1" y1="84.3" x2="317.1" y2="62" marker-end="url(#pic-nrm)"/><circle class="f-acc" cx="268.1" cy="66.3" r="2.2"/><line class="s-acc w15" x1="268.1" y1="66.3" x2="268.1" y2="44" marker-end="url(#pic-nrm)"/>
+                  <rect class="f-surface s-strong" x="414" y="65" width="38" height="38"/><rect class="f-surface s-strong" x="376" y="103" width="38" height="38"/><rect class="f-surface s-strong" x="414" y="103" width="38" height="38"/><rect class="f-surface s-strong" x="452" y="103" width="38" height="38"/><rect class="f-surface s-strong" x="490" y="103" width="38" height="38"/><rect class="f-surface s-strong" x="414" y="141" width="38" height="38"/><text class="t-small t-muted mid" x="433" y="88">top</text><text class="t-small t-muted mid" x="395" y="126">left</text><text class="t-small t-muted mid" x="433" y="126">front</text><text class="t-small t-muted mid" x="471" y="126">right</text><text class="t-small t-muted mid" x="509" y="126">back</text><text class="t-small t-muted mid" x="433" y="164">bottom</text><polygon class="s-acc w2" points="414,65 452,65 452,103 528,103 528,141 452,141 452,179 414,179 414,141 376,141 376,103 414,103"/>
+                  <polygon class="f-surface" points="575.6,160.1 636.9,182.7 636.9,110.8 575.6,88.2"/><polygon fill="url(#pic-vc-front)" points="575.6,160.1 636.9,182.7 636.9,110.8 575.6,88.2"/><polygon class="s-strong" points="575.6,160.1 636.9,182.7 636.9,110.8 575.6,88.2"/><polygon class="f-surface" points="636.9,182.7 688.4,155.8 688.4,83.9 636.9,110.8"/><polygon fill="url(#pic-vc-right)" points="636.9,182.7 688.4,155.8 688.4,83.9 636.9,110.8"/><polygon class="s-strong" points="636.9,182.7 688.4,155.8 688.4,83.9 636.9,110.8"/><polygon class="f-surface s-strong" points="575.6,88.2 636.9,110.8 688.4,83.9 627.1,61.3"/><circle class="f-acc s-surface" cx="575.6" cy="160.1" r="4"/><circle class="f-surface s-ink" cx="627.1" cy="61.3" r="3.6"/><circle class="f-surface s-ink" cx="575.6" cy="88.2" r="3.6"/><circle class="f-acc s-surface" cx="688.4" cy="155.8" r="4"/><circle class="f-acc s-surface" cx="636.9" cy="182.7" r="4"/><circle class="f-surface s-ink" cx="688.4" cy="83.9" r="3.6"/><circle class="f-surface s-ink" cx="636.9" cy="110.8" r="3.6"/>
+                  <rect class="f-buf-lo" x="734" y="48" width="156" height="150" rx="6"/>
+                  <polygon class="f-buf-hi" points="755.6,160.1 816.9,182.7 816.9,110.8 755.6,88.2"/><polygon class="f-shade" fill-opacity="0.41700000000000004" points="755.6,160.1 816.9,182.7 816.9,110.8 755.6,88.2"/><polygon class="s-shade" stroke-opacity="0.35" points="760.5,156.2 812,175.1 812,114.7 760.5,95.8"/><!-- front I=0.49 --><polygon class="f-buf-hi" points="816.9,182.7 868.4,155.8 868.4,83.9 816.9,110.8"/><polygon class="f-shade" fill-opacity="0.618" points="816.9,182.7 868.4,155.8 868.4,83.9 816.9,110.8"/><polygon class="s-shade" stroke-opacity="0.35" points="821,174.8 864.2,152.2 864.2,91.8 821,114.4"/><!-- right I=0.25 --><polygon class="f-buf-hi" points="755.6,88.2 816.9,110.8 868.4,83.9 807.1,61.3"/><polygon class="f-shade" fill-opacity="0.135" points="755.6,88.2 816.9,110.8 868.4,83.9 807.1,61.3"/><polygon class="s-shade" stroke-opacity="0.35" points="764.7,87.9 816.1,106.8 859.3,84.2 807.9,65.3"/><!-- top I=0.84 -->
+                  <text class="t-small mid" x="92" y="214">12 triangles, 8 corners</text>
+                  <text class="t-small t-muted mid" x="92" y="230">dashed: edges at the back</text>
+                  <text class="t-small mid" x="272" y="214">which way each corner faces</text>
+                  <text class="t-small t-muted mid" x="272" y="230">3 normals at one corner</text>
+                  <text class="t-small mid" x="452" y="214">the surface cut and laid flat</text>
+                  <text class="t-small t-acc mid" x="452" y="230">blue: seams</text>
+                  <text class="t-small mid" x="632" y="214">a dirt mask per corner</text>
+                  <text class="t-small t-muted mid" x="632" y="230">blended across each face</text>
+                  <text class="t-small mid" x="812" y="214">lit using the normals</text>
+                  <text class="t-small t-muted mid" x="812" y="230">what the player sees</text>
+                </svg>
+              </div>
+              <figcaption><b>One mesh, five views of the same data.</b> The triangles give the shape. The normals, the UV layout and the vertex colours are extra numbers stored at the corners. The shaded image on the right is all a player ever sees, and every part of it comes from the four views beside it.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A 3D model in a game is hollow. There is nothing inside a character or a crate, only a surface, and that surface is made of flat <dfn class="term" data-term="triangle">triangles</dfn> joined edge to edge. The surface plus the data stored at its corners is a <dfn class="term" data-term="mesh">mesh</dfn>.</p>
+            <p>Each corner, with its data, is a <dfn class="term" data-term="vertex">vertex</dfn>. It always has a position. It usually has a <dfn class="term" data-term="normal">normal</dfn>, the direction the surface faces at that corner, which lighting needs. It usually has <dfn class="term" data-term="uv">UV coordinates</dfn>, which say which point of a flat image lands on that corner. Meshes that use normal maps add a <dfn class="term" data-term="tangent">tangent</dfn>, which says which way the image runs across the surface, and some add a <dfn class="term" data-term="vertex-colour">vertex colour</dfn>, a value painted onto each corner.</p>
+            <p>None of this is drawn as such. The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> fills each triangle with pixels and blends the corner values across it, so a few numbers at three corners decide the look of everything in between.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A tailored jacket is made of flat pieces of cloth sewn into a curved shape. On the cutting table every piece lies flat; the seams are where the flat pieces meet on the body.</p>
+                <p>A mesh works the same way. The surface is flat pieces, triangles, joined into a shell. Its UV layout is the cutting pattern that lets a flat image wrap around it, and it has seams too.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>A GPU cannot draw a sphere, a face or a rock directly. It can fill triangles extremely fast.</p>
+                <p>Describing every surface as triangles plus a few numbers per corner gives the GPU one simple job to repeat millions of times a frame, and puts everything that makes objects look different into the data.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Meshes are where art, engineering and performance meet. Triangle budgets per platform shape how artists model. Import settings for normals and tangents decide whether a model looks in the engine the way it looked in the artist's tool. Seams, hard edges and flipped faces are among the most common visual bugs between art and code. With this vocabulary you can write the asset rules, review them, and have an AI check every import against them.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow a mesh from the shape itself to the data at each corner. There are seven steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="why-triangles"><span class="step-num">1</span> Why triangles</h3>
+              <p>Three points always lie on one flat plane. Whatever three corners you pick, there is exactly one flat triangle through them, so the GPU never has to guess what surface it is filling. Four points need not lie on a plane: lift one corner of a square and it can fold two different ways, depending on which diagonal you fold along.</p>
+              <p>A triangle is also always convex. A line across it goes in once and comes out once, and a pixel is inside it exactly when it is on the inner side of all three edges. That test is simple enough to build into fixed hardware, which is why every GPU draws triangles and everything else is made of them. Modelling tools call their faces polygons; by the time a mesh reaches the GPU, every polygon is a triangle.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="Left: three points always define one flat triangle. Middle: four corners A, B, C and D with C lifted can be split along A to C, making a ridge, or along B to D, making a valley: the same corners give two different surfaces. Right: a triangle is convex, and a point is covered when it lies on the inner side of all three edges.">
+                    <text class="t-caps" x="20" y="24">THREE POINTS · ALWAYS FLAT</text>
+                    <polygon class="f-geo-soft s-geo w15" points="50,180 250,160 165,58"/>
+                    <circle class="f-ink" cx="50" cy="180" r="4"/>
+                    <circle class="f-ink" cx="250" cy="160" r="4"/>
+                    <circle class="f-ink" cx="165" cy="58" r="4"/>
+                    <text class="t-small" x="20" y="212">One plane, one surface, no choices.</text>
+
+                    <text class="t-caps" x="310" y="24">FOUR POINTS · CAN FOLD TWO WAYS</text>
+                    <polygon class="f-geo-soft s-geo" points="320,170 430,182 450,84"/>
+                    <polygon class="f-solid s-geo" points="320,170 450,84 345,100"/>
+                    <line class="s-geo w2" x1="320" y1="170" x2="450" y2="84"/>
+                    <polygon class="f-solid s-geo" points="470,170 580,182 495,100"/>
+                    <polygon class="f-geo-soft s-geo" points="580,182 600,84 495,100"/>
+                    <line class="s-geo w2" x1="580" y1="182" x2="495" y2="100"/>
+                    <text class="t-mono t-small" x="308" y="182">A</text>
+                    <text class="t-mono t-small" x="434" y="196">B</text>
+                    <text class="t-mono t-small t-acc" x="454" y="80">C</text>
+                    <text class="t-mono t-small" x="336" y="96">D</text>
+                    <text class="t-mono t-small" x="458" y="182">A</text>
+                    <text class="t-mono t-small" x="584" y="196">B</text>
+                    <text class="t-mono t-small t-acc" x="604" y="80">C</text>
+                    <text class="t-mono t-small" x="486" y="96">D</text>
+                    <text class="t-small t-acc" x="400" y="52">C is lifted</text>
+                    <text class="t-small mid" x="385" y="212">fold along A–C: a ridge</text>
+                    <text class="t-small mid" x="535" y="212">fold along B–D: a valley</text>
+
+                    <text class="t-caps" x="640" y="24">ALWAYS CONVEX · EASY TO FILL</text>
+                    <path class="s-muted dash" d="M641,180.5 L883,169.5 M641.7,192.8 L770.5,32.8 M883.7,181.8 L737.5,34.3"/>
+                    <polygon class="f-geo-soft s-geo w15" points="652,180 872,170 755,52"/>
+                    <circle class="f-acc" cx="762" cy="140" r="5"/>
+                    <circle class="f-surface s-pix w2" cx="860" cy="100" r="5"/>
+                    <text class="t-small t-acc" x="740" y="160">inside all 3 edges</text>
+                    <text class="t-small t-pix" x="826" y="124">outside one</text>
+                    <text class="t-small" x="640" y="212">Covered means inside all three edge lines.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Triangles are the one shape with no ambiguity.</b> Three corners always make one flat, convex piece. Four corners can make two different surfaces from the same points, which is why quads are split into triangles before the GPU sees them, and why the choice of split matters.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="topology"><span class="step-num">2</span> Quads, n-gons and topology</h3>
+              <p>Artists rarely model in triangles. Modelling tools work mostly in <dfn class="term" data-term="quad">quads</dfn>, four-sided faces, because rows of quads form clean lines of edges called edge loops that are easy to select, slide, cut and smooth. Tools also allow an <dfn class="term" data-term="ngon">n-gon</dfn>, a face with more than four corners, which is convenient while modelling and risky later.</p>
+              <p>On export or import, every face becomes triangles. This <dfn class="term" data-term="triangulation">triangulation</dfn> is why a model of 6,000 quads arrives in the engine as 12,000 triangles, and why teams quote a <dfn class="term" data-term="polygon-count">polygon count</dfn> in triangles. A quad can be split two ways and an n-gon many ways, and different tools choose differently. Triangulate once, at a fixed point before normal maps are baked, so the baker and the game see the same triangles. glTF files hold only triangles, so a glTF exporter always triangulates.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 240" role="img" aria-label="Left, in the modelling tool: a grid of 12 quads with one edge loop highlighted, and a six-sided n-gon attached at the top right; 13 faces. Right, in the engine: the same mesh as triangles; every quad is split by a diagonal into 2 triangles and the n-gon into a fan of 4, 28 triangles in all.">
+                    <defs>
+                      <marker id="topo-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">IN THE MODELLING TOOL · QUADS AND AN N-GON</text>
+                    <rect class="f-geo-soft s-geo w15" x="30" y="60" width="144" height="108"/><polygon class="f-lit-soft s-lit w15" points="174,60 222,46 254,76 246,116 208,128 174,96"/><line class="s-geo" x1="66" y1="60" x2="66" y2="168"/><line class="s-geo" x1="102" y1="60" x2="102" y2="168"/><line class="s-geo" x1="138" y1="60" x2="138" y2="168"/><line class="s-geo" x1="30" y1="96" x2="174" y2="96"/><line class="s-geo" x1="30" y1="132" x2="174" y2="132"/><line class="s-acc w3 round" x1="30" y1="96" x2="174" y2="96"/><circle class="f-ink" cx="30" cy="60" r="2.4"/><circle class="f-ink" cx="30" cy="96" r="2.4"/><circle class="f-ink" cx="30" cy="132" r="2.4"/><circle class="f-ink" cx="30" cy="168" r="2.4"/><circle class="f-ink" cx="66" cy="60" r="2.4"/><circle class="f-ink" cx="66" cy="96" r="2.4"/><circle class="f-ink" cx="66" cy="132" r="2.4"/><circle class="f-ink" cx="66" cy="168" r="2.4"/><circle class="f-ink" cx="102" cy="60" r="2.4"/><circle class="f-ink" cx="102" cy="96" r="2.4"/><circle class="f-ink" cx="102" cy="132" r="2.4"/><circle class="f-ink" cx="102" cy="168" r="2.4"/><circle class="f-ink" cx="138" cy="60" r="2.4"/><circle class="f-ink" cx="138" cy="96" r="2.4"/><circle class="f-ink" cx="138" cy="132" r="2.4"/><circle class="f-ink" cx="138" cy="168" r="2.4"/><circle class="f-ink" cx="174" cy="60" r="2.4"/><circle class="f-ink" cx="174" cy="96" r="2.4"/><circle class="f-ink" cx="174" cy="132" r="2.4"/><circle class="f-ink" cx="174" cy="168" r="2.4"/><circle class="f-ink" cx="208" cy="128" r="2.4"/><circle class="f-ink" cx="222" cy="46" r="2.4"/><circle class="f-ink" cx="246" cy="116" r="2.4"/><circle class="f-ink" cx="254" cy="76" r="2.4"/>
+                                        <text class="t-small t-lit" x="262" y="56">n-gon, 6 corners</text>
+                    <text class="t-small" x="20" y="200">12 quads + 1 n-gon = 13 faces</text><text class="t-small t-acc" x="20" y="216">blue: one edge loop</text>
+
+                    <line class="s-muted w15" x1="318" y1="114" x2="402" y2="114" marker-end="url(#topo-arr)"/>
+                    <text class="t-small mid" x="360" y="104">export or import</text>
+
+                    <text class="t-caps" x="460" y="24">IN THE ENGINE · TRIANGLES ONLY</text>
+                    <rect class="f-geo-soft s-geo w15" x="470" y="60" width="144" height="108"/><polygon class="f-lit-soft s-lit w15" points="614,60 662,46 694,76 686,116 648,128 614,96"/><line class="s-geo" x1="506" y1="60" x2="506" y2="168"/><line class="s-geo" x1="542" y1="60" x2="542" y2="168"/><line class="s-geo" x1="578" y1="60" x2="578" y2="168"/><line class="s-geo" x1="470" y1="96" x2="614" y2="96"/><line class="s-geo" x1="470" y1="132" x2="614" y2="132"/><line class="s-geo" x1="470" y1="96" x2="506" y2="60"/><line class="s-geo" x1="470" y1="132" x2="506" y2="96"/><line class="s-geo" x1="470" y1="168" x2="506" y2="132"/><line class="s-geo" x1="506" y1="96" x2="542" y2="60"/><line class="s-geo" x1="506" y1="132" x2="542" y2="96"/><line class="s-geo" x1="506" y1="168" x2="542" y2="132"/><line class="s-geo" x1="542" y1="96" x2="578" y2="60"/><line class="s-geo" x1="542" y1="132" x2="578" y2="96"/><line class="s-geo" x1="542" y1="168" x2="578" y2="132"/><line class="s-geo" x1="578" y1="96" x2="614" y2="60"/><line class="s-geo" x1="578" y1="132" x2="614" y2="96"/><line class="s-geo" x1="578" y1="168" x2="614" y2="132"/><line class="s-lit" x1="614" y1="60" x2="694" y2="76"/><line class="s-lit" x1="614" y1="60" x2="686" y2="116"/><line class="s-lit" x1="614" y1="60" x2="648" y2="128"/><circle class="f-ink" cx="470" cy="60" r="2.4"/><circle class="f-ink" cx="470" cy="96" r="2.4"/><circle class="f-ink" cx="470" cy="132" r="2.4"/><circle class="f-ink" cx="470" cy="168" r="2.4"/><circle class="f-ink" cx="506" cy="60" r="2.4"/><circle class="f-ink" cx="506" cy="96" r="2.4"/><circle class="f-ink" cx="506" cy="132" r="2.4"/><circle class="f-ink" cx="506" cy="168" r="2.4"/><circle class="f-ink" cx="542" cy="60" r="2.4"/><circle class="f-ink" cx="542" cy="96" r="2.4"/><circle class="f-ink" cx="542" cy="132" r="2.4"/><circle class="f-ink" cx="542" cy="168" r="2.4"/><circle class="f-ink" cx="578" cy="60" r="2.4"/><circle class="f-ink" cx="578" cy="96" r="2.4"/><circle class="f-ink" cx="578" cy="132" r="2.4"/><circle class="f-ink" cx="578" cy="168" r="2.4"/><circle class="f-ink" cx="614" cy="60" r="2.4"/><circle class="f-ink" cx="614" cy="96" r="2.4"/><circle class="f-ink" cx="614" cy="132" r="2.4"/><circle class="f-ink" cx="614" cy="168" r="2.4"/><circle class="f-ink" cx="648" cy="128" r="2.4"/><circle class="f-ink" cx="662" cy="46" r="2.4"/><circle class="f-ink" cx="686" cy="116" r="2.4"/><circle class="f-ink" cx="694" cy="76" r="2.4"/>
+                    <text class="t-small t-lit" x="702" y="56">a fan of 4: thin slivers</text>
+                    <text class="t-small" x="460" y="200">12 × 2 + 4 = 28 triangles</text>
+                    <text class="t-small t-muted" x="460" y="216">Each quad becomes 2 triangles; an n-gon with n corners becomes n − 2.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The count doubles on the way to the engine.</b> Quads keep modelling tidy; triangles are what ships. Long thin triangles from n-gons shade badly, waste GPU work, and may be split differently by the baker and the engine.</figcaption>
+              </figure>
+              <p>How the corners, edges and faces connect is the mesh's <dfn class="term" data-term="topology">topology</dfn>. Good topology puts edge loops where the shape bends, around eyes, mouths and joints, so it deforms cleanly when animated, and keeps the rest simple so it is easy to unwrap and reduce. A mesh should also be <dfn class="term" data-term="manifold">manifold</dfn>: a surface that could be the skin of a real object, with every edge shared by at most two faces. Lightmap bakers, physics, mesh reduction and many other tools assume it.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 200" role="img" aria-label="Four small examples. Manifold: two faces share one edge. Open edge: a patch with a missing face leaves a hole whose border edges have only one face. Non-manifold: three faces share one edge. Non-manifold: two boxes touch at a single corner.">
+                    <text class="t-caps" x="20" y="24">MANIFOLD</text>
+                    <polygon class="f-geo-soft s-geo" points="40,64 110,44 110,144 40,164"/>
+                    <polygon class="f-solid s-geo" points="110,44 190,64 190,164 110,144"/>
+                    <line class="s-geo w3" x1="110" y1="44" x2="110" y2="144"/>
+                    <text class="t-small" x="20" y="188">Each edge: two faces.</text>
+
+                    <text class="t-caps" x="240" y="24">OPEN EDGE · A HOLE</text>
+                    <rect class="f-geo-soft s-geo" x="260" y="56" width="50" height="50"/>
+                    <rect class="f-geo-soft s-geo" x="260" y="106" width="50" height="50"/>
+                    <rect class="f-geo-soft s-geo" x="310" y="106" width="50" height="50"/>
+                    <path class="s-pix w2 dash" d="M310,56 H360 V106"/>
+                    <text class="t-small t-pix" x="318" y="86">hole</text>
+                    <text class="t-small" x="240" y="188">Border edges: one face.</text>
+
+                    <text class="t-caps" x="460" y="24">NON-MANIFOLD · 3 FACES</text>
+                    <polygon class="f-geo-soft s-geo" points="480,74 560,44 560,144 480,174"/>
+                    <polygon class="f-solid s-geo" points="560,44 640,74 640,174 560,144"/>
+                    <polygon class="f-lit-soft s-lit" points="560,44 610,36 610,136 560,144"/>
+                    <line class="s-pix w3" x1="560" y1="44" x2="560" y2="144"/>
+                    <text class="t-small" x="460" y="188">One edge shared three ways.</text>
+
+                    <text class="t-caps" x="690" y="24">NON-MANIFOLD · 1 CORNER</text>
+                    <rect class="f-geo-soft s-geo" x="710" y="50" width="64" height="64"/>
+                    <rect class="f-solid s-geo" x="774" y="114" width="64" height="64"/>
+                    <circle class="f-pix" cx="774" cy="114" r="5"/>
+                    <text class="t-small" x="690" y="188">Two shapes share one corner.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Manifold or not.</b> On a manifold mesh every edge has at most two faces, so every point has a clear inside and outside. Holes are sometimes fine, for a single-sided leaf or a flag. The two non-manifold cases on the right are almost always mistakes.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="winding"><span class="step-num">3</span> Winding order and front faces</h3>
+              <p>Each triangle lists its three corners in an order. Seen from one side, that order goes anticlockwise; seen from the other side, clockwise. The GPU uses this <dfn class="term" data-term="winding-order">winding order</dfn> to tell a triangle's front from its back, and most renderers skip back faces entirely, because on a closed mesh they are hidden anyway. That is <a class="term" data-term="backface-culling" data-forward href="glossary.html#backface-culling">backface culling</a>. On a closed mesh roughly half the triangles face away at any moment, and culling skips all of them.</p>
+              <p>Which order counts as the front is a convention that varies between APIs and file formats; glTF, for example, uses anticlockwise. The face's normal follows from the same order: the cross product of two edges, from <a class="xref" data-ch="3.3">3.3 Vectors you can see</a>, points out of the front.</p>
+              <p>Mirroring flips it. Scaling a mesh by −1 along one axis turns every anticlockwise triangle clockwise, so a mirrored object would render inside out unless something compensates. glTF spells out that a negative scale flips the front-facing order, and Unreal can build a reversed index buffer for meshes used with mirrored transforms.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="Left: a triangle with corners 0, 1, 2 going anticlockwise, its normal pointing towards the viewer: a front face. Middle: the same triangle seen from behind, where 0, 1, 2 go clockwise and the normal points away: a back face, culled. Right: a triangle and its mirror image across a dashed line; the mirror image's corners run clockwise, so it would be treated as a back face.">
+                    <defs>
+                      <marker id="win-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="win-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">FRONT · ANTICLOCKWISE</text>
+                    <polygon class="f-geo-soft s-geo w15" points="50,190 240,190 145,56"/>
+                    <path class="s-acc w15" d="M110,168 A42,42 0 1 0 104,128" marker-end="url(#win-arr)"/>
+                    <circle class="f-surface s-acc w15" cx="145" cy="146" r="11"/>
+                    <circle class="f-acc" cx="145" cy="146" r="3.5"/>
+                    <text class="t-mono t-strong" x="34" y="206">0</text>
+                    <text class="t-mono t-strong" x="246" y="206">1</text>
+                    <text class="t-mono t-strong" x="140" y="48">2</text>
+                    <text class="t-small t-acc" x="186" y="96">normal: towards you</text>
+                    <text class="t-small" x="20" y="226">Drawn.</text>
+
+                    <text class="t-caps" x="320" y="24">SAME TRIANGLE FROM BEHIND · CLOCKWISE</text>
+                    <polygon class="f-sunken s-strong dash" points="540,190 350,190 445,56"/>
+                    <path class="s-muted w15" d="M480,168 A42,42 0 1 1 486,128" marker-end="url(#win-arr-m)"/>
+                    <circle class="f-surface s-muted w15" cx="445" cy="146" r="11"/>
+                    <path class="s-muted w15" d="M438,139 L452,153 M452,139 L438,153"/>
+                    <text class="t-mono t-strong" x="546" y="206">0</text>
+                    <text class="t-mono t-strong" x="334" y="206">1</text>
+                    <text class="t-mono t-strong" x="440" y="48">2</text>
+                    <text class="t-small t-muted end" x="412" y="96">normal: away from you</text>
+                    <text class="t-small" x="320" y="226">A back face: culled.</text>
+
+                    <text class="t-caps" x="620" y="24">MIRRORED · THE ORDER FLIPS</text>
+                    <polygon class="f-geo-soft s-geo w15" points="630,190 730,190 680,96"/>
+                    <polygon class="f-pix-soft s-pix w15" points="870,190 770,190 820,96"/>
+                    <line class="s-muted dash" x1="750" y1="70" x2="750" y2="200"/>
+                    <path class="s-acc w15" d="M664,176 A22,22 0 1 0 670,152" marker-end="url(#win-arr)"/>
+                    <path class="s-pix w15" d="M836,176 A22,22 0 1 1 830,152" marker-end="url(#win-arr-m)"/>
+                    <text class="t-mono t-small" x="620" y="206">0</text>
+                    <text class="t-mono t-small" x="732" y="206">1</text>
+                    <text class="t-mono t-small" x="876" y="206">0</text>
+                    <text class="t-mono t-small" x="760" y="206">1</text>
+                    <text class="t-small t-muted mid" x="750" y="62">scale x = −1</text>
+                    <text class="t-small" x="620" y="226">Now clockwise: inside out unless fixed.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The order of the corners decides which side is the front.</b> The same triangle is anticlockwise from one side and clockwise from the other. Mirroring flips every triangle at once, which is why mirrored props and axis conversions on import are classic sources of missing faces.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="normals"><span class="step-num">4</span> Normals: smooth and faceted</h3>
+              <p>Normals are stored with each vertex; the GPU never works them out from the triangles. Each vertex carries one, and the GPU blends the three normals of a triangle across its surface, pixel by pixel, before lighting. That is what lets a low-poly sphere look round: with averaged normals it is lit as if it were curved, and only its outline gives the triangles away.</p>
+              <p>Where two faces meet, the artist chooses. If the vertices on the shared edge use one averaged normal, shading flows across the edge and it looks soft. If each face keeps its own normal, the shading jumps and the edge looks sharp. This choice, made edge by edge, is called <dfn class="term" data-term="hard-soft-edges">hard and soft edges</dfn>; some tools group faces into smoothing groups instead, and Blender marks edges as sharp. A hard edge needs separate vertices on each side, one per normal, which is where <a class="term" data-term="split-vertex" data-forward href="glossary.html#split-vertex">split vertices</a> come from.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 280" role="img" aria-label="Three cross-sections of a curved surface made of four flat segments, each with its normals and, below, the shading it produces. Faceted: every segment has its own normal, two per joint, and the shading is four flat bands. Smooth: one averaged normal per joint, with blended normals in between, and the shading is a smooth gradient. Mixed: vertical walls meet the curve at hard corners, circled, where the normals split; the curve is smooth and the walls are flat.">
+                    <defs>
+                      <marker id="nrm-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <linearGradient id="nrm-g-smooth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-shade" stop-opacity="0.182"/><stop offset="0.063" class="stop-shade" stop-opacity="0.11599999999999999"/><stop offset="0.125" class="stop-shade" stop-opacity="0.061"/><stop offset="0.188" class="stop-shade" stop-opacity="0.024"/><stop offset="0.25" class="stop-shade" stop-opacity="0.004"/><stop offset="0.313" class="stop-shade" stop-opacity="0.001"/><stop offset="0.375" class="stop-shade" stop-opacity="0.013999999999999999"/><stop offset="0.43799999999999994" class="stop-shade" stop-opacity="0.046"/><stop offset="0.5" class="stop-shade" stop-opacity="0.091"/><stop offset="0.563" class="stop-shade" stop-opacity="0.152"/><stop offset="0.625" class="stop-shade" stop-opacity="0.22899999999999998"/><stop offset="0.688" class="stop-shade" stop-opacity="0.319"/><stop offset="0.75" class="stop-shade" stop-opacity="0.41600000000000004"/><stop offset="0.813" class="stop-shade" stop-opacity="0.522"/><stop offset="0.875" class="stop-shade" stop-opacity="0.638"/><stop offset="0.938" class="stop-shade" stop-opacity="0.759"/><stop offset="1" class="stop-shade" stop-opacity="0.85"/></linearGradient><linearGradient id="nrm-g-mixed" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-shade" stop-opacity="0.182"/><stop offset="0.063" class="stop-shade" stop-opacity="0.11599999999999999"/><stop offset="0.125" class="stop-shade" stop-opacity="0.061"/><stop offset="0.188" class="stop-shade" stop-opacity="0.024"/><stop offset="0.25" class="stop-shade" stop-opacity="0.004"/><stop offset="0.313" class="stop-shade" stop-opacity="0.001"/><stop offset="0.375" class="stop-shade" stop-opacity="0.013999999999999999"/><stop offset="0.43799999999999994" class="stop-shade" stop-opacity="0.046"/><stop offset="0.5" class="stop-shade" stop-opacity="0.091"/><stop offset="0.563" class="stop-shade" stop-opacity="0.152"/><stop offset="0.625" class="stop-shade" stop-opacity="0.22899999999999998"/><stop offset="0.688" class="stop-shade" stop-opacity="0.319"/><stop offset="0.75" class="stop-shade" stop-opacity="0.41600000000000004"/><stop offset="0.813" class="stop-shade" stop-opacity="0.522"/><stop offset="0.875" class="stop-shade" stop-opacity="0.638"/><stop offset="0.938" class="stop-shade" stop-opacity="0.759"/><stop offset="1" class="stop-shade" stop-opacity="0.85"/></linearGradient>
+                    </defs>
+                    <text class="t-caps mid" x="150" y="20">FACETED · HARD EDGES</text>
+                    <text class="t-caps mid" x="450" y="20">SMOOTH · SOFT EDGES</text>
+                    <text class="t-caps mid" x="750" y="20">MIXED · SOFT CURVE, HARD RIM</text>
+                    <polyline class="s-ink w2 round" points="50.3,123.5 90.9,77.2 150,60 209.1,77.2 249.7,123.5"/><line class="s-acc w15" x1="55.2" y1="118" x2="29.6" y2="95.5" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="86" y1="82.8" x2="60.5" y2="60.4" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="98" y1="75.2" x2="88.5" y2="42.5" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="142.9" y1="62.1" x2="133.4" y2="29.4" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="157.1" y1="62.1" x2="166.6" y2="29.4" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="202" y1="75.2" x2="211.5" y2="42.5" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="214" y1="82.8" x2="239.5" y2="60.4" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="244.8" y1="118" x2="270.4" y2="95.5" marker-end="url(#nrm-arr)"/><circle class="f-acc" cx="50.3" cy="123.5" r="3.2"/><circle class="f-acc" cx="90.9" cy="77.2" r="3.2"/><circle class="f-acc" cx="90.9" cy="77.2" r="3.2"/><circle class="f-acc" cx="150" cy="60" r="3.2"/><circle class="f-acc" cx="150" cy="60" r="3.2"/><circle class="f-acc" cx="209.1" cy="77.2" r="3.2"/><circle class="f-acc" cx="209.1" cy="77.2" r="3.2"/><circle class="f-acc" cx="249.7" cy="123.5" r="3.2"/>
+                    <polyline class="s-ink w2 round" points="350.3,123.5 390.9,77.2 450,60 509.1,77.2 549.7,123.5"/><line class="s-acc w15" x1="350.3" y1="123.5" x2="319.5" y2="109.1" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="390.9" y1="77.2" x2="372.6" y2="48.6" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="450" y1="60" x2="450" y2="26" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="509.1" y1="77.2" x2="527.4" y2="48.6" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="549.7" y1="123.5" x2="580.5" y2="109.1" marker-end="url(#nrm-arr)"/><line class="s-acc" x1="405.7" y1="72.9" x2="395.7" y2="51.1" marker-end="url(#nrm-arr)"/><line class="s-acc" x1="420.4" y1="68.6" x2="413.7" y2="45.6" marker-end="url(#nrm-arr)"/><line class="s-acc" x1="435.2" y1="64.3" x2="431.9" y2="40.5" marker-end="url(#nrm-arr)"/><circle class="f-acc" cx="350.3" cy="123.5" r="3.2"/><circle class="f-acc" cx="390.9" cy="77.2" r="3.2"/><circle class="f-acc" cx="450" cy="60" r="3.2"/><circle class="f-acc" cx="509.1" cy="77.2" r="3.2"/><circle class="f-acc" cx="549.7" cy="123.5" r="3.2"/>
+                    <polyline class="s-ink w2 round" points="650.3,190 650.3,123.5 690.9,77.2 750,60 809.1,77.2 849.7,123.5 849.7,190"/><line class="s-acc w15" x1="650.3" y1="123.5" x2="619.5" y2="109.1" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="690.9" y1="77.2" x2="672.6" y2="48.6" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="750" y1="60" x2="750" y2="26" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="809.1" y1="77.2" x2="827.4" y2="48.6" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="849.7" y1="123.5" x2="880.5" y2="109.1" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="650.3" y1="184" x2="622.3" y2="184" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="650.3" y1="129.5" x2="622.3" y2="129.5" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="849.7" y1="184" x2="877.7" y2="184" marker-end="url(#nrm-arr)"/><line class="s-acc w15" x1="849.7" y1="129.5" x2="877.7" y2="129.5" marker-end="url(#nrm-arr)"/><circle class="f-acc" cx="650.3" cy="190" r="3.2"/><circle class="f-acc" cx="849.7" cy="190" r="3.2"/><circle class="f-acc" cx="650.3" cy="123.5" r="3.2"/><circle class="f-acc" cx="690.9" cy="77.2" r="3.2"/><circle class="f-acc" cx="750" cy="60" r="3.2"/><circle class="f-acc" cx="809.1" cy="77.2" r="3.2"/><circle class="f-acc" cx="849.7" cy="123.5" r="3.2"/><circle class="f-none s-pix w2" cx="650.3" cy="123.5" r="8"/><circle class="f-none s-pix w2" cx="849.7" cy="123.5" r="8"/>
+                    <rect class="f-buf-hi" x="50" y="196" width="50" height="22"/><rect class="f-shade" fill-opacity="0.061" x="50" y="196" width="50" height="22"/><rect class="f-buf-hi" x="100" y="196" width="50" height="22"/><rect class="f-shade" fill-opacity="0.013999999999999999" x="100" y="196" width="50" height="22"/><rect class="f-buf-hi" x="150" y="196" width="50" height="22"/><rect class="f-shade" fill-opacity="0.22899999999999998" x="150" y="196" width="50" height="22"/><rect class="f-buf-hi" x="200" y="196" width="50" height="22"/><rect class="f-shade" fill-opacity="0.638" x="200" y="196" width="50" height="22"/><rect class="f-none s-strong" x="50" y="196" width="200" height="22"/>
+                    <rect class="f-buf-hi" x="350" y="196" width="200" height="22"/><rect fill="url(#nrm-g-smooth)" x="350" y="196" width="200" height="22"/><rect class="f-none s-strong" x="350" y="196" width="200" height="22"/>
+                    <rect class="f-buf-hi" x="650" y="196" width="200" height="22"/><rect class="f-shade" fill-opacity="0.466" x="650" y="196" width="34.8" height="22"/><rect fill="url(#nrm-g-mixed)" x="684.8" y="196" width="130.4" height="22"/><rect class="f-shade" fill-opacity="0.85" x="815.2" y="196" width="34.8" height="22"/><rect class="f-none s-strong" x="650" y="196" width="200" height="22"/>
+                    <text class="t-small mid" x="150" y="240">Each face keeps its own normal:</text>
+                    <text class="t-small mid" x="150" y="256">two per joint, so shading jumps.</text>
+                    <text class="t-small mid" x="450" y="240">One averaged normal per joint,</text>
+                    <text class="t-small mid" x="450" y="256">blended across faces: shading flows.</text>
+                    <text class="t-small mid" x="750" y="240">Normals split only at the circled rim:</text>
+                    <text class="t-small mid" x="750" y="256">a crisp edge exactly where wanted.</text>
+                    <text class="t-small t-muted" x="20" y="276">Strips below each shape: the shading across the surface, left to right, lit from the upper left.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Same triangles, different normals, different look.</b> The geometry is identical in the first two panels; only the stored normals differ. Thin arrows in the middle panel show the GPU blending two corner normals across one face. Most real models are the third case: soft where the surface curves, hard where it creases.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="uvs"><span class="step-num">5</span> UVs and seams</h3>
+              <p>UV coordinates place each vertex on a flat image, with U across and V up, usually each from 0 to 1. <a class="xref" data-ch="6.1">6.1 Textures and UVs</a> covers the images themselves; here the point is the cut. A closed surface cannot lie flat without being cut open, like the jacket's pattern pieces. Each cut is a <dfn class="term" data-term="uv-seam">UV seam</dfn>, and each separate flat piece is called a UV island.</p>
+              <p>A vertex on a seam belongs to two places in the layout, so it needs two sets of UVs and is stored twice. Seams also show: a texture rarely lines up perfectly across one. So artists put seams where they hide, under arms, on the back of props, and along hard edges, which split their vertices anyway and so cost nothing extra.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 276" role="img" aria-label="Left: a can with one vertical seam on its side and a seam around the rim of its lid, both in blue. Middle: its UV layout. The side becomes a rectangle cut along the seam, so the same seam edge appears as both the left and right edge of the rectangle. The lid and base become two round islands. Right: notes on why seam vertices are stored twice.">
+                    <defs>
+                      <marker id="uv-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">THE MODEL</text>
+                    <path class="f-surface s-strong" d="M60,60 V190 A70,18 0 0 0 200,190 V60"/><line class="s-line" x1="190.6" y1="69.0" x2="190.6" y2="199.0"/><line class="s-line" x1="165.0" y1="75.6" x2="165.0" y2="205.6"/><line class="s-line" x1="130.0" y1="78.0" x2="130.0" y2="208.0"/><line class="s-line" x1="95.0" y1="75.6" x2="95.0" y2="205.6"/><line class="s-line" x1="69.4" y1="69.0" x2="69.4" y2="199.0"/><line class="s-acc w3" x1="165.0" y1="75.6" x2="165.0" y2="205.6"/><ellipse class="f-sunken s-acc w2" cx="130" cy="60" rx="70" ry="18"/>
+                    <text class="t-small t-acc" x="171.0" y="150">seam</text>
+                    <line class="s-muted w15" x1="226" y1="130" x2="300" y2="130" marker-end="url(#uv-arr)"/>
+                    <text class="t-small mid" x="263" y="120">unwrap</text>
+                    <text class="t-caps" x="360" y="24">THE UV LAYOUT</text>
+                    <rect class="f-surface s-strong" x="360" y="66" width="216" height="96"/><line class="s-line" x1="378.0" y1="66" x2="378.0" y2="162"/><line class="s-line" x1="396.0" y1="66" x2="396.0" y2="162"/><line class="s-line" x1="414.0" y1="66" x2="414.0" y2="162"/><line class="s-line" x1="432.0" y1="66" x2="432.0" y2="162"/><line class="s-line" x1="450.0" y1="66" x2="450.0" y2="162"/><line class="s-line" x1="468.0" y1="66" x2="468.0" y2="162"/><line class="s-line" x1="486.0" y1="66" x2="486.0" y2="162"/><line class="s-line" x1="504.0" y1="66" x2="504.0" y2="162"/><line class="s-line" x1="522.0" y1="66" x2="522.0" y2="162"/><line class="s-line" x1="540.0" y1="66" x2="540.0" y2="162"/><line class="s-line" x1="558.0" y1="66" x2="558.0" y2="162"/><line class="s-acc w3" x1="360" y1="66" x2="360" y2="162"/><line class="s-acc w3" x1="576" y1="66" x2="576" y2="162"/><path class="s-acc dash" d="M360,60 C400,44 536,44 576,60"/><circle class="f-surface s-acc w2" cx="420" cy="220" r="36"/><line class="s-line" x1="420" y1="220" x2="456.0" y2="220.0"/><line class="s-line" x1="420" y1="220" x2="451.2" y2="238.0"/><line class="s-line" x1="420" y1="220" x2="438.0" y2="251.2"/><line class="s-line" x1="420" y1="220" x2="420.0" y2="256.0"/><line class="s-line" x1="420" y1="220" x2="402.0" y2="251.2"/><line class="s-line" x1="420" y1="220" x2="388.8" y2="238.0"/><line class="s-line" x1="420" y1="220" x2="384.0" y2="220.0"/><line class="s-line" x1="420" y1="220" x2="388.8" y2="202.0"/><line class="s-line" x1="420" y1="220" x2="402.0" y2="188.8"/><line class="s-line" x1="420" y1="220" x2="420.0" y2="184.0"/><line class="s-line" x1="420" y1="220" x2="438.0" y2="188.8"/><line class="s-line" x1="420" y1="220" x2="451.2" y2="202.0"/><circle class="f-surface s-acc w2" cx="516" cy="220" r="36"/><line class="s-line" x1="516" y1="220" x2="552.0" y2="220.0"/><line class="s-line" x1="516" y1="220" x2="547.2" y2="238.0"/><line class="s-line" x1="516" y1="220" x2="534.0" y2="251.2"/><line class="s-line" x1="516" y1="220" x2="516.0" y2="256.0"/><line class="s-line" x1="516" y1="220" x2="498.0" y2="251.2"/><line class="s-line" x1="516" y1="220" x2="484.8" y2="238.0"/><line class="s-line" x1="516" y1="220" x2="480.0" y2="220.0"/><line class="s-line" x1="516" y1="220" x2="484.8" y2="202.0"/><line class="s-line" x1="516" y1="220" x2="498.0" y2="188.8"/><line class="s-line" x1="516" y1="220" x2="516.0" y2="184.0"/><line class="s-line" x1="516" y1="220" x2="534.0" y2="188.8"/><line class="s-line" x1="516" y1="220" x2="547.2" y2="202.0"/>
+                    <text class="t-small t-acc mid" x="468" y="38">the same seam, twice</text>
+                    <text class="t-small t-muted mid" x="468" y="178">side: one island</text>
+                    <text class="t-small t-muted mid" x="468" y="272">lid and base: two more islands</text>
+                    <text class="t-small" x="620" y="64">The side is cut along one edge</text>
+                    <text class="t-small" x="620" y="80">so it can lie flat.</text>
+                    <text class="t-small" x="620" y="108">That edge appears twice in the</text>
+                    <text class="t-small" x="620" y="124">layout, so every vertex on it is</text>
+                    <text class="t-small" x="620" y="140">stored twice.</text>
+                    <text class="t-small" x="620" y="168">The lid and base are cut all</text>
+                    <text class="t-small" x="620" y="184">round their rims, where the edge</text>
+                    <text class="t-small" x="620" y="200">is hard anyway.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A seam is an edge that exists twice in the texture.</b> Unwrapping a can takes one cut down the side and one around each lid. The side seam costs extra vertices; the rim seams sit on hard edges that are split already. The same thinking applies to any model, from crates to faces.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="tangents"><span class="step-num">6</span> Tangents and bitangents</h3>
+              <p>A normal map, covered in <a class="xref" data-ch="6.4">6.4 Normal maps and fake detail</a>, stores small tilts of the normal in a <a class="term" data-term="texture" data-forward href="glossary.html#texture">texture</a>, written relative to the surface: tilt a little toward the texture's U direction, a little toward its V. To apply that, the <a class="term" data-term="shader" data-forward href="glossary.html#shader">shader</a> needs to know which way U and V run across this particular triangle. The tangent gives the U direction along the surface. The <dfn class="term" data-term="bitangent">bitangent</dfn> gives the V direction. Together with the normal they form the tangent frame.</p>
+              <p>Engines usually store the tangent plus a sign and rebuild the bitangent with a cross product. The sign records whether the UVs are mirrored, which artists do to reuse texture space on symmetrical models; glTF keeps it in the tangent's fourth number. Tangents must also be computed the same way the normal map was baked, or the lighting bends wrongly. MikkTSpace is the common standard for this, and Unreal, Unity and Godot can all generate MikkTSpace tangents on import.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: a surface with a UV grid and, at one vertex, the tangent frame: the normal N pointing out, the tangent T along the texture's U direction and the bitangent B along V. Middle: one normal-map texel that says tilt toward U. Right: two floor tiles seen from above, one with U running right and one with U running up; the same texel makes the surface lean right on the first and up on the second.">
+                    <defs>
+                      <marker id="tan-n" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="tan-t" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="tan-b" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-geo" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">THE TANGENT FRAME AT ONE VERTEX</text>
+                    <polygon class="f-surface s-strong" points="30,210 250,210 310,120 90,120"/>
+                    <path class="s-line" d="M85,210 L145,120 M140,210 L200,120 M195,210 L255,120 M45,187.5 L265,187.5 M60,165 L280,165 M75,142.5 L295,142.5"/>
+                    <circle class="f-ink" cx="170" cy="165" r="4"/>
+                    <line class="s-acc w2" x1="170" y1="165" x2="170" y2="72" marker-end="url(#tan-n)"/>
+                    <line class="s-pix w2" x1="170" y1="165" x2="246" y2="165" marker-end="url(#tan-t)"/>
+                    <line class="s-geo w2" x1="170" y1="165" x2="206" y2="111" marker-end="url(#tan-b)"/>
+                    <text class="t-strong t-acc" x="178" y="74">N</text><text class="t-small t-acc" x="192" y="74">normal</text>
+                    <text class="t-strong t-pix" x="252" y="160">T</text><text class="t-small t-pix" x="252" y="178">tangent: U</text>
+                    <text class="t-strong t-geo" x="212" y="106">B</text><text class="t-small t-geo" x="226" y="106">bitangent: V</text>
+                    <text class="t-small t-muted" x="20" y="238">Coloured like a normal map's channels: red, green, blue.</text>
+
+                    <text class="t-caps mid" x="410" y="64">ONE TEXEL SAYS</text>
+                    <rect class="f-acc-soft s-acc" x="380" y="80" width="60" height="60" rx="4"/>
+                    <line class="s-acc w2" x1="398" y1="128" x2="428" y2="94" marker-end="url(#tan-n)"/>
+                    <text class="t-small mid" x="410" y="160">tilt toward U</text>
+                    <line class="s-muted" x1="450" y1="110" x2="500" y2="110"/>
+
+                    <text class="t-caps" x="520" y="24">SAME TEXEL, TWO TRIANGLES, SEEN FROM ABOVE</text>
+                    <rect class="f-surface s-strong" x="520" y="54" width="140" height="140"/>
+                    <line class="s-pix w2" x1="540" y1="180" x2="590" y2="180" marker-end="url(#tan-t)"/>
+                    <text class="t-small t-pix" x="596" y="184">U</text>
+                    <line class="s-acc w3" x1="590" y1="124" x2="640" y2="124" marker-end="url(#tan-n)"/>
+                    <circle class="f-acc" cx="590" cy="124" r="4"/>
+                    <text class="t-small mid" x="590" y="216">UVs run right: leans right</text>
+                    <rect class="f-surface s-strong" x="720" y="54" width="140" height="140"/>
+                    <line class="s-pix w2" x1="740" y1="180" x2="740" y2="130" marker-end="url(#tan-t)"/>
+                    <text class="t-small t-pix" x="746" y="134">U</text>
+                    <line class="s-acc w3" x1="790" y1="124" x2="790" y2="74" marker-end="url(#tan-n)"/>
+                    <circle class="f-acc" cx="790" cy="124" r="4"/>
+                    <text class="t-small mid" x="790" y="216">UVs run up: leans up</text>
+                  </svg>
+                </div>
+                <figcaption><b>The tangent turns texture directions into surface directions.</b> A normal map only says lean toward U or toward V. The tangent and bitangent at each vertex say where U and V point on that triangle, so the same texel bends the lighting the right way on every face.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="mesh-views"><span class="step-num">7</span> Seeing all of it at once</h3>
+              <p>Every view in a modelling tool or a frame-capture mesh viewer is one of the five in the picture at the top. Vertex colours deserve a word, because they are cheap and widely used: four numbers per vertex, blended across each triangle like everything else, that shaders read as masks for dirt, wetness, material blending or how strongly foliage moves in the wind.</p>
+              <p>Try it below. Switch between the crate and the rock, step through the five views, and toggle hard edges. Watch the vertex count: the crate has 8 corners but needs 24 vertices with hard edges, and still 14 when smooth because its UV seams split corners on their own.</p>
+              <figure>
+                <div class="demo" data-demo="mesh-views">
+                  <p class="demo-hint">The mesh views interactive needs JavaScript. Without it: a crate has 12 triangles and 8 corners, but stores 24 vertices with hard edges and 14 with smooth normals, because its UV seams still split corners.</p>
+                </div>
+                <figcaption><b>Mesh views.</b> One mesh in five views, with its flat UV layout beside it. The 3D view is rendered pixel by pixel the way a GPU does it, blending normals, UVs and vertex colours across each triangle.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The vertex counts here assume position, normal and one UV set per vertex. Real meshes often carry a second UV set for lightmaps, tangents and colours, and each one can split vertices again wherever it differs between faces. <a class="xref" data-ch="4.2">4.2 Vertex buffers</a> shows how they are stored.</p>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Triangles cost in three places. Every vertex is processed in every pass that draws the mesh. Every vertex takes memory, as <a class="xref" data-ch="4.2">4.2</a> shows. And triangles that cover only a few pixels waste pixel work, because GPUs shade pixels in small blocks and a tiny triangle fills only part of each block. The first two are why teams set budgets; the third is why more triangles stop helping once they shrink to pixel size.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Triangle counts on a logarithmic scale from 100 to 10 million. Typical ranges per asset, not rules: small props 100 to 3,000; characters for mobile or VR 5,000 to 30,000; hero characters on console or PC 50,000 to 150,000. Meta's recommended triangle counts for a whole scene: Quest 2, 750,000 to 1 million; Quest 3, 1.3 to 1.8 million.">
+                  <text class="t-caps" x="20" y="32">PER ASSET · TYPICAL RANGES, NOT RULES</text>
+                  <text class="t-caps" x="20" y="164">WHOLE SCENE · META'S RECOMMENDED RANGES</text>
+                  <line class="s-line" x1="250.0" y1="44" x2="250.0" y2="140"/><line class="s-line" x1="250.0" y1="172" x2="250.0" y2="236"/><text class="t-small t-muted mid" x="250.0" y="254">100</text><line class="s-line" x1="354.0" y1="44" x2="354.0" y2="140"/><line class="s-line" x1="354.0" y1="172" x2="354.0" y2="236"/><text class="t-small t-muted mid" x="354.0" y="254">1,000</text><line class="s-line" x1="458.0" y1="44" x2="458.0" y2="140"/><line class="s-line" x1="458.0" y1="172" x2="458.0" y2="236"/><text class="t-small t-muted mid" x="458.0" y="254">10,000</text><line class="s-line" x1="562.0" y1="44" x2="562.0" y2="140"/><line class="s-line" x1="562.0" y1="172" x2="562.0" y2="236"/><text class="t-small t-muted mid" x="562.0" y="254">100,000</text><line class="s-line" x1="666.0" y1="44" x2="666.0" y2="140"/><line class="s-line" x1="666.0" y1="172" x2="666.0" y2="236"/><text class="t-small t-muted mid" x="666.0" y="254">1 million</text><line class="s-line" x1="770.0" y1="44" x2="770.0" y2="140"/><line class="s-line" x1="770.0" y1="172" x2="770.0" y2="236"/><text class="t-small t-muted mid" x="770.0" y="254">10 million</text><text x="20" y="68">Small prop: crate, bottle</text><rect class="f-acc-soft s-acc dash" x="250.0" y="56" width="153.6" height="16" rx="3"/><text class="t-small t-strong" x="411.6" y="68">100 to 3k</text><text x="20" y="100">Character, mobile or VR</text><rect class="f-acc-soft s-acc dash" x="426.7" y="88" width="80.9" height="16" rx="3"/><text class="t-small t-strong" x="515.6" y="100">5k to 30k</text><text x="20" y="132">Hero character, console or PC</text><rect class="f-acc-soft s-acc dash" x="530.7" y="120" width="49.6" height="16" rx="3"/><text class="t-small t-strong" x="588.3" y="132">50k to 150k</text><text x="20" y="188">Whole frame, Meta Quest 2</text><rect class="f-acc" x="653.0" y="176" width="13.0" height="16" rx="3"/><text class="t-small t-strong" x="674.0" y="188">750k to 1M</text><text x="20" y="220">Whole frame, Meta Quest 3</text><rect class="f-acc" x="677.9" y="208" width="14.7" height="16" rx="3"/><text class="t-small t-strong" x="700.5" y="220">1.3M to 1.8M</text>
+                  <text class="t-small t-muted end" x="880" y="268">log scale: each step right is ten times more triangles</text>
+                </svg>
+              </div>
+              <figcaption><b>Triangle budgets span more than four orders of magnitude.</b> The dashed bars are typical figures for current games and vary widely by genre and art style. The solid bars are Meta's published recommendations for Quest headsets, for everything in view. Engines with virtualised geometry, such as Unreal's Nanite, change the per-asset picture; Epic still advises measuring triangles per mesh on each target.</figcaption>
+            </figure>
+            <p>Put numbers on it. A Quest 2 scene with 12 characters of 20,000 triangles each spends 240,000 triangles, a quarter to a third of Meta's 750,000 to 1 million, before any environment. Each of those characters has roughly 12,000 vertices after hard edges and seams. At the 56-byte skinned layout from 4.2, that is 672,000 bytes of vertex data plus 120,000 bytes of 16-bit indices: about 0.8 MB.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">×2</span><span class="what">triangles per quad: 6,000 quads ship as 12,000 triangles</span></div>
+              <div class="stat"><span class="value">8 → 24</span><span class="what">vertices for a hard-edged crate: one per corner per face</span></div>
+              <div class="stat"><span class="value">32%</span><span class="what">of a 750,000-triangle Quest 2 scene for 12 such characters</span></div>
+              <div class="stat"><span class="value">0.8 MB</span><span class="what">vertex and index data for one 20,000-triangle character</span></div>
+            </div>
+            <p>The other big cost is people-time. Clean topology, UV unwrapping and the lower-detail versions of each model (<a class="xref" data-ch="4.5">4.5 Level of detail</a>) are skilled work, and budgets agreed late in production force artists to redo it. Set triangle budgets per asset type and platform before full production, and check them on import.</p>
+            <h3>What makes the costs grow</h3>
+            <ul class="grows">
+              <li><strong>Triangles on screen</strong><span>Every visible triangle costs vertex work in every pass, including each shadow pass.</span></li>
+              <li><strong>Vertices after splits</strong><span>Hard edges and UV seams add vertices beyond the corner count: three per corner on a crate.</span></li>
+              <li><strong>Tiny triangles</strong><span>Triangles a few pixels across waste pixel work and gain no visible detail.</span></li>
+              <li><strong>Extra attributes</strong><span>A second UV set, colours and tangents add bytes to every vertex and can split more of them.</span></li>
+              <li><strong>Animation</strong><span>Skinned meshes carry bone weights and cost more per vertex; <a class="xref" data-ch="4.6">4.6 Moving geometry</a> covers them.</span></li>
+              <li><strong>Rework</strong><span>Every change of budget after modelling means new topology, new UVs and new bakes.</span></li>
+            </ul>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Mesh bugs show up as shading problems, missing faces and texture errors. Most come from the hand-over between the modelling tool and the engine.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A sphere drawn as flat vertical facets of different brightness, clearly faceted.">
+                    <defs><clipPath id="sym-clip-facet"><circle cx="120" cy="65" r="52"/></clipPath></defs>
+                    <g clip-path="url(#sym-clip-facet)">
+                      <rect class="f-buf-hi" x="60" y="10" width="120" height="110"/>
+                      <rect class="f-shade" fill-opacity="0.05" x="68" y="10" width="17" height="110"/>
+                      <rect class="f-shade" fill-opacity="0.12" x="85" y="10" width="17" height="110"/>
+                      <rect class="f-shade" fill-opacity="0.22" x="102" y="10" width="17" height="110"/>
+                      <rect class="f-shade" fill-opacity="0.34" x="119" y="10" width="17" height="110"/>
+                      <rect class="f-shade" fill-opacity="0.48" x="136" y="10" width="17" height="110"/>
+                      <rect class="f-shade" fill-opacity="0.62" x="153" y="10" width="20" height="110"/>
+                    </g>
+                    <circle class="s-strong" cx="120" cy="65" r="52"/>
+                  </svg>
+                </div>
+                <h4>Faceted shading on a smooth model</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Normals were not exported, or the engine recomputed them with every edge hard, discarding the artist's smoothing.</dd></div>
+                  <div><dt>Ask for</dt><dd>The import's normal setting (import or compute) and whether the exporter wrote normals and smoothing groups.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A light source at the upper left and a sphere that is bright at the lower right instead, lit from the wrong side.">
+                    <defs>
+                      <radialGradient id="sym-wrong" cx="0.72" cy="0.72" r="0.8">
+                        <stop offset="0" class="stop-shade" stop-opacity="0"/>
+                        <stop offset="1" class="stop-shade" stop-opacity="0.8"/>
+                      </radialGradient>
+                    </defs>
+                    <circle class="f-lit" cx="40" cy="28" r="12"/>
+                    <path class="s-lit w2" d="M58,40 L84,56 M48,50 L70,72"/>
+                    <circle class="f-buf-hi" cx="140" cy="68" r="50"/>
+                    <circle cx="140" cy="68" r="50" fill="url(#sym-wrong)"/>
+                  </svg>
+                </div>
+                <h4>Lit from the wrong side, or black</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Normals point into the mesh instead of out, usually after flipping faces or mirroring in the modelling tool without recalculating them.</dd></div>
+                  <div><dt>Ask for</dt><dd>A check of normal direction in the tool's normals view, and recalculating normals outward before export.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wall that is solid seen from one side and missing from the other, shown as two views side by side.">
+                    <rect class="f-solid s-strong" x="30" y="30" width="70" height="80"/>
+                    <text class="t-small mid" x="65" y="124">front</text>
+                    <rect class="s-pix dash" x="140" y="30" width="70" height="80"/>
+                    <text class="t-small t-pix mid" x="175" y="74">gone</text>
+                    <text class="t-small mid" x="175" y="124">back</text>
+                  </svg>
+                </div>
+                <h4>Faces vanish from one side</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Backface culling on a single-sided surface, such as a leaf, a flag or an open window, or triangles whose winding order was flipped by mirroring or an axis conversion.</dd></div>
+                  <div><dt>Ask for</dt><dd>Two-sided materials for thin surfaces that need them, and a check of mirrored transforms and import axis settings.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A checker pattern that is even on the left and stretched on the right, with a visible break where the two halves meet.">
+                    <defs>
+                      <pattern id="sym-chk-a" patternUnits="userSpaceOnUse" x="20" y="20" width="20" height="20"><rect class="f-buf-hi" width="20" height="20"/><rect class="f-strong" width="10" height="10"/><rect class="f-strong" x="10" y="10" width="10" height="10"/></pattern>
+                      <pattern id="sym-chk-b" patternUnits="userSpaceOnUse" x="120" y="27" width="20" height="48"><rect class="f-buf-hi" width="20" height="48"/><rect class="f-strong" width="10" height="24"/><rect class="f-strong" x="10" y="24" width="10" height="24"/></pattern>
+                    </defs>
+                    <rect x="20" y="20" width="100" height="90" fill="url(#sym-chk-a)"/>
+                    <rect x="120" y="20" width="100" height="90" fill="url(#sym-chk-b)"/>
+                    <line class="s-pix w2" x1="120" y1="14" x2="120" y2="116"/>
+                    <rect class="s-strong" x="20" y="20" width="200" height="90"/>
+                  </svg>
+                </div>
+                <h4>Visible texture seams or stretching</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Seams placed where players look, islands with different texel density on either side, or UVs squashed in one direction.</dd></div>
+                  <div><dt>Ask for</dt><dd>A checker-texture review of the UVs, with seam placement and texel density checked against the asset rules.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A panel of round bumps. On the left half they are lit from the upper left; on the right half from the lower right, so they look like dents, with a seam down the middle.">
+                    <defs>
+                      <radialGradient id="sym-bump-a" cx="0.3" cy="0.3" r="0.8"><stop offset="0" class="stop-shade" stop-opacity="0"/><stop offset="1" class="stop-shade" stop-opacity="0.6"/></radialGradient>
+                      <radialGradient id="sym-bump-b" cx="0.7" cy="0.7" r="0.8"><stop offset="0" class="stop-shade" stop-opacity="0"/><stop offset="1" class="stop-shade" stop-opacity="0.6"/></radialGradient>
+                    </defs>
+                    <rect class="f-buf-hi s-strong" x="16" y="14" width="208" height="102"/>
+                    <circle class="f-buf-hi s-strong" cx="46" cy="42" r="16"/><circle cx="46" cy="42" r="16" fill="url(#sym-bump-a)"/><circle class="f-buf-hi s-strong" cx="92" cy="42" r="16"/><circle cx="92" cy="42" r="16" fill="url(#sym-bump-a)"/>
+                    <circle class="f-buf-hi s-strong" cx="46" cy="88" r="16"/><circle cx="46" cy="88" r="16" fill="url(#sym-bump-a)"/><circle class="f-buf-hi s-strong" cx="92" cy="88" r="16"/><circle cx="92" cy="88" r="16" fill="url(#sym-bump-a)"/>
+                    <circle class="f-buf-hi s-strong" cx="148" cy="42" r="16"/><circle cx="148" cy="42" r="16" fill="url(#sym-bump-b)"/><circle class="f-buf-hi s-strong" cx="194" cy="42" r="16"/><circle cx="194" cy="42" r="16" fill="url(#sym-bump-b)"/>
+                    <circle class="f-buf-hi s-strong" cx="148" cy="88" r="16"/><circle cx="148" cy="88" r="16" fill="url(#sym-bump-b)"/><circle class="f-buf-hi s-strong" cx="194" cy="88" r="16"/><circle cx="194" cy="88" r="16" fill="url(#sym-bump-b)"/>
+                    <line class="s-pix w2" x1="120" y1="14" x2="120" y2="116"/>
+                  </svg>
+                </div>
+                <h4>Normal-map seams, or bumps that turn into dents</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Tangents in the engine differ from the ones the normal map was baked with, often on mirrored UVs, or the mesh was triangulated differently for the bake.</dd></div>
+                  <div><dt>Ask for</dt><dd>MikkTSpace tangents on both sides, triangulation before baking, and the import's tangent setting checked.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To confirm a mesh problem, look at the mesh in the engine's own viewers first, then in a <a class="term" data-term="profiler" data-forward href="glossary.html#profiler">frame capture tool</a> such as RenderDoc, which can show any draw's vertices with their normals, UVs and colours.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines import meshes from interchange files such as FBX and glTF, and the settings that matter most are the ones for normals and tangents.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Normals on import</th>
+                    <td>FBX import option <strong>Normal Import Method</strong>: <strong>Compute Normals</strong> discards the file's normals and smoothing groups; <strong>Import Normals</strong> keeps them; <strong>Import Normals and Tangents</strong> keeps both.</td>
+                    <td>Model tab, Geometry: <strong>Normals</strong> is <strong>Import</strong> (default), <strong>Calculate</strong> or <strong>None</strong>. Calculating uses <strong>Normals Mode</strong>, <strong>Smoothness Source</strong> and <strong>Smoothing Angle</strong>.</td>
+                    <td>Uses the normals in the file. For <code>.blend</code> files, the Blender import's <strong>Normals</strong> option decides whether they are exported.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Hard and soft edges</th>
+                    <td>Kept from the file with Import Normals. <strong>Compute Normals</strong> throws the smoothing groups away.</td>
+                    <td><strong>Smoothness Source</strong>: <strong>Prefer Smoothing Groups</strong>, <strong>From Smoothing Groups</strong>, <strong>From Angle</strong> or <strong>None</strong>.</td>
+                    <td>Set in the modelling tool, for example with Blender's <strong>Mark Sharp</strong>, and carried in the normals.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Tangents</th>
+                    <td>Computed by the engine unless imported. Static Mesh build settings: <strong>Recompute Tangents</strong> and <strong>Use MikkTSpace Tangent Space</strong>.</td>
+                    <td><strong>Tangents</strong>: <strong>Import</strong>, <strong>Calculate Legacy</strong>, <strong>Calculate Legacy - Split Tangent</strong>, <strong>Calculate Mikktspace</strong> (the default when calculating normals) or <strong>None</strong>.</td>
+                    <td>Import option <strong>Ensure Tangents</strong> generates MikkTSpace tangents when the file has none.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Fixing after import</th>
+                    <td>Static Mesh Editor, LOD build settings: <strong>Recompute Normals</strong>, <strong>Recompute Tangents</strong>, <strong>Compute Weighted Normals</strong>, <strong>Remove Degenerates</strong>.</td>
+                    <td>Change the Model tab settings and apply; the asset re-imports. <strong>Weld Vertices</strong> (on by default) merges identical vertices.</td>
+                    <td>In code, <code>SurfaceTool.generate_normals()</code> and <code>SurfaceTool.generate_tangents()</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Quads, axes and colours</th>
+                    <td><strong>Convert Scene</strong> converts the file's axes. <strong>Vertex Color Import Option</strong> decides whether the file's vertex colours replace ones painted in the editor.</td>
+                    <td><strong>Keep Quads</strong> stops quads being split into triangles. <strong>Bake Axis Conversion</strong> bakes axis changes into the vertices.</td>
+                    <td>For <code>.blend</code> files, the <strong>Colors</strong> option imports vertex colours. glTF files arrive already triangulated.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.7, Unity 6.6 and Godot 4.7 in November 2026. Unreal's option names are those of its FBX importer; check the import dialog of your version, as importers change between releases.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good mesh briefs name the engine, the source tools and file format, the budgets in numbers, and exactly which import settings are in play. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when setting up mesh import checks</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.7. Artists export FBX from Blender and Maya. Platforms: PC and PlayStation 5.
+
+Write an editor validation that runs on every static and skeletal mesh import and reports:
+1. Triangle count against our budgets: props 3,000, large props 20,000, characters 80,000 (LOD 0).
+2. Missing UV channels, and lightmap UVs that overlap.
+3. Non-manifold edges and degenerate triangles.
+4. Whether normals were imported or computed, and whether tangents use MikkTSpace.
+5. Faces with more than four corners in the source, if the importer can tell us.
+
+For each check, say whether the engine already offers it or it needs custom code. Output a CSV per import batch and an editor warning per failing asset.</pre>
+              <ul class="prompt-why">
+                <li>Budgets in numbers give the AI something to test against.</li>
+                <li>Asking which checks already exist avoids rebuilding engine features.</li>
+                <li>Normal and tangent settings are the most common cause of art looking different in the engine.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when normal-mapped models show seams</span></div>
+              <pre class="prompt-body">Unity 6.6, URP. A rock modelled in Blender has mirrored UVs: the left and right halves share texture space. In the engine its normal map shows a hard seam down the middle, and the bumps on the right half look like dents. The bake looks correct in the baking tool.
+
+Find the cause. Compare the tangent basis used by the baker with the model's Tangents import setting, check how the mirrored half's tangent sign is handled, confirm the mesh was triangulated before baking, and check the Normals setting is Import. Tell me which settings to change and how to verify the fix.</pre>
+              <ul class="prompt-why">
+                <li>Mirrored UVs plus a seam down the middle point at tangents.</li>
+                <li>"Correct in the baker" rules out the texture itself.</li>
+                <li>Listing the four checks keeps the AI on the hand-over between tools.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing mesh work</h3>
+            <ol class="review-list">
+              <li>Are normals and tangents imported from the file or recomputed by the engine?<span class="why">Recomputing throws away the artist's hard and soft edges and can break normal maps.</span></li>
+              <li>Where is the mesh triangulated, and is it the same triangulation the bake used?<span class="why">Two different splits of the same quads shade differently.</span></li>
+              <li>What are the triangle budgets per asset type and platform, and what checks them?<span class="why">Budgets that nothing checks are not budgets.</span></li>
+              <li>How many vertices does the mesh have compared with its corners?<span class="why">A ratio far above what its hard edges and seams explain means wasted splits.</span></li>
+              <li>Does any code assume a winding order or axis convention? Where is it converted?<span class="why">One wrong assumption turns every mesh inside out.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Why do GPUs draw triangles rather than quads?</p>
+                <details><summary>Show answer</summary><p>Three points always lie on one plane and always form a convex shape, so filling a triangle is unambiguous and needs only three simple edge tests. Four corners can fold two ways, so a quad does not even define a single surface until it is split.</p></details>
+              </li>
+              <li>
+                <p class="q">An artist's tool shows 6,000 faces on a prop modelled in quads. The engine reports 12,000 triangles. Is something wrong?</p>
+                <details><summary>Show answer</summary><p>No. Each quad becomes two triangles on export or import. Check the model for n-gons, which split into more triangles and often into thin slivers.</p></details>
+              </li>
+              <li>
+                <p class="q">A rock looks smooth in Blender but faceted in the engine. What do you check first?</p>
+                <details><summary>Show answer</summary><p>The normals: whether the exporter wrote them, and whether the engine imports or recomputes them. In Unreal, Compute Normals discards the file's normals and smoothing groups; in Unity, Normals set to Calculate with a small Smoothing Angle makes every edge hard.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#mesh">mesh</a></li>
+              <li><a class="chip" href="glossary.html#triangle">triangle</a></li>
+              <li><a class="chip" href="glossary.html#vertex">vertex</a></li>
+              <li><a class="chip" href="glossary.html#normal">normal</a></li>
+              <li><a class="chip" href="glossary.html#uv">UV coordinates</a></li>
+              <li><a class="chip" href="glossary.html#tangent">tangent</a></li>
+              <li><a class="chip" href="glossary.html#bitangent">bitangent</a></li>
+              <li><a class="chip" href="glossary.html#vertex-colour">vertex colour</a></li>
+              <li><a class="chip" href="glossary.html#quad">quad</a></li>
+              <li><a class="chip" href="glossary.html#ngon">n-gon</a></li>
+              <li><a class="chip" href="glossary.html#triangulation">triangulation</a></li>
+              <li><a class="chip" href="glossary.html#polygon-count">polygon count</a></li>
+              <li><a class="chip" href="glossary.html#topology">topology</a></li>
+              <li><a class="chip" href="glossary.html#manifold">manifold</a></li>
+              <li><a class="chip" href="glossary.html#winding-order">winding order</a></li>
+              <li><a class="chip" href="glossary.html#hard-soft-edges">hard and soft edges</a></li>
+              <li><a class="chip" href="glossary.html#uv-seam">UV seam</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="4.2"></a> shows how all of this per-corner data is packed into buffers the GPU can read, and what each byte costs.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/Specification.adoc">glTF 2.0 specification</a>, Khronos Group. Triangle topologies, winding order and negative scale, implicit flat normals, tangents with a handedness sign.</li>
+              <li><a href="https://github.com/mmikk/MikkTSpace">MikkTSpace</a>, Morten Mikkelsen. The common standard tangent space used by bakers and engines.</li>
+              <li><a href="https://developers.meta.com/horizon/documentation/unity/unity-perf/">Performance guidelines for Unity</a>, Meta Horizon developer documentation. Recommended triangle and draw call ranges for Quest headsets.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/fbx-import-options-reference-in-unreal-engine?application_version=5.7">FBX import options reference</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/FMeshBuildSettings?application_version=5.7">FMeshBuildSettings</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/static-mesh-editor-ui-in-unreal-engine?application_version=5.7">Static Mesh Editor UI</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/nanite-virtualized-geometry-in-unreal-engine?application_version=5.7">Nanite virtualized geometry</a>, Unreal Engine 5.7 documentation.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/assets-and-media/asset-types/models/importing/fbximporter-model">Model tab</a>, Unity 6.6 manual. Normals, smoothing, tangents, Keep Quads and Weld Vertices.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/tutorials/assets_pipeline/importing_3d_scenes/import_configuration.html">Import configuration</a>, Godot 4.7 documentation. Ensure Tangents and the Blender import options.</li>
+              <li><a href="https://docs.blender.org/manual/en/latest/modeling/meshes/editing/edge/edge_data.html">Edge data</a>, Blender manual. Mark Seam and Mark Sharp.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/mesh-views.js"></script>
+</body>
+</html>
