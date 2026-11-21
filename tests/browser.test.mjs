@@ -95,8 +95,10 @@ for (const browserName of BROWSERS) {
 
   test(`[${browserName}] shell: sidebar, rail, pager and cross-references`, { skip: DRAFT_MODE }, async () => {
     const { tab, context } = await open(published[0].file, { viewport: { width: 1440, height: 900 } });
-    const links = await tab.$$eval("#sidebar a.ch-link", (as) => as.map((a) => a.getAttribute("href")));
+    const links = await tab.$$eval("#sidebar .toc-book:not(.toc-ref) a.ch-link", (as) => as.map((a) => a.getAttribute("href")));
     assert.deepEqual(links.sort(), [...published.map((c) => c.file)].sort(), "sidebar should link every written chapter");
+    const refs = await tab.$$eval("#sidebar .toc-ref a", (as) => as.map((a) => a.getAttribute("href")));
+    assert.deepEqual(refs, [...nav.reference.map((r) => r.file)], "sidebar should list the reference pages");
     const current = await tab.$eval('#sidebar [aria-current="page"]', (a) => a.getAttribute("href"));
     assert.equal(current, published[0].file);
     const railItems = await tab.$$eval("#rail .rail-toc a", (as) => as.length);

@@ -263,7 +263,7 @@
       h("summary", null, [h("span", { class: "part-name", text: "Reference" }), h("span", { class: "part-count", text: String((nav.reference || []).length) })]),
       list
     ]);
-    return h("div", { class: "toc-book" }, [details]);
+    return h("div", { class: "toc-book toc-ref" }, [details]);
   }
 
   function buildNavDialog() {
