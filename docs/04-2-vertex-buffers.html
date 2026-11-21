@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>4.2 Vertex buffers and index buffers · Graphics Handbook</title>
+  <meta name="description" content="How a mesh is stored for the GPU: vertex buffers, index buffers, stride, layouts, streams and compression, what they cost and how they break.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="4.2">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 4 · Geometry</p>
+            <h1><span class="ch-num">4.2</span> Vertex buffers and index buffers</h1>
+            <p class="lead">A mesh reaches the GPU as two plain lists of numbers: one row for every corner, and a list of which corners make each triangle. How those lists are laid out decides how much memory a mesh takes and how quickly the GPU can read it.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="4.1">4.1 Meshes</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="4.3">4.3 Draw calls</a>, <a class="xref" data-ch="5.1">5.1 The GPU pipeline</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Vertex buffer inspector</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 296" role="img" aria-label="A square made of two triangles, A and B, with corners numbered 0 to 3. Its vertex buffer has four 32-byte rows holding position, normal and UV. Its index buffer lists 0, 1, 2 for triangle A and 2, 1, 3 for triangle B. Corner 1 is stored once and used by both triangles.">
+                  <defs>
+                    <marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+                  <text class="t-caps mid" x="95" y="30">MESH</text>
+                  <text class="t-muted t-small mid" x="95" y="46">2 triangles, 4 corners</text>
+                  <text class="t-caps mid" x="456" y="30">VERTEX BUFFER</text>
+                  <text class="t-muted t-small mid" x="456" y="46">one row per corner</text>
+                  <text class="t-caps mid" x="752" y="30">INDEX BUFFER</text>
+                  <text class="t-muted t-small mid" x="752" y="46">6 entries, 2 bytes each</text>
+
+                  <polygon class="f-surface s-strong" points="30,232 160,232 160,96 30,96"/>
+                  <line class="s-strong" x1="160" y1="232" x2="30" y2="96"/>
+                  <text class="t-mono t-muted mid" x="73" y="191">A</text>
+                  <text class="t-mono t-muted mid" x="117" y="146">B</text>
+                  <circle class="f-ink" cx="30" cy="232" r="4.5"/>
+                  <circle class="f-ink" cx="30" cy="96" r="4.5"/>
+                  <circle class="f-ink" cx="160" cy="96" r="4.5"/>
+                  <circle class="f-acc" cx="160" cy="232" r="6"/>
+                  <text class="t-mono mid" x="18" y="250">0</text>
+                  <text class="t-mono t-acc t-strong mid" x="160" y="254">1</text>
+                  <text class="t-mono mid" x="18" y="88">2</text>
+                  <text class="t-mono mid" x="172" y="88">3</text>
+                  <polyline class="s-acc w15" points="168,232 236,232 236,147 258,147" marker-end="url(#pic-arr)"/>
+                  <text class="t-acc t-small mid" x="208" y="224">stored once</text>
+
+                  <rect class="f-surface s-strong" x="262" y="62" width="388" height="170"/>
+                  <rect class="f-acc-soft" x="262.5" y="130" width="387" height="34"/>
+                  <path class="s-strong" d="M262,96 H650 M262,130 H650 M262,164 H650 M262,198 H650 M302,62 V232 M442,62 V232 M562,62 V232"/>
+                  <text class="t-mono t-muted mid" x="282" y="84">#</text>
+                  <text class="t-strong mid" x="372" y="78">position</text>
+                  <text class="t-mono t-muted mid" x="372" y="91" font-size="9.5">3 × float32</text>
+                  <text class="t-strong mid" x="502" y="78">normal</text>
+                  <text class="t-mono t-muted mid" x="502" y="91" font-size="9.5">3 × float32</text>
+                  <text class="t-strong mid" x="606" y="78">uv</text>
+                  <text class="t-mono t-muted mid" x="606" y="91" font-size="9.5">2 × float32</text>
+                  <text class="t-mono mid" x="282" y="117">0</text>
+                  <text class="t-mono mid" x="372" y="117">-1, -1, 0</text>
+                  <text class="t-mono mid" x="502" y="117">0, 0, 1</text>
+                  <text class="t-mono mid" x="606" y="117">0, 0</text>
+                  <text class="t-mono t-acc t-strong mid" x="282" y="151">1</text>
+                  <text class="t-mono mid" x="372" y="151">1, -1, 0</text>
+                  <text class="t-mono mid" x="502" y="151">0, 0, 1</text>
+                  <text class="t-mono mid" x="606" y="151">1, 0</text>
+                  <text class="t-mono mid" x="282" y="185">2</text>
+                  <text class="t-mono mid" x="372" y="185">-1, 1, 0</text>
+                  <text class="t-mono mid" x="502" y="185">0, 0, 1</text>
+                  <text class="t-mono mid" x="606" y="185">0, 1</text>
+                  <text class="t-mono mid" x="282" y="219">3</text>
+                  <text class="t-mono mid" x="372" y="219">1, 1, 0</text>
+                  <text class="t-mono mid" x="502" y="219">0, 0, 1</text>
+                  <text class="t-mono mid" x="606" y="219">1, 1</text>
+
+                  <path class="s-muted" d="M302,244 H650 M302,240 V249 M442,240 V249 M562,240 V249 M650,240 V249"/>
+                  <text class="t-mono t-muted mid" x="302" y="263" font-size="10">0</text>
+                  <text class="t-mono t-muted mid" x="442" y="263" font-size="10">12</text>
+                  <text class="t-mono t-muted mid" x="562" y="263" font-size="10">24</text>
+                  <text class="t-mono t-muted mid" x="650" y="263" font-size="10">32</text>
+                  <text class="t-muted t-small mid" x="476" y="283">byte offset inside one row · each row is 32 bytes</text>
+
+                  <rect class="f-surface s-strong" x="730" y="84" width="44" height="156"/>
+                  <rect class="f-acc-soft" x="730.5" y="110" width="43" height="26"/>
+                  <rect class="f-acc-soft" x="730.5" y="188" width="43" height="26"/>
+                  <path class="s-strong" d="M730,110 H774 M730,136 H774 M730,162 H774 M730,188 H774 M730,214 H774"/>
+                  <text class="t-mono mid" x="752" y="102">0</text>
+                  <text class="t-mono t-acc t-strong mid" x="752" y="128">1</text>
+                  <text class="t-mono mid" x="752" y="154">2</text>
+                  <text class="t-mono mid" x="752" y="180">2</text>
+                  <text class="t-mono t-acc t-strong mid" x="752" y="206">1</text>
+                  <text class="t-mono mid" x="752" y="232">3</text>
+                  <path class="s-muted" d="M780,86 H786 V160 H780 M780,164 H786 V238 H780"/>
+                  <text class="t-muted t-small" x="794" y="127">triangle A</text>
+                  <text class="t-muted t-small" x="794" y="205">triangle B</text>
+                  <line class="s-acc w15" x1="728" y1="123" x2="655" y2="144" marker-end="url(#pic-arr)"/>
+                  <line class="s-acc w15" x1="728" y1="201" x2="655" y2="151" marker-end="url(#pic-arr)"/>
+                  <text class="t-acc t-small mid" x="690" y="112">used twice</text>
+                </svg>
+              </div>
+              <figcaption><b>A square the way the GPU stores it.</b> Each corner is one 32-byte row in the vertex buffer. The index buffer lists which rows make each triangle, so a corner shared by two triangles is stored once and referenced twice. Here that is 140 bytes instead of 192. On a real mesh, where each corner is shared by around six triangles, the saving is far larger.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>In an artist's tool, a model is a rich file full of names, groups, edit history and settings. The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> wants none of that. It wants a flat block of numbers in its own memory, arranged so that thousands of small cores can each grab the data they need without asking anyone.</p>
+            <p>A <dfn class="term" data-term="vertex-buffer">vertex buffer</dfn> is that block. Think of a spreadsheet with one row for every corner of the <a class="term" data-term="mesh" href="glossary.html#mesh">mesh</a>. Every row has the same columns: where the corner is, which way the surface faces there, and which point of the texture lands on it. An <dfn class="term" data-term="index-buffer">index buffer</dfn> is a second, much shorter list. It says which three rows make each <a class="term" data-term="triangle" href="glossary.html#triangle">triangle</a>.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>Your phone stores each contact once, with their number, photo and address. A group chat does not copy those details. It lists who is in it. A friend who is in five group chats is still stored once.</p>
+                <p>The vertex buffer is the contact list. Each triangle is a group chat of exactly three, and the index buffer is the list of members.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without an index buffer, every triangle carries its own copy of its three corners. On a typical smooth mesh each corner touches about six triangles, so it would be stored five or six times, and the GPU would process it five or six times.</p>
+                <p>Indexing stores each corner once and lets the GPU reuse the work it already did for it.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Vertex data is usually smaller than texture data, but it is read again in every pass that draws the mesh, every frame. Layout choices appear as import settings in every engine and in any rendering code an AI writes for you. And when a buffer and the code reading it disagree, you get some of the most dramatic bugs in graphics: meshes that explode into spikes.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow one mesh from its file to the moment the GPU draws it. There are seven steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="vertex-contents"><span class="step-num">1</span> What one vertex holds</h3>
+              <p>A <a class="term" data-term="vertex" href="glossary.html#vertex">vertex</a> is a corner plus everything the renderer needs to know about the surface at that corner. Each separate piece of data is a <dfn class="term" data-term="vertex-attribute">vertex attribute</dfn>. Position is the only one every mesh needs. The rest depend on how the mesh is shaded and animated.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="Three example vertex layouts drawn to scale, 12 pixels per byte. A static prop: position 12, normal 12, tangent 16, UV 8, total 48 bytes. A skinned character adds bone indices 4 and bone weights 4, total 56 bytes. A lightmapped wall adds a second UV set 8 and a colour 4, total 60 bytes.">
+                    <text class="t-caps" x="20" y="24">DRAWN TO SCALE · 1 BYTE = 12 PX</text>
+
+                    <text class="t-head" x="20" y="72">Static prop</text>
+                    <rect class="f-geo-soft s-strong" x="170" y="52" width="144" height="34"/>
+                    <text class="mid" x="242" y="74">position 12</text>
+                    <rect class="f-acc-soft s-strong" x="314" y="52" width="144" height="34"/>
+                    <text class="mid" x="386" y="74">normal 12</text>
+                    <rect class="f-acc-soft s-strong" x="458" y="52" width="192" height="34"/>
+                    <text class="mid" x="554" y="74">tangent 16</text>
+                    <rect class="f-lit-soft s-strong" x="650" y="52" width="96" height="34"/>
+                    <text class="mid" x="698" y="74">uv 8</text>
+                    <text class="t-head" x="760" y="74">48 B</text>
+
+                    <text class="t-head" x="20" y="126">Skinned character</text>
+                    <rect class="f-geo-soft s-strong" x="170" y="106" width="144" height="34"/>
+                    <text class="mid" x="242" y="128">position 12</text>
+                    <rect class="f-acc-soft s-strong" x="314" y="106" width="144" height="34"/>
+                    <text class="mid" x="386" y="128">normal 12</text>
+                    <rect class="f-acc-soft s-strong" x="458" y="106" width="192" height="34"/>
+                    <text class="mid" x="554" y="128">tangent 16</text>
+                    <rect class="f-lit-soft s-strong" x="650" y="106" width="96" height="34"/>
+                    <text class="mid" x="698" y="128">uv 8</text>
+                    <rect class="f-solid s-strong" x="746" y="106" width="48" height="34"/>
+                    <text class="mid t-small" x="770" y="127">bones</text>
+                    <rect class="f-solid s-strong" x="794" y="106" width="48" height="34"/>
+                    <text class="mid t-small" x="818" y="127">weights</text>
+                    <text class="t-head" x="852" y="128">56 B</text>
+
+                    <text class="t-head" x="20" y="180">Lightmapped wall</text>
+                    <rect class="f-geo-soft s-strong" x="170" y="160" width="144" height="34"/>
+                    <text class="mid" x="242" y="182">position 12</text>
+                    <rect class="f-acc-soft s-strong" x="314" y="160" width="144" height="34"/>
+                    <text class="mid" x="386" y="182">normal 12</text>
+                    <rect class="f-acc-soft s-strong" x="458" y="160" width="192" height="34"/>
+                    <text class="mid" x="554" y="182">tangent 16</text>
+                    <rect class="f-lit-soft s-strong" x="650" y="160" width="96" height="34"/>
+                    <text class="mid" x="698" y="182">uv 8</text>
+                    <rect class="f-lit-soft s-strong" x="746" y="160" width="96" height="34"/>
+                    <text class="mid" x="794" y="182">uv2 8</text>
+                    <rect class="f-pix-soft s-strong" x="842" y="160" width="48" height="34"/>
+                    <text class="mid t-small" x="866" y="181">col 4</text>
+
+                    <text class="t-muted t-small" x="170" y="222">Full-precision formats. Section 4 shows the same data packed into about half the bytes.</text>
+                    <text class="t-head end" x="890" y="222">60 B</text>
+                  </svg>
+                </div>
+                <figcaption><b>Three common vertex layouts, to scale.</b> The bars are the size of one vertex. A mesh multiplies this by its vertex count, so a few extra bytes per vertex add up across a whole game.</figcaption>
+              </figure>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th scope="col">Attribute</th><th scope="col">What it tells the renderer</th><th scope="col">Used by</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Position</th><td>Where the corner sits, relative to the model's own origin.</td><td>Every pass that draws the mesh</td></tr>
+                    <tr><th scope="row">Normal</th><td>Which way the surface faces at this corner. See <a class="term" data-term="normal" href="glossary.html#normal">normal</a>.</td><td>Lighting</td></tr>
+                    <tr><th scope="row">Tangent</th><td>Which way the texture's horizontal axis runs across the surface. See <a class="term" data-term="tangent" href="glossary.html#tangent">tangent</a>.</td><td>Normal maps</td></tr>
+                    <tr><th scope="row">UV</th><td>Which point of a 2D texture lands on this corner. See <a class="term" data-term="uv" href="glossary.html#uv">UV coordinates</a>. A second set often holds lightmap coordinates.</td><td>Texturing, baked lighting</td></tr>
+                    <tr><th scope="row">Colour</th><td>A tint or mask painted onto the corners, often used to blend materials.</td><td>Material blending, wind, effects</td></tr>
+                    <tr><th scope="row">Bone indices and weights</th><td>Which bones of a skeleton move this corner, and how much each one pulls.</td><td>Animated characters</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="layout"><span class="step-num">2</span> Rows, stride and offsets</h3>
+              <p>In memory there are no rows or columns, only bytes one after another. Two numbers turn them back into a table. The <dfn class="term" data-term="stride">stride</dfn> is the size of one row: how many bytes to skip to get from one vertex to the next. The offset is where an attribute starts inside a row.</p>
+              <p>The code that draws the mesh hands the GPU a <dfn class="term" data-term="vertex-layout">vertex layout</dfn>: the list of attributes, each with its format and offset, plus the stride. It works like a decoder ring. Nothing in the buffer itself says where the normal is. If the layout says the wrong thing, the GPU reads the wrong bytes and has no way to know.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 312" role="img" aria-label="A vertex buffer drawn as a strip of 96 bytes holding three vertices of 32 bytes each, every vertex split into position 12 bytes, normal 12 bytes and UV 8 bytes. The normal of vertex 2 is highlighted at byte 76, found as 2 times the stride of 32 plus the offset 12. Below, a vertex layout card lists position at offset 0, normal at offset 12, UV at offset 24, stride 32.">
+                    <defs>
+                      <marker id="lay-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="lay-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="60" y="13">THE BUFFER IN MEMORY · BYTES 0 TO 95</text>
+
+                    <path class="s-muted" d="M60,46 V40 H316 V46 M316,46 V40 H572 V46 M572,46 V40 H828 V46"/>
+                    <text class="t-strong mid" x="188" y="34">vertex 0</text>
+                    <text class="t-strong mid" x="444" y="34">vertex 1</text>
+                    <text class="t-strong mid" x="700" y="34">vertex 2</text>
+
+                    <rect class="f-geo-soft s-strong" x="60" y="54" width="96" height="40"/>
+                    <rect class="f-acc-soft s-strong" x="156" y="54" width="96" height="40"/>
+                    <rect class="f-lit-soft s-strong" x="252" y="54" width="64" height="40"/>
+                    <rect class="f-geo-soft s-strong" x="316" y="54" width="96" height="40"/>
+                    <rect class="f-acc-soft s-strong" x="412" y="54" width="96" height="40"/>
+                    <rect class="f-lit-soft s-strong" x="508" y="54" width="64" height="40"/>
+                    <rect class="f-geo-soft s-strong" x="572" y="54" width="96" height="40"/>
+                    <rect class="f-acc-soft s-acc w3" x="668" y="54" width="96" height="40"/>
+                    <rect class="f-lit-soft s-strong" x="764" y="54" width="64" height="40"/>
+                    <text class="mid" x="108" y="79">position</text>
+                    <text class="mid" x="204" y="79">normal</text>
+                    <text class="mid" x="284" y="79">uv</text>
+                    <text class="mid" x="364" y="79">position</text>
+                    <text class="mid" x="460" y="79">normal</text>
+                    <text class="mid" x="540" y="79">uv</text>
+                    <text class="mid" x="620" y="79">position</text>
+                    <text class="mid t-acc t-strong" x="716" y="79">normal</text>
+                    <text class="mid" x="796" y="79">uv</text>
+
+                    <path class="s-muted" d="M60,102 V110 M316,102 V110 M572,102 V110 M828,102 V110"/>
+                    <text class="t-mono t-muted mid" x="60" y="124" font-size="10.5">0</text>
+                    <text class="t-mono t-muted mid" x="316" y="124" font-size="10.5">32</text>
+                    <text class="t-mono t-muted mid" x="572" y="124" font-size="10.5">64</text>
+                    <text class="t-mono t-acc mid" x="668" y="124" font-size="10.5">76</text>
+                    <text class="t-mono t-muted mid" x="828" y="124" font-size="10.5">96</text>
+
+                    <line class="s-ink" x1="60" y1="142" x2="314" y2="142" marker-end="url(#lay-arr-m)"/>
+                    <text class="mid" x="188" y="158">stride = 32 bytes</text>
+                    <line class="s-acc w15" x1="572" y1="142" x2="666" y2="142" marker-end="url(#lay-arr)"/>
+                    <text class="t-acc mid" x="620" y="158">offset 12</text>
+                    <text class="t-acc t-strong end" x="828" y="182">normal of vertex 2 starts at byte 2 × 32 + 12 = 76</text>
+
+                    <rect class="f-sunken s-strong" x="60" y="200" width="400" height="98" rx="6"/>
+                    <text class="t-caps" x="76" y="222">VERTEX LAYOUT · WHAT THE CODE TELLS THE GPU</text>
+                    <text class="t-mono" x="76" y="244">position</text><text class="t-mono" x="160" y="244">float32 × 3</text><text class="t-mono" x="270" y="244">offset 0</text>
+                    <text class="t-mono t-acc" x="76" y="262">normal</text><text class="t-mono t-acc" x="160" y="262">float32 × 3</text><text class="t-mono t-acc" x="270" y="262">offset 12</text>
+                    <text class="t-mono" x="76" y="280">uv</text><text class="t-mono" x="160" y="280">float32 × 2</text><text class="t-mono" x="270" y="280">offset 24</text>
+                    <text class="t-mono t-strong" x="370" y="280">stride 32</text>
+                    <path class="s-muted dash" d="M460,250 H520 V110" marker-end="url(#lay-arr-m)"/>
+                    <text class="t-muted t-small" x="530" y="230">The buffer holds only numbers.</text>
+                    <text class="t-muted t-small" x="530" y="246">The layout is the only thing that</text>
+                    <text class="t-muted t-small" x="530" y="262">says which bytes mean what.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Finding one value in a vertex buffer.</b> To read attribute A of vertex N, the GPU computes <code>start + N × stride + offset of A</code>. That one multiply and add is why every row must be the same size.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The two formulas behind every number in this chapter</summary>
+                <div class="fold-body">
+                  <p>Where an attribute lives:</p>
+                  <p class="formula">address = buffer start + vertex number × stride + attribute offset</p>
+                  <p>How much memory a mesh takes:</p>
+                  <p class="formula">vertex buffer = vertex count × stride</p>
+                  <p class="formula">index buffer = triangle count × 3 × bytes per index</p>
+                  <p>Stride is the sum of the attribute sizes, sometimes rounded up so each row starts on a 4-byte boundary. A float32 is 4 bytes and a float16 is 2.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="streams"><span class="step-num">3</span> One buffer or several streams</h3>
+              <p>There are two common ways to arrange the rows. In an <dfn class="term" data-term="interleaved">interleaved layout</dfn>, each vertex's attributes sit side by side, then the next vertex follows. Alternatively the mesh can be split into several <dfn class="term" data-term="vertex-stream">vertex streams</dfn>, separate buffers that each hold some of the attributes.</p>
+              <p>The split matters because not every pass needs every attribute. Shadow passes and the depth pass only need positions. Memory is fetched in blocks of 32 to 128 bytes, so with an interleaved buffer those passes drag normals and UVs through the cache too. Many engines keep positions in a stream of their own for this reason.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Top: an interleaved buffer where position, normal and UV alternate for each of five vertices; the depth pass needs only the positions but memory blocks bring the rest along. Bottom: the same mesh split into a position stream and a stream of normals and UVs; the depth pass reads the position stream as one tight block.">
+                    <text class="t-caps" x="20" y="26">INTERLEAVED · ONE BUFFER</text>
+                    <g>
+                      <rect class="f-geo-soft s-geo w15" x="20" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="68" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="116" y="38" width="32" height="30"/>
+                      <rect class="f-geo-soft s-geo w15" x="148" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="196" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="244" y="38" width="32" height="30"/>
+                      <rect class="f-geo-soft s-geo w15" x="276" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="324" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="372" y="38" width="32" height="30"/>
+                      <rect class="f-geo-soft s-geo w15" x="404" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="452" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="500" y="38" width="32" height="30"/>
+                      <rect class="f-geo-soft s-geo w15" x="532" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="580" y="38" width="48" height="30"/><rect class="f-surface s-strong" x="628" y="38" width="32" height="30"/>
+                    </g>
+                    <g class="t-small">
+                      <text class="mid t-small" x="44" y="58">pos</text><text class="mid t-small t-muted" x="92" y="58">nrm</text><text class="mid t-small t-muted" x="132" y="58">uv</text>
+                      <text class="mid t-small" x="172" y="58">pos</text><text class="mid t-small t-muted" x="220" y="58">nrm</text><text class="mid t-small t-muted" x="260" y="58">uv</text>
+                      <text class="mid t-small" x="300" y="58">pos</text><text class="mid t-small t-muted" x="348" y="58">nrm</text><text class="mid t-small t-muted" x="388" y="58">uv</text>
+                      <text class="mid t-small" x="428" y="58">pos</text><text class="mid t-small t-muted" x="476" y="58">nrm</text><text class="mid t-small t-muted" x="516" y="58">uv</text>
+                      <text class="mid t-small" x="556" y="58">pos</text><text class="mid t-small t-muted" x="604" y="58">nrm</text><text class="mid t-small t-muted" x="644" y="58">uv</text>
+                    </g>
+                    <path class="s-muted" d="M20,76 V82 H532 V76 M532,76 V82 H660"/>
+                    <text class="t-muted t-small mid" x="276" y="98">one 128-byte memory block = 4 vertices</text>
+                    <text class="t-muted t-small mid" x="596" y="98">the next block</text>
+                    <text class="t-head" x="684" y="52">Depth pass</text>
+                    <text class="t-small" x="684" y="70">needs 12 of every 32 bytes,</text>
+                    <text class="t-small" x="684" y="86">but loads all of them</text>
+
+                    <line class="s-line" x1="20" y1="118" x2="880" y2="118"/>
+
+                    <text class="t-caps" x="20" y="146">TWO STREAMS · POSITIONS IN THEIR OWN BUFFER</text>
+                    <g>
+                      <rect class="f-geo-soft s-geo w15" x="20" y="158" width="48" height="30"/><rect class="f-geo-soft s-geo w15" x="68" y="158" width="48" height="30"/><rect class="f-geo-soft s-geo w15" x="116" y="158" width="48" height="30"/><rect class="f-geo-soft s-geo w15" x="164" y="158" width="48" height="30"/><rect class="f-geo-soft s-geo w15" x="212" y="158" width="48" height="30"/>
+                      <text class="mid t-small" x="44" y="178">pos</text><text class="mid t-small" x="92" y="178">pos</text><text class="mid t-small" x="140" y="178">pos</text><text class="mid t-small" x="188" y="178">pos</text><text class="mid t-small" x="236" y="178">pos</text>
+                    </g>
+                    <text class="t-muted t-small" x="272" y="178">stream 0 · 12 B per vertex</text>
+                    <g>
+                      <rect class="f-surface s-strong" x="20" y="200" width="48" height="30"/><rect class="f-surface s-strong" x="68" y="200" width="32" height="30"/>
+                      <rect class="f-surface s-strong" x="100" y="200" width="48" height="30"/><rect class="f-surface s-strong" x="148" y="200" width="32" height="30"/>
+                      <rect class="f-surface s-strong" x="180" y="200" width="48" height="30"/><rect class="f-surface s-strong" x="228" y="200" width="32" height="30"/>
+                      <rect class="f-surface s-strong" x="260" y="200" width="48" height="30"/><rect class="f-surface s-strong" x="308" y="200" width="32" height="30"/>
+                      <rect class="f-surface s-strong" x="340" y="200" width="48" height="30"/><rect class="f-surface s-strong" x="388" y="200" width="32" height="30"/>
+                      <text class="mid t-small t-muted" x="44" y="220">nrm</text><text class="mid t-small t-muted" x="84" y="220">uv</text>
+                      <text class="mid t-small t-muted" x="124" y="220">nrm</text><text class="mid t-small t-muted" x="164" y="220">uv</text>
+                      <text class="mid t-small t-muted" x="204" y="220">nrm</text><text class="mid t-small t-muted" x="244" y="220">uv</text>
+                      <text class="mid t-small t-muted" x="284" y="220">nrm</text><text class="mid t-small t-muted" x="324" y="220">uv</text>
+                      <text class="mid t-small t-muted" x="364" y="220">nrm</text><text class="mid t-small t-muted" x="404" y="220">uv</text>
+                    </g>
+                    <text class="t-muted t-small" x="432" y="220">stream 1 · 20 B per vertex</text>
+                    <text class="t-head" x="684" y="172">Depth pass</text>
+                    <text class="t-small" x="684" y="190">reads stream 0 only:</text>
+                    <text class="t-small" x="684" y="206">every byte it loads is used</text>
+                  </svg>
+                </div>
+                <figcaption><b>Same mesh, two arrangements.</b> Teal outlines mark the bytes the depth pass actually needs. Interleaving keeps each vertex together, which suits the main pass. Separate streams let position-only passes skip everything else.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="indices"><span class="step-num">4</span> Index buffers: drawing by row number</h3>
+              <p>The index buffer is a list of row numbers. In the usual <dfn class="term" data-term="triangle-list">triangle list</dfn> arrangement, every three numbers form one triangle. Because a row number is far smaller than a row, a corner shared by six triangles costs one row plus six small numbers instead of six rows.</p>
+              <p>The size of each number is the <dfn class="term" data-term="index-format">index format</dfn>. A 16-bit index takes 2 bytes and can count up to 65,535, so it can address 65,536 vertices. Larger meshes need 32-bit indices at 4 bytes each, or must be split into pieces that each fit. Most engines pick the smaller format automatically when a mesh allows it.</p>
+              <p>Try it below. Switch the index buffer off and watch the shared corners turn into duplicate rows. Then change the precision and the attributes, and watch the stride and the totals move.</p>
+              <figure>
+                <div class="demo" data-demo="vertex-buffer-inspector">
+                  <p class="demo-hint">The vertex buffer inspector needs JavaScript. Without it: a quad needs 4 rows and 6 indices with an index buffer, or 6 rows without one.</p>
+                </div>
+                <figcaption><b>Vertex buffer inspector.</b> The mesh, its vertex buffer and its index buffer, linked. The bars compare the same mesh with and without an index buffer. The hexagon fan shows the strongest sharing: its centre corner belongs to all six triangles.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Triangle lists are the most common arrangement, but there are others, such as triangle strips, where each new index adds one triangle to the previous two. Modern engines almost always use lists, because they are simpler and lose nothing once indices and the vertex cache are in play.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="split-vertices"><span class="step-num">5</span> Why a cube has 24 vertices, not 8</h3>
+              <p>A vertex is a corner plus all of its data, so two triangles can share a vertex only if they agree about everything at that corner. At a hard edge they do not: the faces point in different directions, so they need different normals. At a texture seam they need different UVs. The mesh then stores a <dfn class="term" data-term="split-vertex">split vertex</dfn>: two or more rows with the same position and different data.</p>
+              <p>A cube is the extreme case. Every corner touches three faces at right angles, so each of its 8 corners becomes 3 vertices, 24 in total. This surprises people when an artist's tool reports 8 and the engine reports 24. Nothing is wrong; it is the price of hard edges and seams.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Three panels. Left: a cube where three faces meet at one corner, with three different normals, so the corner is stored as three vertices. Middle: a cross-section of an edge; a hard edge keeps two vertices with two normals, a smooth edge shares one vertex with one averaged normal. Right: a cube unfolded flat for texturing, where one 3D corner appears at three separate places in the layout.">
+                    <defs>
+                      <marker id="cube-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">ONE CORNER, THREE NORMALS</text>
+                    <polygon class="f-surface s-strong" points="150,64 211,99 150,134 89,99"/>
+                    <polygon class="f-solid s-strong" points="89,99 150,134 150,204 89,169"/>
+                    <polygon class="f-sunken s-strong" points="150,134 211,99 211,169 150,204"/>
+                    <line class="s-acc w2" x1="150" y1="126" x2="150" y2="86" marker-end="url(#cube-arr)"/>
+                    <line class="s-acc w2" x1="144" y1="140" x2="110" y2="160" marker-end="url(#cube-arr)"/>
+                    <line class="s-acc w2" x1="156" y1="140" x2="190" y2="160" marker-end="url(#cube-arr)"/>
+                    <circle class="f-acc" cx="150" cy="134" r="5"/>
+                    <text class="t-small" x="20" y="236">3 faces meet here, so 3 normals,</text>
+                    <text class="t-small" x="20" y="252">so 3 vertices at one position.</text>
+                    <text class="t-head" x="236" y="128">8 × 3</text>
+                    <text class="t-head" x="236" y="146">= 24</text>
+
+                    <text class="t-caps" x="320" y="24">HARD EDGE AGAINST SMOOTH EDGE</text>
+                    <polyline class="s-ink w2 round" points="330,170 400,110 470,170"/>
+                    <circle class="f-acc" cx="396" cy="113" r="4.5"/>
+                    <circle class="f-acc" cx="404" cy="113" r="4.5"/>
+                    <line class="s-acc w15" x1="394" y1="111" x2="366" y2="78" marker-end="url(#cube-arr)"/>
+                    <line class="s-acc w15" x1="406" y1="111" x2="434" y2="78" marker-end="url(#cube-arr)"/>
+                    <text class="t-strong mid" x="400" y="200">Hard</text>
+                    <text class="t-small t-muted mid" x="400" y="216">2 vertices, 2 normals</text>
+                    <polyline class="s-ink w2 round" points="510,170 580,110 650,170"/>
+                    <circle class="f-acc" cx="580" cy="110" r="5"/>
+                    <line class="s-acc w15" x1="580" y1="106" x2="580" y2="66" marker-end="url(#cube-arr)"/>
+                    <text class="t-strong mid" x="580" y="200">Smooth</text>
+                    <text class="t-small t-muted mid" x="580" y="216">1 vertex, 1 averaged normal</text>
+
+                    <text class="t-caps" x="690" y="24">UNFOLDED FOR TEXTURING</text>
+                    <rect class="f-surface s-strong" x="740" y="44" width="44" height="44"/>
+                    <rect class="f-surface s-strong" x="696" y="88" width="44" height="44"/>
+                    <rect class="f-surface s-strong" x="740" y="88" width="44" height="44"/>
+                    <rect class="f-surface s-strong" x="784" y="88" width="44" height="44"/>
+                    <rect class="f-surface s-strong" x="828" y="88" width="44" height="44"/>
+                    <rect class="f-surface s-strong" x="740" y="132" width="44" height="44"/>
+                    <text class="t-small t-muted mid" x="762" y="71">top</text>
+                    <text class="t-small t-muted mid" x="718" y="115">left</text>
+                    <text class="t-small t-muted mid" x="762" y="115">front</text>
+                    <text class="t-small t-muted mid" x="806" y="115">right</text>
+                    <text class="t-small t-muted mid" x="850" y="115">back</text>
+                    <path class="s-acc dot-dash" d="M740,44 Q708,52 696,88 M740,44 Q830,40 872,88"/>
+                    <circle class="f-acc" cx="740" cy="44" r="5"/>
+                    <circle class="f-acc" cx="696" cy="88" r="5"/>
+                    <circle class="f-acc" cx="872" cy="88" r="5"/>
+                    <text class="t-small" x="690" y="200">The top-back-left corner of the cube</text>
+                    <text class="t-small" x="690" y="216">lands at 3 places once the faces are</text>
+                    <text class="t-small" x="690" y="232">cut apart to lie flat. Each place has</text>
+                    <text class="t-small" x="690" y="248">its own UVs, so its own vertex.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Where split vertices come from.</b> Hard edges split vertices by normal; texture seams split them by UV. Smooth, continuous surfaces share. That is why vertex counts on hard-surface props run higher than on organic models of the same triangle count.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="upload"><span class="step-num">6</span> Getting the data onto the GPU</h3>
+              <p>When a level loads, the engine reads each mesh from disk into ordinary memory, then copies it once into <a class="term" data-term="vram" href="glossary.html#vram">VRAM</a>, the GPU's own memory. From then on the GPU reads it directly, frame after frame, with no help from the <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a>.</p>
+              <p>Most meshes go into a <dfn class="term" data-term="static-buffer">static buffer</dfn>: written once, then only read. Geometry that changes every frame, such as particles, UI or procedurally generated meshes, uses a <dfn class="term" data-term="dynamic-buffer">dynamic buffer</dfn> that the CPU rewrites as it goes. Dynamic buffers are cheap to update but cost CPU time and transfer bandwidth every single frame.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Left: CPU memory holds the mesh loaded from disk and an optional CPU copy. An arrow labelled copied once, at load, goes to GPU memory on the right, which holds the vertex buffer and index buffer. Draw calls read them every frame. A dashed arrow labelled rewritten every frame goes from the CPU to a dynamic buffer for particles and UI.">
+                    <defs>
+                      <marker id="up-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="up-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-sunken s-strong" x="20" y="30" width="260" height="210" rx="8"/>
+                    <text class="t-caps" x="36" y="54">CPU MEMORY (RAM)</text>
+                    <rect class="f-surface s-strong" x="36" y="68" width="228" height="44" rx="4"/>
+                    <text class="t-strong" x="50" y="88">mesh loaded from disk</text>
+                    <text class="t-small t-muted" x="50" y="104">freed after upload</text>
+                    <rect class="f-surface s-strong dash" x="36" y="124" width="228" height="44" rx="4"/>
+                    <text class="t-strong" x="50" y="144">CPU copy (optional)</text>
+                    <text class="t-small t-muted" x="50" y="160">only if gameplay reads the mesh</text>
+                    <rect class="f-surface s-strong" x="36" y="180" width="228" height="44" rx="4"/>
+                    <text class="t-strong" x="50" y="200">particle and UI geometry</text>
+                    <text class="t-small t-muted" x="50" y="216">built fresh each frame</text>
+
+                    <rect class="f-sunken s-strong" x="560" y="30" width="320" height="210" rx="8"/>
+                    <text class="t-caps" x="576" y="54">GPU MEMORY (VRAM)</text>
+                    <rect class="f-geo-soft s-geo" x="576" y="68" width="140" height="44" rx="4"/>
+                    <text class="t-strong" x="588" y="88">vertex buffer</text>
+                    <text class="t-small t-muted" x="588" y="104">static</text>
+                    <rect class="f-acc-soft s-acc" x="726" y="68" width="138" height="44" rx="4"/>
+                    <text class="t-strong" x="738" y="88">index buffer</text>
+                    <text class="t-small t-muted" x="738" y="104">static</text>
+                    <rect class="f-geo-soft s-geo dash" x="576" y="180" width="288" height="44" rx="4"/>
+                    <text class="t-strong" x="588" y="200">dynamic vertex buffer</text>
+                    <text class="t-small t-muted" x="588" y="216">rewritten by the CPU</text>
+
+                    <line class="s-ink w15" x1="266" y1="90" x2="572" y2="90" marker-end="url(#up-arr)"/>
+                    <text class="t-strong mid" x="420" y="80">copied once, at load</text>
+                    <text class="t-small t-muted mid" x="420" y="108">across the bus between CPU and GPU</text>
+                    <line class="s-acc w15 dash" x1="266" y1="202" x2="572" y2="202" marker-end="url(#up-arr-a)"/>
+                    <text class="t-acc t-strong mid" x="420" y="192">rewritten every frame</text>
+
+                    <path class="s-muted" d="M720,118 C720,150 640,150 640,128" marker-end="url(#up-arr)"/>
+                    <text class="t-small t-muted" x="728" y="148">read by every draw,</text>
+                    <text class="t-small t-muted" x="728" y="163">every frame</text>
+                  </svg>
+                </div>
+                <figcaption><b>Where vertex data lives.</b> Static geometry crosses from CPU to GPU once. Dynamic geometry crosses every frame, which is why particle systems and procedural meshes show up in CPU and bandwidth budgets. Keeping a CPU copy of a static mesh doubles its memory, so engines only keep one when asked.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="draw-time"><span class="step-num">7</span> What happens at draw time</h3>
+              <p>A <a class="term" data-term="draw-call" data-forward href="glossary.html#draw-call">draw call</a> names the buffers, the layout and the number of indices to draw. The GPU's <a class="term" data-term="input-assembler" data-forward href="glossary.html#input-assembler">input assembler</a> then walks the index buffer, fetches each row it points to, and hands the vertex to the <a class="term" data-term="vertex-shader" data-forward href="glossary.html#vertex-shader">vertex shader</a>, the small program that places it on screen.</p>
+              <p>Here indexing pays off a second time. The GPU keeps the last few processed vertices in a <dfn class="term" data-term="vertex-cache">post-transform vertex cache</dfn>. When an index repeats soon after it was first seen, the GPU reuses the result instead of running the vertex shader again. With triangles ordered so shared corners come close together, a mesh needs little more than one vertex shader run per unique vertex. Tools such as meshoptimizer reorder triangles for exactly this.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="A draw call asks for 6 indices. The input assembler reads the indices 0, 1, 2, 2, 1, 3. Indices 0, 1, 2 and 3 are new, so the vertex shader runs for them. The second 2 and the second 1 are found in the vertex cache and reused. Four vertex shader runs serve six corners.">
+                    <defs>
+                      <marker id="dt-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="20" y="64" width="150" height="70" rx="6"/>
+                    <text class="t-caps" x="34" y="86">DRAW CALL</text>
+                    <text class="t-mono" x="34" y="108">draw 6 indices</text>
+                    <text class="t-mono t-muted t-small" x="34" y="124">from index 0</text>
+                    <line class="s-muted" x1="172" y1="99" x2="214" y2="99" marker-end="url(#dt-arr)"/>
+
+                    <text class="t-caps" x="220" y="40">INDEX STREAM, READ IN ORDER</text>
+                    <rect class="f-surface s-strong" x="220" y="76" width="60" height="44"/>
+                    <rect class="f-surface s-strong" x="280" y="76" width="60" height="44"/>
+                    <rect class="f-surface s-strong" x="340" y="76" width="60" height="44"/>
+                    <rect class="f-acc-soft s-acc" x="400" y="76" width="60" height="44"/>
+                    <rect class="f-acc-soft s-acc" x="460" y="76" width="60" height="44"/>
+                    <rect class="f-surface s-strong" x="520" y="76" width="60" height="44"/>
+                    <text class="t-mono t-strong mid" x="250" y="104">0</text>
+                    <text class="t-mono t-strong mid" x="310" y="104">1</text>
+                    <text class="t-mono t-strong mid" x="370" y="104">2</text>
+                    <text class="t-mono t-strong t-acc mid" x="430" y="104">2</text>
+                    <text class="t-mono t-strong t-acc mid" x="490" y="104">1</text>
+                    <text class="t-mono t-strong mid" x="550" y="104">3</text>
+                    <text class="t-small mid" x="250" y="140">run</text>
+                    <text class="t-small mid" x="310" y="140">run</text>
+                    <text class="t-small mid" x="370" y="140">run</text>
+                    <text class="t-small t-acc t-strong mid" x="430" y="140">reuse</text>
+                    <text class="t-small t-acc t-strong mid" x="490" y="140">reuse</text>
+                    <text class="t-small mid" x="550" y="140">run</text>
+                    <path class="s-muted" d="M220,62 V56 H400 V62 M400,62 V56 H580 V62"/>
+                    <text class="t-muted t-small mid" x="310" y="52">triangle A</text>
+                    <text class="t-muted t-small mid" x="490" y="52">triangle B</text>
+                    <line class="s-muted" x1="582" y1="99" x2="624" y2="99" marker-end="url(#dt-arr)"/>
+
+                    <rect class="f-surface s-strong" x="630" y="54" width="250" height="90" rx="6"/>
+                    <text class="t-caps" x="646" y="76">VERTEX SHADER</text>
+                    <text class="t-head" x="646" y="102">4 runs for 6 corners</text>
+                    <text class="t-small t-muted" x="646" y="122">the cache remembers recent results</text>
+                    <text class="t-small t-muted" x="646" y="137">and serves repeats for free</text>
+
+                    <text class="t-small t-muted" x="220" y="186">Without an index buffer there are no repeats to spot: six corners mean six runs,</text>
+                    <text class="t-small t-muted" x="220" y="202">and on a full mesh that is roughly five times the vertex work.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Indexing saves work, not just memory.</b> Repeated indices hit the vertex cache. The order of triangles in the index buffer decides how often that happens, which is why mesh optimisation tools reorder them.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Code</span> The same quad in about ten lines of WebGL 2</summary>
+                <div class="fold-body">
+                  <p>Every graphics API has the same three moves: create a buffer and copy bytes into it, describe the layout, then draw with indices. Here they are in WebGL 2, which runs in any browser. You will see the same shape in Direct3D, Vulkan and Metal code.</p>
+<pre class="code"><span class="c">// 1. Copy the vertex rows into a buffer in GPU memory.</span>
+<span class="k">const</span> vbo = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+gl.bufferData(gl.ARRAY_BUFFER, vertexBytes, gl.<span class="n">STATIC_DRAW</span>);  <span class="c">// static: written once</span>
+
+<span class="c">// 2. The vertex layout: attribute, count, type, normalise?, stride, offset.</span>
+gl.vertexAttribPointer(0, 3, gl.FLOAT, <span class="k">false</span>, <span class="n">32</span>, <span class="n">0</span>);   <span class="c">// position</span>
+gl.vertexAttribPointer(1, 3, gl.FLOAT, <span class="k">false</span>, <span class="n">32</span>, <span class="n">12</span>);  <span class="c">// normal</span>
+gl.vertexAttribPointer(2, 2, gl.FLOAT, <span class="k">false</span>, <span class="n">32</span>, <span class="n">24</span>);  <span class="c">// uv</span>
+
+<span class="c">// 3. The index buffer: six 16-bit row numbers.</span>
+<span class="k">const</span> ibo = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, <span class="k">new</span> Uint16Array([0, 1, 2, 2, 1, 3]), gl.STATIC_DRAW);
+
+<span class="c">// 4. Draw: 6 indices, each 16 bits, starting at the beginning.</span>
+gl.drawElements(gl.TRIANGLES, <span class="n">6</span>, gl.<span class="n">UNSIGNED_SHORT</span>, 0);</pre>
+                  <p>When reviewing code like this, check that the stride and offsets in step 2 match the bytes written in step 1, and that the index type in step 4 matches the array in step 3. Mismatches there are the bugs in section 5.</p>
+                </div>
+              </details>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Take a typical game character: 50,000 triangles and about 30,000 unique vertices after split vertices, with position, normal and UV in each vertex. Here is what each layout choice does to it.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Layout</th><th scope="col" class="num">Stride</th><th scope="col" class="num">Vertex buffer</th><th scope="col" class="num">Index buffer</th><th scope="col" class="num">Total</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Full precision, no index buffer (150,000 rows)</th><td class="num">32 B</td><td class="num">4.58 MB</td><td class="num">0</td><td class="num">4.58 MB</td></tr>
+                  <tr><th scope="row">Full precision, 32-bit indices</th><td class="num">32 B</td><td class="num">0.92 MB</td><td class="num">0.57 MB</td><td class="num">1.49 MB</td></tr>
+                  <tr><th scope="row">Full precision, 16-bit indices</th><td class="num">32 B</td><td class="num">0.92 MB</td><td class="num">0.29 MB</td><td class="num">1.20 MB</td></tr>
+                  <tr><th scope="row">Compact attributes, 16-bit indices</th><td class="num">16 B</td><td class="num">0.46 MB</td><td class="num">0.29 MB</td><td class="num">0.74 MB</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Compact means <dfn class="term" data-term="quantization">vertex quantization</dfn>: storing attributes in fewer bits. Positions as 16-bit numbers relative to the mesh's bounding box, normals packed into 4 bytes, UVs as 16-bit floats. Visually it is usually lossless for props and characters, and it halves the bytes every pass has to read.</p>
+            <h3>Memory is only part of the bill</h3>
+            <ul class="grows">
+              <li><strong>Every pass reads it again</strong><span>A mesh drawn into a depth pass, four shadow cascades and the main pass is fetched six times per frame. Halving the stride halves all six.</span></li>
+              <li><strong>Vertex shader runs</strong><span>Close to one per unique vertex with good triangle order; about three per triangle with no index buffer.</span></li>
+              <li><strong>Dynamic updates</strong><span>Rewriting a buffer each frame costs CPU time and bus bandwidth in proportion to its size.</span></li>
+              <li><strong>Split vertices</strong><span>Every hard edge and UV seam adds rows. Hard-surface props often have 1.5 to 2 times the vertices of a smooth mesh with the same triangles.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>One 2048 × 2048 texture compressed with BC7, with its mip chain, takes about 5.3 MB, more than four times the whole character mesh above. Vertex memory rarely decides whether a game fits. Vertex bandwidth and vertex counts matter more: in dense open worlds, in shadow passes that redraw everything, and on mobile GPUs where memory bandwidth also costs battery and heat.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Vertex data bugs are rarely subtle. Learn these five pictures and you can usually name the cause from a screenshot.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A small rounded mesh with long thin spikes shooting out of it in all directions.">
+                    <polygon class="f-solid s-strong" points="100,50 130,42 150,58 148,86 122,96 98,84"/>
+                    <polygon class="f-pix-soft s-pix" points="130,42 150,58 228,8"/>
+                    <polygon class="f-pix-soft s-pix" points="148,86 122,96 214,124"/>
+                    <polygon class="f-pix-soft s-pix" points="98,84 100,50 12,118"/>
+                    <polygon class="f-pix-soft s-pix" points="100,50 130,42 40,6"/>
+                    <polygon class="f-pix-soft s-pix" points="150,58 148,86 236,70"/>
+                  </svg>
+                </div>
+                <h4>Exploding spikes</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The vertex layout in code does not match the bytes in the buffer: wrong stride, offset or format. Positions are read from the middle of normals or UVs.</dd></div>
+                  <div><dt>Ask for</dt><dd>A comparison of the declared layout against what the importer writes, for every mesh variant, and a check in a frame capture's mesh viewer.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two parts of a model with long sliver triangles stretched between distant points on them.">
+                    <polygon class="f-solid s-strong" points="40,30 80,22 96,50 70,70 38,58"/>
+                    <polygon class="f-solid s-strong" points="150,60 196,54 214,92 180,116 146,98"/>
+                    <polygon class="f-pix-soft s-pix" points="80,22 96,50 196,54"/>
+                    <polygon class="f-pix-soft s-pix" points="38,58 70,70 180,116"/>
+                  </svg>
+                </div>
+                <h4>Triangles stretched across the model</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A mesh with more than 65,536 vertices was given 16-bit indices. Large row numbers wrap around and point at the wrong corners.</dd></div>
+                  <div><dt>Ask for</dt><dd>32-bit indices for that mesh, or splitting it, plus an import check that flags meshes over the limit.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A box whose front faces are missing, so you see the inside of its back walls.">
+                    <polygon class="f-solid s-strong" points="70,30 160,30 160,100 70,100"/>
+                    <polygon class="f-sunken s-strong" points="70,30 100,14 190,14 160,30"/>
+                    <polygon class="f-line s-strong" points="160,30 190,14 190,84 160,100"/>
+                    <polygon class="s-pix dash" points="40,46 130,46 130,116 40,116"/>
+                    <path class="s-pix dash" d="M40,46 L70,30 M130,46 L160,30 M130,116 L160,100 M40,116 L70,100"/>
+                  </svg>
+                </div>
+                <h4>Missing or inside-out faces</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The triangles' <a class="term" data-term="winding-order" href="glossary.html#winding-order">winding order</a> is flipped, often by an axis conversion on import, so <a class="term" data-term="backface-culling" data-forward href="glossary.html#backface-culling">backface culling</a> removes the faces you should see.</dd></div>
+                  <div><dt>Ask for</dt><dd>A check of the import's axis and handedness settings, or flipping the index order for the affected meshes.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A shaded sphere with a hard dark stripe down its middle where the shading jumps.">
+                    <defs>
+                      <radialGradient id="seam-sh" cx="0.35" cy="0.35" r="0.75">
+                        <stop offset="0" class="stop-surface"/>
+                        <stop offset="1" class="stop-shade" stop-opacity="0.55"/>
+                      </radialGradient>
+                    </defs>
+                    <circle class="f-solid" cx="120" cy="65" r="52"/>
+                    <circle cx="120" cy="65" r="52" fill="url(#seam-sh)"/>
+                    <path class="f-shade" fill-opacity="0.35" d="M120,13 A52,52 0 0 1 120,117 Z"/>
+                    <line class="s-pix w2" x1="120" y1="13" x2="120" y2="117"/>
+                  </svg>
+                </div>
+                <h4>Seams and wrong smoothing</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Normals were merged across an edge that should be hard, or split where the surface should be smooth, often by recomputing normals on import instead of keeping the artist's.</dd></div>
+                  <div><dt>Ask for</dt><dd>The importer's normal and tangent settings for the mesh, and whether they import or recompute.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A long floor whose far edge steps in a staircase pattern and leaves a thin crack between two pieces.">
+                    <polygon class="f-solid s-strong" points="14,110 226,110 226,70 200,70 200,66 170,66 170,62 140,62 140,58 110,58 110,54 80,54 80,50 50,50 50,46 14,46"/>
+                    <line class="s-pix w2" x1="120" y1="56" x2="120" y2="110"/>
+                    <line class="s-surface w2" x1="120" y1="58" x2="120" y2="110"/>
+                    <text class="t-small t-pix" x="128" y="96">crack</text>
+                  </svg>
+                </div>
+                <h4>Wobbling or cracking surfaces</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Positions were compressed too far for the mesh's size. On very large meshes 16-bit positions cannot land exactly, so edges step and neighbouring pieces stop meeting.</dd></div>
+                  <div><dt>Ask for</dt><dd>Full-precision positions for large or tiling meshes, or splitting them, while keeping compression for everything else.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To confirm any of these, take a frame capture with a <a class="term" data-term="profiler" data-forward href="glossary.html#profiler">frame capture tool</a> such as RenderDoc or PIX. Both show each draw's vertex and index buffers as tables, with the layout the GPU used to read them.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>No engine asks you to fill a vertex buffer by hand. You meet these ideas as import settings, mesh statistics and, in code, as layout descriptions.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Vertex counts</th>
+                    <td>The Static Mesh Editor viewport shows triangles and vertices for the LOD on screen.</td>
+                    <td>The Mesh asset preview in the Inspector shows vertex and triangle counts.</td>
+                    <td>The Debugger's Monitors tab shows how many primitives were drawn each frame.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Index format</th>
+                    <td>No setting. Each LOD is built with 16-bit indices unless an index exceeds 65,535, then 32-bit.</td>
+                    <td>Model import, Geometry section: <strong>Index Format</strong> (Auto, 16 bit, 32 bit). In code, <code>Mesh.indexFormat</code>; 16-bit is the default.</td>
+                    <td>No import setting. Scripts pass indices as a <code>PackedInt32Array</code> in <code>Mesh.ARRAY_INDEX</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Precision</th>
+                    <td>Static mesh LOD Build Settings: <strong>Use Full Precision UVs</strong> and <strong>Use High Precision Tangent Basis</strong>. Left off, UVs and tangents are stored compactly. Nanite meshes have their own <strong>Nanite Settings</strong>, including <strong>Position Precision</strong>.</td>
+                    <td>Player Settings, Other Settings, Optimization: <strong>Vertex Compression</strong> stores chosen channels as 16-bit floats. It only applies when the mesh is not skinned, <strong>Read/Write</strong> is off and the model's <strong>Mesh Compression</strong> is Off. Mesh Compression is a separate, lossy size reduction.</td>
+                    <td>Since Godot 4.2, importers compress vertex data when they can: 16-bit positions scaled to the mesh's bounds, packed normals and tangents, 16-bit UVs. Opt out per scene with the import option <code>meshes/force_disable_compression</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">CPU copy</th>
+                    <td>Static Mesh setting <strong>Allow CPUAccess</strong> keeps geometry readable by the CPU in cooked builds.</td>
+                    <td>Model import <strong>Read/Write</strong> keeps a CPU copy as well as the GPU one. Leave it off unless scripts read the mesh.</td>
+                    <td>No import switch. Scripts read mesh data through <code>Mesh.surface_get_arrays()</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Streams</th>
+                    <td>Four buffers per static mesh: positions, tangents, UVs and colours.</td>
+                    <td>One stream by default. Code can split attributes across up to four streams with <code>Mesh.SetVertexBufferParams</code> and <code>VertexAttributeDescriptor</code>.</td>
+                    <td>Since 4.2, positions are stored apart from normals and tangents; UVs and colours sit in a third buffer, bones and weights in a fourth.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">In code</th>
+                    <td>Engine source, rarely touched: <code>FStaticMeshVertexBuffers</code>.</td>
+                    <td><code>Mesh.SetVertexBufferParams</code>, <code>Mesh.SetVertexBufferData</code>, <code>Mesh.SetIndexBufferData</code>.</td>
+                    <td><code>ArrayMesh</code> with <code>Mesh.ARRAY_VERTEX</code>, <code>ARRAY_NORMAL</code>, <code>ARRAY_TEX_UV</code>, <code>ARRAY_INDEX</code>. <code>SurfaceTool.index()</code> merges duplicate vertices and builds an index buffer.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.7, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Mobile caveat</p>
+              <p>Some older mobile GPUs cannot use 32-bit indices at all. Unity's documentation names the Mali-400 as one. If you ship to low-end Android, keep every mesh under the 16-bit limit.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about vertex data name the engine and platform, state the current layout in numbers, and ask for risks and a way to verify, not just a change. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when meshes take too much memory or bandwidth</span></div>
+              <pre class="prompt-body">Engine: Unity 6, URP. Target: Meta Quest 3 at 72 fps.
+Our 40 character meshes use 56 bytes per vertex: position, normal and tangent at full precision, two UV sets and a colour. All use 32-bit indices.
+
+1. Propose a compact vertex layout for these meshes. List each attribute, its format and size, and the new stride.
+2. For each change, name the visual risk and how we would spot it in game.
+3. Tell us which import or Player settings to change, and which meshes, if any, genuinely need 32-bit indices.
+4. Estimate the saving per mesh and in total, and explain how to confirm the new layout in a RenderDoc capture.</pre>
+              <ul class="prompt-why">
+                <li>Platform and frame rate tell the AI why bandwidth matters.</li>
+                <li>Stating the current stride gives it numbers to reason from.</li>
+                <li>Asking for risks and verification stops a blind "compress everything" answer.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when meshes explode into spikes</span></div>
+              <pre class="prompt-body">Since we merged the new mesh import code, some static meshes render as long spikes radiating from the model. Others look fine. Unreal Engine 5, DirectX 12. Every broken mesh has a second UV channel; none of the working ones do.
+
+Find the cause. Compare the vertex layout the code declares with the bytes the importer writes, for meshes with and without the second UV channel: stride, offsets and formats. Show me the mismatch, the fix, and an automated test that would have caught it.</pre>
+              <ul class="prompt-why">
+                <li>The pattern (only meshes with a second UV set) points straight at a stride or offset mismatch.</li>
+                <li>Naming the three things to compare keeps the search narrow.</li>
+                <li>Asking for a test turns a one-off fix into a guard.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing vertex code</h3>
+            <ol class="review-list">
+              <li>Is this buffer created once, or rewritten every frame? Why?<span class="why">Per-frame rewrites cost CPU time and bandwidth for as long as the game runs.</span></li>
+              <li>Where is the vertex layout declared, and what keeps it in step with the importer and the shader?<span class="why">Two copies of the same layout drift apart, and the result is spikes.</span></li>
+              <li>Which meshes can exceed 65,536 vertices, and what happens to them?<span class="why">The 16-bit limit fails silently.</span></li>
+              <li>Do we keep a CPU copy of this mesh? What reads it?<span class="why">An unneeded copy doubles the mesh's memory.</span></li>
+              <li>Is the triangle order optimised for the vertex cache?<span class="why">It is free performance, usually one call to a library such as meshoptimizer at import time.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A square has 4 corners and 2 triangles. With a 32-byte stride and 16-bit indices, how many bytes do its vertex and index buffers take together? How many without an index buffer?</p>
+                <details><summary>Show answer</summary><p>Vertex buffer 4 × 32 = 128 bytes, index buffer 6 × 2 = 12 bytes, so 140 bytes. Without indices it needs 6 rows: 6 × 32 = 192 bytes.</p></details>
+              </li>
+              <li>
+                <p class="q">An artist's tool says a crate has 8 vertices. The engine says 24. Is something broken?</p>
+                <details><summary>Show answer</summary><p>No. Each corner of a hard-edged box touches three faces with different normals, so it is stored as three split vertices: 8 × 3 = 24. UV seams can add more.</p></details>
+              </li>
+              <li>
+                <p class="q">A 90,000-vertex terrain tile renders with long triangles connecting distant parts of it. What do you check first?</p>
+                <details><summary>Show answer</summary><p>The index format. 16-bit indices can only address 65,536 vertices, so higher row numbers wrap around. Use 32-bit indices or split the tile.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#vertex-buffer">vertex buffer</a></li>
+              <li><a class="chip" href="glossary.html#index-buffer">index buffer</a></li>
+              <li><a class="chip" href="glossary.html#vertex-attribute">vertex attribute</a></li>
+              <li><a class="chip" href="glossary.html#stride">stride</a></li>
+              <li><a class="chip" href="glossary.html#vertex-layout">vertex layout</a></li>
+              <li><a class="chip" href="glossary.html#interleaved">interleaved layout</a></li>
+              <li><a class="chip" href="glossary.html#vertex-stream">vertex stream</a></li>
+              <li><a class="chip" href="glossary.html#triangle-list">triangle list</a></li>
+              <li><a class="chip" href="glossary.html#index-format">index format</a></li>
+              <li><a class="chip" href="glossary.html#split-vertex">split vertex</a></li>
+              <li><a class="chip" href="glossary.html#static-buffer">static buffer</a></li>
+              <li><a class="chip" href="glossary.html#dynamic-buffer">dynamic buffer</a></li>
+              <li><a class="chip" href="glossary.html#vertex-cache">vertex cache</a></li>
+              <li><a class="chip" href="glossary.html#quantization">vertex quantization</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="4.3"></a> covers how the CPU asks the GPU to draw these buffers, and why the number of those requests matters.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://www.khronos.org/opengl/wiki/Vertex_Specification">Vertex Specification</a>, OpenGL Wiki, Khronos Group. Layouts, strides and buffer objects in detail.</li>
+              <li><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d11/d3d10-graphics-programming-guide-input-assembler-stage">Input-Assembler Stage</a>, Direct3D documentation, Microsoft. How the GPU reads vertex and index buffers.</li>
+              <li><a href="https://github.com/zeux/meshoptimizer">meshoptimizer</a>, Arseny Kapoulkine. Vertex cache and fetch optimisation and vertex quantization, used by many engines and tools.</li>
+              <li><a href="https://webgl2fundamentals.org/">WebGL2 Fundamentals</a>. A gentle, runnable introduction to buffers and attributes.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/vertex-buffer-inspector.js"></script>
+</body>
+</html>

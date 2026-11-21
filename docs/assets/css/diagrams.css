@@ -1,0 +1,527 @@
+/*
+ * diagrams.css: the shared vocabulary for inline SVG diagrams and the
+ * interactive demos.
+ *
+ * Diagrams are hand-written SVG inside the page. They never contain literal
+ * colours: every stroke, fill and label uses one of the classes below, which
+ * map to theme tokens. That is what lets every figure follow light and dark.
+ *
+ * Naming:
+ *   text classes    .t-*   (font role and colour of <text>)
+ *   fill classes    .f-*   (shape fills)
+ *   stroke classes  .s-*   (lines, outlines; all set fill:none)
+ *   gradient stops  .stop-*
+ * Combine freely: <rect class="f-surface s-line"> is a card outline.
+ */
+
+/* ---------- Diagram frame ---------- */
+
+svg.dg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Diagrams with small labels keep a readable minimum and scroll sideways
+   inside .fig-frame on phones instead of shrinking the text. */
+svg.dg.is-wide {
+  min-width: 680px;
+}
+
+svg.dg.is-mid {
+  min-width: 520px;
+}
+
+svg.dg text {
+  font-family: var(--font-body);
+  font-size: 12px;
+  fill: var(--ink);
+}
+
+/* ---------- Text roles ---------- */
+
+svg.dg .t-mono {
+  font-family: var(--font-mono);
+}
+
+svg.dg .t-caps {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  fill: var(--muted);
+}
+
+svg.dg .t-head {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+svg.dg .t-strong {
+  font-weight: 600;
+}
+
+svg.dg .t-small {
+  font-size: 10.5px;
+}
+
+svg.dg .t-muted {
+  fill: var(--muted);
+}
+
+svg.dg .t-acc {
+  fill: var(--accent);
+}
+
+svg.dg .t-geo {
+  fill: var(--geo);
+}
+
+svg.dg .t-lit {
+  fill: var(--lit);
+}
+
+svg.dg .t-pix {
+  fill: var(--pix);
+}
+
+svg.dg .t-on-acc {
+  fill: var(--on-accent);
+}
+
+svg.dg .mid {
+  text-anchor: middle;
+}
+
+svg.dg .end {
+  text-anchor: end;
+}
+
+/* ---------- Fills ---------- */
+
+svg.dg .f-surface { fill: var(--surface); }
+svg.dg .f-bg { fill: var(--bg); }
+svg.dg .f-sunken { fill: var(--sunken); }
+svg.dg .f-solid { fill: var(--solid); }
+svg.dg .f-line { fill: var(--line); }
+svg.dg .f-strong { fill: var(--line-strong); }
+svg.dg .f-ink { fill: var(--ink); }
+svg.dg .f-muted { fill: var(--muted); }
+svg.dg .f-acc { fill: var(--accent); }
+svg.dg .f-acc-soft { fill: var(--accent-soft); }
+svg.dg .f-geo { fill: var(--geo); }
+svg.dg .f-geo-soft { fill: var(--geo-soft); }
+svg.dg .f-lit { fill: var(--lit); }
+svg.dg .f-lit-soft { fill: var(--lit-soft); }
+svg.dg .f-pix { fill: var(--pix); }
+svg.dg .f-pix-soft { fill: var(--pix-soft); }
+svg.dg .f-shade { fill: var(--shade); }
+svg.dg .f-buf-hi { fill: var(--buffer-hi); }
+svg.dg .f-buf-lo { fill: var(--buffer-lo); }
+svg.dg .f-none { fill: none; }
+
+/* ---------- Strokes ---------- */
+
+/* SVG fills shapes black by default, so a shape with a stroke class and no
+   fill class is an outline. Matching on class tokens (start of the attribute
+   or after a space) keeps this from catching names like "is-wide". */
+svg.dg :is([class^="s-"], [class*=" s-"]):not([class^="f-"], [class*=" f-"]) {
+  fill: none;
+}
+
+svg.dg .s-ink { stroke: var(--ink); }
+svg.dg .s-muted { stroke: var(--muted); }
+svg.dg .s-line { stroke: var(--line); }
+svg.dg .s-strong { stroke: var(--line-strong); }
+svg.dg .s-acc { stroke: var(--accent); }
+svg.dg .s-geo { stroke: var(--geo); }
+svg.dg .s-lit { stroke: var(--lit); }
+svg.dg .s-pix { stroke: var(--pix); }
+svg.dg .s-shade { stroke: var(--shade); }
+svg.dg .s-surface { stroke: var(--surface); }
+
+svg.dg .w2 { stroke-width: 2; }
+svg.dg .w3 { stroke-width: 3; }
+svg.dg .w15 { stroke-width: 1.5; }
+svg.dg .dash { stroke-dasharray: 5 4; }
+svg.dg .dot-dash { stroke-dasharray: 2 4; }
+svg.dg .round { stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- Gradient stops ---------- */
+
+svg.dg .stop-shade { stop-color: var(--shade); }
+svg.dg .stop-ink { stop-color: var(--ink); }
+svg.dg .stop-acc { stop-color: var(--accent); }
+svg.dg .stop-lit { stop-color: var(--lit); }
+svg.dg .stop-surface { stop-color: var(--surface); }
+svg.dg .stop-buf-lo { stop-color: var(--buffer-lo); }
+svg.dg .stop-white { stop-color: #FFFFFF; }  /* masks only: never visible */
+svg.dg .stop-black { stop-color: #000000; }  /* masks only: never visible */
+
+/* ---------- Interactive demos ---------- */
+
+.demo {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-l);
+  min-width: 0;
+}
+
+.demo-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.demo-head .demo-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.demo-head .label {
+  color: var(--accent);
+}
+
+.demo-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-5);
+  align-items: end;
+}
+
+.control {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.control > .label {
+  font-size: 0.68rem;
+}
+
+.control input[type="range"] {
+  width: 180px;
+  accent-color: var(--accent);
+}
+
+.control .value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  font-size: var(--fs-sm);
+}
+
+.checks label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.checks input {
+  accent-color: var(--accent);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.demo-stage {
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.demo-panels {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-4);
+}
+
+@media (min-width: 900px) {
+  .demo-panels.is-split {
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr);
+  }
+}
+
+.demo-panel {
+  display: grid;
+  gap: var(--sp-2);
+  align-content: start;
+  min-width: 0;
+}
+
+.demo-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-md);
+}
+
+.demo-readout .r {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.demo-readout .r .label {
+  font-size: 0.68rem;
+}
+
+.demo-readout .r .v {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.demo-hint {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.demo-failed {
+  padding: var(--sp-4);
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
+/* Draggable handles in SVG demos. */
+svg.dg .handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+svg.dg .handle:active {
+  cursor: grabbing;
+}
+
+svg.dg .handle:focus {
+  outline: none;
+}
+
+svg.dg .handle:focus-visible .handle-ring {
+  stroke: var(--focus);
+  stroke-width: 2.5;
+  fill: var(--accent-soft);
+}
+
+svg.dg [role="button"] {
+  cursor: pointer;
+}
+
+svg.dg [role="button"]:focus {
+  outline: none;
+}
+
+svg.dg [role="button"]:focus-visible .hit-ring {
+  stroke: var(--focus);
+  stroke-width: 2;
+}
+
+/* Data tables inside demos (vertex rows, index lists). */
+.byte-table {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.byte-table th,
+.byte-table td {
+  padding: 0.3rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.byte-table th {
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  text-align: right;
+}
+
+.byte-table th:first-child,
+.byte-table td:first-child {
+  text-align: left;
+  color: var(--muted);
+}
+
+.byte-table tr.is-hot td {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.byte-table tr.is-dup td {
+  color: var(--muted);
+}
+
+.byte-table .dup-note {
+  font-size: 0.68rem;
+  color: var(--pix);
+  text-align: left;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.index-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.index-tri {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--surface);
+  padding: 0;
+  font: inherit;
+  color: var(--ink);
+}
+
+.index-tri span {
+  padding: 0.15rem 0.45rem;
+  min-width: 1.9rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.index-tri span + span {
+  border-left: 1px solid var(--line);
+}
+
+.index-tri .tri-name {
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: var(--sunken);
+  display: grid;
+  place-items: center;
+}
+
+.index-tri.is-hot {
+  border-color: var(--accent);
+}
+
+.index-tri span.is-hot {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Stride bar: one vertex drawn to scale, byte by byte. */
+.stride-bar {
+  display: flex;
+  height: 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  min-width: 0;
+}
+
+.stride-bar .seg-attr {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--surface);
+  color: var(--ink);
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.stride-bar .seg-attr:last-child {
+  border-right: 0;
+}
+
+.stride-bar .a-pos { background: var(--geo-soft); }
+.stride-bar .a-nrm { background: var(--accent-soft); }
+.stride-bar .a-uv { background: var(--lit-soft); }
+.stride-bar .a-col { background: var(--pix-soft); }
+
+.legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.legend-row .sw {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 3px;
+  vertical-align: -0.1rem;
+  margin-right: 0.3rem;
+  border: 1px solid var(--line-strong);
+}
+
+.mem-bars {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.mem-bar {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr) 5.5rem;
+  gap: var(--sp-3);
+  align-items: center;
+  font-size: var(--fs-sm);
+}
+
+.mem-bar .track {
+  height: 14px;
+  background: var(--sunken);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+}
+
+.mem-bar .fill-v {
+  background: var(--geo);
+}
+
+.mem-bar .fill-i {
+  background: var(--accent);
+}
+
+.mem-bar .bytes {
+  font-family: var(--font-mono);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .mem-bar {
+    grid-template-columns: minmax(0, 1fr) 5rem;
+  }
+  .mem-bar .track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

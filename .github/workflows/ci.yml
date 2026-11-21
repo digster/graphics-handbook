@@ -1,0 +1,36 @@
+# Runs the structure tests and the browser tests (Chromium, Firefox and
+# WebKit, each opening the pages from file://) on every push and pull request.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Structure tests
+        run: npm run test:structure
+
+      - name: Browser tests
+        run: npm run test:browser
+        env:
+          BROWSERS: chromium,firefox,webkit

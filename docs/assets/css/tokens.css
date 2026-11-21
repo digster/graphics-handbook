@@ -1,0 +1,200 @@
+/*
+ * tokens.css: the handbook's design tokens.
+ *
+ * Every colour on the site is a token defined here. Components and diagrams
+ * reference tokens only, never literal colours, so both themes stay correct.
+ *
+ * Theme model (three states):
+ *   - no data-theme attribute  -> follow the OS via prefers-color-scheme
+ *   - data-theme="light"       -> explicit light, wins over a dark OS
+ *   - data-theme="dark"        -> explicit dark, wins over a light OS
+ * theme-init.js sets the attribute before first paint when the reader has
+ * chosen a theme.
+ *
+ * Colour semantics (used consistently in prose, diagrams and interactives):
+ *   --accent  blue   the idea the current chapter is about
+ *   --geo     teal   geometry and vertex data
+ *   --lit     amber  light and anything it carries
+ *   --pix     rose   screen-space data: depth, G-buffer, post
+ * Colour never carries meaning alone; every coloured mark also has a label.
+ */
+
+/* Fonts are self-hosted (Latin subset, SIL OFL; licences sit beside the files)
+   so the handbook works offline and from file://. */
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/ibm-plex-sans-latin-400-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/ibm-plex-sans-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Space Grotesk";
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("../fonts/space-grotesk-latin-wght-normal.woff2") format("woff2");
+}
+
+:root {
+  /* Surfaces and ink: neutrals carry a slight blue bias toward the accent. */
+  --bg: #F4F5F9;
+  --surface: #FFFFFF;
+  --sunken: #ECEEF4;
+  --ink: #151833;
+  --muted: #5B6180;
+  --line: #D9DCE8;
+  --line-strong: #B3B8CE;
+  --solid: #E2E5F0;          /* geometry mass in diagrams */
+  --shade: #0B0D1A;          /* darkening overlays (AO, shadow) in both themes */
+
+  /* Semantic hues. "-soft" variants are tinted backgrounds for the same idea. */
+  --accent: #4A4ED6;         /* tangent-space normal-map blue, darkened for text */
+  --accent-soft: #E6E7FB;
+  --on-accent: #FFFFFF;
+  --geo: #0B7F74;
+  --geo-soft: #DCF0ED;
+  --lit: #A85C00;
+  --lit-soft: #FAEBD6;
+  --pix: #B92F58;
+  --pix-soft: #F8E1E8;
+
+  --focus: #4A4ED6;
+
+  /* Pictures of GPU buffers (an AO texture, a depth image) are grayscale
+     images with their own frame. They keep the same values in both themes,
+     so white still means "open sky" on a dark page. */
+  --buffer-hi: #F1F2F6;
+  --buffer-lo: #15171F;
+
+  --shadow-1: 0 1px 2px rgba(21, 24, 51, 0.06), 0 2px 8px rgba(21, 24, 51, 0.05);
+  --shadow-2: 0 2px 6px rgba(21, 24, 51, 0.08), 0 12px 32px rgba(21, 24, 51, 0.12);
+
+  /* Type. Display face is used with restraint: titles and diagram headings. */
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Type scale (rem): 0.75 / 0.84 / 0.94 / 1.0625 / 1.2 / 1.6 / 2.4 */
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.84rem;
+  --fs-md: 0.94rem;
+  --fs-body: 1.0625rem;
+  --fs-h3: 1.2rem;
+  --fs-h2: 1.6rem;
+  --fs-h1: clamp(1.9rem, 4.2vw, 2.4rem);
+
+  /* Space scale (rem). */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+  --sp-8: 4.5rem;
+
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --radius-l: 12px;
+
+  /* Layout. */
+  --header-h: 56px;
+  --sidebar-w: 272px;
+  --rail-w: 224px;
+  --prose: 68ch;
+  --content-max: 940px;
+  --gutter: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11131C;
+    --surface: #191C2A;
+    --sunken: #0D0F17;
+    --ink: #E9EBF6;
+    --muted: #9BA1BC;
+    --line: #2A2E44;
+    --line-strong: #474D6B;
+    --solid: #262A44;
+    --shade: #000000;
+    --accent: #9EA0FF;
+    --accent-soft: #25284F;
+    --on-accent: #11131C;
+    --geo: #45CDBC;
+    --geo-soft: #12322E;
+    --lit: #F0B14D;
+    --lit-soft: #382A12;
+    --pix: #F27A98;
+    --pix-soft: #3B1A25;
+    --focus: #9EA0FF;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #11131C;
+  --surface: #191C2A;
+  --sunken: #0D0F17;
+  --ink: #E9EBF6;
+  --muted: #9BA1BC;
+  --line: #2A2E44;
+  --line-strong: #474D6B;
+  --solid: #262A44;
+  --shade: #000000;
+  --accent: #9EA0FF;
+  --accent-soft: #25284F;
+  --on-accent: #11131C;
+  --geo: #45CDBC;
+  --geo-soft: #12322E;
+  --lit: #F0B14D;
+  --lit-soft: #382A12;
+  --pix: #F27A98;
+  --pix-soft: #3B1A25;
+  --focus: #9EA0FF;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}

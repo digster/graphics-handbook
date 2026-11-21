@@ -1,0 +1,898 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>8.3 Ambient occlusion: SSAO to GTAO · Graphics Handbook</title>
+  <meta name="description" content="What ambient occlusion is, how SSAO, HBAO and GTAO estimate it from the depth buffer, what it costs, how it breaks, and how to brief and review AO work.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="8.3">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <h1><span class="ch-num">8.3</span> Ambient occlusion: SSAO to GTAO</h1>
+            <p class="lead">Corners, creases and the ground under objects receive less of the light that bounces around a scene. Ambient occlusion darkens them. This chapter shows how renderers estimate it from the depth buffer every frame, and why each generation of the technique, from SSAO to GTAO, looks better and fails in its own way.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="8.1">8.1 Direct and indirect light</a>, <a class="xref" data-ch="5.5">5.5 Depth</a>, <a class="xref" data-ch="7.3">7.3 G-buffer</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.4">8.4 Screen-space tricks</a>, <a class="xref" data-ch="8.5">8.5 Real-time GI</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Horizon explorer</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 880 330" role="img" aria-label="The same room corner with a crate, drawn twice. Without ambient occlusion every surface is evenly lit and the crate seems to float. With ambient occlusion the corner, the creases where walls meet the floor, and the floor around the crate's base are darker, and the crate sits on the ground.">
+                  <defs>
+                    <filter id="pic-blur" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="10"/></filter>
+                    <filter id="pic-blur-s" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+                    <clipPath id="pic-clip"><rect x="0" y="0" width="420" height="280"/></clipPath>
+                  </defs>
+                  <text class="t-caps" x="0" y="20">WITHOUT AMBIENT OCCLUSION</text>
+                  <text class="t-caps" x="460" y="20">WITH AMBIENT OCCLUSION</text>
+
+                  <g transform="translate(0,36)">
+                    <g clip-path="url(#pic-clip)">
+                      <polygon class="f-surface" points="90,0 420,0 420,170 90,170"/>
+                      <polygon class="f-solid" points="0,0 90,0 90,170 0,280"/>
+                      <polygon class="f-sunken" points="0,280 90,170 420,170 420,280"/>
+                      <path class="s-strong" d="M90,0 V170 L0,280 M90,170 H420"/>
+                      <polygon class="f-surface s-strong" points="170,135 280,135 300,118 190,118"/>
+                      <polygon class="f-solid s-strong" points="170,135 280,135 280,235 170,235"/>
+                      <polygon class="f-strong s-strong" points="280,135 300,118 300,215 280,235"/>
+                    </g>
+                    <rect class="s-strong" x="0.5" y="0.5" width="419" height="279"/>
+                  </g>
+
+                  <g transform="translate(460,36)">
+                    <g clip-path="url(#pic-clip)">
+                      <polygon class="f-surface" points="90,0 420,0 420,170 90,170"/>
+                      <polygon class="f-solid" points="0,0 90,0 90,170 0,280"/>
+                      <polygon class="f-sunken" points="0,280 90,170 420,170 420,280"/>
+                      <g filter="url(#pic-blur)">
+                        <path class="s-shade" stroke-opacity="0.42" stroke-width="26" d="M0,280 L90,170 L430,170"/>
+                        <path class="s-shade" stroke-opacity="0.38" stroke-width="26" d="M90,-10 V170"/>
+                      </g>
+                      <path class="s-strong" d="M90,0 V170 L0,280 M90,170 H420"/>
+                      <polygon class="f-surface s-strong" points="170,135 280,135 300,118 190,118"/>
+                      <polygon class="f-solid s-strong" points="170,135 280,135 280,235 170,235"/>
+                      <polygon class="f-strong s-strong" points="280,135 300,118 300,215 280,235"/>
+                      <g filter="url(#pic-blur-s)">
+                        <path class="s-shade" stroke-opacity="0.6" stroke-width="16" d="M164,238 H284 L306,216"/>
+                        <path class="s-shade" stroke-opacity="0.25" stroke-width="10" d="M300,170 V214"/>
+                      </g>
+                    </g>
+                    <rect class="s-strong" x="0.5" y="0.5" width="419" height="279"/>
+                    <text class="t-small t-acc" x="98" y="20">corner</text>
+                    <text class="t-small t-acc end" x="410" y="266">contact under the crate</text>
+                    <text class="t-small t-acc" x="330" y="160">crease</text>
+                  </g>
+                </svg>
+              </div>
+              <figcaption><b>The same scene, without and with ambient occlusion.</b> Nothing about the lights changed. On the right, places that can see less of their surroundings receive less ambient light: the corner, the creases, and the floor around the crate. The crate now sits on the floor instead of floating above it.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Stand in an open field on an overcast day and light reaches you from the whole sky. Step into a narrow alley and the walls hide most of that sky, so it is darker, though nothing about the clouds changed. Crawl under a table and it is darker still.</p>
+            <p><dfn class="term" data-term="ambient-occlusion">Ambient occlusion</dfn>, or AO, is that effect for every point on every surface: how much of the surrounding sky or environment the point can see. A value of 1 means wide open; 0 means completely enclosed. The renderer multiplies the soft, surrounding light by that value.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 880 250" role="img" aria-label="Three side views of a point on the ground under a cloudy sky. In an open field it sees the whole sky, 100 percent. In a narrow alley the walls leave a thin slice of sky, about 32 percent once weighted. Under a tabletop only low slivers of sky are visible at the sides, about 10 percent.">
+                  <text class="t-head" x="20" y="24">Open field</text>
+                  <line class="s-ink w2" x1="20" y1="200" x2="270" y2="200"/>
+                  <path class="s-acc w3" d="M55,200 A90,90 0 0 1 235,200"/>
+                  <circle class="f-acc" cx="145" cy="200" r="6"/>
+                  <text class="t-strong mid" x="145" y="230">sees 100%</text>
+
+                  <text class="t-head" x="320" y="24">Narrow alley</text>
+                  <line class="s-ink w2" x1="300" y1="200" x2="580" y2="200"/>
+                  <rect class="f-solid s-ink" x="340" y="50" width="55" height="150"/>
+                  <rect class="f-solid s-ink" x="495" y="50" width="55" height="150"/>
+                  <path class="s-muted dash" d="M355,200 A90,90 0 0 1 535,200"/>
+                  <path class="s-acc w3" d="M473.4,114.6 A90,90 0 0 0 416.6,114.6"/>
+                  <line class="s-acc dot-dash" x1="445" y1="200" x2="395" y2="50"/>
+                  <line class="s-acc dot-dash" x1="445" y1="200" x2="495" y2="50"/>
+                  <circle class="f-acc" cx="445" cy="200" r="6"/>
+                  <text class="t-strong mid" x="445" y="230">sees about 32%</text>
+
+                  <text class="t-head" x="620" y="24">Under a tabletop</text>
+                  <line class="s-ink w2" x1="600" y1="200" x2="870" y2="200"/>
+                  <rect class="f-solid s-ink" x="650" y="150" width="170" height="10"/>
+                  <path class="s-muted dash" d="M645,200 A90,90 0 0 1 825,200"/>
+                  <path class="s-acc w3" d="M825,200 A90,90 0 0 0 816.5,161.7"/>
+                  <path class="s-acc w3" d="M653.5,161.7 A90,90 0 0 0 645,200"/>
+                  <circle class="f-acc" cx="735" cy="200" r="6"/>
+                  <text class="t-strong mid" x="735" y="230">sees about 10%</text>
+                </svg>
+              </div>
+              <figcaption><b>Ambient occlusion is the share of sky a point can see.</b> The blue arcs are the open sky. The percentages weight overhead sky more than sky near the horizon, because light from above strikes the ground more directly; section 3 explains why.</figcaption>
+            </figure>
+            <div class="analogy">
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Renderers usually approximate the light bouncing around a scene, the <a class="term" data-term="indirect-light" href="glossary.html#indirect-light">indirect light</a>, as a soft, even fill. An even fill lights the inside of a crease as brightly as an open floor. Objects look pasted on and seem to hover.</p>
+                <p>AO puts back the darkening where surfaces meet. It is the cheapest single effect that makes objects feel grounded.</p>
+              </div>
+              <div>
+                <span class="label">What it is not</span>
+                <p>AO is not a shadow from a light. A shadow depends on where the lamp or the sun is. AO depends only on the shape of the nearby geometry, so it looks the same whichever way the light comes from.</p>
+                <p>That is also its limit: it is a rough correction to the ambient light, not a simulation of bounced light.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>AO is in almost every game's graphics menu. It costs from around half a millisecond to a couple of milliseconds a frame. Its faults, such as dark halos, shimmering and ghost trails, are among the most reported visual bugs. Knowing which AO a game uses tells you which bugs to expect.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Every real-time AO method approximates the same ideal measurement. The story of SSAO, HBAO and GTAO is the story of getting closer to that ideal for less work.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="ideal"><span class="step-num">1</span> The ideal: count the open sky</h3>
+              <p>Fire rays from a point in every direction above its surface, out to some radius. Count the share that escape without hitting anything. That share is the point's visibility; ambient occlusion is what is missing from it.</p>
+              <p>Not every ray counts equally. Light arriving along the <a class="term" data-term="normal" href="glossary.html#normal">normal</a>, straight onto the surface, lights it fully. Light arriving at a grazing angle spreads thin across it. So rays near the normal carry more weight than rays near the horizon. This is called cosine weighting, and it is why the percentages in the alley picture are lower than the raw share of visible sky.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 250" role="img" aria-label="A point on the floor next to a wall fires 18 rays over the half circle above it. Thirteen escape and five hit the wall. Rays closer to straight up are drawn thicker, because they count more. Weighted this way, about 82 percent of the sky is open.">
+                    <rect class="f-solid" x="20" y="220" width="520" height="20"/>
+                    <line class="s-ink w2" x1="20" y1="220" x2="540" y2="220"/>
+                    <rect class="f-solid s-ink" x="120" y="60" width="80" height="160"/>
+                    <text class="t-small t-muted mid" x="160" y="150">wall</text>
+
+                    <g class="round">
+                      <line class="s-acc" stroke-width="0.8" x1="300" y1="220" x2="459.4" y2="206.1"/>
+                      <line class="s-acc" stroke-width="1.2" x1="300" y1="220" x2="454.5" y2="178.6"/>
+                      <line class="s-acc" stroke-width="1.6" x1="300" y1="220" x2="445.0" y2="152.4"/>
+                      <line class="s-acc" stroke-width="2.0" x1="300" y1="220" x2="431.1" y2="128.2"/>
+                      <line class="s-acc" stroke-width="2.3" x1="300" y1="220" x2="413.1" y2="106.9"/>
+                      <line class="s-acc" stroke-width="2.6" x1="300" y1="220" x2="391.8" y2="88.9"/>
+                      <line class="s-acc" stroke-width="2.8" x1="300" y1="220" x2="367.6" y2="75.0"/>
+                      <line class="s-acc" stroke-width="3.0" x1="300" y1="220" x2="341.4" y2="65.5"/>
+                      <line class="s-acc" stroke-width="3.0" x1="300" y1="220" x2="313.9" y2="60.6"/>
+                      <line class="s-acc" stroke-width="3.0" x1="300" y1="220" x2="286.1" y2="60.6"/>
+                      <line class="s-acc" stroke-width="3.0" x1="300" y1="220" x2="258.6" y2="65.5"/>
+                      <line class="s-acc" stroke-width="2.8" x1="300" y1="220" x2="232.4" y2="75.0"/>
+                      <line class="s-acc" stroke-width="2.6" x1="300" y1="220" x2="208.2" y2="88.9"/>
+                      <line class="s-muted" stroke-width="2.3" x1="300" y1="220" x2="200" y2="120"/>
+                      <line class="s-muted" stroke-width="2.0" x1="300" y1="220" x2="200" y2="150"/>
+                      <line class="s-muted" stroke-width="1.6" x1="300" y1="220" x2="200" y2="173.4"/>
+                      <line class="s-muted" stroke-width="1.2" x1="300" y1="220" x2="200" y2="193.2"/>
+                      <line class="s-muted" stroke-width="0.8" x1="300" y1="220" x2="200" y2="211.3"/>
+                    </g>
+                    <circle class="f-pix" cx="200" cy="120" r="3.5"/>
+                    <circle class="f-pix" cx="200" cy="150" r="3.5"/>
+                    <circle class="f-pix" cx="200" cy="173.4" r="3.5"/>
+                    <circle class="f-pix" cx="200" cy="193.2" r="3.5"/>
+                    <circle class="f-pix" cx="200" cy="211.3" r="3.5"/>
+                    <line class="s-ink w2" x1="300" y1="220" x2="300" y2="30"/>
+                    <text class="t-small" x="306" y="34">normal</text>
+                    <circle class="f-acc" cx="300" cy="220" r="6"/>
+
+                    <text class="t-head" x="580" y="70">13 of 18 rays escape</text>
+                    <text class="t-small t-muted" x="580" y="88">5 hit the wall (rose dots)</text>
+                    <text class="t-head t-acc" x="580" y="128">82% open, weighted</text>
+                    <text class="t-small t-muted" x="580" y="146">thick rays near the normal count most;</text>
+                    <text class="t-small t-muted" x="580" y="162">the blocked rays are low, so they count less</text>
+                    <text class="t-small t-muted" x="580" y="196">An offline renderer fires hundreds of rays</text>
+                    <text class="t-small t-muted" x="580" y="212">per point. A game has about 2 million pixels</text>
+                    <text class="t-small t-muted" x="580" y="228">and a few milliseconds.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The measurement every AO method approximates.</b> Each ray asks "is there sky this way?". Line thickness shows each ray's weight. Real-time methods cannot afford rays against the whole scene for every pixel, so they find cheaper ways to answer the same question.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The visibility integral, in one line</summary>
+                <div class="fold-body">
+                  <p>For a point with normal <code>n</code>, visibility is the cosine-weighted average of a yes-or-no visibility test <code>V</code> over the hemisphere of directions <code>ω</code> above the surface:</p>
+                  <p class="formula">visibility = (1 / π) ∫ V(ω) · (n · ω) dω,&nbsp;&nbsp; AO = 1 − visibility</p>
+                  <p>The <code>n · ω</code> term is the cosine weighting. Dividing by π makes a fully open hemisphere come out at exactly 1. Every method in this chapter is a way of estimating that integral.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="baked-or-live"><span class="step-num">2</span> Bake it, or compute it every frame</h3>
+              <p>AO that never changes can be computed once, offline, with as many rays as you like. Artists bake an AO texture for each asset, capturing the creases within the model. Level lighting bakes capture AO between static objects as part of <a class="term" data-term="baked-lighting" href="glossary.html#baked-lighting">baked lighting</a>.</p>
+              <p>Baking cannot handle anything that moves: a character's feet on the floor, a crate pushed against a wall, a door opening. For those, the renderer estimates AO every frame from what it has already drawn. Most games use both: baked AO for detail inside each asset, and per-frame AO for contact between objects.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th scope="col"></th><th scope="col">Baked AO</th><th scope="col">Per-frame AO</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Quality</th><td>As good as the bake: real rays, real geometry</td><td>An estimate from the depth buffer</td></tr>
+                    <tr><th scope="row">Runtime cost</th><td>A texture read</td><td>About 0.5 to 2 ms a frame</td></tr>
+                    <tr><th scope="row">Moving objects</th><td>No</td><td>Yes</td></tr>
+                    <tr><th scope="row">Typical use</th><td>Detail inside each asset; static level geometry</td><td>Contact between objects; anything dynamic</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="what-depth-knows"><span class="step-num">3</span> What the renderer knows: the depth buffer</h3>
+              <p>By the time AO runs, the renderer has drawn the scene's geometry into the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a> and, in a deferred renderer, the <a class="term" data-term="g-buffer" href="glossary.html#g-buffer">G-buffer</a>. For every pixel it knows how far away the visible surface is and which way that surface faces. That is all. The triangles themselves are gone.</p>
+              <p>So per-frame AO is a <a class="term" data-term="screen-space" href="glossary.html#screen-space">screen-space</a> technique: it reconstructs the shape of the scene from the depth buffer. That shape has two blind spots, and every artifact in section 5 comes from one of them.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 260" role="img" aria-label="Left: a side view of a real scene with a box and a tabletop with open space underneath, seen by a camera looking down. Right: what the depth buffer records, a single surface following the tops of the box and tabletop. The space under the tabletop is unknown and is treated as solid.">
+                    <defs>
+                      <marker id="dv-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <pattern id="dv-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="s-pix" x1="0" y1="0" x2="0" y2="6" stroke-width="1.3"/></pattern>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">THE REAL SCENE</text>
+                    <g class="s-muted">
+                      <line x1="60" y1="34" x2="60" y2="62" marker-end="url(#dv-arr)"/>
+                      <line x1="140" y1="34" x2="140" y2="62" marker-end="url(#dv-arr)"/>
+                      <line x1="220" y1="34" x2="220" y2="62" marker-end="url(#dv-arr)"/>
+                      <line x1="300" y1="34" x2="300" y2="62" marker-end="url(#dv-arr)"/>
+                      <line x1="380" y1="34" x2="380" y2="62" marker-end="url(#dv-arr)"/>
+                    </g>
+                    <text class="t-small t-muted" x="250" y="20">camera looks down</text>
+                    <rect class="f-solid" x="20" y="210" width="400" height="20"/>
+                    <line class="s-ink w2" x1="20" y1="210" x2="420" y2="210"/>
+                    <rect class="f-solid s-ink" x="80" y="150" width="70" height="60"/>
+                    <rect class="f-solid s-ink" x="220" y="120" width="120" height="10"/>
+                    <text class="t-small t-muted mid" x="115" y="184">box</text>
+                    <text class="t-small t-muted mid" x="280" y="112">tabletop</text>
+                    <text class="t-small mid" x="280" y="176">open space</text>
+
+                    <text class="t-caps" x="460" y="20">WHAT THE DEPTH BUFFER KNOWS</text>
+                    <polygon class="f-pix-soft" points="460,210 520,210 520,150 590,150 590,210 660,210 660,120 780,120 780,210 860,210 860,230 460,230"/>
+                    <rect x="660" y="130" width="120" height="80" fill="url(#dv-hatch)"/>
+                    <polyline class="s-pix w2" points="460,210 520,210 520,150 590,150 590,210 660,210 660,120 780,120 780,210 860,210"/>
+                    <text class="t-small t-pix t-strong mid" x="720" y="162">unknown,</text>
+                    <text class="t-small t-pix t-strong mid" x="720" y="178">treated as solid</text>
+                    <text class="t-small t-muted" x="460" y="252">One surface: the nearest thing each pixel saw. Nothing behind it, nothing off screen.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The depth buffer is a mask, not a model.</b> It records only the nearest surface along each pixel's view. Anything hidden behind that surface, and anything outside the screen, does not exist as far as screen-space AO is concerned.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ssao"><span class="step-num">4</span> SSAO: test random points</h3>
+              <p><dfn class="term" data-term="ssao">SSAO</dfn>, screen-space ambient occlusion, was introduced by Crytek for Crysis in 2007. For each pixel it scatters a handful of sample points in the half-sphere above the surface, typically 8 to 16, and checks each against the depth buffer. A point that lies behind the stored surface is inside geometry, so it counts as blocked. The share of unblocked points is the visibility.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 240" role="img" aria-label="A point P on the floor next to a step. Twelve sample points are scattered in the half circle above P. The three that fall inside the step are filled in rose and count as blocked; the nine in open air are hollow. Visibility is nine out of twelve, 75 percent.">
+                    <polygon class="f-pix-soft" points="40,200 300,200 300,80 440,80 440,226 40,226"/>
+                    <polyline class="s-pix w2" points="40,200 300,200 300,80 440,80"/>
+                    <text class="t-small t-pix" x="320" y="106">surface in the depth buffer</text>
+                    <path class="s-muted dash" d="M120,200 A110,110 0 0 1 340,200"/>
+                    <g>
+                      <circle class="f-surface s-acc w15" cx="150" cy="180" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="190" cy="130" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="220" cy="100" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="250" cy="160" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="280" cy="115" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="135" cy="155" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="260" cy="185" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="290" cy="180" r="5"/>
+                      <circle class="f-surface s-acc w15" cx="170" cy="110" r="5"/>
+                      <circle class="f-pix" cx="315" cy="170" r="5.5"/>
+                      <circle class="f-pix" cx="325" cy="150" r="5.5"/>
+                      <circle class="f-pix" cx="305" cy="130" r="5.5"/>
+                    </g>
+                    <circle class="f-acc" cx="230" cy="200" r="6"/>
+                    <text class="t-strong mid" x="230" y="222">P</text>
+
+                    <text class="t-head" x="500" y="60">9 of 12 samples are open</text>
+                    <text class="t-head t-acc" x="500" y="82">visibility 0.75</text>
+                    <text class="t-small t-muted" x="500" y="114">Each sample is compared with the depth buffer.</text>
+                    <text class="t-small t-muted" x="500" y="130">Behind the stored surface means blocked.</text>
+                    <text class="t-small t-muted" x="500" y="162">Neighbouring pixels use differently rotated</text>
+                    <text class="t-small t-muted" x="500" y="178">patterns, so the raw result is speckled noise</text>
+                    <text class="t-small t-muted" x="500" y="194">that a blur pass must clean up.</text>
+                  </svg>
+                </div>
+                <figcaption><b>SSAO in one step.</b> A few random points per pixel, each a hit-or-miss test against the depth buffer. It is fast and simple, and it sees the scene only through the depth buffer.</figcaption>
+              </figure>
+              <p>A dozen random samples cannot estimate a smooth quantity cleanly. Each pixel gets a differently rotated pattern, so the raw output is noisy, and a blur pass follows. It has to be a <dfn class="term" data-term="bilateral-filter">bilateral filter</dfn>, one that only mixes pixels at a similar depth, or the darkness of a crease would smear onto the object in front of it. SSAO also treats every sample equally, ignoring cosine weighting, so its darkness is not physically scaled. Its results look plausible rather than correct.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="hbao"><span class="step-num">5</span> HBAO: look for the horizon</h3>
+              <p><dfn class="term" data-term="hbao">HBAO</dfn>, horizon-based ambient occlusion, was presented by NVIDIA in 2008. Instead of scattering points, it walks outward from the pixel across the screen in a few directions. In each direction it records the steepest angle at which the surrounding surface rises above the pixel: the <dfn class="term" data-term="horizon-angle">horizon angle</dfn>. Below the horizon the sky is blocked; above it, it is open.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 260" role="img" aria-label="Left: a grid of pixels with the current pixel P in the centre and four directions drawn through it, each with three steps on either side. Right: the height of the surface along one direction, seen side on. The highest step on the left rises at 36 degrees above P, on the right at 24 degrees. Those are the two horizon angles.">
+                    <text class="t-caps" x="40" y="20">ON SCREEN: DIRECTIONS FROM ONE PIXEL</text>
+                    <g class="s-line">
+                      <path d="M40,30 V228 M62,30 V228 M84,30 V228 M106,30 V228 M128,30 V228 M150,30 V228 M172,30 V228 M194,30 V228 M216,30 V228 M238,30 V228"/>
+                      <path d="M40,30 H238 M40,52 H238 M40,74 H238 M40,96 H238 M40,118 H238 M40,140 H238 M40,162 H238 M40,184 H238 M40,206 H238 M40,228 H238"/>
+                    </g>
+                    <rect class="f-acc" x="128" y="118" width="22" height="22"/>
+                    <g class="s-acc w15">
+                      <line x1="51" y1="129" x2="227" y2="129"/>
+                      <line x1="139" y1="41" x2="139" y2="217"/>
+                      <line x1="62" y1="52" x2="216" y2="206"/>
+                      <line x1="216" y1="52" x2="62" y2="206"/>
+                    </g>
+                    <g class="f-acc">
+                      <circle cx="73" cy="129" r="3.5"/><circle cx="95" cy="129" r="3.5"/><circle cx="117" cy="129" r="3.5"/>
+                      <circle cx="161" cy="129" r="3.5"/><circle cx="183" cy="129" r="3.5"/><circle cx="205" cy="129" r="3.5"/>
+                      <circle cx="139" cy="63" r="3.5"/><circle cx="139" cy="85" r="3.5"/><circle cx="139" cy="107" r="3.5"/>
+                      <circle cx="139" cy="151" r="3.5"/><circle cx="139" cy="173" r="3.5"/><circle cx="139" cy="195" r="3.5"/>
+                    </g>
+                    <text class="t-small t-strong" x="232" y="124">one direction</text>
+                    <text class="t-small t-muted" x="40" y="248">Each dot is a depth-buffer read.</text>
+
+                    <text class="t-caps" x="320" y="20">SIDE ON: THE SURFACE ALONG ONE DIRECTION</text>
+                    <polygon class="f-pix-soft" points="330,150 380,140 430,170 480,120 530,185 560,195 590,200 620,195 660,180 700,150 740,165 790,110 840,130 860,130 860,226 330,226"/>
+                    <polyline class="s-pix w2" points="330,150 380,140 430,170 480,120 530,185 560,195 590,200 620,195 660,180 700,150 740,165 790,110 840,130 860,130"/>
+                    <g class="f-muted">
+                      <circle cx="560" cy="195" r="3.5"/><circle cx="530" cy="185" r="3.5"/><circle cx="430" cy="170" r="3.5"/>
+                      <circle cx="620" cy="195" r="3.5"/><circle cx="660" cy="180" r="3.5"/><circle cx="740" cy="165" r="3.5"/>
+                    </g>
+                    <line class="s-acc w2 dash" x1="590" y1="200" x2="440" y2="91"/>
+                    <line class="s-acc w2 dash" x1="590" y1="200" x2="760" y2="123"/>
+                    <circle class="f-acc" cx="480" cy="120" r="5"/>
+                    <circle class="f-acc" cx="700" cy="150" r="5"/>
+                    <circle class="f-acc" cx="590" cy="200" r="6"/>
+                    <text class="t-strong mid" x="590" y="222">P</text>
+                    <text class="t-acc t-strong" x="336" y="84">horizon 36°</text>
+                    <text class="t-acc t-strong" x="706" y="98">horizon 24°</text>
+                    <line class="s-muted dot-dash" x1="430" y1="200" x2="760" y2="200"/>
+                  </svg>
+                </div>
+                <figcaption><b>From scattered samples to horizons.</b> HBAO marches along a few directions on screen. Along each, only the highest point it meets matters, because anything lower is already hidden behind it. That one maximum replaces a crowd of hit-or-miss tests, which is why horizon methods are less noisy than SSAO for the same work.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="gtao"><span class="step-num">6</span> GTAO: integrate the visible arc exactly</h3>
+              <p><dfn class="term" data-term="gtao">GTAO</dfn>, ground-truth ambient occlusion, was published by Activision in 2016 and used in Call of Duty. It keeps the horizon search but treats each direction as a <dfn class="term" data-term="slice">slice</dfn>: a thin vertical cut through the half-sphere above the pixel. In that slice the two horizons bound one arc of open sky. GTAO computes the cosine-weighted visibility of that arc with an exact formula, so for the shape the depth buffer describes, its answer matches what ray tracing would give. That is the "ground truth" in the name.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 280" role="img" aria-label="A side-on slice through the depth buffer. From pixel P on the floor, a wall on the left raises the horizon to 30 degrees and a ledge on the right raises it to 16 degrees, leaving 134 of 180 degrees of the slice open to the sky.">
+                    <defs>
+                      <pattern id="gt-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="s-muted" x1="0" y1="0" x2="0" y2="6" stroke-width="1.2"/></pattern>
+                      <marker id="gt-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <polygon class="f-pix-soft" points="60,80 200,80 200,220 620,220 620,170 820,170 820,262 60,262"/>
+                    <polyline class="s-pix w15" points="60,80 200,80 200,220 620,220 620,170 820,170"/>
+                    <text class="t-caps" x="62" y="68">ONE SLICE OF THE DEPTH BUFFER</text>
+                    <text class="t-small t-muted mid" x="130" y="160">wall</text>
+                    <text class="t-small t-muted mid" x="720" y="205">ledge</text>
+                    <path fill="url(#gt-hatch)" d="M440,220 L320,220 A120,120 0 0 1 336.35,159.53 Z"/>
+                    <path fill="url(#gt-hatch)" d="M440,220 L555.62,187.88 A120,120 0 0 1 560,220 Z"/>
+                    <path class="f-acc-soft" d="M440,220 L336.35,159.53 A120,120 0 0 1 555.62,187.88 Z"/>
+                    <path class="s-muted" stroke-dasharray="3 4" d="M320,220 A120,120 0 0 1 560,220"/>
+                    <path class="s-acc w3" d="M336.35,159.53 A120,120 0 0 1 555.62,187.88"/>
+                    <line class="s-acc w15 dash" x1="440" y1="220" x2="200" y2="80"/>
+                    <line class="s-acc w15 dash" x1="440" y1="220" x2="620" y2="170"/>
+                    <g class="f-muted">
+                      <circle cx="400" cy="220" r="2.5"/><circle cx="360" cy="220" r="2.5"/><circle cx="320" cy="220" r="2.5"/><circle cx="280" cy="220" r="2.5"/><circle cx="240" cy="220" r="2.5"/>
+                      <circle cx="480" cy="220" r="2.5"/><circle cx="520" cy="220" r="2.5"/><circle cx="560" cy="220" r="2.5"/><circle cx="600" cy="220" r="2.5"/>
+                      <circle cx="660" cy="170" r="2.5"/><circle cx="700" cy="170" r="2.5"/>
+                    </g>
+                    <circle class="f-acc" cx="200" cy="80" r="5"/>
+                    <circle class="f-acc" cx="620" cy="170" r="5"/>
+                    <line class="s-ink w15" x1="440" y1="220" x2="440" y2="130" marker-end="url(#gt-arr)"/>
+                    <text class="t-small" x="448" y="138">normal</text>
+                    <circle class="f-acc" cx="440" cy="220" r="5.5"/>
+                    <text class="t-strong mid" x="440" y="243">P</text>
+                    <text class="t-acc t-strong mid" x="440" y="90">134° of 180° open: visibility 0.91</text>
+                    <text class="t-small t-acc" x="250" y="98">horizon 1 · 30°</text>
+                    <text class="t-small t-acc" x="632" y="158">horizon 2 · 16°</text>
+                    <text class="t-small t-muted mid" x="360" y="240">blocked</text>
+                    <text class="t-small t-muted mid" x="532" y="240">blocked</text>
+                    <text class="t-small t-muted mid" x="300" y="256">depth samples, marched outward from P</text>
+                  </svg>
+                </div>
+                <figcaption><b>GTAO in one slice.</b> From P, the shader steps left and right through the depth buffer and keeps the steepest angle on each side. The open arc between the two horizons is integrated exactly, with cosine weighting: here (cos 30° + cos 16°) ÷ 2 = 0.91. A few slices at different angles around P cover the whole half-sphere.</figcaption>
+              </figure>
+              <p>GTAO is fast because it spreads the work out. The original ran at half resolution and evaluated just one slice direction per pixel per frame. Neighbouring pixels used different directions, and each frame rotated them again. A 4 × 4 bilateral blur combined neighbours, and <a class="term" data-term="temporal-accumulation" data-forward href="glossary.html#temporal-accumulation">temporal accumulation</a> blended six frames of rotations. The paper reports 96 effective directions per pixel at a cost of 0.5 ms on a PlayStation 4 at 1080p.</p>
+              <p>The same paper adds two refinements you will see in settings menus:</p>
+              <ul>
+                <li><dfn class="term" data-term="multi-bounce-ao">Multi-bounce AO</dfn> brightens AO on light-coloured surfaces. In a white corner, light bounces several times before it is absorbed, so the corner is not as dark as single-bounce AO predicts. A darker surface absorbs more at each bounce, so its AO stays close to the raw value.</li>
+                <li><dfn class="term" data-term="specular-occlusion">Specular occlusion</dfn> darkens reflections inside creases. It uses the <dfn class="term" data-term="bent-normal">bent normal</dfn>, the average direction of open sky, to judge whether a reflection would point into geometry.</li>
+              </ul>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 262" role="img" aria-label="Left: a chart of AO after the multi-bounce correction against AO before it. A light surface with albedo 0.8 is lifted the most: an input of 0.5 becomes 0.81. Albedo 0.5 gives 0.68 and albedo 0.2 gives 0.55. Right: a point near a wall with its normal pointing straight up and its bent normal tilted away from the wall, toward the open sky.">
+                    <text class="t-caps" x="60" y="22">MULTI-BOUNCE CORRECTION</text>
+                    <line class="s-strong" x1="60" y1="40" x2="300" y2="40"/>
+                    <line class="s-strong" x1="60" y1="120" x2="300" y2="120"/>
+                    <line class="s-ink" x1="60" y1="200" x2="300" y2="200"/>
+                    <line class="s-ink" x1="60" y1="40" x2="60" y2="200"/>
+                    <text class="t-mono t-muted t-small end" x="54" y="204">0</text>
+                    <text class="t-mono t-muted t-small end" x="54" y="124">0.5</text>
+                    <text class="t-mono t-muted t-small end" x="54" y="44">1</text>
+                    <text class="t-mono t-muted t-small mid" x="60" y="218">0</text>
+                    <text class="t-mono t-muted t-small mid" x="180" y="218">0.5</text>
+                    <text class="t-mono t-muted t-small mid" x="300" y="218">1</text>
+                    <text class="t-small t-muted mid" x="180" y="236">AO visibility before</text>
+                    <text class="t-small t-muted" x="8" y="30">after</text>
+                    <line class="s-muted dash" x1="60" y1="200" x2="300" y2="40"/>
+                    <polyline class="s-ink w2" points="60.0,200.0 72.0,190.2 84.0,180.6 96.0,171.3 108.0,162.2 120.0,153.3 132.0,144.7 144.0,136.2 156.0,127.9 168.0,119.8 180.0,111.9 192.0,104.1 204.0,96.5 216.0,89.0 228.0,81.7 240.0,74.5 252.0,67.4 264.0,60.4 276.0,53.5 288.0,46.8 300.0,40.0"/>
+                    <polyline class="s-muted w2" points="60.0,200.0 72.0,184.1 84.0,169.6 96.0,156.3 108.0,144.2 120.0,133.1 132.0,123.1 144.0,113.9 156.0,105.6 168.0,98.0 180.0,91.0 192.0,84.7 204.0,78.8 216.0,73.4 228.0,68.3 240.0,63.5 252.0,58.8 264.0,54.2 276.0,49.6 288.0,44.9 300.0,40.0"/>
+                    <polyline class="s-acc w3" points="60.0,200.0 72.0,178.1 84.0,158.6 96.0,141.3 108.0,126.2 120.0,112.9 132.0,101.4 144.0,91.6 156.0,83.2 168.0,76.1 180.0,70.2 192.0,65.3 204.0,61.2 216.0,57.8 228.0,54.9 240.0,52.4 252.0,50.1 264.0,47.9 276.0,45.6 288.0,43.0 300.0,40.0"/>
+                    <circle class="f-acc" cx="180" cy="70.2" r="4"/>
+                    <circle class="f-muted" cx="180" cy="91.0" r="4"/>
+                    <circle class="f-ink" cx="180" cy="111.9" r="4"/>
+                    <line class="s-acc w3" x1="320" y1="70" x2="342" y2="70"/>
+                    <text class="t-small t-acc" x="348" y="74">albedo 0.8: 0.5 → 0.81</text>
+                    <line class="s-muted w2" x1="320" y1="92" x2="342" y2="92"/>
+                    <text class="t-small" x="348" y="96">albedo 0.5: 0.5 → 0.68</text>
+                    <line class="s-ink w2" x1="320" y1="114" x2="342" y2="114"/>
+                    <text class="t-small" x="348" y="118">albedo 0.2: 0.5 → 0.55</text>
+                    <line class="s-muted dash" x1="320" y1="136" x2="342" y2="136"/>
+                    <text class="t-small t-muted" x="348" y="140">no correction</text>
+
+                    <text class="t-caps" x="560" y="22">BENT NORMAL</text>
+                    <defs>
+                      <marker id="bn-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="bn-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-solid" x="560" y="200" width="300" height="20"/>
+                    <line class="s-ink w2" x1="560" y1="200" x2="860" y2="200"/>
+                    <rect class="f-solid s-ink" x="580" y="60" width="60" height="140"/>
+                    <path class="f-acc-soft" d="M700,200 L800,200 A100,100 0 0 0 660.6,108.1 Z"/>
+                    <line class="s-acc dot-dash" x1="700" y1="200" x2="640" y2="60"/>
+                    <line class="s-ink w2" x1="700" y1="200" x2="700" y2="100" marker-end="url(#bn-arr)"/>
+                    <line class="s-acc w2" x1="700" y1="200" x2="738" y2="108" marker-end="url(#bn-arr-a)"/>
+                    <circle class="f-acc" cx="700" cy="200" r="5"/>
+                    <text class="t-small" x="660" y="94">normal</text>
+                    <text class="t-small t-acc t-strong" x="744" y="104">bent normal</text>
+                    <text class="t-small t-muted" x="700" y="236">points into the middle of the open sky,</text>
+                    <text class="t-small t-muted" x="700" y="252">away from the wall</text>
+                  </svg>
+                </div>
+                <figcaption><b>Two refinements from the GTAO paper.</b> Left: the multi-bounce correction, drawn from the paper's fitted curve. Light surfaces get much lighter AO than dark ones. Right: the bent normal points toward the open part of the sky, which engines use to keep reflections and ambient light from leaking out of creases.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real GTAO also tilts each slice's integral to account for the surface normal not lying flat in the slice, and fades samples near the edge of the radius instead of cutting them off. The idea in the figure, two horizons and an exact integral between them, is the whole core of the method.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="explorer"><span class="step-num">7</span> Compare the three on one slice</h3>
+              <p>The interactive below is a side view of one slice through a small scene, with a camera looking straight down. Drag P along the floor. The plot under the scene shows all three estimates at every position at once. Look in particular at what happens next to the table, and at the right edge of the screen.</p>
+              <figure>
+                <div class="demo" data-demo="horizon-explorer">
+                  <p class="demo-hint">The horizon explorer needs JavaScript. It compares ground-truth rays, SSAO and GTAO on a side view of a floor with a wall, a table and a crate.</p>
+                </div>
+                <figcaption><b>Horizon explorer.</b> Ground truth casts rays against the real shapes. SSAO and GTAO see only the depth buffer, shaded in rose. Next to the table, both screen-space methods think the space underneath is solid, so they come out too dark. That is the dark halo in section 5. Near the right edge, the pillar is off screen: ground truth sees it and the screen-space methods do not.</figcaption>
+              </figure>
+              <ul>
+                <li>Switch to <strong>SSAO samples</strong> and drag slowly: the value jumps around as the random pattern changes. Raise the sample count and watch the rose line in the plot settle.</li>
+                <li>Set <strong>GTAO steps per side</strong> to 2 and drag past the crate: with so few steps the march can jump over it, and AO pops.</li>
+                <li>Raise the <strong>radius</strong>: AO reaches further, darkening more of the floor, and costs more in a real renderer because the samples spread out in memory.</li>
+              </ul>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="in-the-frame"><span class="step-num">8</span> Where AO sits in the frame</h3>
+              <p>AO is its own <a class="term" data-term="render-pass" href="glossary.html#render-pass">render pass</a>, usually a <a class="term" data-term="compute-shader" href="glossary.html#compute-shader">compute shader</a> that runs after depth and normals exist and before lighting. It writes a single-channel texture: one visibility value per pixel. Most renderers compute it at half resolution, a quarter of the pixels, then denoise and upsample it.</p>
+              <p>The lighting pass then multiplies it into the <a class="term" data-term="sky-light" href="glossary.html#sky-light">sky light</a> and indirect light only. <a class="term" data-term="direct-light" href="glossary.html#direct-light">Direct light</a> from the sun or a lamp has its own shadows, so darkening it with AO as well makes sunlit corners look dirty. Many engines nevertheless expose a slider for exactly that, because artists sometimes want the extra contrast.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 236" role="img" aria-label="The AO passes in a frame. Depth and normals feed the AO pass at half resolution. Its noisy result goes to a denoise pass that blends neighbours and last frame's AO, reprojected with motion vectors. The result is upsampled to full resolution and multiplied into ambient and indirect light in the lighting pass. Direct light enters the lighting pass separately and is not darkened by AO.">
+                    <defs>
+                      <marker id="fr-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="fr-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-pix-soft s-pix" x="20" y="50" width="140" height="64" rx="6"/>
+                    <text class="t-strong" x="34" y="76">Depth + normals</text>
+                    <text class="t-small t-muted" x="34" y="94">from the G-buffer</text>
+                    <rect class="f-acc-soft s-acc" x="196" y="50" width="140" height="64" rx="6"/>
+                    <text class="t-strong" x="210" y="76">AO pass</text>
+                    <text class="t-small t-muted" x="210" y="94">half resolution</text>
+                    <rect class="f-surface s-strong" x="372" y="50" width="140" height="64" rx="6"/>
+                    <text class="t-strong" x="386" y="76">Denoise</text>
+                    <text class="t-small t-muted" x="386" y="94">spatial, then temporal</text>
+                    <rect class="f-surface s-strong" x="548" y="50" width="140" height="64" rx="6"/>
+                    <text class="t-strong" x="562" y="76">Upsample</text>
+                    <text class="t-small t-muted" x="562" y="94">to full res, edge-aware</text>
+                    <rect class="f-lit-soft s-lit" x="724" y="40" width="140" height="84" rx="6"/>
+                    <text class="t-strong" x="738" y="66">Lighting</text>
+                    <text class="t-small t-muted" x="738" y="84">ambient × AO</text>
+                    <text class="t-small t-muted" x="738" y="100">+ direct light</text>
+                    <line class="s-muted" x1="162" y1="82" x2="192" y2="82" marker-end="url(#fr-arr)"/>
+                    <line class="s-muted" x1="338" y1="82" x2="368" y2="82" marker-end="url(#fr-arr)"/>
+                    <line class="s-muted" x1="514" y1="82" x2="544" y2="82" marker-end="url(#fr-arr)"/>
+                    <line class="s-acc w15" x1="690" y1="82" x2="720" y2="82" marker-end="url(#fr-arr-a)"/>
+                    <text class="t-small t-acc mid" x="705" y="140">darkens</text>
+                    <text class="t-small t-acc mid" x="705" y="154">ambient only</text>
+
+                    <rect class="f-surface s-strong dash" x="372" y="168" width="140" height="52" rx="6"/>
+                    <text class="t-strong" x="386" y="190">Last frame's AO</text>
+                    <text class="t-small t-muted" x="386" y="207">moved by motion vectors</text>
+                    <line class="s-muted" x1="442" y1="166" x2="442" y2="118" marker-end="url(#fr-arr)"/>
+                    <rect class="f-lit-soft s-lit" x="724" y="168" width="140" height="52" rx="6"/>
+                    <text class="t-strong" x="738" y="190">Direct light</text>
+                    <text class="t-small t-muted" x="738" y="207">sun, lamps, own shadows</text>
+                    <line class="s-muted" x1="794" y1="166" x2="794" y2="128" marker-end="url(#fr-arr)"/>
+                    <text class="t-small t-muted" x="20" y="150">Typical cost of the whole chain:</text>
+                    <text class="t-small t-muted" x="20" y="166">0.5 to 2 ms at 1080p.</text>
+                  </svg>
+                </div>
+                <figcaption><b>AO is a small chain of passes.</b> It reads depth and normals, writes a noisy half-resolution result, cleans it with neighbours and with the previous frame, then scales it up. Only ambient and indirect light are meant to be darkened by it.</figcaption>
+              </figure>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 880 210" role="img" aria-label="Three crops of the same AO texture near a corner. Raw, it is a grainy speckle. After the spatial blur, the grain is softer but blotchy. After temporal accumulation, it is a smooth gradient.">
+                    <defs>
+                      <linearGradient id="dn-ramp" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" class="stop-buf-lo" stop-opacity="0.9"/>
+                        <stop offset="0.65" class="stop-buf-lo" stop-opacity="0"/>
+                      </linearGradient>
+                      <linearGradient id="dn-mask-g" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" class="stop-white"/>
+                        <stop offset="0.8" class="stop-black"/>
+                      </linearGradient>
+                      <mask id="dn-mask" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#dn-mask-g)"/></mask>
+                      <filter id="dn-noise" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="7"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -1.2"/>
+                      </filter>
+                      <filter id="dn-noise-soft" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="2" seed="7"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.4 0 0 0 -0.95"/>
+                      </filter>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">RAW AO, ONE FRAME</text>
+                    <rect class="f-buf-hi" x="20" y="32" width="240" height="140"/>
+                    <rect x="20" y="32" width="240" height="140" fill="url(#dn-ramp)"/>
+                    <g mask="url(#dn-mask)"><rect x="20" y="32" width="240" height="140" filter="url(#dn-noise)"/></g>
+                    <text class="t-caps" x="320" y="20">AFTER THE SPATIAL BLUR</text>
+                    <rect class="f-buf-hi" x="320" y="32" width="240" height="140"/>
+                    <rect x="320" y="32" width="240" height="140" fill="url(#dn-ramp)"/>
+                    <g mask="url(#dn-mask)" opacity="0.7"><rect x="320" y="32" width="240" height="140" filter="url(#dn-noise-soft)"/></g>
+                    <text class="t-caps" x="620" y="20">AFTER TEMPORAL ACCUMULATION</text>
+                    <rect class="f-buf-hi" x="620" y="32" width="240" height="140"/>
+                    <rect x="620" y="32" width="240" height="140" fill="url(#dn-ramp)"/>
+                    <rect class="s-strong" x="20" y="32" width="240" height="140"/>
+                    <rect class="s-strong" x="320" y="32" width="240" height="140"/>
+                    <rect class="s-strong" x="620" y="32" width="240" height="140"/>
+                    <text class="t-small t-muted" x="20" y="194">corner on the left, open floor on the right</text>
+                    <text class="t-small t-muted" x="320" y="194">neighbours averaged, edges kept</text>
+                    <text class="t-small t-muted" x="620" y="194">several frames blended together</text>
+                  </svg>
+                </div>
+                <figcaption><b>Why AO needs denoising.</b> A few samples per pixel give a grainy result. A bilateral blur averages neighbours without crossing depth edges. Blending in previous frames, each computed with differently rotated samples, removes what is left. The price of that last step is ghosting when things move.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="beyond"><span class="step-num">9</span> Beyond the screen</h3>
+              <p>Screen-space AO can only fix its blind spots with heuristics. A <dfn class="term" data-term="thickness-heuristic">thickness heuristic</dfn> assumes surfaces in the depth buffer are only so thick, so that a wall behind a character is not treated as touching it. Fading AO near the screen edges hides the moment occluders leave the screen. These help, but they are guesses.</p>
+              <p>The real fix is to stop relying on the screen. <dfn class="term" data-term="rtao">RTAO</dfn>, ray-traced ambient occlusion, traces short rays against the actual scene with <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a> hardware, so it sees under tables and past the screen edge. Full real-time global illumination systems such as Unreal's <a class="term" data-term="lumen" data-forward href="glossary.html#lumen">Lumen</a> compute occlusion as part of bounced light, and add their own short-range AO for fine contact detail. Chapters 8.4 and 8.5 cover those, and <a class="term" data-term="ssgi" data-forward href="glossary.html#ssgi">SSGI</a>, which applies the same screen-space idea to bounced colour.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>AO cost is a multiplication: pixels, times directions per pixel, times steps per direction, times two sides. A 1080p frame has 2,073,600 pixels. With one slice per pixel and 8 steps on each side, GTAO makes 16 depth reads per pixel: about 33 million at full resolution, or about 8.3 million at half resolution.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">0.5 ms</span><span class="what">original GTAO with denoising, PlayStation 4, 1080p, half resolution</span></div>
+              <div class="stat"><span class="value">0.56 ms</span><span class="what">XeGTAO "High", full resolution, 1920 × 1080, RTX 2060</span></div>
+              <div class="stat"><span class="value">1.4 ms</span><span class="what">XeGTAO "High", full resolution, 3840 × 2160, RTX 3070</span></div>
+              <div class="stat"><span class="value">3%</span><span class="what">of a 60 fps <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a> (16.7 ms) for a 0.5 ms pass</span></div>
+            </div>
+            <p class="stamp">Timings as published in the GTAO paper (2016) and the XeGTAO repository. Your numbers will differ with settings, scene and hardware; measure them in a frame capture.</p>
+            <ul class="grows">
+              <li><strong>Resolution</strong><span>Cost scales with pixel count. 4K is four times 1080p; half resolution is a quarter.</span></li>
+              <li><strong>Directions and steps</strong><span>Each extra slice or step adds reads for every pixel. Quality presets mostly change these two numbers.</span></li>
+              <li><strong>Radius</strong><span>A larger radius spreads samples further apart in memory, so they miss the cache more often.</span></li>
+              <li><strong>Denoising</strong><span>Blur and temporal passes add their own cost, and the temporal pass needs motion vectors from the rest of the frame.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>Computing AO at half resolution saves about three quarters of the work, at the price of softness and slight leaking at the edges of thin objects. Most games make that trade on consoles and keep full resolution as a "High" or "Ultra" option on PC.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Each of these traces back to the two blind spots of the depth buffer, or to the shortcuts taken to make AO cheap.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A character shape standing in front of a wall, with a dark blurred outline painted on the wall around it.">
+                    <defs><filter id="sy-halo" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5"/></filter></defs>
+                    <rect class="f-surface" x="0" y="0" width="240" height="104"/>
+                    <rect class="f-sunken" x="0" y="104" width="240" height="26"/>
+                    <path class="s-shade" stroke-width="14" stroke-opacity="0.45" filter="url(#sy-halo)" d="M120,20 C138,20 140,38 136,48 C150,54 154,74 150,104 L90,104 C86,74 90,54 104,48 C100,38 102,20 120,20 Z"/>
+                    <path class="f-strong s-ink" d="M120,20 C138,20 140,38 136,48 C150,54 154,74 150,112 L90,112 C86,74 90,54 104,48 C100,38 102,20 120,20 Z"/>
+                  </svg>
+                </div>
+                <h4>Dark halos around objects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The depth buffer cannot tell a character a metre in front of a wall from one touching it, so the wall around the silhouette is treated as enclosed.</dd></div>
+                  <div><dt>Ask for</dt><dd>A thickness heuristic or distance falloff, a smaller radius, or a method with better depth-discontinuity handling.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A crate near the right edge of the screen. Its contact shadow is dark on the left and fades away toward the screen edge.">
+                    <defs>
+                      <filter id="sy-edge-b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5"/></filter>
+                      <linearGradient id="sy-edge-g" x1="0" y1="0" x2="1" y2="0"><stop offset="0.45" class="stop-white"/><stop offset="1" class="stop-black"/></linearGradient>
+                      <mask id="sy-edge-m" maskContentUnits="userSpaceOnUse"><rect x="0" y="0" width="240" height="130" fill="url(#sy-edge-g)"/></mask>
+                    </defs>
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <g mask="url(#sy-edge-m)"><ellipse class="f-shade" fill-opacity="0.55" cx="150" cy="96" rx="80" ry="14" filter="url(#sy-edge-b)"/></g>
+                    <rect class="f-solid s-ink" x="90" y="40" width="110" height="56"/>
+                    <line class="s-pix w2 dash" x1="226" y1="0" x2="226" y2="130"/>
+                    <text class="t-small t-pix end" x="220" y="18">screen edge</text>
+                  </svg>
+                </div>
+                <h4>AO fading or popping at screen edges</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Near the edge, samples land off screen where there is no depth data. Occlusion from objects that just left the view disappears.</dd></div>
+                  <div><dt>Ask for</dt><dd>An edge fade tuned to hide the transition, or a world-space method such as RTAO where it matters.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A corner where the darkening is made of crawling grainy speckle instead of a smooth gradient.">
+                    <defs>
+                      <filter id="sy-noise" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="3"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  3 0 0 0 -1.35"/>
+                      </filter>
+                      <linearGradient id="sy-noise-g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-white"/><stop offset="0.7" class="stop-black"/></linearGradient>
+                      <mask id="sy-noise-m" maskContentUnits="userSpaceOnUse"><rect x="0" y="0" width="240" height="130" fill="url(#sy-noise-g)"/></mask>
+                    </defs>
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <g mask="url(#sy-noise-m)"><rect x="0" y="0" width="240" height="130" filter="url(#sy-noise)"/></g>
+                  </svg>
+                </div>
+                <h4>Noise, shimmer and crawling patterns</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too few samples, or a denoiser too weak for them. The pattern moves when the camera moves, so it shimmers.</dd></div>
+                  <div><dt>Ask for</dt><dd>More samples or directions, a stronger bilateral blur, or temporal accumulation if the game already has <a class="term" data-term="taa" data-forward href="glossary.html#taa">TAA</a>.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A ball moving right across a floor, leaving a fading trail of dark contact shadows behind it.">
+                    <defs>
+                      <filter id="sy-gh" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="4"/></filter>
+                      <marker id="sy-gh-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <g filter="url(#sy-gh)">
+                      <ellipse class="f-shade" fill-opacity="0.12" cx="70" cy="100" rx="28" ry="7"/>
+                      <ellipse class="f-shade" fill-opacity="0.2" cx="105" cy="100" rx="28" ry="7"/>
+                      <ellipse class="f-shade" fill-opacity="0.3" cx="140" cy="100" rx="28" ry="7"/>
+                      <ellipse class="f-shade" fill-opacity="0.55" cx="175" cy="100" rx="28" ry="7"/>
+                    </g>
+                    <circle class="f-solid s-ink" cx="175" cy="72" r="26"/>
+                    <line class="s-ink w15" x1="40" y1="30" x2="110" y2="30" marker-end="url(#sy-gh-arr)"/>
+                    <text class="t-small t-muted" x="40" y="22">moving</text>
+                  </svg>
+                </div>
+                <h4>Ghost trails behind moving objects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Temporal accumulation keeps blending last frame's AO, which was computed with the object somewhere else, and does not reject it fast enough at <a class="term" data-term="disocclusion" data-forward href="glossary.html#disocclusion">disocclusion</a>.</dd></div>
+                  <div><dt>Ask for</dt><dd>Tighter history rejection, a lower temporal blend weight, and checking that moving objects write correct motion vectors.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A sunlit patch on a floor beside a wall, smeared with a dark band where the crease meets it.">
+                    <defs><filter id="sy-dirty" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="8"/></filter></defs>
+                    <rect class="f-surface" x="0" y="0" width="240" height="70"/>
+                    <rect class="f-sunken" x="0" y="70" width="240" height="60"/>
+                    <polygon class="f-lit-soft" points="40,70 200,70 230,130 70,130"/>
+                    <path class="s-shade" stroke-width="22" stroke-opacity="0.55" filter="url(#sy-dirty)" d="M0,70 H240"/>
+                    <text class="t-small t-lit t-strong" x="120" y="114">sunlight</text>
+                  </svg>
+                </div>
+                <h4>A dirty, over-dark look</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>AO applied to direct light as well as ambient, intensity or radius set too high, or AO counted twice: baked AO textures plus screen-space AO plus GI occlusion on the same creases.</dd></div>
+                  <div><dt>Ask for</dt><dd>AO on ambient light only, one source of AO per scale of detail, and settings compared side by side in a test scene.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Every major engine ships a screen-space AO. They differ in method, in where the settings live, and in how AO interacts with their global illumination.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Method</th>
+                    <td>SSAO by default. GTAO with the console variable <code>r.AmbientOcclusion.Method 1</code>; it runs at half resolution by default (<code>r.GTAO.Downsample</code>).</td>
+                    <td>SSAO, with a choice of noise pattern.</td>
+                    <td>A horizon-based method; HDRP's source implements it as GTAO.</td>
+                    <td>Adaptive SSAO, a horizon-based method derived from Intel's ASSAO.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Where</th>
+                    <td>Post Process Volume, Rendering Features, <strong>Ambient Occlusion</strong>.</td>
+                    <td>The <strong>Screen Space Ambient Occlusion</strong> Renderer Feature on the Universal Renderer asset. It does not use Volumes.</td>
+                    <td>Volume override: Add Override, Lighting, <strong>Ambient Occlusion</strong>.</td>
+                    <td>The Environment resource, <strong>SSAO</strong> section. Quality in Project Settings, Rendering, Environment, SSAO.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Main controls</th>
+                    <td>Intensity, Radius. Advanced: Static Fraction, Radius in WorldSpace, Fade Out Distance, Fade Out Radius, Power, Bias, Quality, Mip Blend, Temporal Blend Weight (GTAO only).</td>
+                    <td>Method, Intensity, Radius, Falloff Distance. Quality: Source (Depth Normals or Depth), Downsample, After Opaque, Blur Quality, Samples (4, 8 or 12).</td>
+                    <td>Intensity, Radius, Quality, Full Resolution, Step Count, Direction Count, Temporal Accumulation, Ghosting Reduction, Bilateral Upsample.</td>
+                    <td>Radius, Intensity, Power, Detail, Horizon, Sharpness.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">AO on direct light</th>
+                    <td>No single slider in the Post Process Volume.</td>
+                    <td><strong>Direct Lighting Strength</strong></td>
+                    <td><strong>Direct Lighting Strength</strong></td>
+                    <td><strong>Light Affect</strong></td>
+                  </tr>
+                  <tr>
+                    <th scope="row">With real-time GI</th>
+                    <td>With Lumen GI, Lumen adds its own short-range AO (<code>r.Lumen.ScreenProbeGather.ShortRangeAO</code>, on by default) and screen-space AO is not applied to it.</td>
+                    <td>No real-time GI; SSAO works alongside baked lighting.</td>
+                    <td>Works alongside HDRP's screen-space and ray-traced GI options.</td>
+                    <td>SSIL, screen-space indirect lighting, is built on the same code. Forward+ only.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Ray-traced AO</th>
+                    <td>Post Process Volume group <strong>Ray Tracing Ambient Occlusion</strong>. Needs hardware ray tracing support enabled and DirectX 12.</td>
+                    <td>None in URP.</td>
+                    <td>The <strong>Ray Tracing</strong> checkbox on the same override switches to RTAO.</td>
+                    <td>No ray-traced option in the Environment settings.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Renderers</th>
+                    <td>Deferred and forward.</td>
+                    <td>Forward and deferred. <strong>Source: Depth Normals</strong> costs an extra normals pass in forward.</td>
+                    <td>Deferred and forward.</td>
+                    <td>Forward+. Since 4.6, a simplified version (Radius and Intensity only) in Compatibility. Not in Mobile.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Names checked against the documentation for Unreal Engine 5.6 and 5.7, Unity 6.6 with HDRP 17.6, and Godot 4.7 in November 2026. Search for the setting in your version's documentation if it has moved.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>AO briefs go well when they name the engine, the AO method in use, the exact symptom and where it appears, and ask for ranked options with their side effects.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when objects get dark outlines</span></div>
+              <pre class="prompt-body">Unreal Engine 5.7, Lumen off, GTAO on (r.AmbientOcclusion.Method 1).
+Characters standing about a metre in front of a wall get a dark outline on the wall behind them. It is worst with the camera close to the character.
+
+1. Explain which part of the AO algorithm causes this, using our settings.
+2. Propose changes to the Post Process Volume Ambient Occlusion settings or console variables that reduce it, ranked from least to most visual risk.
+3. For each change, say what else it affects, for example contact shadows under props, or cost.
+4. Describe a small test scene and camera positions so we can compare before and after.</pre>
+              <ul class="prompt-why">
+                <li>Naming the method and that Lumen is off tells the AI which AO is actually running.</li>
+                <li>"A metre in front of a wall" points at the depth-buffer blind spot without giving away the answer.</li>
+                <li>Asking for side effects and a test scene keeps the fix from creating a new problem elsewhere.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when choosing AO settings for a platform</span></div>
+              <pre class="prompt-body">Unity 6, URP. Platforms: PC and Steam Deck. Budget for ambient occlusion: 0.8 ms on Steam Deck at 1280 × 800.
+Every prop already has a baked AO map. We want screen-space AO only for contact between objects.
+
+1. Recommend Screen Space Ambient Occlusion Renderer Feature settings for each platform: Method, Samples, Downsample, Blur Quality, Source, Radius.
+2. Explain how to stop the screen-space AO darkening creases the baked AO maps already darken.
+3. Tell us how to measure the AO pass on the Steam Deck, and what to cut first if we are over budget.</pre>
+              <ul class="prompt-why">
+                <li>A budget in milliseconds at a named resolution makes the answer testable.</li>
+                <li>Mentioning baked AO maps heads off double darkening.</li>
+                <li>Asking how to measure means you can check the claim yourself.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing AO work</h3>
+            <ol class="review-list">
+              <li>Is AO multiplied into direct light, or only into ambient and indirect light?<span class="why">On direct light it makes sunlit corners look dirty.</span></li>
+              <li>What resolution is AO computed at, and how is it upsampled?<span class="why">Half resolution is normal; an upsample that ignores depth edges leaks AO onto the object in front.</span></li>
+              <li>Does the temporal filter reject history when things move or reappear?<span class="why">If not, moving objects leave ghost trails.</span></li>
+              <li>What happens near the screen edges and around thin objects?<span class="why">These are the two blind spots. Ask what heuristic covers each.</span></li>
+              <li>How many sources of AO touch the same pixel?<span class="why">Baked AO maps, screen-space AO and GI occlusion stacked together over-darken.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Why does screen-space AO paint a dark outline on a wall behind a character, even when the character stands well in front of it?</p>
+                <details><summary>Show answer</summary><p>The depth buffer stores only the nearest surface per pixel. It cannot tell how thick the character is or how far behind it the wall is, so the space between them is treated as solid and the wall near the silhouette counts as enclosed. Thickness heuristics and distance falloff reduce it; RTAO avoids it.</p></details>
+              </li>
+              <li>
+                <p class="q">GTAO reads far fewer points per frame than SSAO typically does, yet looks cleaner. How?</p>
+                <details><summary>Show answer</summary><p>It looks for the horizon in each direction, which captures the shape with a single maximum instead of many hit-or-miss tests, then integrates the open arc exactly with cosine weighting. It also spreads directions across neighbouring pixels and across frames, and denoises spatially and temporally.</p></details>
+              </li>
+              <li>
+                <p class="q">After AO is turned on, sunlit areas look grubby in the corners. Which setting do you ask about first?</p>
+                <details><summary>Show answer</summary><p>Whether AO is being applied to direct light: Direct Lighting Strength in Unity, Light Affect in Godot. AO belongs on ambient and indirect light; direct light already has shadows.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#ambient-occlusion">ambient occlusion</a></li>
+              <li><a class="chip" href="glossary.html#ssao">SSAO</a></li>
+              <li><a class="chip" href="glossary.html#bilateral-filter">bilateral filter</a></li>
+              <li><a class="chip" href="glossary.html#hbao">HBAO</a></li>
+              <li><a class="chip" href="glossary.html#horizon-angle">horizon angle</a></li>
+              <li><a class="chip" href="glossary.html#gtao">GTAO</a></li>
+              <li><a class="chip" href="glossary.html#slice">slice</a></li>
+              <li><a class="chip" href="glossary.html#multi-bounce-ao">multi-bounce AO</a></li>
+              <li><a class="chip" href="glossary.html#specular-occlusion">specular occlusion</a></li>
+              <li><a class="chip" href="glossary.html#bent-normal">bent normal</a></li>
+              <li><a class="chip" href="glossary.html#thickness-heuristic">thickness heuristic</a></li>
+              <li><a class="chip" href="glossary.html#rtao">RTAO</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="8.4"></a> takes the same depth-buffer marching and uses it for reflections and bounced light, along with every blind spot you met here.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Martin Mittring, <a href="https://advances.realtimerendering.com/s2007/Mittring-Finding_NextGen_CryEngine2(Siggraph07%20Course%20Notes).pdf">Finding Next Gen: CryEngine 2</a>, chapter 8 of the SIGGRAPH 2007 course Advanced Real-Time Rendering in 3D Graphics and Games. The first description of SSAO.</li>
+              <li>Louis Bavoil, Miguel Sainz and Rouslan Dimitrov, <a href="https://developer.download.nvidia.com/presentations/2008/SIGGRAPH/HBAO_SIG08b.pdf">Image-Space Horizon-Based Ambient Occlusion</a>, SIGGRAPH 2008 talk, NVIDIA.</li>
+              <li>Jorge Jimenez, Xian-Chun Wu, Angelo Pesce and Adrian Jarabo, <a href="https://www.iryoku.com/downloads/Practical-Realtime-Strategies-for-Accurate-Indirect-Occlusion.pdf">Practical Real-Time Strategies for Accurate Indirect Occlusion</a>, SIGGRAPH 2016 Physically Based Shading course, Activision. GTAO, the multi-bounce fit and specular occlusion.</li>
+              <li>Filip Strugar and Steve Mccalla, <a href="https://github.com/GameTechDev/XeGTAO">XeGTAO</a>, Intel. An open-source GTAO implementation with published timings; archived in 2024.</li>
+              <li><a href="https://github.com/GPUOpen-Effects/FidelityFX-CACAO">FidelityFX CACAO</a>, AMD. An AO technique based on Intel's ASSAO.</li>
+              <li>Engine references: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/post-process-effects-in-unreal-engine?application_version=5.7">Unreal post process effects</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/lighting/shadows-in-urp/post-processing-ssao/ssao-renderer-feature-reference">URP SSAO Renderer Feature</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-ambient-occlusion.html">HDRP Ambient Occlusion override</a>, <a href="https://docs.godotengine.org/en/stable/classes/class_environment.html">Godot Environment</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/horizon-explorer.js"></script>
+</body>
+</html>

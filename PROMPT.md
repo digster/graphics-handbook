@@ -17,3 +17,7 @@ A running log of the prompts given for this project, oldest first.
 Comment on the plan artifact, anchored to the section "The three terms you named":
 
 > Don't keep highlighting the three terms that I gave as an example. They were just an example. The whole plan keeps repeating this pattern.
+
+### 3
+
+Start the work.
