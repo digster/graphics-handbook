@@ -581,6 +581,8 @@
 
   /* ---------- Cross-references ---------- */
 
+  /* Works for HTML <a> and SVG <a> alike, so diagrams can link chapters:
+     SVG anchors have no .href or .title properties, only attributes. */
   function wireXrefs() {
     document.querySelectorAll("a.xref[data-ch]").forEach(function (a) {
       var ch = nav.byNum(a.getAttribute("data-ch"));
@@ -591,11 +593,11 @@
       if (!a.textContent.trim()) a.textContent = chapterLabel(ch);
       if (ch.status === "published") {
         var anchor = a.getAttribute("data-anchor");
-        a.href = ch.file + (anchor ? "#" + anchor : "");
+        a.setAttribute("href", ch.file + (anchor ? "#" + anchor : ""));
       } else {
-        a.href = nav.contentsHref(ch.num);
+        a.setAttribute("href", nav.contentsHref(ch.num));
         a.classList.add("is-planned");
-        a.title = chapterLabel(ch) + " is not written yet. This opens its entry in the contents.";
+        a.setAttribute("title", chapterLabel(ch) + " is not written yet. This opens its entry in the contents.");
       }
     });
   }

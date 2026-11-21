@@ -100,7 +100,9 @@ typical chapter has 8 to 12 figures, including the symptom thumbnails.
   Only link ids that exist in `docs/assets/js/data/glossary.js` or in your
   own draft file. Otherwise write the word as plain text.
 - Link other chapters with `<a class="xref" data-ch="N.M">N.M Title</a>`;
-  the shell turns it into a link or points it at the contents.
+  the shell turns it into a link or points it at the contents. This also
+  works for an `<a class="xref" data-ch="N.M">` wrapping `<text>` inside an
+  SVG diagram.
 - External links use full `https://` URLs. Never link to local files outside
   `docs/`.
 
