@@ -59,3 +59,29 @@ related area.
   feature whose top sits just outside the radius, which hid the very
   artifact the demo exists to show. The default position of P was moved
   beside the table so the halo is visible on load.
+
+## WebGL (courtyard renderer)
+
+- GLSL ES reserves `half` as an identifier, and `#if` on an undefined macro
+  is a compile error; use `#ifdef`.
+- `getExtension()` returns null once a context is lost, so keep the
+  `WEBGL_lose_context` object obtained before the loss.
+- Point-sampling the sky, sun disc included, for rough reflections put a
+  warm haze over the whole image; reflections must leave out the sun disc.
+- `replaceChildren(null)` inserts the text "null"; filter nulls first.
+
+## Writing chapters in parallel
+
+- Writers work in the shared tree but must not touch shared files; they
+  put new glossary terms in draft JSON files, and `tools/merge-drafts.mjs`
+  refuses an id already owned by another chapter. Two drafts still claimed
+  `command-buffer` and `unified-memory` after earlier chapters owned them,
+  so check every draft for conflicts before merging.
+- While other drafts sit untracked in `docs/`, the whole-site tests fail
+  locally ("page exists but chapter planned"). Verify each batch in a
+  clean `git worktree` of the commit, which is what CI sees, and stage
+  exact paths, never `git add -A`.
+- About nine parallel writers exhausted the 5-hour usage window in roughly
+  an hour; the agents stop cleanly and resume with `SendMessage`.
+- Writers sharing one scratch folder overwrote each other's generator
+  scripts; give each its own.

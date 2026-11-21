@@ -61,6 +61,11 @@ HTTP. Every rule below is enforced by `tests/structure.test.mjs`.
 | `docs/assets/js/shell.js` | Header tools, sidebar, rail, pager, footer, term cards, search, theme toggle, progress, copy buttons, cross-references. |
 | `docs/assets/demos/kit.js` | Demo helpers: `HB.demos.register`, `HB.svg`, `HB.html`, `HB.segmented`, `HB.slider`, `HB.draggable`, `HB.rng`, `HB.fmt`. |
 | `docs/assets/demos/*.js` | One script per interactive. |
+| `docs/assets/demos/courtyard*.js` | The Lantern Courtyard WebGL2 renderer (see below). |
+| `tools/check-chapter.mjs` | Draft check: structure and browser page tests for named chapters with draft glossary entries. |
+| `tools/merge-drafts.mjs` | Merges draft glossary JSON into `glossary.js` and publishes chapters in `nav.js`. |
+| `tools/screenshot.mjs` | Screenshots pages or figures for visual review. |
+| `tools/dev/courtyard.html` | Development harness for the courtyard renderer (not part of the site). |
 | `docs/assets/css/tokens.css` | Every colour, font, size and space token, plus `@font-face`. |
 | `docs/assets/css/site.css` | Layout, shell and content components. |
 | `docs/assets/css/diagrams.css` | The class vocabulary for SVG diagrams and demo UI. |
@@ -140,6 +145,34 @@ classes (they theme for free); per-pixel demos would use a canvas, read
 colours with `HB.demos.color()` and redraw on `hb:themechange`. Add a
 browser test that drives it.
 
+## The Lantern Courtyard renderer
+
+`docs/assets/demos/courtyard-gl.js`, `courtyard-shaders.js` and
+`courtyard.js` (loaded in that order, after `kit.js`) are a small WebGL2
+deferred renderer that chapters embed to show a real scene and its buffers.
+
+- **Scene:** a stone courtyard at dusk (arch, crates, lantern on a post,
+  puddle, banner animated in the vertex shader, back wall). All geometry and
+  textures are generated in code; images loaded from `file://` would taint
+  WebGL.
+- **Passes:** `shadow, gbuffer, ao, lighting, ssr, fog, bloom, tonemap,
+  final` (plus `geometry` for wireframe and triangle views). Each view runs
+  only the passes it needs, so "No AO" really skips AO.
+- **Embedding:** `<div class="demo" data-demo="courtyard" data-view="final"
+  data-views="final,albedo,normals" data-passes="off" data-orbit="off">`.
+  Views: `final, wireframe, albedo, normals, depth, roughness, shadow-map,
+  ao, lighting, no-ao, no-shadows, ssr, fog-off, bloom, hdr-clipped,
+  triangles`. `data-passes="on"` adds the pass scrubber (chapter 10.1).
+  `data-orbit="on"` lets readers drag or use arrow keys to move the camera.
+- **Without WebGL2** (some headless browsers, old devices) it shows a
+  designed SVG fallback and still reaches `data-demo-ready`; lost contexts
+  recover. It renders only while visible and only on change, except the
+  banner animation, which respects reduced motion.
+- **Development:** `tools/dev/courtyard.html` is a harness with three
+  instances; `tests/courtyard.test.mjs` checks every view renders a
+  distinct, non-blank image, the scrubber, orbit, context loss and every
+  fallback path. `window.HB.courtyard` exposes `{ views, passes, labels }`.
+
 ## Workflows
 
 ```bash
@@ -147,7 +180,7 @@ npm ci                     # author tooling only (Playwright)
 npm run build:search       # regenerate docs/assets/js/data/search-index.js
 npm test                   # structure + browser tests
 npm run test:structure     # fast, no browser
-npm run test:browser       # Chromium by default
+npm run test:browser       # Chromium by default; includes the courtyard tests
 BROWSERS=chromium,firefox,webkit npm run test:browser   # what CI runs
 LOG_LEVEL=debug npm run build:search
 ```

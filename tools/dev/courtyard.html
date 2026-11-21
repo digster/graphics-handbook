@@ -1,0 +1,71 @@
+<!doctype html>
+<!--
+  Development harness for the Lantern Courtyard renderer. Not part of the
+  site: it loads the site's CSS and scripts by relative path and embeds three
+  instances, one per embedding mode. tests/courtyard.test.mjs opens it from
+  file://. Add ?log=debug to the URL to see the renderer's logs.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lantern Courtyard · dev harness</title>
+  <script src="../../docs/assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="../../docs/assets/css/tokens.css">
+  <link rel="stylesheet" href="../../docs/assets/css/site.css">
+  <link rel="stylesheet" href="../../docs/assets/css/diagrams.css">
+</head>
+<body>
+  <main id="main" class="main">
+    <div class="content">
+      <article class="chapter">
+        <header class="chapter-head">
+          <p class="eyebrow">Development harness · not part of the site</p>
+          <h1>Lantern Courtyard</h1>
+          <p class="lead">Three embeddings of the courtyard renderer: every view switchable with orbit on, the frame-anatomy pass scrubber, and a fixed wireframe.</p>
+          <div id="theme-switch"></div>
+        </header>
+
+        <figure>
+          <div class="demo" id="cy-views" data-demo="courtyard" data-view="final" data-orbit="on"
+               data-views="final,wireframe,albedo,normals,depth,roughness,shadow-map,ao,lighting,no-ao,no-shadows,ssr,fog-off,bloom,hdr-clipped,triangles">
+            <p class="demo-hint">The Lantern Courtyard needs JavaScript. It shows a small stone courtyard at dusk rendered in real time, with buttons for each internal buffer.</p>
+          </div>
+          <figcaption><b>Every view.</b> The final frame and each buffer behind it. Drag the picture to orbit.</figcaption>
+        </figure>
+
+        <figure>
+          <div class="demo" id="cy-passes" data-demo="courtyard" data-view="final" data-passes="on">
+            <p class="demo-hint">The Lantern Courtyard needs JavaScript. It steps through the passes of one frame.</p>
+          </div>
+          <figcaption><b>Frame anatomy.</b> Step through the passes of one frame and see what each one writes.</figcaption>
+        </figure>
+
+        <figure>
+          <div class="demo" id="cy-wire" data-demo="courtyard" data-view="wireframe">
+            <p class="demo-hint">The Lantern Courtyard needs JavaScript. It shows the courtyard's triangles as a wireframe.</p>
+          </div>
+          <figcaption><b>Wireframe.</b> The same scene as lines: about 1,300 triangles.</figcaption>
+        </figure>
+      </article>
+    </div>
+  </main>
+
+  <script src="../../docs/assets/js/log.js"></script>
+  <script src="../../docs/assets/demos/kit.js"></script>
+  <script>
+    // Dev-only theme switch, so the UI can be checked in both themes.
+    (function () {
+      var root = document.documentElement;
+      document.getElementById("theme-switch").appendChild(HB.segmented("Theme", [
+        { value: "os", label: "Follow OS" }, { value: "light", label: "Light" }, { value: "dark", label: "Dark" }
+      ], "os", function (v) {
+        if (v === "os") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", v);
+      }));
+    })();
+  </script>
+  <script src="../../docs/assets/demos/courtyard-gl.js"></script>
+  <script src="../../docs/assets/demos/courtyard-shaders.js"></script>
+  <script src="../../docs/assets/demos/courtyard.js"></script>
+</body>
+</html>

@@ -126,6 +126,28 @@ inside a figure. Load `assets/demos/kit.js` then your script after
   `HB.demos.reducedMotion()`. Log with `HB.log.scope("<name>")`.
 - Must not throw or log errors; it must reach `data-demo-ready`.
 
+## The Lantern Courtyard
+
+Chapters from Part 4 onward can show the shared 3D scene and its buffers:
+
+```html
+<figure>
+  <div class="demo" data-demo="courtyard" data-view="normals" data-views="final,normals,depth">
+    <p class="demo-hint">Fallback sentence describing what the view shows.</p>
+  </div>
+  <figcaption><b>Claim.</b> Explanation.</figcaption>
+</figure>
+```
+
+Load `assets/demos/kit.js`, then `courtyard-gl.js`, `courtyard-shaders.js`
+and `courtyard.js`, in that order. Views: `final, wireframe, albedo,
+normals, depth, roughness, shadow-map, ao, lighting, no-ao, no-shadows,
+ssr, fog-off, bloom, hdr-clipped, triangles`. Use `data-views` to let the
+reader switch between the views your chapter discusses (keep it to the
+relevant few), `data-orbit="on"` when moving the camera helps, and
+`data-passes="on"` only in 10.1. Each instance costs GPU time, so embed at
+most two per chapter. Write the caption for the default view.
+
 ## Glossary drafts
 
 Do not edit `glossary.js`. Put the terms your chapter introduces in a JSON
