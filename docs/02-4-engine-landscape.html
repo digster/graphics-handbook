@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>2.4 The engine landscape · Graphics Handbook</title>
+  <meta name="description" content="Unreal Engine, Unity with URP and HDRP, Godot and custom engines: what each calls things, which hardware each aims at, how their renderers differ, what they cost and when studios build their own.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="2.4">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 2 · Inside a game engine</p>
+            <h1><span class="ch-num">2.4</span> The engine landscape</h1>
+            <p class="lead">Teams choose between three general-purpose engines, Unreal Engine, Unity and Godot, or build their own. Each names the same ideas differently, aims at different hardware and charges in a different way, and the choice shapes a project for years.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="2.1">2.1 Anatomy of an engine</a>, <a class="xref" data-ch="2.3">2.3 Scenes, objects and components</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="7.3">7.3 Forward, deferred and clustered</a>, <a class="xref" data-ch="10.3">10.3 A modern feature stack</a>, <a class="xref" data-ch="12.5">12.5 Decision guides</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 496" role="img" aria-label="A translation table of ten concepts across Unreal Engine 5, Unity 6 and Godot 4. Scene: Level, Scene, Scene. Object: Actor, GameObject, Node. Component: Component, Component, child node. Prefab: Blueprint class, Prefab, instanced scene. Material: Material, Material, StandardMaterial3D. Shader graph: Material Editor, Shader Graph, Visual Shader. Post-processing volume: Post Process Volume, Volume with a Volume Profile, WorldEnvironment. Lightmaps: Lightmass, Generate Lighting, LightmapGI. Profiler: Unreal Insights, Profiler window, Debugger panel. Scripting: C++ and Blueprints, C#, GDScript.">
+                  <rect class="f-sunken" x="20" y="106" width="860" height="42"/>
+                  <rect class="f-sunken" x="20" y="190" width="860" height="42"/>
+                  <rect class="f-sunken" x="20" y="274" width="860" height="42"/>
+                  <rect class="f-sunken" x="20" y="358" width="860" height="42"/>
+                  <rect class="f-sunken" x="20" y="442" width="860" height="42"/>
+                  <path class="s-line" d="M176,20 V484 M416,20 V484 M662,20 V484"/>
+                  <line class="s-strong" x1="20" y1="64" x2="880" y2="64"/>
+
+                  <text class="t-caps" x="30" y="46">THE IDEA</text>
+                  <text class="t-head" x="188" y="40">Unreal Engine 5</text>
+                  <text class="t-small t-muted" x="188" y="56">Epic Games</text>
+                  <text class="t-head" x="428" y="40">Unity 6 · URP and HDRP</text>
+                  <text class="t-small t-muted" x="428" y="56">Unity Technologies</text>
+                  <text class="t-head" x="674" y="40">Godot 4</text>
+                  <text class="t-small t-muted" x="674" y="56">Godot Foundation · MIT licence</text>
+
+                  <!-- row 0 -->
+                  <text class="t-strong t-acc" x="30" y="82">Scene</text><text class="t-small t-muted" x="30" y="97">a saved world or level</text>
+                  <text x="188" y="82">Level</text><text class="t-small t-muted" x="188" y="97">saved as .umap</text>
+                  <text x="428" y="82">Scene</text><text class="t-small t-muted" x="428" y="97">saved as .unity</text>
+                  <text x="674" y="82">Scene</text><text class="t-small t-muted" x="674" y="97">saved as .tscn; doubles as prefab</text>
+                  <!-- row 1 -->
+                  <text class="t-strong t-acc" x="30" y="124">Object</text><text class="t-small t-muted" x="30" y="139">a thing in the world</text>
+                  <text x="188" y="124">Actor</text><text class="t-small t-muted" x="188" y="139">no transform of its own</text>
+                  <text x="428" y="124">GameObject</text><text class="t-small t-muted" x="428" y="139">always has a Transform</text>
+                  <text x="674" y="124">Node</text><text class="t-small t-muted" x="674" y="139">Node3D in 3D, Node2D in 2D</text>
+                  <!-- row 2 -->
+                  <text class="t-strong t-acc" x="30" y="166">Component</text><text class="t-small t-muted" x="30" y="181">data or behaviour</text>
+                  <text x="188" y="166">Component</text><text class="t-small t-muted" x="188" y="181">Actor, Scene or Primitive Component</text>
+                  <text x="428" y="166">Component</text><text class="t-small t-muted" x="428" y="181">scripts derive from MonoBehaviour</text>
+                  <text x="674" y="166">Child node</text><text class="t-small t-muted" x="674" y="181">MeshInstance3D, CollisionShape3D</text>
+                  <!-- row 3 -->
+                  <text class="t-strong t-acc" x="30" y="208">Prefab</text><text class="t-small t-muted" x="30" y="223">a reusable template</text>
+                  <text x="188" y="208">Blueprint class</text><text class="t-small t-muted" x="188" y="223">placed in levels as instances</text>
+                  <text x="428" y="208">Prefab</text><text class="t-small t-muted" x="428" y="223">with variants and nesting</text>
+                  <text x="674" y="208">Instanced scene</text><text class="t-small t-muted" x="674" y="223">any saved scene, placed again</text>
+                  <!-- row 4 -->
+                  <text class="t-strong t-acc" x="30" y="250">Material</text><text class="t-small t-muted" x="30" y="265">how a surface looks</text>
+                  <text x="188" y="250">Material</text><text class="t-small t-muted" x="188" y="265">Material Instances for variations</text>
+                  <text x="428" y="250">Material</text><text class="t-small t-muted" x="428" y="265">shader: URP Lit or HDRP Lit</text>
+                  <text x="674" y="250">StandardMaterial3D</text><text class="t-small t-muted" x="674" y="265">ShaderMaterial for custom code</text>
+                  <!-- row 5 -->
+                  <text class="t-strong t-acc" x="30" y="292">Shader graph</text><text class="t-small t-muted" x="30" y="307">shaders made of nodes</text>
+                  <text x="188" y="292">Material Editor</text><text class="t-small t-muted" x="188" y="307">every material is a node graph</text>
+                  <text x="428" y="292">Shader Graph</text><text class="t-small t-muted" x="428" y="307">same tool for URP and HDRP</text>
+                  <text x="674" y="292">Visual Shader</text><text class="t-small t-muted" x="674" y="307">node-based shader editor</text>
+                  <!-- row 6 -->
+                  <text class="t-strong t-acc" x="30" y="334">Post-process volume</text><text class="t-small t-muted" x="30" y="349">sets the final look</text>
+                  <text x="188" y="334">Post Process Volume</text><text class="t-small t-muted" x="188" y="349">Infinite Extent covers the level</text>
+                  <text x="428" y="334">Volume + Volume Profile</text><text class="t-small t-muted" x="428" y="349">Global or Local; HDRP adds sky, fog</text>
+                  <text x="674" y="334">WorldEnvironment</text><text class="t-small t-muted" x="674" y="349">holds an Environment resource</text>
+                  <!-- row 7 -->
+                  <text class="t-strong t-acc" x="30" y="376">Lightmaps</text><text class="t-small t-muted" x="30" y="391">baked lighting</text>
+                  <text x="188" y="376">Lightmass</text><text class="t-small t-muted" x="188" y="391">CPU, or GPU Lightmass plugin</text>
+                  <text x="428" y="376">Generate Lighting</text><text class="t-small t-muted" x="428" y="391">in the Lighting window</text>
+                  <text x="674" y="376">LightmapGI node</text><text class="t-small t-muted" x="674" y="391">bakes on the GPU</text>
+                  <!-- row 8 -->
+                  <text class="t-strong t-acc" x="30" y="418">Profiler</text><text class="t-small t-muted" x="30" y="433">where the time goes</text>
+                  <text x="188" y="418">Unreal Insights</text><text class="t-small t-muted" x="188" y="433">captures and analyses telemetry</text>
+                  <text x="428" y="418">Profiler window</text><text class="t-small t-muted" x="428" y="433">and the Frame Debugger</text>
+                  <text x="674" y="418">Debugger panel</text><text class="t-small t-muted" x="674" y="433">Profiler and Monitors tabs</text>
+                  <!-- row 9 -->
+                  <text class="t-strong t-acc" x="30" y="460">Scripting</text><text class="t-small t-muted" x="30" y="475">how gameplay is written</text>
+                  <text x="188" y="460">C++ and Blueprints</text><text class="t-small t-muted" x="188" y="475">Blueprints are visual scripts</text>
+                  <text x="428" y="460">C#</text><text class="t-small t-muted" x="428" y="475">scripts are components</text>
+                  <text x="674" y="460">GDScript</text><text class="t-small t-muted" x="674" y="475">also C#, and C++ via GDExtension</text>
+                </svg>
+              </div>
+              <figcaption><b>Same ideas, different words.</b> Ten everyday concepts as each engine names them. Unity's two render pipelines, URP and HDRP, share almost every name; where they differ, the cell says so. Learn the left column and you can read any engine's documentation, or brief an AI in that engine's own terms.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A game engine gives a team a ready-made editor, renderer, physics, audio and build system, so it can spend its time on the game. Three general-purpose engines are in wide use today.</p>
+            <p><dfn class="term" data-term="unreal-engine">Unreal Engine</dfn>, made by Epic Games, is written in C++ and aims first at high-end PCs and consoles. Its fifth version is known for features that let artists use very detailed models and fully dynamic lighting. <dfn class="term" data-term="unity">Unity</dfn>, made by Unity Technologies, is scripted in C# and runs on a very wide range of platforms, from phones and headsets to consoles. <dfn class="term" data-term="godot">Godot</dfn> is free and open source, supported by the Godot Foundation, with its own scripting language, GDScript.</p>
+            <p>All three share the ideas from <a class="xref" data-ch="2.3">2.3 Scenes, objects and components</a>: a <a class="term" data-term="scene" href="glossary.html#scene">scene</a> full of objects built from components, saved as reusable <a class="term" data-term="prefab" href="glossary.html#prefab">prefabs</a>. They name those ideas differently, ship different renderers and charge in different ways.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A chef who moves to a new restaurant cooks the same way, but the knives live in a different drawer, the stations have different names and the ovens are a different make. A good chef is useful within a week.</p>
+                <p>Engines are kitchens. The cooking, the rendering ideas in this book, is the same. The names, the menus and the equipment differ.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Picking an engine fixes which platforms you can reach, which rendering features you get for free, who you can hire and what you pay. Changing engine mid-project means rebuilding content and code, so studios that switch usually do it between games.</p>
+                <p>Knowing the landscape lets you make that decision once, on purpose.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Engine choice is one of the earliest and most expensive decisions a project makes, and the render pipeline inside the engine is a second one that is nearly as hard to undo. Every AI brief also needs the engine, its version and its pipeline at the top: answers for Unreal, Unity URP, Unity HDRP and Godot differ, and an answer for the wrong one can look right and still fail to compile.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Six things decide where an engine fits: the hardware it aims at, how its renderer is organised, its headline features, its licence, its source access, and whether building your own would serve better.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="map"><span class="step-num">1</span> Where each engine aims</h3>
+              <p>Every engine runs on more than one kind of hardware, but each is designed around some of it first. Unreal's Nanite and Virtual Shadow Maps need <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPUs</a> that support DirectX 12 with Shader Model 6 or later, which means current consoles and modern PCs; phones get a separate, simpler mobile renderer. Unity's main pipeline runs on every platform Unity supports and is tuned for phones and standalone VR headsets. Godot splits its range across three renderers, from the web up to desktop PCs, and reaches consoles through third-party companies.</p>
+              <p>Team size matters too. Godot costs nothing, Unity is free until a company earns or raises $200,000, and Unreal charges nothing until a game earns $1 million. A studio's own engine only makes sense when it can pay a team to keep it going.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 356" role="img" aria-label="A map with target hardware from left to right, web, mobile and standalone VR, PC and consoles, high-end PC and consoles, and team size from bottom to top. Godot spans web to PC at the bottom, split into its Compatibility, Mobile and Forward+ renderers. Unity URP spans web to PC and consoles. Unity HDRP covers PC and consoles to high-end. Unreal Engine 5 covers PC and consoles to high-end, with a dashed extension into mobile for its mobile renderer. Custom engines sit at the top right, for large studios on high-end hardware.">
+                    <defs>
+                      <marker id="map-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="150" y="24">HARDWARE EACH ENGINE AIMS AT →</text>
+                    <rect class="s-line" x="150" y="36" width="720" height="286"/>
+                    <path class="s-line dash" d="M330,36 V322 M510,36 V322 M690,36 V322"/>
+                    <line class="s-muted w15" x1="110" y1="310" x2="110" y2="52" marker-end="url(#map-arr)"/>
+                    <text class="t-small t-muted" x="20" y="58">larger</text>
+                    <text class="t-small t-muted" x="20" y="72">teams</text>
+                    <text class="t-small t-muted" x="20" y="300">smaller</text>
+                    <text class="t-small t-muted" x="20" y="314">teams</text>
+
+                    <rect class="f-sunken s-strong dash" x="520" y="48" width="344" height="36" rx="18"/>
+                    <text class="t-strong" x="538" y="71">Custom engines</text>
+                    <text class="t-small t-muted" x="650" y="70">built for one studio's own games</text>
+
+                    <rect class="s-acc dash" x="340" y="96" width="524" height="44" rx="22"/>
+                    <rect class="f-acc-soft s-acc w15" x="510" y="96" width="354" height="44" rx="22"/>
+                    <text class="t-small t-acc" x="358" y="122">mobile renderer</text>
+                    <text class="t-strong" x="528" y="114">Unreal Engine 5</text>
+                    <text class="t-small t-muted" x="528" y="130">Nanite and VSM need DirectX 12-class GPUs</text>
+
+                    <rect class="f-acc-soft s-acc" x="510" y="152" width="354" height="38" rx="19"/>
+                    <text class="t-strong" x="528" y="175">Unity 6 · HDRP</text>
+                    <text class="t-small t-muted" x="632" y="175">desktop and consoles; maintenance only</text>
+
+                    <rect class="f-acc-soft s-acc" x="160" y="202" width="540" height="44" rx="22"/>
+                    <text class="t-strong" x="178" y="220">Unity 6 · URP</text>
+                    <text class="t-small t-muted" x="178" y="236">every Unity platform; tuned for mobile GPUs and standalone VR</text>
+
+                    <rect class="f-surface s-strong w15" x="160" y="258" width="530" height="56" rx="20"/>
+                    <path class="s-line" d="M330,288 V312 M510,288 V312"/>
+                    <text class="t-strong" x="178" y="278">Godot 4</text>
+                    <text class="t-small t-muted" x="240" y="278">free and open source; consoles through third parties</text>
+                    <text class="t-small mid" x="245" y="304">Compatibility</text>
+                    <text class="t-small mid" x="420" y="304">Mobile</text>
+                    <text class="t-small mid" x="600" y="304">Forward+</text>
+
+                    <text class="t-small mid" x="240" y="340">Web</text>
+                    <text class="t-small mid" x="420" y="340">Mobile, standalone VR</text>
+                    <text class="t-small mid" x="600" y="340">PC, consoles</text>
+                    <text class="t-small mid" x="780" y="340">High-end PC, consoles</text>
+                  </svg>
+                </div>
+                <figcaption><b>Where each engine aims.</b> Left to right is the hardware each engine's documented features target; bottom to top is roughly the team size its tools and pricing suit. Godot's three renderers divide its range, and Unreal's mobile renderer sits apart from its headline features. This is a summary of design intent: teams of every size ship on every engine.</figcaption>
+              </figure>
+              <p>Engines also move quickly. In November 2026 the current releases are Unreal Engine 5.8, Unity 6.6 and Godot 4.7. Epic has announced Unreal Engine 6 and is targeting an Early Access release at the end of 2027. Unity alternates feature releases with <dfn class="term" data-term="lts">LTS</dfn> (long-term support) releases that receive fixes for longer: 6.3 is the current LTS and 6.7 LTS is due at the end of 2026. Productions usually pick a version early and upgrade only on purpose.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="unity-pipelines"><span class="step-num">2</span> Unity's render pipelines: URP and HDRP</h3>
+              <p>A <dfn class="term" data-term="render-pipeline">render pipeline</dfn> is the part of an engine that decides how each frame is drawn: which passes run, in what order, with which lighting model. Most engines have one, with settings. Unity offers more than one, and each project picks one at the start; URP and HDRP are both built on Unity's Scriptable Render Pipeline system.</p>
+              <p>The <dfn class="term" data-term="urp">Universal Render Pipeline</dfn> (URP) runs on every platform Unity supports and is tuned for the tile-based GPUs in phones and standalone headsets. It offers four rendering paths, Forward, Forward+, Deferred and Deferred+, which <a class="xref" data-ch="7.3">7.3</a> explains. The <dfn class="term" data-term="hdrp">High Definition Render Pipeline</dfn> (HDRP) targets PCs, Xbox and PlayStation with physically based light units, materials such as skin, hair and eyes, volumetric effects and <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a> where the hardware supports it.</p>
+              <p>Unity's render pipeline strategy for 2026 changed the balance. URP is where new work goes, and Unity strongly encourages it for new projects. HDRP receives stability and critical fixes, with no new features planned, though Unity 6.5 added HDRP support for Nintendo Switch 2. The older Built-In Render Pipeline is deprecated as of Unity 6.5.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 380" role="img" aria-label="Two cards. URP: every Unity platform, tuned for tile-based mobile GPUs and standalone VR; Forward, Forward+, Deferred and Deferred+ paths; realistic or stylised lighting with basic PBR plus clear coat; Shader Graph, VFX Graph and Volumes; source public on GitHub. HDRP: desktop, Xbox and PlayStation; physical light units, skin, hair, eyes, subsurface scattering and water; advanced screen-space and volumetric effects and ray tracing; same tools; maintenance only. Below, a timeline for the Built-In pipeline: deprecated in 6.5, still included in 6.7 LTS, supported to the end of 2028, removal date not set.">
+                    <text class="t-caps" x="20" y="24">UNITY 6 · ONE PIPELINE PER PROJECT</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="40" width="416" height="236" rx="8"/>
+                    <text class="t-head" x="36" y="64">Universal Render Pipeline (URP)</text>
+                    <text class="t-small t-acc t-strong" x="36" y="82">Unity's recommended pipeline for new projects</text>
+                    <text class="t-caps" x="36" y="108">PLATFORMS</text><text x="140" y="108">Every Unity platform. Tuned for tile-based</text><text x="140" y="124">mobile GPUs and standalone VR.</text>
+                    <text class="t-caps" x="36" y="150">PATHS</text><text x="140" y="150">Forward, Forward+, Deferred, Deferred+</text>
+                    <text class="t-caps" x="36" y="176">LIGHTING</text><text x="140" y="176">Realistic or stylised. Basic PBR plus</text><text x="140" y="192">some advanced, such as clear coat.</text>
+                    <text class="t-caps" x="36" y="218">TOOLS</text><text x="140" y="218">Shader Graph, VFX Graph, Volumes</text>
+                    <text class="t-caps" x="36" y="244">SOURCE</text><text x="140" y="244">Mostly C#, public on GitHub</text>
+
+                    <rect class="f-surface s-strong" x="464" y="40" width="416" height="236" rx="8"/>
+                    <text class="t-head" x="480" y="64">High Definition Render Pipeline (HDRP)</text>
+                    <text class="t-small t-muted t-strong" x="480" y="82">maintained for stability; no new features planned</text>
+                    <text class="t-caps" x="480" y="108">PLATFORMS</text><text x="584" y="108">Desktop, Xbox and PlayStation.</text>
+                    <text class="t-caps" x="480" y="134">LIGHTING</text><text x="584" y="134">Physical light units. Skin, hair, eyes,</text><text x="584" y="150">subsurface scattering and water.</text>
+                    <text class="t-caps" x="480" y="176">EFFECTS</text><text x="584" y="176">Advanced screen-space and volumetric</text><text x="584" y="192">effects; ray tracing where supported.</text>
+                    <text class="t-caps" x="480" y="218">TOOLS</text><text x="584" y="218">Shader Graph, VFX Graph, Volumes</text>
+                    <text class="t-caps" x="480" y="244">SOURCE</text><text x="584" y="244">Mostly C#, public; harder to extend</text>
+
+                    <text class="t-small" x="20" y="302">One project uses one pipeline. Switching later means converting shaders and materials, which Unity warns can take a long time.</text>
+
+                    <text class="t-caps" x="20" y="342">BUILT-IN PIPELINE</text>
+                    <line class="s-strong w15" x1="220" y1="338" x2="760" y2="338"/>
+                    <line class="s-strong w15 dash" x1="760" y1="338" x2="860" y2="338"/>
+                    <circle class="f-ink" cx="300" cy="338" r="5"/>
+                    <circle class="f-ink" cx="480" cy="338" r="5"/>
+                    <circle class="f-ink" cx="660" cy="338" r="5"/>
+                    <circle class="f-surface s-strong dash" cx="820" cy="338" r="5"/>
+                    <text class="t-small mid" x="300" y="364">deprecated in 6.5</text>
+                    <text class="t-small mid" x="480" y="364">still included in 6.7 LTS</text>
+                    <text class="t-small mid" x="660" y="364">supported to end of 2028</text>
+                    <text class="t-small t-muted mid" x="806" y="364">removal not yet dated</text>
+                  </svg>
+                </div>
+                <figcaption><b>Unity's two render pipelines.</b> URP runs everywhere Unity does and is where Unity's new rendering work goes. HDRP aims at high-end PCs and consoles with a richer lighting model and, under Unity's 2026 strategy, gets fixes without new features. The old Built-In pipeline is deprecated; Unity supports it to the end of 2028, or 2029 with Enterprise or Industry licences.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="godot-renderers"><span class="step-num">3</span> Godot's three renderers</h3>
+              <p>Godot asks each project to choose a <dfn class="term" data-term="rendering-method">rendering method</dfn>. Forward+ is the desktop renderer and gets new features first. Mobile is a simpler, faster renderer for phones and standalone VR that also runs on desktop. Compatibility uses OpenGL, runs on older and low-end hardware, and is the only choice for games exported to the web.</p>
+              <p>The choice decides which effects exist at all. Real-time <a class="term" data-term="global-illumination" data-forward href="glossary.html#global-illumination">global illumination</a>, <a class="term" data-term="ssr" data-forward href="glossary.html#ssr">screen-space reflections</a> and volumetric fog are Forward+ only. A web game therefore cannot have them, whatever the PC version looks like.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 376" role="img" aria-label="A feature table for Godot's renderers. Forward+ uses Vulkan, Direct3D 12 or Metal and is the default on desktop. Mobile uses the same APIs and is the default on mobile. Compatibility uses OpenGL and is the default on the web. Forward+ supports every feature listed. Mobile lacks real-time GI, SSR and SSIL, SSAO, volumetric fog, TAA and FSR2, but has decals, compute shaders and baked lightmaps. Compatibility has SSAO and can render baked lightmaps but lacks the rest. Light limits: 512 per cluster on Forward+, 8 per mesh and 256 per view on Mobile, 8 per mesh on Compatibility.">
+                    <rect class="f-sunken" x="300" y="20" width="580" height="70"/>
+                    <path class="s-line" d="M300,20 V348 M493,20 V348 M686,20 V348"/>
+                    <text class="t-head mid" x="397" y="42">Forward+</text>
+                    <text class="t-head mid" x="590" y="42">Mobile</text>
+                    <text class="t-head mid" x="783" y="42">Compatibility</text>
+                    <text class="t-small t-muted mid" x="397" y="60">Vulkan, Direct3D 12, Metal</text>
+                    <text class="t-small t-muted mid" x="590" y="60">Vulkan, Direct3D 12, Metal</text>
+                    <text class="t-small t-muted mid" x="783" y="60">OpenGL</text>
+                    <text class="t-small t-acc t-strong mid" x="397" y="78">default on desktop</text>
+                    <text class="t-small t-acc t-strong mid" x="590" y="78">default on mobile</text>
+                    <text class="t-small t-acc t-strong mid" x="783" y="78">default and only choice on web</text>
+
+                    <rect class="f-sunken" x="20" y="124" width="860" height="28"/>
+                    <rect class="f-sunken" x="20" y="180" width="860" height="28"/>
+                    <rect class="f-sunken" x="20" y="236" width="860" height="28"/>
+                    <rect class="f-sunken" x="20" y="292" width="860" height="28"/>
+                    <line class="s-strong" x1="20" y1="94" x2="880" y2="94"/>
+
+                    <text x="30" y="114">Real-time GI: SDFGI, VoxelGI</text>
+                    <circle class="f-acc" cx="397" cy="110" r="6"/><circle class="s-muted w15" cx="590" cy="110" r="6"/><circle class="s-muted w15" cx="783" cy="110" r="6"/>
+                    <text x="30" y="142">SSR and SSIL (screen-space)</text>
+                    <circle class="f-acc" cx="397" cy="138" r="6"/><circle class="s-muted w15" cx="590" cy="138" r="6"/><circle class="s-muted w15" cx="783" cy="138" r="6"/>
+                    <text x="30" y="170">SSAO (ambient occlusion)</text>
+                    <circle class="f-acc" cx="397" cy="166" r="6"/><circle class="s-muted w15" cx="590" cy="166" r="6"/><circle class="f-acc" cx="783" cy="166" r="6"/>
+                    <text x="30" y="198">Volumetric fog</text>
+                    <circle class="f-acc" cx="397" cy="194" r="6"/><circle class="s-muted w15" cx="590" cy="194" r="6"/><circle class="s-muted w15" cx="783" cy="194" r="6"/>
+                    <text x="30" y="226">TAA and FSR2</text>
+                    <circle class="f-acc" cx="397" cy="222" r="6"/><circle class="s-muted w15" cx="590" cy="222" r="6"/><circle class="s-muted w15" cx="783" cy="222" r="6"/>
+                    <text x="30" y="254">Decals</text>
+                    <circle class="f-acc" cx="397" cy="250" r="6"/><circle class="f-acc" cx="590" cy="250" r="6"/><circle class="s-muted w15" cx="783" cy="250" r="6"/>
+                    <text x="30" y="282">Compute shaders</text>
+                    <circle class="f-acc" cx="397" cy="278" r="6"/><circle class="f-acc" cx="530" cy="278" r="6"/><text class="t-small t-muted" x="542" y="282">slower on old devices</text><circle class="s-muted w15" cx="783" cy="278" r="6"/>
+                    <text x="30" y="310">Baked lightmaps (LightmapGI)</text>
+                    <circle class="f-acc" cx="397" cy="306" r="6"/><circle class="f-acc" cx="590" cy="306" r="6"/><circle class="s-acc w15" cx="723" cy="306" r="6"/><path class="f-acc" d="M723,300 A6,6 0 0 0 723,312 Z"/><text class="t-small t-muted" x="735" y="310">renders; bake elsewhere</text>
+                    <text x="30" y="338">Omni and spot lights</text>
+                    <text class="t-small mid" x="397" y="338">512 per cluster</text>
+                    <text class="t-small mid" x="590" y="338">8 per mesh, 256 per view</text>
+                    <text class="t-small mid" x="783" y="338">8 per mesh</text>
+
+                    <circle class="f-acc" cx="26" cy="364" r="5"/><text class="t-small" x="36" y="368">supported</text>
+                    <circle class="s-muted w15" cx="116" cy="364" r="5"/><text class="t-small" x="126" y="368">not supported</text>
+                    <circle class="s-acc w15" cx="226" cy="364" r="5"/><path class="f-acc" d="M226,359 A5,5 0 0 0 226,369 Z"/><text class="t-small" x="236" y="368">partly</text>
+                    <text class="t-small t-muted" x="300" y="368">From Godot 4.7's renderer comparison. Some light limits can be raised in project settings.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Godot's three renderers, side by side.</b> Forward+ has every feature but runs only on desktop. Mobile drops screen-space and volumetric effects to stay fast on phones and headsets. Compatibility runs on the oldest hardware and in browsers, at the cost of most modern effects.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The light limits differ between renderers in more ways than one table row shows: Forward+ counts lights per screen cluster, while Mobile and Compatibility count them per mesh. Godot's renderer documentation lists every difference, including precision and anti-aliasing options.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="unreal-features"><span class="step-num">4</span> Unreal's headline features, by name</h3>
+              <p>Unreal Engine 5 is often described by four features, three of which, Lumen, Virtual Shadow Maps and TSR, are on by default in new projects. Each gets its own chapter later in the book; here you only need the names and what they replace. <a class="term" data-term="nanite" data-forward href="glossary.html#nanite">Nanite</a> draws extremely detailed geometry without hand-made <a class="term" data-term="lod" data-forward href="glossary.html#lod">levels of detail</a>. <a class="term" data-term="lumen" data-forward href="glossary.html#lumen">Lumen</a> computes bounced light and reflections every frame, without <a class="term" data-term="baked-lighting" data-forward href="glossary.html#baked-lighting">baking</a>. Virtual Shadow Maps give sharp shadows over large worlds and are designed to work with Nanite. TSR, Temporal Super Resolution, renders fewer pixels and rebuilds a sharp image from several frames.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 210" role="img" aria-label="Four tiles. Nanite: virtualised geometry that draws only the detail each part of the screen can show; needs DirectX 12 with Shader Model 6 or a current console; chapter 4.5. Lumen: dynamic global illumination and reflections with no baking, on by default in new projects; chapter 8.5. Virtual Shadow Maps: high-resolution shadows, default in new projects and designed for Nanite; needs Shader Model 6.6 atomics; chapter 7.5. TSR: Temporal Super Resolution, renders fewer pixels then builds a sharp 4K image; needs Shader Model 5 on desktop, or PS5 and Xbox Series; chapter 9.3.">
+                    <rect class="f-geo-soft s-geo" x="20" y="20" width="206" height="170" rx="8"/>
+                    <text class="t-head" x="34" y="46">Nanite</text>
+                    <text class="t-small t-strong" x="34" y="64">virtualised geometry</text>
+                    <text class="t-small" x="34" y="90">Draws only the detail each part</text>
+                    <text class="t-small" x="34" y="106">of the screen can show.</text>
+                    <text class="t-small t-muted" x="34" y="132">Needs DirectX 12, Shader</text>
+                    <text class="t-small t-muted" x="34" y="148">Model 6, or a current console.</text>
+                    <text class="t-small t-strong" x="34" y="176">Chapter 4.5</text>
+
+                    <rect class="f-lit-soft s-lit" x="238" y="20" width="206" height="170" rx="8"/>
+                    <text class="t-head" x="252" y="46">Lumen</text>
+                    <text class="t-small t-strong" x="252" y="64">dynamic global illumination</text>
+                    <text class="t-small" x="252" y="90">Bounced light and reflections</text>
+                    <text class="t-small" x="252" y="106">every frame, with no baking.</text>
+                    <text class="t-small t-muted" x="252" y="132">On by default in new projects;</text>
+                    <text class="t-small t-muted" x="252" y="148">ray tracing hardware optional.</text>
+                    <text class="t-small t-strong" x="252" y="176">Chapter 8.5</text>
+
+                    <rect class="f-lit-soft s-lit" x="456" y="20" width="206" height="170" rx="8"/>
+                    <text class="t-head" x="470" y="46">Virtual Shadow Maps</text>
+                    <text class="t-small t-strong" x="470" y="64">high-resolution shadows</text>
+                    <text class="t-small" x="470" y="90">On by default in new projects;</text>
+                    <text class="t-small" x="470" y="106">designed to work with Nanite.</text>
+                    <text class="t-small t-muted" x="470" y="132">Needs Shader Model 6.6</text>
+                    <text class="t-small t-muted" x="470" y="148">atomics, or Vulkan's equivalent.</text>
+                    <text class="t-small t-strong" x="470" y="176">Chapter 7.5</text>
+
+                    <rect class="f-pix-soft s-pix" x="674" y="20" width="206" height="170" rx="8"/>
+                    <text class="t-head" x="688" y="46">TSR</text>
+                    <text class="t-small t-strong" x="688" y="64">Temporal Super Resolution</text>
+                    <text class="t-small" x="688" y="90">Renders fewer pixels, then</text>
+                    <text class="t-small" x="688" y="106">builds a sharp 4K image.</text>
+                    <text class="t-small t-muted" x="688" y="132">Needs Shader Model 5 on</text>
+                    <text class="t-small t-muted" x="688" y="148">desktop; PS5 and Xbox Series.</text>
+                    <text class="t-small t-strong" x="688" y="176">Chapter 9.3</text>
+                  </svg>
+                </div>
+                <figcaption><b>Four names you will hear in every Unreal conversation.</b> Tile colours follow the book: teal for geometry, amber for light, rose for screen-space work. All four were designed for PC and console GPUs; check each one's platform support before planning a phone version around them.</figcaption>
+              </figure>
+              <p>Epic adds to the list with each release. In Unreal Engine 5.8, MegaLights, a system for scenes with many dynamic lights, reached Production Ready status, and Lumen gained a cheaper Lumen Lite mode in beta.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="licences"><span class="step-num">5</span> Licences and source access</h3>
+              <p>The three engines charge in three different ways. Unreal takes a <dfn class="term" data-term="royalty">royalty</dfn>, a share of each game's revenue. Unity sells a <dfn class="term" data-term="seat-licence">seat licence</dfn> for each person using the editor, priced by the company's size. Godot is <dfn class="term" data-term="open-source">open source</dfn> under the MIT licence and charges nothing.</p>
+              <p>Source access differs too. Unreal's full C++ source is <dfn class="term" data-term="source-available">source-available</dfn>: anyone who links a GitHub account to an Epic account and accepts the licence can read it, change it and build their own version, under Epic's licence, which limits how it may be shared. Unity publishes URP and HDRP and a reference copy of its C# layer; the C++ core comes with Enterprise plans. Godot's whole source is free to read, change and share.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="Three licence cards. Unreal Engine: free until a game earns 1 million dollars gross, then 5 percent of gross revenue above that, reported quarterly; 3.5 percent if the game launches on the Epic Games Store first or the same day; Epic Games Store revenue is not counted; full C++ source on GitHub after linking accounts. Unity: Personal free while company revenue and funding stay under 200,000 dollars; Pro 2,310 dollars per seat per year above that; Enterprise required above 25 million; the runtime fee was cancelled on 12 September 2024; C# reference source on GitHub, full source with Enterprise. Godot: nothing to pay; your game is yours; no official console ports because console makers' agreements clash with open source, so third parties port games; all source free to change and share.">
+                    <rect class="f-surface s-strong" x="20" y="20" width="280" height="300" rx="8"/>
+                    <text class="t-head" x="36" y="46">Unreal Engine</text>
+                    <text class="t-small t-muted" x="36" y="62">Epic Games · royalty</text>
+                    <text class="t-caps" x="36" y="90">HOW YOU PAY</text>
+                    <text class="t-small" x="36" y="108">Free until a game earns $1M gross.</text>
+                    <text class="t-small" x="36" y="124">Then 5% of gross revenue above $1M,</text>
+                    <text class="t-small" x="36" y="140">reported each quarter.</text>
+                    <text class="t-small t-acc" x="36" y="160">3.5% if it launches on the Epic Games</text>
+                    <text class="t-small t-acc" x="36" y="176">Store first or on the same day.</text>
+                    <text class="t-small" x="36" y="196">Epic Games Store revenue is not counted.</text>
+                    <text class="t-caps" x="36" y="226">SOURCE CODE</text>
+                    <text class="t-small" x="36" y="244">Full C++ source on GitHub once you</text>
+                    <text class="t-small" x="36" y="260">link accounts and accept the EULA.</text>
+                    <text class="t-small" x="36" y="276">Sharing it is limited by the EULA.</text>
+                    <text class="t-small t-muted" x="36" y="306">Terms as Epic published them, 2024 to 2025</text>
+
+                    <rect class="f-surface s-strong" x="310" y="20" width="280" height="300" rx="8"/>
+                    <text class="t-head" x="326" y="46">Unity</text>
+                    <text class="t-small t-muted" x="326" y="62">Unity Technologies · per seat</text>
+                    <text class="t-caps" x="326" y="90">HOW YOU PAY</text>
+                    <text class="t-small" x="326" y="108">Personal: free while company revenue</text>
+                    <text class="t-small" x="326" y="124">and funding stay under $200K.</text>
+                    <text class="t-small t-acc" x="326" y="144">Pro: $2,310 per seat per year,</text>
+                    <text class="t-small t-acc" x="326" y="160">required above $200K.</text>
+                    <text class="t-small" x="326" y="180">Enterprise: required above $25M.</text>
+                    <text class="t-small" x="326" y="196">No runtime fee: cancelled 12 Sep 2024.</text>
+                    <text class="t-caps" x="326" y="226">SOURCE CODE</text>
+                    <text class="t-small" x="326" y="244">C# layer on GitHub, for reference only.</text>
+                    <text class="t-small" x="326" y="260">Full source with Enterprise; changing</text>
+                    <text class="t-small" x="326" y="276">it needs a separate Adapt licence.</text>
+                    <text class="t-small t-muted" x="326" y="306">Pro price from 12 January 2026</text>
+
+                    <rect class="f-surface s-strong" x="600" y="20" width="280" height="300" rx="8"/>
+                    <text class="t-head" x="616" y="46">Godot</text>
+                    <text class="t-small t-muted" x="616" y="62">Godot Foundation · MIT licence</text>
+                    <text class="t-caps" x="616" y="90">HOW YOU PAY</text>
+                    <text class="t-small t-acc" x="616" y="108">Nothing. No royalties, no seats.</text>
+                    <text class="t-small" x="616" y="124">Your game is yours to license as</text>
+                    <text class="t-small" x="616" y="140">you choose.</text>
+                    <text class="t-caps" x="616" y="168">CONSOLES</text>
+                    <text class="t-small" x="616" y="186">No official ports: console makers'</text>
+                    <text class="t-small" x="616" y="202">agreements clash with open source.</text>
+                    <text class="t-small" x="616" y="218">Companies such as W4 Games port</text>
+                    <text class="t-small" x="616" y="234">games to consoles as a service.</text>
+                    <text class="t-caps" x="616" y="262">SOURCE CODE</text>
+                    <text class="t-small" x="616" y="280">All of it, free to change and share.</text>
+                    <text class="t-small t-muted" x="616" y="306">Licence page, checked November 2026</text>
+                  </svg>
+                </div>
+                <figcaption><b>Three ways to pay for an engine.</b> Unreal's cost grows with a game's revenue, Unity's with headcount and time, and Godot's licence costs nothing. Licence terms change: Unity cancelled its planned runtime fee in September 2024 and raised Pro prices in January 2026, so check each vendor's current page before budgeting.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="custom"><span class="step-num">6</span> When studios build their own</h3>
+              <p>A <dfn class="term" data-term="custom-engine">custom engine</dfn> is one a studio builds and keeps for its own games. Guerrilla's Decima powers the Horizon games and was also used for Death Stranding. A custom engine can fit one kind of game exactly, carries no royalty and keeps the studio in control of its schedule. It also needs a permanent team to support new platforms, new GPU features and the tools artists use every day.</p>
+              <p>That cost is why some studios leave. In 2022 CD Projekt Red, which built its own REDengine for Cyberpunk 2077, announced that the next Witcher saga would use Unreal Engine 5 under a partnership covering both licensing and joint work on the engine. In 2024 343 Industries renamed itself Halo Studios and moved Halo from its Slipspace engine to Unreal Engine 5. Its leaders said they wanted the team focused on making games rather than tools and engines, and that some parts of Slipspace were almost 25 years old.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="A decision flow. Does a licensed engine do what the game needs on every platform? If yes, license it as it is. If not, can you change one enough through source access, plugins or a deal with the vendor? If yes, license it and change it, as CD Projekt Red did with Unreal Engine 5 in 2022. If not, can you fund an engine team for years on top of the game team? If yes, build or keep your own engine, like Guerrilla's Decima. If not, change the game to fit an engine. A note says leaving costs too: Halo Studios moved off Slipspace, parts of which were almost 25 years old, to Unreal Engine 5 in 2024.">
+                    <defs>
+                      <marker id="cu-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="cu-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="20" y="30" width="330" height="56" rx="6"/>
+                    <text x="36" y="54">Does a licensed engine do what the game</text>
+                    <text x="36" y="72">needs, on every platform it ships on?</text>
+                    <rect class="f-surface s-strong" x="20" y="118" width="330" height="56" rx="6"/>
+                    <text x="36" y="142">Can you change one enough? Source access,</text>
+                    <text x="36" y="160">plugins, or a deal with the vendor.</text>
+                    <rect class="f-surface s-strong" x="20" y="206" width="330" height="56" rx="6"/>
+                    <text x="36" y="230">Can you fund an engine team for years,</text>
+                    <text x="36" y="248">on top of the game team?</text>
+                    <rect class="f-sunken s-strong" x="20" y="286" width="330" height="34" rx="6"/>
+                    <text class="t-strong" x="36" y="308">Change the game to fit an engine</text>
+
+                    <line class="s-muted w15" x1="185" y1="86" x2="185" y2="114" marker-end="url(#cu-arr-m)"/>
+                    <text class="t-small t-muted" x="193" y="105">no</text>
+                    <line class="s-muted w15" x1="185" y1="174" x2="185" y2="202" marker-end="url(#cu-arr-m)"/>
+                    <text class="t-small t-muted" x="193" y="193">no</text>
+                    <line class="s-muted w15" x1="185" y1="262" x2="185" y2="282" marker-end="url(#cu-arr-m)"/>
+                    <text class="t-small t-muted" x="193" y="277">no</text>
+
+                    <line class="s-acc w15" x1="352" y1="58" x2="466" y2="58" marker-end="url(#cu-arr)"/>
+                    <text class="t-small t-acc mid" x="409" y="50">yes</text>
+                    <line class="s-acc w15" x1="352" y1="146" x2="466" y2="146" marker-end="url(#cu-arr)"/>
+                    <text class="t-small t-acc mid" x="409" y="138">yes</text>
+                    <line class="s-acc w15" x1="352" y1="234" x2="466" y2="234" marker-end="url(#cu-arr)"/>
+                    <text class="t-small t-acc mid" x="409" y="226">yes</text>
+
+                    <rect class="f-acc-soft s-acc" x="470" y="30" width="410" height="56" rx="6"/>
+                    <text class="t-strong" x="486" y="54">License it as it is</text>
+                    <text class="t-small t-muted" x="486" y="72">no engine work beyond settings and plugins</text>
+                    <rect class="f-acc-soft s-acc" x="470" y="118" width="410" height="56" rx="6"/>
+                    <text class="t-strong" x="486" y="142">License it and change it</text>
+                    <text class="t-small t-muted" x="486" y="160">e.g. CD Projekt Red and Unreal Engine 5, from 2022</text>
+                    <rect class="f-sunken s-strong" x="470" y="206" width="410" height="56" rx="6"/>
+                    <text class="t-strong" x="486" y="230">Build or keep your own engine</text>
+                    <text class="t-small t-muted" x="486" y="248">e.g. Guerrilla's Decima: Horizon, Death Stranding</text>
+
+                    <text class="t-small t-muted" x="470" y="298">Leaving costs too: Halo Studios moved off Slipspace,</text>
+                    <text class="t-small t-muted" x="470" y="314">parts of which were almost 25 years old, to UE5 in 2024.</text>
+                  </svg>
+                </div>
+                <figcaption><b>When a custom engine makes sense.</b> Answer the questions in order. A studio builds its own engine when no licensed one can be bent to its needs and it can pay an engine team for as long as the engine lives. Studios with old engines face the same question in reverse.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real decisions mix these questions with hiring (an engine many people already know is easier to staff), existing code, and middleware for physics, audio or networking. The chart shows the order of the questions, not every factor.</p>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Take one made-up studio: 10 people use the editor, the game takes three years to make and grosses $3 million in its first year on sale, none of it on the Epic Games Store. The studio's revenue and funding are above $200,000 the whole time. Here is what each engine's licence costs over those four years.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 240" role="img" aria-label="Bar chart of licence costs for the example studio. Unreal Engine at 5 percent: 100,000 dollars. Unreal Engine at 3.5 percent if the game also launches on the Epic Games Store the same day: 70,000 dollars. Unity Pro, 10 seats for 4 years: 92,400 dollars. Godot: zero.">
+                  <path class="s-line dash" d="M425,24 V206 M550,24 V206 M675,24 V206 M800,24 V206"/>
+                  <line class="s-strong" x1="300" y1="24" x2="300" y2="210"/>
+                  <text class="t-strong" x="20" y="44">Unreal Engine</text>
+                  <text class="t-small t-muted" x="20" y="58">5% of $2M above the first $1M</text>
+                  <rect class="f-acc-soft s-acc" x="300" y="30" width="500" height="30"/>
+                  <text class="t-mono t-strong" x="808" y="50">$100,000</text>
+                  <text class="t-strong" x="20" y="92">Unreal Engine</text>
+                  <text class="t-small t-muted" x="20" y="106">3.5%: also launched on Epic's store</text>
+                  <rect class="f-acc-soft s-acc" x="300" y="78" width="350" height="30"/>
+                  <text class="t-mono t-strong" x="658" y="98">$70,000</text>
+                  <text class="t-strong" x="20" y="140">Unity Pro</text>
+                  <text class="t-small t-muted" x="20" y="154">10 seats × $2,310 × 4 years</text>
+                  <rect class="f-acc-soft s-acc" x="300" y="126" width="462" height="30"/>
+                  <text class="t-mono t-strong" x="770" y="146">$92,400</text>
+                  <text class="t-strong" x="20" y="188">Godot</text>
+                  <text class="t-small t-muted" x="20" y="202">no licence fee</text>
+                  <rect class="f-acc" x="300" y="174" width="2" height="30"/>
+                  <text class="t-mono t-strong" x="310" y="194">$0</text>
+                  <g class="t-mono t-small t-muted">
+                    <text class="mid" x="300" y="226">$0</text><text class="mid" x="425" y="226">$25K</text><text class="mid" x="550" y="226">$50K</text><text class="mid" x="675" y="226">$75K</text><text class="mid" x="800" y="226">$100K</text>
+                  </g>
+                </svg>
+              </div>
+              <figcaption><b>Licence cost for one example game.</b> Bars to scale. Change the assumptions and the order changes: at $1.5M gross Unreal's royalty is $25,000, while Unity's seats cost the same whether the game sells or not. Godot's licence is free, but console ports through a third party are paid services.</figcaption>
+            </figure>
+            <div class="stat-row">
+              <div class="stat"><span class="value">$1M</span><span class="what">lifetime gross a game earns before Unreal's royalty starts</span></div>
+              <div class="stat"><span class="value">5%</span><span class="what">Unreal's standard royalty above that; 3.5% with a same-day Epic Games Store launch</span></div>
+              <div class="stat"><span class="value">$200K</span><span class="what">revenue and funding limit for Unity Personal</span></div>
+              <div class="stat"><span class="value">$2,310</span><span class="what">Unity Pro, per seat per year, from 12 January 2026</span></div>
+            </div>
+            <p class="stamp">Unity prices from Unity's pricing page, checked November 2026. Unreal terms as published by Epic in 2024 and 2025. The example applies today's Unity price to all four years and ignores taxes, store fees and Epic's detailed revenue rules.</p>
+            <h3>Money is the smaller cost</h3>
+            <p>The larger costs are usually time. Switching render pipeline in Unity means converting shaders and materials, which Unity describes as time-consuming. Switching engine means rebuilding most content and code; CD Projekt Red and Halo Studios both switched for their next games. A custom engine needs engineers whose whole job is the engine, for as long as the studio uses it.</p>
+            <ul class="grows">
+              <li><strong>Revenue</strong><span>Unreal's royalty grows with every dollar a game earns above $1 million.</span></li>
+              <li><strong>Headcount and years</strong><span>Unity's seats grow with the number of people in the editor and the length of development.</span></li>
+              <li><strong>Platforms</strong><span>Each extra platform needs its features checked against the renderer. Godot console ports go through paid third parties.</span></li>
+              <li><strong>Engine changes</strong><span>Every local change to engine source must be carried forward at each upgrade.</span></li>
+              <li><strong>Versions behind</strong><span>The further a project falls behind, the bigger and riskier each upgrade.</span></li>
+              <li><strong>Engine team</strong><span>A custom engine costs a permanent team, on top of the game team.</span></li>
+            </ul>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Engine choices rarely fail on day one. They fail months later, when a platform, a feature or a bill arrives that nobody checked for.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A box labelled HDRP with an arrow to a VR headset, blocked by a cross.">
+                    <rect class="f-acc-soft s-acc" x="16" y="44" width="70" height="40" rx="6"/>
+                    <text class="t-strong mid" x="51" y="69">HDRP</text>
+                    <line class="s-muted w15 dash" x1="90" y1="64" x2="150" y2="64"/>
+                    <path class="s-pix w3 round" d="M110,52 L130,76 M130,52 L110,76"/>
+                    <rect class="f-surface s-strong" x="156" y="46" width="70" height="36" rx="12"/>
+                    <circle class="f-sunken s-strong" cx="176" cy="64" r="9"/>
+                    <circle class="f-sunken s-strong" cx="206" cy="64" r="9"/>
+                    <text class="t-small t-muted mid" x="191" y="104">standalone VR</text>
+                  </svg>
+                </div>
+                <h4>The pipeline cannot reach a platform</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The project chose HDRP, which runs on desktop, Xbox and PlayStation (and Switch 2 from Unity 6.5). A later port to phones or a standalone headset has no HDRP to run on, and moving to URP means converting every shader and material.</dd></div>
+                  <div><dt>Ask for</dt><dd>A table of every target platform against the chosen pipeline or renderer, agreed in pre-production before content is made.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two small game frames. The desktop one has soft fog bands; the web one is flat with no fog.">
+                    <rect class="f-surface s-strong" x="14" y="24" width="100" height="72" rx="4"/>
+                    <rect class="f-shade" fill-opacity="0.18" x="15" y="40" width="98" height="14"/>
+                    <rect class="f-shade" fill-opacity="0.12" x="15" y="56" width="98" height="16"/>
+                    <polygon class="f-solid s-strong" points="40,95 56,62 72,95"/>
+                    <text class="t-small t-muted mid" x="64" y="112">desktop</text>
+                    <rect class="f-surface s-pix w15" x="126" y="24" width="100" height="72" rx="4"/>
+                    <polygon class="f-solid s-strong" points="152,95 168,62 184,95"/>
+                    <text class="t-small t-pix mid" x="176" y="112">web: no fog</text>
+                  </svg>
+                </div>
+                <h4>A feature is missing on one target</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The feature exists in one renderer only. Godot web exports must use Compatibility, which has no volumetric fog or real-time GI; Unreal's Virtual Shadow Maps need Shader Model 6.6 GPUs.</dd></div>
+                  <div><dt>Ask for</dt><dd>A per-platform feature list with a fallback for each missing feature, and builds on the weakest target from early on.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Three lines of code; the word Spatial is struck through and Node3D is written beside it.">
+                    <rect class="f-sunken s-strong" x="14" y="18" width="212" height="94" rx="4"/>
+                    <text class="t-mono t-small t-muted" x="26" y="44">extends</text>
+                    <text class="t-mono t-small t-pix" x="84" y="44">Spatial</text>
+                    <line class="s-pix w15" x1="82" y1="40" x2="136" y2="40"/>
+                    <text class="t-mono t-small t-acc" x="144" y="44">Node3D</text>
+                    <text class="t-mono t-small t-muted" x="26" y="68">func _ready():</text>
+                    <text class="t-mono t-small t-muted" x="42" y="92">pass</text>
+                  </svg>
+                </div>
+                <h4>Code written for the wrong version</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>An AI answer or tutorial targets another version or pipeline, such as Godot 3 node names (<code>Spatial</code> became <code>Node3D</code> in Godot 4) or Unity surface shaders, which only the Built-In pipeline supports.</dd></div>
+                  <div><dt>Ask for</dt><dd>Engine, version and pipeline at the top of every brief, and code that compiles in the real project before anyone reviews it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A version timeline from 5.4 to 5.8; the engine has reached 5.8 but the project marker is stuck at 5.4.">
+                    <line class="s-strong w15" x1="24" y1="64" x2="216" y2="64"/>
+                    <circle class="f-pix" cx="30" cy="64" r="6"/>
+                    <circle class="f-surface s-strong" cx="76" cy="64" r="5"/>
+                    <circle class="f-surface s-strong" cx="122" cy="64" r="5"/>
+                    <circle class="f-surface s-strong" cx="168" cy="64" r="5"/>
+                    <circle class="f-acc" cx="212" cy="64" r="6"/>
+                    <g class="t-mono t-small t-muted">
+                      <text class="mid" x="30" y="88">5.4</text><text class="mid" x="76" y="88">5.5</text><text class="mid" x="122" y="88">5.6</text><text class="mid" x="168" y="88">5.7</text><text class="mid" x="212" y="88">5.8</text>
+                    </g>
+                    <text class="t-small t-pix" x="20" y="40">our project</text>
+                    <text class="t-small t-acc end" x="222" y="40">engine today</text>
+                  </svg>
+                </div>
+                <h4>Upgrades stall</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The project fell several versions behind, with local engine changes and plugins that each need porting, so every upgrade gets bigger and is put off again.</dd></div>
+                  <div><dt>Ask for</dt><dd>An upgrade policy: which LTS or hotfix line to follow, when to move, and a branch where each upgrade is tested before it lands.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A revenue line rising across a dashed threshold line labelled 200K, with the crossing point highlighted.">
+                    <line class="s-strong" x1="20" y1="110" x2="226" y2="110"/>
+                    <line class="s-muted dash" x1="20" y1="54" x2="226" y2="54"/>
+                    <text class="t-small t-muted" x="24" y="48">$200K</text>
+                    <polyline class="s-acc w2 round" points="20,104 70,96 110,80 150,54 190,30 222,18"/>
+                    <circle class="f-pix" cx="150" cy="54" r="6"/>
+                    <text class="t-small t-pix" x="160" y="74">seats due</text>
+                  </svg>
+                </div>
+                <h4>A licence bill nobody planned</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The licence was chosen for the studio as it was. Funding pushed it past Unity's $200,000 Personal limit, or a game passed Unreal's $1 million, and the budget had no line for seats or royalties.</dd></div>
+                  <div><dt>Ask for</dt><dd>A licence check at every funding round and launch, with costs modelled at three revenue levels.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two groups of people dots: a large group labelled engine and a small group labelled game.">
+                    <g class="f-pix-soft s-pix">
+                      <circle cx="30" cy="40" r="8"/><circle cx="52" cy="40" r="8"/><circle cx="74" cy="40" r="8"/><circle cx="96" cy="40" r="8"/><circle cx="118" cy="40" r="8"/>
+                      <circle cx="30" cy="64" r="8"/><circle cx="52" cy="64" r="8"/><circle cx="74" cy="64" r="8"/><circle cx="96" cy="64" r="8"/><circle cx="118" cy="64" r="8"/>
+                    </g>
+                    <g class="f-acc-soft s-acc">
+                      <circle cx="170" cy="52" r="8"/><circle cx="192" cy="52" r="8"/><circle cx="214" cy="52" r="8"/>
+                    </g>
+                    <text class="t-small t-pix mid" x="74" y="98">engine</text>
+                    <text class="t-small t-acc mid" x="192" y="98">game</text>
+                  </svg>
+                </div>
+                <h4>The engine eats the team</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A custom engine needs constant work for new platforms, GPU features and tools. Halo Studios gave keeping its team focused on games, rather than engines, as a reason to move to Unreal.</dd></div>
+                  <div><dt>Ask for</dt><dd>The engine team's headcount and roadmap set against what the next game needs, reviewed every year.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>The landscape in one table. Unity's two pipelines get a column each because they differ in platforms, features and future.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Version checked</th>
+                    <td>5.8. Epic is targeting Unreal Engine 6 Early Access for the end of 2027.</td>
+                    <td>6.6. 6.3 is the current LTS; 6.7 LTS is due at the end of 2026.</td>
+                    <td>6.6, as URP.</td>
+                    <td>4.7, with 4.7.x maintenance releases.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Made by</th>
+                    <td>Epic Games</td>
+                    <td>Unity Technologies</td>
+                    <td>Unity Technologies</td>
+                    <td>The Godot Foundation and community contributors</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Scripting</th>
+                    <td>C++ and Blueprint visual scripting.</td>
+                    <td>C#.</td>
+                    <td>C#.</td>
+                    <td>GDScript; C# with the .NET build (no web export); C++ through GDExtension.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Renderer</th>
+                    <td>Desktop renderer for PC and consoles; a separate mobile renderer with Mobile Forward and Mobile Deferred modes.</td>
+                    <td>Rendering paths: Forward, Forward+, Deferred, Deferred+.</td>
+                    <td>A high-end lighting model with physical light units and advanced materials.</td>
+                    <td>Forward+, Mobile or Compatibility, chosen per project.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Platforms</th>
+                    <td>PC, Mac, Linux, mobile and consoles; Nanite and Virtual Shadow Maps need DirectX 12-class GPUs.</td>
+                    <td>Every platform Unity supports.</td>
+                    <td>Desktop, Xbox and PlayStation; Nintendo Switch 2 from Unity 6.5.</td>
+                    <td>Desktop, mobile and web; consoles through third parties.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Licence</th>
+                    <td>5% royalty on a game's gross above $1M; 3.5% with a same-day Epic Games Store launch.</td>
+                    <td>Personal free under $200K revenue and funding; Pro $2,310 per seat per year.</td>
+                    <td>As URP.</td>
+                    <td>MIT licence; free.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Source</th>
+                    <td>Full C++ source on GitHub after linking accounts.</td>
+                    <td>URP source public on GitHub; engine core with Enterprise.</td>
+                    <td>HDRP source public on GitHub; engine core with Enterprise.</td>
+                    <td>All source, public.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Headline features</th>
+                    <td>Nanite, Lumen, Virtual Shadow Maps, TSR; MegaLights Production Ready in 5.8.</td>
+                    <td>Forward+ and Deferred+ for many lights; Shader Graph and VFX Graph.</td>
+                    <td>Physical light units; skin, hair and eye materials; volumetrics; ray tracing.</td>
+                    <td>SDFGI, VoxelGI and volumetric fog in Forward+.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Direction</th>
+                    <td>Active development; Unreal Engine 6 announced.</td>
+                    <td>Where Unity's new rendering work goes.</td>
+                    <td>Stability and critical fixes; no new features planned.</td>
+                    <td>Active development; Forward+ gets new features first.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Checked against the Unreal Engine 5.8 documentation, the Unity 6.6 manual, Unity's pricing and 2026 render pipeline strategy pages, and the Godot 4.7 documentation and licence page, in November 2026. Unreal's royalty terms are as Epic published them in 2024 and 2025; check Epic's current licence page before budgeting.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Engine facts change faster than any model's training data. Good briefs pin the version, ask for sources with dates, and make the AI show its arithmetic. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when choosing an engine for a new project</span></div>
+              <pre class="prompt-body">We are choosing an engine for a new game.
+Team: 12 people, 4 programmers who know C# and some C++, no engine programmers.
+Game: third-person action in a walled town, stylised art, day-night cycle.
+Targets: PC (Steam), PlayStation 5 and Xbox Series at launch; Meta Quest 3 a year later.
+
+Compare Unreal Engine 5.8, Unity 6.6 and Godot 4.7 for this project. For each:
+1. Which renderer or render pipeline you would use, and why.
+2. Which of our platforms it supports directly, which need third parties, and what that involves.
+3. Licence cost if the game grosses $1M, $5M and $20M, with the arithmetic shown.
+4. The two biggest risks for this team.
+Cite the official documentation or pricing page for every platform and licence claim, with the date you checked it.</pre>
+              <ul class="prompt-why">
+                <li>Team skills and platforms rule options in or out before features are discussed.</li>
+                <li>The Quest port tests whether the pipeline choice survives the second year.</li>
+                <li>Asking for dated sources exposes stale licence terms.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Version pin</span><span class="use-when">Use at the top of any engine coding request</span></div>
+              <pre class="prompt-body">Engine: Unity 6.6, Universal Render Pipeline, Forward+ rendering path. Target: Android phones and Meta Quest 3.
+Do not use Built-In Render Pipeline features such as surface shaders or Built-In-only post-processing. Do not use HDRP components.
+If an API you want to use changed in Unity 6, say which version you are assuming and link the Unity 6.6 documentation page for it.
+
+Task: add a soft glow around the lanterns in the courtyard using a URP Volume.</pre>
+              <ul class="prompt-why">
+                <li>Engine, version, pipeline and rendering path remove most wrong answers before they are written.</li>
+                <li>Naming what not to use blocks the most common stale patterns.</li>
+                <li>A documentation link per API makes the answer checkable.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing AI work on engine choice</h3>
+            <ol class="review-list">
+              <li>Which engine version and which renderer or pipeline does this answer assume?<span class="why">Answers silently mix versions and pipelines.</span></li>
+              <li>Does every target platform support the features this relies on?<span class="why">A feature missing on one platform is found late and costs the most.</span></li>
+              <li>Does this change engine source or add a plugin, and who maintains it at the next upgrade?<span class="why">Every local change is carried forward forever.</span></li>
+              <li>What does this cost under our licence as we grow?<span class="why">Seats grow with the team and royalties with revenue.</span></li>
+              <li>Where is the source for this licence or platform claim, and when was it checked?<span class="why">Terms change: Unity cancelled a planned runtime fee in 2024 and raised Pro prices in 2026.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A Godot 4 game ships on PC and in web browsers. The art director wants volumetric fog in both. What do you tell them?</p>
+                <details><summary>Show answer</summary><p>Web exports must use the Compatibility renderer, which has no volumetric fog. The PC build can have it with Forward+; the web build needs a cheaper look, such as Godot's ordinary depth and height fog, which Compatibility supports.</p></details>
+              </li>
+              <li>
+                <p class="q">An Unreal Engine game grosses $1.4 million over its lifetime, none of it on the Epic Games Store. What is the standard royalty?</p>
+                <details><summary>Show answer</summary><p>5% of the revenue above $1 million: 5% × $400,000 = $20,000.</p></details>
+              </li>
+              <li>
+                <p class="q">A Unity team plans a standalone Meta Quest 3 game. URP or HDRP?</p>
+                <details><summary>Show answer</summary><p>URP. HDRP runs on desktop and consoles only, while URP is tuned for standalone VR headsets and is the pipeline Unity recommends for new projects.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#unreal-engine">Unreal Engine</a></li>
+              <li><a class="chip" href="glossary.html#unity">Unity</a></li>
+              <li><a class="chip" href="glossary.html#godot">Godot</a></li>
+              <li><a class="chip" href="glossary.html#lts">LTS</a></li>
+              <li><a class="chip" href="glossary.html#render-pipeline">render pipeline</a></li>
+              <li><a class="chip" href="glossary.html#urp">URP</a></li>
+              <li><a class="chip" href="glossary.html#hdrp">HDRP</a></li>
+              <li><a class="chip" href="glossary.html#rendering-method">rendering method</a></li>
+              <li><a class="chip" href="glossary.html#royalty">royalty</a></li>
+              <li><a class="chip" href="glossary.html#seat-licence">seat licence</a></li>
+              <li><a class="chip" href="glossary.html#open-source">open source</a></li>
+              <li><a class="chip" href="glossary.html#source-available">source-available</a></li>
+              <li><a class="chip" href="glossary.html#custom-engine">custom engine</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="3.1"></a> starts the foundations: what a pixel is, and how an image gets from the GPU to the screen.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-5-8-release-notes?application_version=5.8">Unreal Engine 5.8 release notes</a>, Epic Games. MegaLights, Lumen Lite and Mass changes.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/nanite-virtualized-geometry-in-unreal-engine?application_version=5.8">Nanite</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-global-illumination-and-reflections-in-unreal-engine?application_version=5.8">Lumen</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/virtual-shadow-maps-in-unreal-engine?application_version=5.8">Virtual Shadow Maps</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/temporal-super-resolution-in-unreal-engine?application_version=5.8">Temporal Super Resolution</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/post-process-effects-in-unreal-engine?application_version=5.8">Post process effects</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-insights-in-unreal-engine?application_version=5.8">Unreal Insights</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/downloading-source-code-in-unreal-engine?application_version=5.8">Downloading source code</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://forums.unrealengine.com/t/unreal-engine-s-improved-royalty-reporting-system/2416465">Unreal Engine's improved royalty reporting system</a>, Epic Games, March 2025, and <a href="https://gamedeveloper.com/business/epic-games-will-reduce-royalty-fees-for-devs-with-simultaneous-egs-launches">Epic Games will reduce royalty fees for devs with simultaneous EGS launches</a>, Game Developer, 1 October 2024.</li>
+              <li><a href="https://gamesbeat.com/unreal-engine-6-will-combine-ue5-and-uefn-into-a-unified-engine-state-of-unreal/">Unreal Engine 6 will combine UE5 and UEFN into a unified engine</a>, GamesBeat, 17 June 2026.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/render-pipelines/choose-a-render-pipeline/pipeline">Choose a render pipeline</a>, Unity 6.6 manual, and <a href="https://unity.com/topics/render-pipelines-strategy-for-2026">Render pipelines strategy for 2026</a>, Unity.</li>
+              <li><a href="https://unity.com/products/pricing-updates">Changes to Unity subscription plans and pricing</a> and <a href="https://unity.com/products/source-code">Source code access</a>, Unity. <a href="https://github.com/Unity-Technologies/UnityCsReference">UnityCsReference</a>, the reference-only C# source.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/tutorials/rendering/renderers.html">Overview of renderers</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/3d/environment_and_post_processing.html">Environment and post-processing</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_basics.html">C# basics</a> and <a href="https://docs.godotengine.org/en/stable/tutorials/migrating/upgrading_to_godot_4.html">Upgrading from Godot 3 to Godot 4</a>, Godot 4.7 documentation.</li>
+              <li><a href="https://godotengine.org/license/">License</a> and <a href="https://godotengine.org/consoles/">Console support</a>, Godot Engine.</li>
+              <li><a href="https://www.guerrilla-games.com/decima">Decima</a>, Guerrilla Games.</li>
+              <li><a href="https://www.cdprojekt.com/en/media/news/new-witcher-saga-announced-cd-projekt-red-begins-development-on-unreal-engine-5-as-part-of-a-strategic-partnership-with-epic-games/">New Witcher saga announced</a>, CD PROJEKT, 21 March 2022.</li>
+              <li><a href="https://news.xbox.com/en-us/2024/10/06/halo-studios-unreal-engine-interview/">Halo Studios interview</a>, Xbox Wire, 6 October 2024.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>

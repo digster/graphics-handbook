@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>0.2 What a frame is · Graphics Handbook</title>
+  <meta name="description" content="What a frame is, why teams count milliseconds instead of frames per second, the game loop, the frame budget, missed frames, hitches and frame pacing.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="0.2">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 0 · Start here</p>
+            <h1><span class="ch-num">0.2</span> What a frame is</h1>
+            <p class="lead">A game is a flip-book drawn on the fly: it shows a new still image dozens of times a second, and each one must be finished within a fixed slice of time. This chapter is about that slice: how long it is, what fills it, and what players notice when it overflows.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="0.1">0.1 The whole journey on one page</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="2.2">2.2 The game loop and threads</a>, <a class="xref" data-ch="3.1">3.1 Pixels and displays</a>, <a class="xref" data-ch="11.1">11.1 Frame budgets</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Frame-time ruler</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 284" role="img" aria-label="A strip of 60 cells representing one second at 60 frames per second, with one cell zoomed out into a millisecond ruler. The zoomed frame's 16.7 millisecond budget is shaded. A CPU lane holds game logic, physics, animation and rendering, 10.4 milliseconds in total. A GPU lane holds shadows, geometry, lighting, and post and UI, 10.2 milliseconds. Markers show the budgets at 30 frames per second, 33.3 milliseconds, and at 120 frames per second, 8.3 milliseconds, where the same work no longer fits."><text class="t-caps" x="20" y="18">ONE SECOND AT 60 FPS · 60 FRAMES</text><rect class="f-surface s-strong" x="20" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="34.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="48.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="63" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="77.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="91.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="106" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="120.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="134.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="149" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="163.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="177.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="192" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="206.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="220.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="235" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="249.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="263.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="278" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="292.3" y="28" width="14.3" height="20"/><rect class="f-acc s-acc" x="306.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="321" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="335.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="349.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="364" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="378.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="392.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="407" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="421.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="435.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="450" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="464.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="478.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="493" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="507.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="521.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="536" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="550.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="564.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="579" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="593.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="607.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="622" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="636.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="650.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="665" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="679.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="693.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="708" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="722.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="736.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="751" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="765.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="779.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="794" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="808.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="822.7" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="837" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="851.3" y="28" width="14.3" height="20"/><rect class="f-surface s-strong" x="865.7" y="28" width="14.3" height="20"/><text class="t-mono t-small t-muted" x="20" y="62">0 s</text><text class="t-mono t-small t-muted end" x="880" y="62">1 s</text><path class="s-acc dash" d="M306.7,48 L130,118 M321,48 L497.6,118"/><rect class="f-acc-soft" x="130" y="118" width="367.6" height="96"/><line class="s-muted dash" x1="865.3" y1="96" x2="865.3" y2="222"/><text class="t-small t-muted end" x="869.3" y="90">30 fps · 33.3 ms</text><line class="s-acc w2" x1="497.6" y1="96" x2="497.6" y2="222"/><text class="t-small t-acc t-strong mid" x="497.6" y="90">60 fps · 16.7 ms</text><line class="s-muted dash" x1="313.8" y1="96" x2="313.8" y2="222"/><text class="t-small t-muted mid" x="313.8" y="90">120 fps · 8.3 ms</text><text class="t-strong" x="20" y="148">CPU</text><text class="t-small t-muted" x="20" y="162">game and draw calls</text><rect class="f-surface s-strong" x="130" y="130" width="66.2" height="30"/><text class="t-small mid" x="163.1" y="149">Game logic</text><rect class="f-surface s-strong" x="196.2" y="130" width="44.1" height="30"/><text class="t-small mid" x="218.2" y="149">Physics</text><rect class="f-surface s-strong" x="240.3" y="130" width="52.9" height="30"/><text class="t-small mid" x="266.8" y="149">Animation</text><rect class="f-surface s-strong" x="293.2" y="130" width="66.2" height="30"/><text class="t-small mid" x="326.3" y="149">Rendering</text><text class="t-small t-muted" x="367.4" y="149">10.4 ms</text><text class="t-strong" x="20" y="192">GPU</text><text class="t-small t-muted" x="20" y="206">render passes</text><rect class="f-lit-soft s-strong" x="130" y="174" width="48.5" height="30"/><text class="t-small mid" x="154.3" y="193">Shadows</text><rect class="f-geo-soft s-strong" x="178.5" y="174" width="66.2" height="30"/><text class="t-small mid" x="211.6" y="193">Geometry</text><rect class="f-lit-soft s-strong" x="244.7" y="174" width="57.4" height="30"/><text class="t-small mid" x="273.4" y="193">Lighting</text><rect class="f-pix-soft s-strong" x="302.1" y="174" width="52.9" height="30"/><text class="t-small mid" x="328.5" y="193">Post + UI</text><text class="t-small t-muted" x="363" y="193">10.2 ms</text><line class="s-strong" x1="130" y1="226" x2="880" y2="226"/><line class="s-strong" x1="130" y1="226" x2="130" y2="233"/><text class="t-mono t-small t-muted mid" x="130" y="246">0</text><line class="s-line" x1="174.1" y1="226" x2="174.1" y2="230"/><line class="s-strong" x1="218.2" y1="226" x2="218.2" y2="233"/><text class="t-mono t-small t-muted mid" x="218.2" y="246">4</text><line class="s-line" x1="262.4" y1="226" x2="262.4" y2="230"/><line class="s-strong" x1="306.5" y1="226" x2="306.5" y2="233"/><text class="t-mono t-small t-muted mid" x="306.5" y="246">8</text><line class="s-line" x1="350.6" y1="226" x2="350.6" y2="230"/><line class="s-strong" x1="394.7" y1="226" x2="394.7" y2="233"/><text class="t-mono t-small t-muted mid" x="394.7" y="246">12</text><line class="s-line" x1="438.8" y1="226" x2="438.8" y2="230"/><line class="s-strong" x1="482.9" y1="226" x2="482.9" y2="233"/><text class="t-mono t-small t-muted mid" x="482.9" y="246">16</text><line class="s-line" x1="527.1" y1="226" x2="527.1" y2="230"/><line class="s-strong" x1="571.2" y1="226" x2="571.2" y2="233"/><text class="t-mono t-small t-muted mid" x="571.2" y="246">20</text><line class="s-line" x1="615.3" y1="226" x2="615.3" y2="230"/><line class="s-strong" x1="659.4" y1="226" x2="659.4" y2="233"/><text class="t-mono t-small t-muted mid" x="659.4" y="246">24</text><line class="s-line" x1="703.5" y1="226" x2="703.5" y2="230"/><line class="s-strong" x1="747.6" y1="226" x2="747.6" y2="233"/><text class="t-mono t-small t-muted mid" x="747.6" y="246">28</text><line class="s-line" x1="791.8" y1="226" x2="791.8" y2="230"/><line class="s-strong" x1="835.9" y1="226" x2="835.9" y2="233"/><text class="t-mono t-small t-muted mid" x="835.9" y="246">32</text><line class="s-line" x1="880" y1="226" x2="880" y2="230"/><text class="t-mono t-small t-muted end" x="120" y="246">ms</text><text class="t-small t-pix t-strong" x="317.1" y="270">at 120 fps the same work no longer fits</text><path class="s-pix" d="M313.1,262 V256"/></svg>
+                </div>
+                <figcaption><b>One second is 60 frames; one frame is 16.7 milliseconds.</b> Zoom into a single frame at 60 fps and it holds 10.4 ms of CPU work and 10.2 ms of GPU work, side by side, with time to spare. Ask for 120 fps and the budget halves to 8.3 ms, and the same work no longer fits.</figcaption>
+              </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A <dfn class="term" data-term="frame">frame</dfn> is one finished image. A game draws one, shows it, and straight away starts on the next, so the picture seems to move. How many it manages each second is its frame rate, measured in <dfn class="term" data-term="fps">frames per second</dfn>, or fps. Common targets are 30 and 60 fps, and higher on fast PC monitors and VR headsets.</p>
+            <p>Turn the number around and you get the one that matters to the people building the game: <dfn class="term" data-term="frame-time">frame time</dfn>, how long each frame takes. At 60 fps it is 1000 ÷ 60, about 16.7 milliseconds, often quoted as 16.6. Everything the game does for that frame, from physics to shadows, has to share that time. The share each system gets is its slice of the <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a>.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A railway station where a train leaves every few minutes, exactly on time. Each train carries whatever was loaded before it left. A carriage that is not ready does not hold the train back; it waits for the next one, and the platform stays empty in the meantime.</p>
+                <p>The display is the timetable. Each screen refresh is a departure, and each frame is a carriage that must be loaded before it.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>A fixed rhythm makes motion look smooth. Objects move the same distance between every image, and the player's input shows up at a steady pace.</p>
+                <p>The price is a hard deadline. Work that runs even slightly late misses its train and waits for the next one.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>The frame-rate target is a product decision that sets every other budget. Going from 30 to 60 fps halves the time every system gets. Every new effect is paid for in milliseconds out of the same frame, so each request for one is a question about what else gives up time. And players notice the worst frames more than the average: a game that averages 60 fps but freezes for a tenth of a second every few seconds feels rough, whatever its counter says.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Seven steps, from a single image to the rhythm players feel.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="frames-sample-motion"><span class="step-num">1</span> Frames sample motion</h3>
+              <p>Nothing on screen actually moves. Each frame is a still picture of where things are at one instant. Between frames the world moves on, and the next picture shows it further along. More frames per second means smaller jumps between pictures, which reads as smoother motion, and the game can show the result of the player's input sooner.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 218" role="img" aria-label="Two rows show a ball rolling for 100 milliseconds. At 30 frames per second it is drawn 4 times, at 0, 33.3, 66.7 and 100 milliseconds. At 60 frames per second it is drawn 7 times, every 16.7 milliseconds, with jumps half as big."><text class="t-caps" x="20" y="20">A BALL ROLLING FOR 100 MILLISECONDS, AS THE PLAYER SEES IT</text><text class="t-head" x="20" y="64">30 fps</text><text class="t-small t-muted" x="20" y="80">a new image every 33.3 ms</text><line class="s-line" x1="170" y1="78" x2="860" y2="78"/><circle class="f-acc-soft s-acc" cx="170" cy="60" r="13"/><text class="t-mono t-small t-muted mid" x="170" y="96">0.0</text><circle class="f-acc-soft s-acc" cx="400" cy="60" r="13"/><text class="t-mono t-small t-muted mid" x="400" y="96">33.3</text><circle class="f-acc-soft s-acc" cx="630" cy="60" r="13"/><text class="t-mono t-small t-muted mid" x="630" y="96">66.7</text><circle class="f-acc" cx="860" cy="60" r="13"/><text class="t-mono t-small t-muted mid" x="860" y="96">100.0</text><text class="t-small t-acc end" x="880" y="38">4 images</text><text class="t-head" x="20" y="154">60 fps</text><text class="t-small t-muted" x="20" y="170">a new image every 16.7 ms</text><line class="s-line" x1="170" y1="168" x2="860" y2="168"/><circle class="f-acc-soft s-acc" cx="170" cy="150" r="13"/><text class="t-mono t-small t-muted mid" x="170" y="186">0.0</text><circle class="f-acc-soft s-acc" cx="285" cy="150" r="13"/><text class="t-mono t-small t-muted mid" x="285" y="186">16.7</text><circle class="f-acc-soft s-acc" cx="400" cy="150" r="13"/><text class="t-mono t-small t-muted mid" x="400" y="186">33.3</text><circle class="f-acc-soft s-acc" cx="515" cy="150" r="13"/><text class="t-mono t-small t-muted mid" x="515" y="186">50.0</text><circle class="f-acc-soft s-acc" cx="630" cy="150" r="13"/><text class="t-mono t-small t-muted mid" x="630" y="186">66.7</text><circle class="f-acc-soft s-acc" cx="745" cy="150" r="13"/><text class="t-mono t-small t-muted mid" x="745" y="186">83.3</text><circle class="f-acc" cx="860" cy="150" r="13"/><text class="t-mono t-small t-muted mid" x="860" y="186">100.0</text><text class="t-small t-acc end" x="880" y="128">7 images</text><text class="t-small t-muted" x="170" y="208">milliseconds since the ball started moving</text></svg>
+                </div>
+                <figcaption><b>More frames, smaller jumps.</b> Over 100 milliseconds a 30 fps game shows the ball 4 times and a 60 fps game 7 times. The ball covers the same distance either way; at 60 fps each jump is half as big.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="milliseconds"><span class="step-num">2</span> Milliseconds add up; frame rates do not</h3>
+              <p>Frame rate is how players and store pages talk. Milliseconds are how teams work, for two reasons. The first is that work adds up in milliseconds: 3 ms of physics plus 4 ms of animation is 7 ms. Said as frame rates, those are 333 and 250 fps, and no simple sum turns them into the 143 fps they allow together.</p>
+              <p>The second is that frame rates hide the size of a change. Dropping from 60 to 30 fps adds 16.7 ms to every frame. Dropping from 120 to 60 fps sounds just as bad and adds 8.3 ms. From 240 to 120 adds 4.2 ms. The higher the frame rate, the less time each frame per second is worth.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 248" role="img" aria-label="Two rulers, one in frames per second and one in milliseconds, with lines joining matching values: 30 fps to 33.3 ms, 60 to 16.7, 90 to 11.1, 120 to 8.3, 144 to 6.9 and 240 to 4.2. Equal-looking steps in frames per second, 30 to 60, 60 to 120 and 120 to 240, map to 16.7, 8.3 and 4.2 milliseconds."><text class="t-caps" x="20" y="20">THE SAME FRAME RATES ON TWO RULERS</text><text class="t-strong" x="20" y="80">fps</text><text class="t-strong" x="20" y="190">ms</text><line class="s-strong" x1="70" y1="76" x2="860" y2="76"/><line class="s-strong" x1="70" y1="186" x2="860" y2="186"/><line class="s-line" x1="70" y1="72" x2="70" y2="80"/><line class="s-line" x1="168.8" y1="72" x2="168.8" y2="80"/><line class="s-line" x1="267.5" y1="72" x2="267.5" y2="80"/><line class="s-line" x1="366.3" y1="72" x2="366.3" y2="80"/><line class="s-line" x1="465" y1="72" x2="465" y2="80"/><line class="s-line" x1="563.8" y1="72" x2="563.8" y2="80"/><line class="s-line" x1="662.5" y1="72" x2="662.5" y2="80"/><line class="s-line" x1="761.3" y1="72" x2="761.3" y2="80"/><line class="s-line" x1="860" y1="72" x2="860" y2="80"/><line class="s-line" x1="70" y1="182" x2="70" y2="190"/><line class="s-line" x1="116.5" y1="182" x2="116.5" y2="190"/><line class="s-line" x1="162.9" y1="182" x2="162.9" y2="190"/><line class="s-line" x1="209.4" y1="182" x2="209.4" y2="190"/><line class="s-line" x1="255.9" y1="182" x2="255.9" y2="190"/><line class="s-line" x1="302.4" y1="182" x2="302.4" y2="190"/><line class="s-line" x1="348.8" y1="182" x2="348.8" y2="190"/><line class="s-line" x1="395.3" y1="182" x2="395.3" y2="190"/><line class="s-line" x1="441.8" y1="182" x2="441.8" y2="190"/><line class="s-line" x1="488.2" y1="182" x2="488.2" y2="190"/><line class="s-line" x1="534.7" y1="182" x2="534.7" y2="190"/><line class="s-line" x1="581.2" y1="182" x2="581.2" y2="190"/><line class="s-line" x1="627.6" y1="182" x2="627.6" y2="190"/><line class="s-line" x1="674.1" y1="182" x2="674.1" y2="190"/><line class="s-line" x1="720.6" y1="182" x2="720.6" y2="190"/><line class="s-line" x1="767.1" y1="182" x2="767.1" y2="190"/><line class="s-line" x1="813.5" y1="182" x2="813.5" y2="190"/><line class="s-line" x1="860" y1="182" x2="860" y2="190"/><text class="t-mono t-small t-muted mid" x="70" y="66">0</text><text class="t-mono t-small t-muted mid" x="70" y="204">0</text><line class="s-muted" x1="168.8" y1="76" x2="844.5" y2="186"/><circle class="f-ink" cx="168.8" cy="76" r="4"/><circle class="f-ink" cx="844.5" cy="186" r="4"/><text class="t-mono t-small mid " x="168.8" y="66">30</text><text class="t-mono t-small mid " x="844.5" y="204">33.3</text><line class="s-acc w2" x1="267.5" y1="76" x2="457.3" y2="186"/><circle class="f-acc" cx="267.5" cy="76" r="4"/><circle class="f-acc" cx="457.3" cy="186" r="4"/><text class="t-mono t-small mid t-acc t-strong" x="267.5" y="66">60</text><text class="t-mono t-small mid t-acc t-strong" x="457.3" y="204">16.7</text><line class="s-muted" x1="366.3" y1="76" x2="328.2" y2="186"/><circle class="f-ink" cx="366.3" cy="76" r="4"/><circle class="f-ink" cx="328.2" cy="186" r="4"/><text class="t-mono t-small mid " x="366.3" y="66">90</text><text class="t-mono t-small mid " x="328.2" y="204">11.1</text><line class="s-muted" x1="465" y1="76" x2="263.6" y2="186"/><circle class="f-ink" cx="465" cy="76" r="4"/><circle class="f-ink" cx="263.6" cy="186" r="4"/><text class="t-mono t-small mid " x="465" y="66">120</text><text class="t-mono t-small mid " x="263.6" y="204">8.3</text><line class="s-muted" x1="544" y1="76" x2="231.4" y2="186"/><circle class="f-ink" cx="544" cy="76" r="4"/><circle class="f-ink" cx="231.4" cy="186" r="4"/><text class="t-mono t-small mid " x="544" y="66">144</text><text class="t-mono t-small mid " x="231.4" y="204">6.9</text><line class="s-muted" x1="860" y1="76" x2="166.8" y2="186"/><circle class="f-ink" cx="860" cy="76" r="4"/><circle class="f-ink" cx="166.8" cy="186" r="4"/><text class="t-mono t-small mid " x="860" y="66">240</text><text class="t-mono t-small mid " x="166.8" y="204">4.2</text><path class="s-muted" d="M171.8,46 V50 H264.5 V46"/><text class="t-small t-muted mid" x="218.1" y="42">+30 fps</text><path class="s-acc" d="M460.3,216 V220 H841.5 V216"/><text class="t-small t-acc t-strong mid" x="650.9" y="236">16.7 ms</text><path class="s-muted" d="M270.5,46 V50 H462 V46"/><text class="t-small t-muted mid" x="366.3" y="42">+60 fps</text><path class="s-acc" d="M266.6,216 V220 H454.3 V216"/><text class="t-small t-acc t-strong mid" x="360.4" y="236">8.3 ms</text><path class="s-muted" d="M468,46 V50 H857 V46"/><text class="t-small t-muted mid" x="662.5" y="42">+120 fps</text><path class="s-acc" d="M169.8,216 V220 H260.6 V216"/><text class="t-small t-acc t-strong mid" x="215.2" y="236">4.2 ms</text></svg>
+                </div>
+                <figcaption><b>Equal steps in fps are unequal steps in time.</b> Each doubling of the frame rate halves the frame time, so the milliseconds between 30 and 60 fps are worth twice those between 60 and 120. Budgets, profilers and engine statistics work in milliseconds for this reason.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> Converting between the two</summary>
+                <div class="fold-body">
+                  <p class="formula">frame time in ms = 1000 ÷ frames per second</p>
+                  <p class="formula">frames per second = 1000 ÷ frame time in ms</p>
+                  <p>30 fps is 33.3 ms, 60 fps is 16.7 ms, 90 fps is 11.1 ms, 120 fps is 8.3 ms, 144 fps is 6.9 ms and 240 fps is 4.2 ms.</p>
+                  <p>To average a run, divide the number of frames by the seconds it took, which is the same as 1000 ÷ the average frame time. Averaging fps readings directly gives a number that is too high whenever frame times vary.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="game-loop"><span class="step-num">3</span> The game loop</h3>
+              <p>Every game, in every engine, runs the same loop. The <dfn class="term" data-term="game-loop">game loop</dfn> reads input, updates the world by the time that has passed, renders the frame and presents it to the display, then goes round again. One trip round the loop is one frame.</p>
+              <p>The update step uses the frame time. If a car drives at 20 metres per second and the last frame took 16.7 ms, the game moves it 0.33 metres. Scaling every movement by the frame time keeps the game running at the same speed whatever the frame rate. Engines hand this number to game code as the delta time. Physics usually runs on a fixed step of its own, for example 60 times a second, catching up or waiting as frames come and go; <a class="xref" data-ch="2.2">2.2 The game loop and threads</a> covers fixed steps and how engines split the loop across threads.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="A loop of four stations: 1 input, read the controller, mouse or touch; 2 update, rules, physics and animation; 3 render, culling, draw calls and passes; 4 present, hand the image over and wait for the refresh. In the middle: one frame, 16.7 milliseconds at 60 frames per second. Beside it, the same loop written as four lines of code inside a while loop."><defs><marker id="gl-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs><ellipse class="s-acc w2 dash" cx="250" cy="140" rx="130" ry="74"/><rect class="f-surface s-strong" x="172" y="22" width="156" height="48" rx="8"/><circle class="f-acc" cx="190" cy="40" r="9"/><text class="t-on-acc t-strong mid" x="190" y="44" font-size="11">1</text><text class="t-head" x="206" y="44">Input</text><text class="t-small t-muted" x="184" y="61">controller, mouse, touch</text><rect class="f-surface s-strong" x="342" y="116" width="156" height="48" rx="8"/><circle class="f-acc" cx="360" cy="134" r="9"/><text class="t-on-acc t-strong mid" x="360" y="138" font-size="11">2</text><text class="t-head" x="376" y="138">Update</text><text class="t-small t-muted" x="354" y="155">rules, physics, animation</text><rect class="f-surface s-strong" x="172" y="210" width="156" height="48" rx="8"/><circle class="f-acc" cx="190" cy="228" r="9"/><text class="t-on-acc t-strong mid" x="190" y="232" font-size="11">3</text><text class="t-head" x="206" y="232">Render</text><text class="t-small t-muted" x="184" y="249">cull, draw calls, passes</text><rect class="f-surface s-strong" x="2" y="116" width="156" height="48" rx="8"/><circle class="f-acc" cx="20" cy="134" r="9"/><text class="t-on-acc t-strong mid" x="20" y="138" font-size="11">4</text><text class="t-head" x="36" y="138">Present</text><text class="t-small t-muted" x="14" y="155">hand over, wait for refresh</text><line class="s-acc w2" x1="336.7" y1="84.7" x2="343.7" y2="88.7" marker-end="url(#gl-arr)"/><line class="s-acc w2" x1="347.1" y1="189.4" x2="340.2" y2="193.3" marker-end="url(#gl-arr)"/><line class="s-acc w2" x1="163.3" y1="195.3" x2="156.3" y2="191.3" marker-end="url(#gl-arr)"/><line class="s-acc w2" x1="152.9" y1="90.6" x2="159.8" y2="86.7" marker-end="url(#gl-arr)"/><text class="t-head mid" x="250" y="138">one frame</text><text class="t-small t-muted mid" x="250" y="155">16.7 ms at 60 fps</text><rect class="f-sunken s-strong" x="520" y="30" width="360" height="190" rx="6"/><text class="t-caps" x="536" y="54">THE SAME LOOP, AS CODE</text><text class="t-mono" x="536" y="84">while game is running:</text><text class="t-mono" x="556" y="110">read input</text><text class="t-mono t-acc t-strong end" x="864" y="110">1</text><text class="t-mono" x="556" y="136">update world by frame time</text><text class="t-mono t-acc t-strong end" x="864" y="136">2</text><text class="t-mono" x="556" y="162">render the frame</text><text class="t-mono t-acc t-strong end" x="864" y="162">3</text><text class="t-mono" x="556" y="188">present it to the display</text><text class="t-mono t-acc t-strong end" x="864" y="188">4</text></svg>
+                </div>
+                <figcaption><b>One trip round the loop is one frame.</b> Input, update, render, present, then again. At 60 fps the loop must go round once every 16.7 ms for as long as the game runs.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="budget"><span class="step-num">4</span> The budget, and what happens when it shrinks</h3>
+              <p>At a given target, every frame gets the same allowance: 33.3 ms at 30 fps, 16.7 ms at 60, 11.1 ms at 90, 8.3 ms at 120. Teams divide that allowance between systems and call the result the frame budget. Raising the target cuts the time for everything at once.</p>
+              <p>Try it below. The blocks are one frame's work in a typical scene: 10.4 ms on the CPU and 10.2 ms on the GPU, side by side. Pick a frame rate or drag the edge of the budget and watch where the work stops fitting. The graph underneath shows 60 frames in a row as the player gets them.</p>
+              <figure>
+                <div class="demo" data-demo="frame-time-ruler">
+                  <p class="demo-hint">The frame-time ruler needs JavaScript. Without it: 10.4 ms of work fits a 60 fps budget of 16.7 ms with room to spare, but not a 120 fps budget of 8.3 ms, so at 120 fps every frame stays on screen for two refreshes and the game runs at 60.</p>
+                </div>
+                <figcaption><b>Frame-time ruler.</b> Above, one frame's budget and the work that has to fit in it. Below, the frame time of 60 frames in a row. Frames that fit stay on screen for exactly one refresh. Frames that do not stay up for two or more, which shows as a tall bar on the graph.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The ruler assumes v-sync on a display that refreshes at the target rate, and a CPU and GPU that overlap perfectly on different frames. Real engines also queue frames ahead, and displays with a variable refresh rate show each frame as soon as it is ready. <a class="xref" data-ch="3.1">3.1 Pixels and displays</a> covers displays, and <a class="xref" data-ch="11.1">11.1 Frame budgets</a> covers real budgets.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cpu-and-gpu"><span class="step-num">5</span> CPU and GPU, side by side</h3>
+              <p>As <a class="xref" data-ch="0.1">0.1 The whole journey</a> showed, the <a class="term" data-term="cpu" data-forward href="glossary.html#cpu">CPU</a> and the <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a> work on different frames at the same time. So their times do not add up. Each processor gets the whole budget, and the slower of the two sets the pace. Godot's documentation puts it plainly: your total frame time is determined by the slower of the two.</p>
+              <p>A game whose GPU is the slower one is called GPU-bound: lowering the resolution speeds it up, and trimming game logic does nothing. A CPU-bound game is the reverse. Finding out which one you have is the first step of any performance work, and <a class="xref" data-ch="11.1">11.1 Frame budgets</a> shows how.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 272" role="img" aria-label="Two timelines of four frames each. Left: the CPU takes 8 milliseconds and the GPU 14, so the CPU waits after each frame and a new frame arrives every 14 milliseconds, 71 frames per second. Right: the CPU takes 15 milliseconds and the GPU 9, so the GPU waits and a frame arrives every 15 milliseconds, 67 frames per second."><text class="t-caps" x="20" y="22">CPU 8 MS, GPU 14 MS</text><text class="t-strong" x="20" y="62">CPU</text><text class="t-strong" x="20" y="112">GPU</text><defs><clipPath id="bd-clip-20"><rect x="80" y="36" width="360" height="100"/></clipPath></defs><g clip-path="url(#bd-clip-20)"><rect class="f-acc-soft s-acc" x="81" y="44" width="60.6" height="28" rx="3"/><text class="t-small mid t-acc" x="111.3" y="62">frame 1</text><rect class="f-sunken s-line dash" x="143.6" y="44" width="45" height="28" rx="3"/><rect class="f-solid s-strong" x="143.6" y="94" width="107.6" height="28" rx="3"/><text class="t-small mid" x="197.4" y="112">frame 1</text><rect class="f-acc-soft s-acc" x="190.6" y="44" width="60.6" height="28" rx="3"/><text class="t-small mid t-acc" x="220.9" y="62">frame 2</text><rect class="f-sunken s-line dash" x="253.2" y="44" width="45" height="28" rx="3"/><rect class="f-solid s-strong" x="253.2" y="94" width="107.6" height="28" rx="3"/><text class="t-small mid" x="307" y="112">frame 2</text><rect class="f-acc-soft s-acc" x="300.1" y="44" width="60.6" height="28" rx="3"/><text class="t-small mid t-acc" x="330.4" y="62">frame 3</text><rect class="f-sunken s-line dash" x="362.7" y="44" width="45" height="28" rx="3"/><rect class="f-solid s-strong" x="362.7" y="94" width="107.6" height="28" rx="3"/><rect class="f-acc-soft s-acc" x="409.7" y="44" width="60.6" height="28" rx="3"/><rect class="f-sunken s-line dash" x="472.3" y="44" width="45" height="28" rx="3"/><rect class="f-solid s-strong" x="472.3" y="94" width="107.6" height="28" rx="3"/></g><line class="s-strong" x1="80" y1="140" x2="440" y2="140"/><text class="t-mono t-small t-muted mid" x="80" y="156">0</text><text class="t-mono t-small t-muted mid" x="158.3" y="156">10</text><text class="t-mono t-small t-muted mid" x="236.5" y="156">20</text><text class="t-mono t-small t-muted mid" x="314.8" y="156">30</text><text class="t-mono t-small t-muted mid" x="393" y="156">40</text><text class="t-mono t-small t-muted end" x="72" y="156">ms</text><path class="s-acc" d="M189.6,172 V178 H299.1 V172"/><text class="t-small t-acc t-strong mid" x="244.3" y="194">a frame every 14 ms</text><text class="t-small t-muted" x="20" y="222">The CPU finishes early and waits: GPU-bound.</text><text class="t-small t-muted" x="20" y="238">71 fps, set by the GPU's 14 ms.</text><text class="t-caps" x="470" y="22">CPU 15 MS, GPU 9 MS</text><text class="t-strong" x="470" y="62">CPU</text><text class="t-strong" x="470" y="112">GPU</text><defs><clipPath id="bd-clip-470"><rect x="530" y="36" width="360" height="100"/></clipPath></defs><g clip-path="url(#bd-clip-470)"><rect class="f-acc-soft s-acc" x="531" y="44" width="115.4" height="28" rx="3"/><text class="t-small mid t-acc" x="588.7" y="62">frame 1</text><rect class="f-solid s-strong" x="648.4" y="94" width="68.4" height="28" rx="3"/><text class="t-small mid" x="682.6" y="112">frame 1</text><rect class="f-acc-soft s-acc" x="648.4" y="44" width="115.4" height="28" rx="3"/><text class="t-small mid t-acc" x="706.1" y="62">frame 2</text><rect class="f-solid s-strong" x="765.8" y="94" width="68.4" height="28" rx="3"/><text class="t-small mid" x="800" y="112">frame 2</text><rect class="f-sunken s-line dash" x="718.8" y="94" width="45" height="28" rx="3"/><rect class="f-acc-soft s-acc" x="765.8" y="44" width="115.4" height="28" rx="3"/><text class="t-small mid t-acc" x="823.5" y="62">frame 3</text><rect class="f-solid s-strong" x="883.2" y="94" width="68.4" height="28" rx="3"/><rect class="f-sunken s-line dash" x="836.2" y="94" width="45" height="28" rx="3"/><rect class="f-acc-soft s-acc" x="883.2" y="44" width="115.4" height="28" rx="3"/><rect class="f-solid s-strong" x="1000.6" y="94" width="68.4" height="28" rx="3"/><rect class="f-sunken s-line dash" x="953.6" y="94" width="45" height="28" rx="3"/></g><line class="s-strong" x1="530" y1="140" x2="890" y2="140"/><text class="t-mono t-small t-muted mid" x="530" y="156">0</text><text class="t-mono t-small t-muted mid" x="608.3" y="156">10</text><text class="t-mono t-small t-muted mid" x="686.5" y="156">20</text><text class="t-mono t-small t-muted mid" x="764.8" y="156">30</text><text class="t-mono t-small t-muted mid" x="843" y="156">40</text><text class="t-mono t-small t-muted end" x="522" y="156">ms</text><path class="s-acc" d="M647.4,172 V178 H764.8 V172"/><text class="t-small t-acc t-strong mid" x="706.1" y="194">a frame every 15 ms</text><text class="t-small t-muted" x="470" y="222">The GPU finishes early and waits: CPU-bound.</text><text class="t-small t-muted" x="470" y="238">67 fps, set by the CPU's 15 ms.</text><rect class="f-sunken s-line dash" x="20" y="252" width="18" height="10" rx="2"/><text class="t-small t-muted" x="44" y="261">waiting for the other processor</text></svg>
+                </div>
+                <figcaption><b>The slower processor sets the frame rate.</b> Left, the GPU needs 14 ms per frame, so the CPU finishes its 8 ms and waits: a frame every 14 ms, 71 fps. Right, the CPU needs 15 ms, so the GPU waits: 67 fps. Speeding up the processor that is waiting changes nothing.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="missed-frames"><span class="step-num">6</span> The display's clock and missed frames</h3>
+              <p>The display keeps its own time. A 60 Hz screen shows a new image every 16.7 ms whether or not the game has one ready. With v-sync on, the game swaps in its finished image only at that moment, so the picture never changes halfway through a refresh; <a class="xref" data-ch="3.1">3.1 Pixels and displays</a> covers v-sync and what happens without it.</p>
+              <p>If a frame is not ready in time, the screen shows the previous image again. A frame that needs 25 ms instead of 16.7 misses its refresh by about 8 ms and appears at the next one, a whole refresh later, while the image before it stays up for 33.3 ms. Players see a stall followed by a jump. A frame, or a short run of frames, that takes far longer than its neighbours is a <dfn class="term" data-term="hitch">hitch</dfn>.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 238" role="img" aria-label="A 60 hertz timeline over 100 milliseconds. The game works on frames A to E; frame C takes 25 milliseconds and misses the refresh at 50 milliseconds. The screen shows A, then B, then B again, then C at 66.7 milliseconds, then D. B stays on screen for 33.3 milliseconds while the other images stay for 16.7."><defs><marker id="ms-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="20" y="20">A 60 HZ DISPLAY WITH V-SYNC · ONE FRAME RUNS LONG</text><line class="s-strong dash" x1="130" y1="34" x2="130" y2="196"/><text class="t-mono t-small t-muted mid" x="130" y="212">0.0</text><line class="s-strong dash" x1="255" y1="34" x2="255" y2="196"/><text class="t-mono t-small t-muted mid" x="255" y="212">16.7</text><line class="s-strong dash" x1="380" y1="34" x2="380" y2="196"/><text class="t-mono t-small t-muted mid" x="380" y="212">33.3</text><line class="s-strong dash" x1="505" y1="34" x2="505" y2="196"/><text class="t-mono t-small t-muted mid" x="505" y="212">50.0</text><line class="s-strong dash" x1="630" y1="34" x2="630" y2="196"/><text class="t-mono t-small t-muted mid" x="630" y="212">66.7</text><line class="s-strong dash" x1="755" y1="34" x2="755" y2="196"/><text class="t-mono t-small t-muted mid" x="755" y="212">83.3</text><line class="s-strong dash" x1="880" y1="34" x2="880" y2="196"/><text class="t-mono t-small t-muted mid" x="880" y="212">100.0</text><text class="t-mono t-small t-muted end" x="880" y="228">milliseconds · dashed lines are screen refreshes</text><text class="t-strong" x="20" y="62">Game works</text><text class="t-small t-muted" x="20" y="76">on each frame</text><text class="t-strong" x="20" y="124">Screen shows</text><text class="t-small t-muted" x="20" y="138">one image per refresh</text><text class="t-strong" x="20" y="174">Time on screen</text><rect class="f-acc-soft s-acc" x="131" y="48" width="88" height="30" rx="3"/><text class="t-small t-strong mid t-acc" x="175" y="67">A · 12 ms</text><rect class="f-acc-soft s-acc" x="256" y="48" width="88" height="30" rx="3"/><text class="t-small t-strong mid t-acc" x="300" y="67">B · 12 ms</text><rect class="f-pix-soft s-pix" x="381" y="48" width="185.5" height="30" rx="3"/><text class="t-small t-strong mid t-pix" x="473.8" y="67">C · 25 ms</text><rect class="f-acc-soft s-acc" x="631" y="48" width="88" height="30" rx="3"/><text class="t-small t-strong mid t-acc" x="675" y="67">D · 12 ms</text><rect class="f-acc-soft s-acc" x="756" y="48" width="88" height="30" rx="3"/><text class="t-small t-strong mid t-acc" x="800" y="67">E · 12 ms</text><rect class="f-sunken s-line" x="131" y="108" width="123" height="30" rx="3"/><text class="t-small mid t-muted" x="192.5" y="127">earlier</text><rect class="f-surface s-strong" x="256" y="108" width="123" height="30" rx="3"/><text class="t-small mid " x="317.5" y="127">A</text><rect class="f-surface s-strong" x="381" y="108" width="123" height="30" rx="3"/><text class="t-small mid " x="442.5" y="127">B</text><rect class="f-pix-soft s-pix w15" x="506" y="108" width="123" height="30" rx="3"/><text class="t-small mid t-pix t-strong" x="567.5" y="127">B again</text><rect class="f-surface s-strong" x="631" y="108" width="123" height="30" rx="3"/><text class="t-small mid " x="692.5" y="127">C</text><rect class="f-surface s-strong" x="756" y="108" width="123" height="30" rx="3"/><text class="t-small mid " x="817.5" y="127">D</text><path class="s-muted" d="M258,162 V170 H377 V162"/><text class="t-small mid t-muted" x="317.5" y="186">A · 16.7 ms</text><path class="s-pix w2" d="M383,162 V170 H627 V162"/><text class="t-small mid t-pix t-strong" x="505" y="186">B · 33.3 ms</text><path class="s-muted" d="M633,162 V170 H752 V162"/><text class="t-small mid t-muted" x="692.5" y="186">C · 16.7 ms</text><path class="s-muted" d="M758,162 V170 H877 V162"/><text class="t-small mid t-muted" x="817.5" y="186">D · 16.7 ms</text></svg>
+                </div>
+                <figcaption><b>Late by 8 ms, shown 16.7 ms late.</b> Frame C needs 25 ms, misses the refresh at 50 ms and appears at 66.7 ms. Meanwhile the screen shows B twice, so B stays up for 33.3 ms. A frame that is only slightly over budget costs a whole refresh.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="frame-pacing"><span class="step-num">7</span> Steady beats fast: frame pacing</h3>
+              <p>Players notice uneven frames more than slow ones. A game that shows every image for exactly 33.3 ms runs at a steady 30 fps and looks smooth. A game that shows its images for 50, 16.7 and 33.3 ms in turn also averages 30 fps, and it stutters, because objects jump different distances from one image to the next. Android's developer documentation describes this pattern for a 30 fps game on a 60 Hz phone: frame times of 49, 16 and 33 ms when frames are released at the wrong moments.</p>
+              <p>Keeping every frame the same length is called frame pacing. It is why many games cap their frame rate below what the hardware could reach: a steady 30 can feel better than a 45 that wanders. How the cap is done matters too. Unity's documentation warns that capping with its software frame-rate target and no v-sync is subject to microstuttering.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 246" role="img" aria-label="Two frame-time graphs of 18 frames, both averaging 33.3 milliseconds, 30 frames per second. Left, steady: every bar is 33.3 milliseconds. Right, uneven: bars repeat 50, 16.7 and 33.3 milliseconds, with the uneven bars highlighted."><text class="t-caps" x="20" y="22">STEADY</text><line class="s-strong" x1="64" y1="190" x2="430" y2="190"/><text class="t-mono t-small t-muted end" x="58" y="194">0</text><line class="s-line" x1="64" y1="140" x2="430" y2="140"/><text class="t-mono t-small t-muted end" x="58" y="144">20</text><line class="s-line" x1="64" y1="90" x2="430" y2="90"/><text class="t-mono t-small t-muted end" x="58" y="94">40</text><line class="s-line" x1="64" y1="40" x2="430" y2="40"/><text class="t-mono t-small t-muted end" x="58" y="44">60</text><rect class="f-acc-soft s-acc" x="65.5" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="85.8" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="106.2" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="126.5" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="146.8" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="167.2" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="187.5" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="207.8" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="228.2" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="248.5" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="268.8" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="289.2" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="309.5" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="329.8" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="350.2" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="370.5" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="390.8" y="106.8" width="17.3" height="83.2"/><rect class="f-acc-soft s-acc" x="411.2" y="106.8" width="17.3" height="83.2"/><line class="s-acc dash w15" x1="64" y1="106.8" x2="430" y2="106.8"/><text class="t-small t-acc end" x="430" y="22">dashed line: average 33.3 ms, 30 fps</text><text class="t-small t-muted" x="20" y="212">Every image stays up for the same time. Smooth.</text><text class="t-caps" x="470" y="22">UNEVEN</text><line class="s-strong" x1="514" y1="190" x2="880" y2="190"/><text class="t-mono t-small t-muted end" x="508" y="194">0</text><line class="s-line" x1="514" y1="140" x2="880" y2="140"/><text class="t-mono t-small t-muted end" x="508" y="144">20</text><line class="s-line" x1="514" y1="90" x2="880" y2="90"/><text class="t-mono t-small t-muted end" x="508" y="94">40</text><line class="s-line" x1="514" y1="40" x2="880" y2="40"/><text class="t-mono t-small t-muted end" x="508" y="44">60</text><rect class="f-pix" x="515.5" y="65" width="17.3" height="125"/><rect class="f-pix" x="535.8" y="148.3" width="17.3" height="41.8"/><rect class="f-acc-soft s-acc" x="556.2" y="106.8" width="17.3" height="83.2"/><rect class="f-pix" x="576.5" y="65" width="17.3" height="125"/><rect class="f-pix" x="596.8" y="148.3" width="17.3" height="41.8"/><rect class="f-acc-soft s-acc" x="617.2" y="106.8" width="17.3" height="83.2"/><rect class="f-pix" x="637.5" y="65" width="17.3" height="125"/><rect class="f-pix" x="657.8" y="148.3" width="17.3" height="41.8"/><rect class="f-acc-soft s-acc" x="678.2" y="106.8" width="17.3" height="83.2"/><rect class="f-pix" x="698.5" y="65" width="17.3" height="125"/><rect class="f-pix" x="718.8" y="148.3" width="17.3" height="41.8"/><rect class="f-acc-soft s-acc" x="739.2" y="106.8" width="17.3" height="83.2"/><rect class="f-pix" x="759.5" y="65" width="17.3" height="125"/><rect class="f-pix" x="779.8" y="148.3" width="17.3" height="41.8"/><rect class="f-acc-soft s-acc" x="800.2" y="106.8" width="17.3" height="83.2"/><rect class="f-pix" x="820.5" y="65" width="17.3" height="125"/><rect class="f-pix" x="840.8" y="148.3" width="17.3" height="41.8"/><rect class="f-acc-soft s-acc" x="861.2" y="106.8" width="17.3" height="83.2"/><line class="s-acc dash w15" x1="514" y1="106.8" x2="880" y2="106.8"/><text class="t-small t-acc end" x="880" y="22">dashed line: average 33.3 ms, 30 fps</text><text class="t-small t-pix t-strong" x="470" y="212">Same average, but images stay up 50, 16.7, 33.3 ms. Stutter.</text><text class="t-mono t-small t-muted" x="64" y="236">milliseconds per frame, 18 frames in a row</text></svg>
+                </div>
+                <figcaption><b>The same average, a different experience.</b> Both runs average 33.3 ms per frame, 30 fps. On the right, frames alternate between 50, 16.7 and 33.3 ms, so motion speeds up and slows down every few frames. A frame-time graph shows this; an fps counter hides it.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>The target fixes the budget, and the budget fixes how much a game can do in each frame. Here is what common targets leave for one frame, with a 10% safety margin taken off, as many teams do.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th scope="col">Target</th><th scope="col" class="num">Frame time</th><th scope="col" class="num">With 10% headroom</th><th scope="col" class="num">Extra per frame against the next rate up</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">30 fps</th><td class="num">33.3 ms</td><td class="num">30.0 ms</td><td class="num">+16.7 ms against 60</td></tr>
+                  <tr><th scope="row">60 fps</th><td class="num">16.7 ms</td><td class="num">15.0 ms</td><td class="num">+5.6 ms against 90</td></tr>
+                  <tr><th scope="row">90 fps</th><td class="num">11.1 ms</td><td class="num">10.0 ms</td><td class="num">+2.8 ms against 120</td></tr>
+                  <tr><th scope="row">120 fps</th><td class="num">8.3 ms</td><td class="num">7.5 ms</td><td class="num">+1.4 ms against 144</td></tr>
+                  <tr><th scope="row">144 fps</th><td class="num">6.9 ms</td><td class="num">6.3 ms</td><td class="num">+2.8 ms against 240</td></tr>
+                  <tr><th scope="row">240 fps</th><td class="num">4.2 ms</td><td class="num">3.8 ms</td><td class="num">fastest listed</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 246" role="img" aria-label="Six bars, one per frame rate, drawn to scale in milliseconds, each with the same 2 millisecond effect at its start. The effect is 6% of a 30 frames per second frame, 12% at 60, 18% at 90, 24% at 120, 29% at 144 and 48% at 240."><text class="t-caps" x="20" y="20">THE SAME 2 MS EFFECT AGAINST EACH BUDGET, DRAWN TO SCALE</text><text class="t-strong" x="20" y="55">30 fps</text><text class="t-mono t-small t-muted" x="76" y="55">33.3 ms</text><rect class="f-surface s-strong" x="140" y="38" width="607.8" height="24" rx="3"/><rect class="f-acc" x="140" y="38" width="36.5" height="24" rx="3"/><text class="t-small t-acc t-strong" x="755.8" y="55">6% of the frame</text><text class="t-strong" x="20" y="89">60 fps</text><text class="t-mono t-small t-muted" x="76" y="89">16.7 ms</text><rect class="f-surface s-strong" x="140" y="72" width="303.9" height="24" rx="3"/><rect class="f-acc" x="140" y="72" width="36.5" height="24" rx="3"/><text class="t-small t-acc t-strong" x="451.9" y="89">12% of the frame</text><text class="t-strong" x="20" y="123">90 fps</text><text class="t-mono t-small t-muted" x="76" y="123">11.1 ms</text><rect class="f-surface s-strong" x="140" y="106" width="202.6" height="24" rx="3"/><rect class="f-acc" x="140" y="106" width="36.5" height="24" rx="3"/><text class="t-small t-acc t-strong" x="350.6" y="123">18% of the frame</text><text class="t-strong" x="20" y="157">120 fps</text><text class="t-mono t-small t-muted" x="76" y="157">8.3 ms</text><rect class="f-surface s-strong" x="140" y="140" width="152" height="24" rx="3"/><rect class="f-acc" x="140" y="140" width="36.5" height="24" rx="3"/><text class="t-small t-acc t-strong" x="300" y="157">24% of the frame</text><text class="t-strong" x="20" y="191">144 fps</text><text class="t-mono t-small t-muted" x="76" y="191">6.9 ms</text><rect class="f-surface s-strong" x="140" y="174" width="126.6" height="24" rx="3"/><rect class="f-acc" x="140" y="174" width="36.5" height="24" rx="3"/><text class="t-small t-acc t-strong" x="274.6" y="191">29% of the frame</text><text class="t-strong" x="20" y="225">240 fps</text><text class="t-mono t-small t-muted" x="76" y="225">4.2 ms</text><rect class="f-surface s-strong" x="140" y="208" width="76" height="24" rx="3"/><rect class="f-acc" x="140" y="208" width="36.5" height="24" rx="3"/><text class="t-small t-acc t-strong" x="224" y="225">48% of the frame</text></svg>
+                </div>
+                <figcaption><b>The same effect, a bigger slice.</b> A 2 ms effect is 6% of a 30 fps frame and nearly half of a 240 fps frame. High frame-rate targets leave room for far fewer features.</figcaption>
+              </figure>
+            <div class="stat-row">
+              <div class="stat"><span class="value">16.7 ms</span><span class="what">per frame at 60 fps, often quoted as 16.6</span></div>
+              <div class="stat"><span class="value">+16.7 ms</span><span class="what">per frame going from 60 to 30 fps</span></div>
+              <div class="stat"><span class="value">+8.3 ms</span><span class="what">per frame going from 120 to 60 fps</span></div>
+              <div class="stat"><span class="value">2 refreshes</span><span class="what">on screen for a frame that misses its budget by even 1 ms, with v-sync</span></div>
+            </div>
+            <ul class="grows">
+              <li><strong>Content on screen</strong><span>More characters, objects and effects add time on the CPU, the GPU or both, in every frame.</span></li>
+              <li><strong>Resolution</strong><span>GPU time for per-pixel work grows with the number of pixels.</span></li>
+              <li><strong>One-off work</strong><span>Loading, memory clean-up and shader compiling land in single frames and cause hitches.</span></li>
+              <li><strong>Slower hardware</strong><span>The same frame takes longer on a slower machine, so budgets are set on the slowest target.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>Doubling a frame-rate target halves the time for everything at once: every system and every pass. It is one of the most expensive decisions a project makes, and the easiest one to make late. Decide it early for each platform, and derive every other budget from it in milliseconds.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Frame-time problems are easiest to diagnose from a frame-time graph. These five shapes cover most of what you will see.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time graph of even bars with a tall spike at regular intervals."><line class="s-strong" x1="12" y1="114" x2="228" y2="114"/><rect class="f-acc-soft s-acc" x="14" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="22" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="30" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="38" y="94" width="6" height="20"/><rect class="f-pix" x="46" y="56" width="6" height="58"/><rect class="f-acc-soft s-acc" x="54" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="62" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="70" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="78" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="86" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="94" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="102" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="110" y="94" width="6" height="20"/><rect class="f-pix" x="118" y="56" width="6" height="58"/><rect class="f-acc-soft s-acc" x="126" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="134" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="142" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="150" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="158" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="166" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="174" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="182" y="94" width="6" height="20"/><rect class="f-pix" x="190" y="56" width="6" height="58"/><rect class="f-acc-soft s-acc" x="198" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="206" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="214" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="222" y="93" width="6" height="21"/><text class="t-small t-pix" x="14" y="18">every few seconds</text></svg>
+                </div>
+                <h4>Regular spikes every few seconds</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Work that runs now and then lands in a single frame: memory clean-up by a scripting language's garbage collector, an autosave, or streaming in the next part of the level.</dd></div>
+                  <div><dt>Ask for</dt><dd>A profiler capture across several spikes, a list of what ran in each spike frame, and a plan to spread that work over many frames.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time graph of even bars with one very tall spike labelled door opens."><line class="s-strong" x1="12" y1="114" x2="228" y2="114"/><rect class="f-acc-soft s-acc" x="14" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="22" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="30" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="38" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="46" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="54" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="62" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="70" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="78" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="86" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="94" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="102" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="110" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="118" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="126" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="134" y="94" width="6" height="20"/><rect class="f-pix" x="142" y="18" width="6" height="96"/><rect class="f-acc-soft s-acc" x="150" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="158" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="166" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="174" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="182" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="190" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="198" y="93" width="6" height="21"/><rect class="f-acc-soft s-acc" x="206" y="94" width="6" height="20"/><rect class="f-acc-soft s-acc" x="214" y="92" width="6" height="22"/><rect class="f-acc-soft s-acc" x="222" y="93" width="6" height="21"/><text class="t-small t-pix" x="148" y="22">door opens</text></svg>
+                </div>
+                <h4>A long freeze when entering a new area</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The next area is loaded on the game's main thread instead of in the background, so one frame waits for the disk.</dd></div>
+                  <div><dt>Ask for</dt><dd>Background loading for that area, and a check that nothing on the main thread waits for it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time graph whose bars alternate long, short and medium in a repeating pattern."><line class="s-strong" x1="12" y1="114" x2="228" y2="114"/><rect class="f-pix" x="14" y="78" width="6" height="36"/><rect class="f-pix" x="22" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="30" y="90" width="6" height="24"/><rect class="f-pix" x="38" y="78" width="6" height="36"/><rect class="f-pix" x="46" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="54" y="90" width="6" height="24"/><rect class="f-pix" x="62" y="78" width="6" height="36"/><rect class="f-pix" x="70" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="78" y="90" width="6" height="24"/><rect class="f-pix" x="86" y="78" width="6" height="36"/><rect class="f-pix" x="94" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="102" y="90" width="6" height="24"/><rect class="f-pix" x="110" y="78" width="6" height="36"/><rect class="f-pix" x="118" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="126" y="90" width="6" height="24"/><rect class="f-pix" x="134" y="78" width="6" height="36"/><rect class="f-pix" x="142" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="150" y="90" width="6" height="24"/><rect class="f-pix" x="158" y="78" width="6" height="36"/><rect class="f-pix" x="166" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="174" y="90" width="6" height="24"/><rect class="f-pix" x="182" y="78" width="6" height="36"/><rect class="f-pix" x="190" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="198" y="90" width="6" height="24"/><rect class="f-pix" x="206" y="78" width="6" height="36"/><rect class="f-pix" x="214" y="102" width="6" height="12"/><rect class="f-acc-soft s-acc" x="222" y="90" width="6" height="24"/></svg>
+                </div>
+                <h4>A steady counter, but jerky motion</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Frames are released at uneven intervals. Common causes are a frame-rate cap without v-sync, or a 30 fps game on a 60 Hz screen that shows some images for one refresh and others for three.</dd></div>
+                  <div><dt>Ask for</dt><dd>A frame-time graph instead of an fps counter, and the game's v-sync and frame-cap settings.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A screen whose upper and lower halves are shifted sideways against each other along a horizontal line."><rect class="f-sunken s-strong" x="20" y="10" width="200" height="110"/><rect class="f-solid s-strong" x="70" y="22" width="60" height="50"/><rect class="f-solid s-strong" x="94" y="72" width="60" height="38"/><line class="s-pix w2" x1="20" y1="72" x2="220" y2="72"/><text class="t-small t-pix" x="160" y="66">tear</text></svg>
+                </div>
+                <h4>A horizontal tear across the image</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>With v-sync off, the display switches to a new image partway down the screen, so the top and bottom show different frames. <a class="xref" data-ch="3.1">3.1 Pixels and displays</a> explains why.</dd></div>
+                  <div><dt>Ask for</dt><dd>V-sync, or variable refresh rate where the display supports it, and a check of which one the platform requires.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two lanes: in one second a ball moves a short way at 30 frames per second and much further at 144."><line class="s-strong" x1="20" y1="54" x2="220" y2="54"/><line class="s-strong" x1="20" y1="108" x2="220" y2="108"/><circle class="f-acc" cx="90" cy="42" r="10"/><text class="t-small t-muted" x="20" y="22">30 fps: 1 second</text><circle class="f-pix" cx="190" cy="96" r="10"/><text class="t-small t-muted" x="20" y="76">144 fps: 1 second</text><path class="s-muted dash" d="M20,42 H78 M20,96 H178"/></svg>
+                </div>
+                <h4>The game runs faster at higher frame rates</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Movement or timers are counted per frame instead of being scaled by frame time, so a 144 fps machine runs the game almost five times as fast as a 30 fps one.</dd></div>
+                  <div><dt>Ask for</dt><dd>Every movement and timer scaled by the engine's delta time, and a test of the game at both a low and a high frame rate.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>A frame-time graph tells you which frames are slow. To see what ran inside one of them, capture it with the engine's profiler or a <a class="term" data-term="profiler" data-forward href="glossary.html#profiler">frame capture tool</a>.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines measure frames in milliseconds, give game code the frame time, and let you cap the frame rate. The names differ.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">See fps and frame time</th>
+                    <td>Console commands <code>stat fps</code> for the frame rate, and <code>stat unit</code> for Frame, Game (game thread), Draw (render thread), GPU and RHIT times.</td>
+                    <td>The Game view's <strong>Stats</strong> overlay in Play mode: <strong>FPS</strong>, <strong>Global Frametime</strong> and <strong>GPU Frametime</strong>.</td>
+                    <td>The Debugger's <strong>Monitors</strong> tab graphs FPS; the <strong>Profiler</strong> tab graphs Frame Time and Physics Time.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Find hitches</th>
+                    <td><code>stat unitgraph</code> draws the same numbers as a graph. <code>stat hitches</code> reports frames over <code>t.HitchFrameTimeThreshold</code>. Unreal Insights' Frames panel shows one bar per frame.</td>
+                    <td><strong>Window &gt; Analysis &gt; Profiler</strong> (Ctrl+7). Click a spike in a chart to inspect that frame. It keeps the last 2,000 frames by default.</td>
+                    <td>In the Profiler, click the graph at a spike to pause, then step through the frames around it.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Cap the frame rate</th>
+                    <td>Project Settings, Engine, General Settings, <strong>Framerate</strong>: <strong>Smooth Frame Rate</strong>, <strong>Use Fixed Frame Rate</strong> and <strong>Fixed Frame Rate</strong>.</td>
+                    <td><code>QualitySettings.vSyncCount</code>, 1 by default, syncs to the display. At 0, <code>Application.targetFrameRate</code> sets the rate; its default of -1 means as fast as possible on desktop and 30 fps on Android and iOS.</td>
+                    <td>Project Settings <code>display/window/vsync/vsync_mode</code>, Enabled by default, and <code>application/run/max_fps</code>, where 0 means no cap.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Frame time in game code</th>
+                    <td>Actors override <code>Tick(float DeltaSeconds)</code>, called every frame, where DeltaSeconds is the game time the last frame took. Ticking must be switched on per actor.</td>
+                    <td><code>Update()</code> runs once per frame, with <code>Time.deltaTime</code> as the time since the last frame. <code>FixedUpdate()</code> runs at the <strong>Fixed Timestep</strong> set in Project Settings, Time.</td>
+                    <td><code>_process(delta)</code> runs every frame. <code>_physics_process(delta)</code> runs at a fixed rate, 60 times a second by default.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names and defaults checked against the documentation for Unreal Engine 5.7, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Measure outside the editor</p>
+              <p>Unity's statistics in the editor include time spent updating the editor's own windows, and every engine's editor does extra work. Judge frame times on a build running on the target hardware.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about frame rate speak in milliseconds, separate average speed from hitches, and ask for a way to measure. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when the game stutters but the counter looks fine</span></div>
+              <pre class="prompt-body">Unity 6.6, URP, Windows build. Target 60 fps with v-sync.
+The fps counter shows 58 to 60, but every 6 to 8 seconds the game freezes for roughly 100 to 150 ms. It is worst in the market level.
+
+I have attached a Profiler capture that covers three freezes. For each freeze, list what ran in the slow frame and how long it took, and name the system responsible. Then propose fixes in order of effort, and tell me how to confirm each one in the Profiler. Do not lower quality settings to hide the problem.</pre>
+              <ul class="prompt-why">
+                <li>The counter value and the freeze pattern point to a hitch rather than a low frame rate.</li>
+                <li>Several captured freezes let it look for the common cause.</li>
+                <li>The last line stops it treating a hitch as a general slowdown.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when setting frame budgets for a project</span></div>
+              <pre class="prompt-body">Third-person action game, Unreal Engine 5.7, for PC and PlayStation 5. Targets: 60 fps on PlayStation 5; 60 or 120 fps on PC, chosen in settings.
+
+Draft a frame budget in milliseconds for each target: game thread, render thread and GPU, with the GPU split into shadows, geometry, lighting, effects, post-processing and UI. Keep 10% headroom. State your assumptions, mark which numbers are guesses, and list the stat commands and Unreal Insights views we would use to check each line.</pre>
+              <ul class="prompt-why">
+                <li>Platforms and targets fix the size of each budget.</li>
+                <li>Milliseconds per system make the budget something you can measure.</li>
+                <li>Marked guesses show where you need real measurements before committing.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing work on frame rate</h3>
+            <ol class="review-list">
+              <li>What frame rate and hardware was this measured on?<span class="why">A change that fits at 30 fps may not fit at 60, or on the slowest target.</span></li>
+              <li>How many milliseconds does it add, on the CPU and on the GPU?<span class="why">Changes in fps hide the size of the cost.</span></li>
+              <li>Does any of this work happen in a single frame, such as loading or building something?<span class="why">One-off work causes hitches even when the average is fine.</span></li>
+              <li>Is every movement and timer scaled by the frame time?<span class="why">Otherwise the game's speed changes with the frame rate.</span></li>
+              <li>Was it judged from a frame-time graph or only from an fps counter?<span class="why">Counters average away hitches and uneven pacing.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">One game drops from 60 to 45 fps in a busy scene. Another drops from 120 to 90. Which one lost more time per frame?</p>
+                <details><summary>Show answer</summary><p>The first. 60 to 45 fps is 16.7 to 22.2 ms, 5.6 ms more per frame. 120 to 90 fps is 8.3 to 11.1 ms, 2.8 ms more.</p></details>
+              </li>
+              <li>
+                <p class="q">The CPU needs 9 ms per frame and the GPU needs 14 ms. Without a cap, roughly what frame rate do you get, and what would speed it up?</p>
+                <details><summary>Show answer</summary><p>About 71 fps, set by the GPU's 14 ms. Making the GPU's work cheaper, for example by lowering the resolution, helps. Speeding up the CPU does not, because it is already waiting.</p></details>
+              </li>
+              <li>
+                <p class="q">The fps counter reads a steady 60, yet testers report stutter. What do you look at?</p>
+                <details><summary>Show answer</summary><p>A frame-time graph. Single long frames and uneven pacing hide inside an average. Then capture one of the slow frames in the profiler to see what ran in it.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#frame">frame</a></li>
+              <li><a class="chip" href="glossary.html#fps">frames per second</a></li>
+              <li><a class="chip" href="glossary.html#frame-time">frame time</a></li>
+              <li><a class="chip" href="glossary.html#game-loop">game loop</a></li>
+              <li><a class="chip" href="glossary.html#hitch">hitch</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="1.1"></a> steps back from the frame to the studio: how a game moves from an idea to a shipped build.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Robert Nystrom, <a href="https://gameprogrammingpatterns.com/game-loop.html">Game Loop</a>, in Game Programming Patterns. The loop of input, update and render, and the trade-offs between fixed and variable time steps.</li>
+              <li>Glenn Fiedler, <a href="https://gafferongames.com/post/fix_your_timestep/">Fix Your Timestep!</a>, Gaffer On Games. Why physics runs on a fixed step, and how to keep it in step with a varying frame rate.</li>
+              <li><a href="https://developer.android.com/games/sdk/frame-pacing">Frame Pacing library</a>, Android Developers. Frame pacing defined, with the 49, 16 and 33 ms example and diagrams of long and short frames.</li>
+              <li>Unreal Engine 5.7: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/stat-commands-in-unreal-engine?application_version=5.7">Stat commands</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/general-engine-settings-in-the-unreal-engine-project-settings?application_version=5.7">General Settings</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/actor-ticking-in-unreal-engine?application_version=5.7">Actor ticking</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/AActor/Tick?application_version=5.7">AActor::Tick</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-the-frames-panel-in-unreal-insights-for-unreal-engine?application_version=5.7">Unreal Insights Frames panel</a>.</li>
+              <li>Unity 6.6: <a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/application/targetframerate">Application.targetFrameRate</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/qualitysettings/vsynccount">QualitySettings.vSyncCount</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/scripting/managing-time-and-frame-rate/time-per-frame-updates">Per-frame updates</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/scripting/managing-time-and-frame-rate/fixed-updates">Fixed updates</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/profiling/rendering-statistics">Rendering Statistics window</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/profiler/window-navigating">Navigating the Profiler window</a>.</li>
+              <li>Godot 4.7: <a href="https://docs.godotengine.org/en/stable/classes/class_engine.html">Engine</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/scripting/idle_and_physics_processing.html">Idle and physics processing</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/scripting/debug/the_profiler.html">The Profiler</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/performance/general_optimization.html">General optimisation tips</a>, <a href="https://docs.godotengine.org/en/stable/classes/class_displayserver.html">DisplayServer</a> (v-sync modes).</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/frame-time-ruler.js"></script>
+</body>
+</html>

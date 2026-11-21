@@ -1,0 +1,957 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>2.3 Scenes, objects and components · Graphics Handbook</title>
+  <meta name="description" content="How engines organise a game world: scenes, transforms and parent-child hierarchies, Actors, GameObjects and nodes, components, prefabs, and entity component systems, with what each costs and how it breaks.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="2.3">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 2 · Inside a game engine</p>
+            <h1><span class="ch-num">2.3</span> Scenes, objects and components</h1>
+            <p class="lead">Every engine has to record where each thing in a game world is, what it is made of and what it does. They do it in one of two shapes: a tree of objects that carry components, or tables of components that code sweeps through in bulk.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="2.1">2.1 Anatomy of an engine</a>, <a class="xref" data-ch="2.2">2.2 The game loop and threads</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="2.4">2.4 The engine landscape</a>, <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 404" role="img" aria-label="Left: a courtyard scene drawn as a tree. Courtyard holds Ground, Post, Crate A, Crate B and Camera, and Lantern is a child of Post. Each object lists its own components: Transform, Mesh, Collider, Light or Camera. Right: the same six things stored as an entity component system, in three tables, one per combination of components. Ground, Post and both crates share Transform, Mesh and Collider. Lantern has Transform, Mesh, Light and a Parent that points at Post. Camera has Transform and Camera. A render system reads Transform and Mesh from tables 1 and 2, and a physics system reads Transform and Collider from table 1.">
+                  <text class="t-caps" x="20" y="26">OBJECT HIERARCHY · ONE TREE</text>
+                  <text class="t-small t-muted" x="20" y="44">each object owns its components</text>
+
+                  <rect class="f-sunken s-strong" x="20" y="58" width="104" height="28" rx="4"/>
+                  <text class="t-strong" x="32" y="77">Courtyard</text>
+                  <text class="t-small t-muted" x="134" y="76">the scene</text>
+                  <path class="s-strong" d="M34,86 V324 M34,114 H50 M34,156 H50 M34,240 H50 M34,282 H50 M34,324 H50"/>
+                  <path class="s-acc w15" d="M64,170 V198 H80"/>
+
+                  <rect class="f-surface s-strong" x="50" y="100" width="84" height="28" rx="4"/>
+                  <text x="60" y="119">Ground</text>
+                  <rect class="f-surface s-strong" x="50" y="142" width="84" height="28" rx="4"/>
+                  <text x="60" y="161">Post</text>
+                  <rect class="f-acc-soft s-acc" x="80" y="184" width="84" height="28" rx="4"/>
+                  <text class="t-strong" x="90" y="203">Lantern</text>
+                  <rect class="f-surface s-strong" x="50" y="226" width="84" height="28" rx="4"/>
+                  <text x="60" y="245">Crate A</text>
+                  <rect class="f-surface s-strong" x="50" y="268" width="84" height="28" rx="4"/>
+                  <text x="60" y="287">Crate B</text>
+                  <rect class="f-surface s-strong" x="50" y="310" width="84" height="28" rx="4"/>
+                  <text x="60" y="329">Camera</text>
+
+                  <!-- component chips -->
+                  <rect class="f-acc-soft s-acc" x="142" y="104" width="62" height="20" rx="10"/><text class="t-small mid" x="173" y="118">Transform</text>
+                  <rect class="f-geo-soft s-geo" x="208" y="104" width="38" height="20" rx="10"/><text class="t-small mid" x="227" y="118">Mesh</text>
+                  <rect class="f-sunken s-strong" x="250" y="104" width="54" height="20" rx="10"/><text class="t-small mid" x="277" y="118">Collider</text>
+
+                  <rect class="f-acc-soft s-acc" x="142" y="146" width="62" height="20" rx="10"/><text class="t-small mid" x="173" y="160">Transform</text>
+                  <rect class="f-geo-soft s-geo" x="208" y="146" width="38" height="20" rx="10"/><text class="t-small mid" x="227" y="160">Mesh</text>
+                  <rect class="f-sunken s-strong" x="250" y="146" width="54" height="20" rx="10"/><text class="t-small mid" x="277" y="160">Collider</text>
+
+                  <rect class="f-acc-soft s-acc" x="172" y="188" width="62" height="20" rx="10"/><text class="t-small mid" x="203" y="202">Transform</text>
+                  <rect class="f-geo-soft s-geo" x="238" y="188" width="38" height="20" rx="10"/><text class="t-small mid" x="257" y="202">Mesh</text>
+                  <rect class="f-lit-soft s-lit" x="280" y="188" width="40" height="20" rx="10"/><text class="t-small mid" x="300" y="202">Light</text>
+                  <text class="t-small t-acc" x="330" y="202">child of Post</text>
+
+                  <rect class="f-acc-soft s-acc" x="142" y="230" width="62" height="20" rx="10"/><text class="t-small mid" x="173" y="244">Transform</text>
+                  <rect class="f-geo-soft s-geo" x="208" y="230" width="38" height="20" rx="10"/><text class="t-small mid" x="227" y="244">Mesh</text>
+                  <rect class="f-sunken s-strong" x="250" y="230" width="54" height="20" rx="10"/><text class="t-small mid" x="277" y="244">Collider</text>
+
+                  <rect class="f-acc-soft s-acc" x="142" y="272" width="62" height="20" rx="10"/><text class="t-small mid" x="173" y="286">Transform</text>
+                  <rect class="f-geo-soft s-geo" x="208" y="272" width="38" height="20" rx="10"/><text class="t-small mid" x="227" y="286">Mesh</text>
+                  <rect class="f-sunken s-strong" x="250" y="272" width="54" height="20" rx="10"/><text class="t-small mid" x="277" y="286">Collider</text>
+
+                  <rect class="f-acc-soft s-acc" x="142" y="314" width="62" height="20" rx="10"/><text class="t-small mid" x="173" y="328">Transform</text>
+                  <rect class="f-sunken s-strong" x="208" y="314" width="50" height="20" rx="10"/><text class="t-small mid" x="233" y="328">Camera</text>
+
+                  <text class="t-small" x="20" y="366">The tree is the structure: Lantern moves with Post.</text>
+                  <text class="t-small t-muted" x="20" y="382">Code runs object by object.</text>
+
+                  <line class="s-line" x1="446" y1="16" x2="446" y2="396"/>
+
+                  <!-- ECS side -->
+                  <text class="t-caps" x="466" y="26">ECS · ONE TABLE PER ARCHETYPE</text>
+                  <text class="t-small t-muted" x="466" y="44">rows are entities, columns are component arrays</text>
+
+                  <text class="t-small t-strong" x="466" y="66">Archetype 1</text>
+                  <text class="t-small t-muted" x="540" y="66">Transform + Mesh + Collider</text>
+                  <rect class="f-sunken" x="466" y="74" width="80" height="22"/>
+                  <rect class="f-acc-soft" x="546" y="74" width="94" height="22"/>
+                  <rect class="f-geo-soft" x="640" y="74" width="74" height="22"/>
+                  <rect class="f-sunken" x="714" y="74" width="74" height="22"/>
+                  <rect class="s-strong" x="466" y="74" width="322" height="110"/>
+                  <path class="s-line" d="M546,74 V184 M640,74 V184 M714,74 V184 M466,96 H788 M466,118 H788 M466,140 H788 M466,162 H788"/>
+                  <text class="t-small t-strong mid" x="506" y="89">Entity</text>
+                  <text class="t-small t-strong mid" x="593" y="89">Transform</text>
+                  <text class="t-small t-strong mid" x="677" y="89">Mesh</text>
+                  <text class="t-small t-strong mid" x="751" y="89">Collider</text>
+                  <text x="474" y="111">Ground</text><text class="t-mono t-small mid" x="593" y="111">0, 0, 0</text><text class="t-mono t-small mid" x="677" y="111">ground</text><text class="t-mono t-small mid" x="751" y="111">plane</text>
+                  <text x="474" y="133">Post</text><text class="t-mono t-small mid" x="593" y="133">3, 0, 2</text><text class="t-mono t-small mid" x="677" y="133">post</text><text class="t-mono t-small mid" x="751" y="133">box</text>
+                  <text x="474" y="155">Crate A</text><text class="t-mono t-small mid" x="593" y="155">-2, 0, 3</text><text class="t-mono t-small mid" x="677" y="155">crate</text><text class="t-mono t-small mid" x="751" y="155">box</text>
+                  <text x="474" y="177">Crate B</text><text class="t-mono t-small mid" x="593" y="177">-1, 0, 4</text><text class="t-mono t-small mid" x="677" y="177">crate</text><text class="t-mono t-small mid" x="751" y="177">box</text>
+
+                  <text class="t-small t-strong" x="466" y="210">Archetype 2</text>
+                  <text class="t-small t-muted" x="540" y="210">Transform + Mesh + Light + Parent</text>
+                  <rect class="f-sunken" x="466" y="218" width="80" height="22"/>
+                  <rect class="f-acc-soft" x="546" y="218" width="94" height="22"/>
+                  <rect class="f-geo-soft" x="640" y="218" width="74" height="22"/>
+                  <rect class="f-lit-soft" x="714" y="218" width="74" height="22"/>
+                  <rect class="f-acc-soft" x="788" y="218" width="74" height="22"/>
+                  <rect class="s-strong" x="466" y="218" width="396" height="44"/>
+                  <path class="s-line" d="M546,218 V262 M640,218 V262 M714,218 V262 M788,218 V262 M466,240 H862"/>
+                  <text class="t-small t-strong mid" x="506" y="233">Entity</text>
+                  <text class="t-small t-strong mid" x="593" y="233">Transform</text>
+                  <text class="t-small t-strong mid" x="677" y="233">Mesh</text>
+                  <text class="t-small t-strong mid" x="751" y="233">Light</text>
+                  <text class="t-small t-strong mid" x="825" y="233">Parent</text>
+                  <text class="t-strong" x="474" y="255">Lantern</text><text class="t-mono t-small mid" x="593" y="255">0, 2, 0.5</text><text class="t-mono t-small mid" x="677" y="255">lantern</text><text class="t-mono t-small mid" x="751" y="255">point</text><text class="t-mono t-small t-acc t-strong mid" x="825" y="255">Post</text>
+
+                  <text class="t-small t-strong" x="466" y="288">Archetype 3</text>
+                  <text class="t-small t-muted" x="540" y="288">Transform + Camera</text>
+                  <rect class="f-sunken" x="466" y="296" width="80" height="22"/>
+                  <rect class="f-acc-soft" x="546" y="296" width="94" height="22"/>
+                  <rect class="f-sunken" x="640" y="296" width="74" height="22"/>
+                  <rect class="s-strong" x="466" y="296" width="248" height="44"/>
+                  <path class="s-line" d="M546,296 V340 M640,296 V340 M466,318 H714"/>
+                  <text class="t-small t-strong mid" x="506" y="311">Entity</text>
+                  <text class="t-small t-strong mid" x="593" y="311">Transform</text>
+                  <text class="t-small t-strong mid" x="677" y="311">Camera</text>
+                  <text x="474" y="333">Camera</text><text class="t-mono t-small mid" x="593" y="333">0, 1.7, -6</text><text class="t-mono t-small mid" x="677" y="333">fov 60°</text>
+
+                  <rect class="f-acc-soft s-acc" x="466" y="352" width="104" height="20" rx="10"/>
+                  <text class="t-small t-strong mid" x="518" y="366">Render system</text>
+                  <text class="t-small" x="580" y="366">reads Transform + Mesh in archetypes 1 and 2</text>
+                  <rect class="f-acc-soft s-acc" x="466" y="378" width="104" height="20" rx="10"/>
+                  <text class="t-small t-strong mid" x="518" y="392">Physics system</text>
+                  <text class="t-small" x="580" y="392">reads Transform + Collider in archetype 1</text>
+                </svg>
+              </div>
+              <figcaption><b>One courtyard, organised two ways.</b> On the left, each object is a node in a tree and carries its own list of components; the lantern hangs under the post. On the right, an entity component system stores the same six things as rows in tables, one table for each combination of components, and systems sweep down the columns they need. Engines use the left shape for almost everything you edit by hand, and the right one where thousands of similar things must run fast.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Open any game editor and you see the same three panels. A list of everything in the level, a 3D view of it, and, when you click one thing, a column of settings for that thing. The list is the scene. The things in it are objects. The blocks of settings are components.</p>
+            <p>A <dfn class="term" data-term="scene">scene</dfn> is one saved world or piece of a world: a level, a main menu, a test room. Unreal Engine calls it a level or a map. Every object placed in it has a <dfn class="term" data-term="transform">transform</dfn>, its position, rotation and scale. The object itself does almost nothing. Its <dfn class="term" data-term="component">components</dfn> do the work: one holds the <a class="term" data-term="mesh" data-forward href="glossary.html#mesh">mesh</a> to draw, one the collision shape, one a light, one a script that makes the light flicker.</p>
+            <p>Objects can hang under other objects, so a lantern moves when its post moves. And when the same arrangement is needed fifty times, it is saved once as a reusable template and placed fifty times. The last section of How it works covers the second shape from the picture, where components live in tables instead of inside objects.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A new phone does very little. The apps you install decide whether it is a camera, a map or a music player. Two phones with the same apps behave the same way, wherever they are.</p>
+                <p>The object is the phone, its transform is where the phone is, and the components are the apps. A reusable template is a backup you restore onto fifty phones, and changing one phone's wallpaper afterwards is a local change that the backup does not overwrite.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without components, programmers would write a new type of object for every combination: lantern on a post, crate with a light, crate that floats. Each new idea would wait for code.</p>
+                <p>With components, a designer makes a floating crate by adding a physics component and a hover script to an ordinary crate. With templates, they make it once and reuse it everywhere.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>This structure decides how your team builds levels, how many things the game can afford to simulate, and what good code looks like in your engine. It comes with the engine: Unreal's Actors, Unity's GameObjects and Godot's nodes work differently, and each engine's option for huge numbers of things is a separate way of working that needs its own skills. Building 30 doors with an entity component system wastes weeks. Giving 50,000 bullets a scripted object each can eat the CPU's share of every frame.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow the courtyard from its file on disk to the code that moves it each <a class="term" data-term="frame" href="glossary.html#frame">frame</a>. There are seven steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="scenes"><span class="step-num">1</span> Scenes: the saved world</h3>
+              <p>A game is a set of scenes. Each one is a file that lists every object in it with its components and settings: <code>.umap</code> in Unreal Engine, <code>.unity</code> in Unity, <code>.tscn</code> in Godot. Loading a scene creates those objects in memory, and from then on the engine updates them every frame.</p>
+              <p>Small games load one scene at a time: the menu, then the courtyard, then the crypt. Open worlds are too big for that. Unreal's World Partition keeps one persistent level split into grid cells and loads the cells near the player, unloading them as the player moves away.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: three scene files on disk, Main menu, Courtyard and Crypt. Courtyard is loaded into the running game, which holds Ground, Post, Lantern, two crates and a camera. Right: a large world drawn as a grid of cells, with a player and a circle around them. The ten cells inside the circle are loaded; the rest stay on disk.">
+                    <defs>
+                      <marker id="sc-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="26">SCENES ON DISK</text>
+                    <rect class="f-surface s-strong" x="20" y="44" width="240" height="40" rx="4"/>
+                    <text class="t-strong" x="36" y="62">Main menu</text>
+                    <text class="t-small t-muted" x="36" y="77">title screen and its interface</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="96" width="240" height="40" rx="4"/>
+                    <text class="t-strong" x="36" y="114">Courtyard</text>
+                    <text class="t-small t-muted" x="36" y="129">the level the player is in</text>
+                    <rect class="f-surface s-strong" x="20" y="148" width="240" height="40" rx="4"/>
+                    <text class="t-strong" x="36" y="166">Crypt</text>
+                    <text class="t-small t-muted" x="36" y="181">the next level, still on disk</text>
+                    <text class="t-small t-muted" x="20" y="212">.umap in Unreal, .unity in Unity,</text>
+                    <text class="t-small t-muted" x="20" y="227">.tscn in Godot</text>
+
+                    <line class="s-acc w15" x1="262" y1="116" x2="326" y2="116" marker-end="url(#sc-arr)"/>
+                    <text class="t-small t-acc mid" x="294" y="108">load</text>
+
+                    <text class="t-caps" x="330" y="26">RUNNING GAME</text>
+                    <rect class="f-surface s-strong" x="330" y="60" width="210" height="112" rx="6"/>
+                    <text class="t-head" x="346" y="86">Courtyard</text>
+                    <text class="t-small" x="346" y="108">Ground, Post, Lantern,</text>
+                    <text class="t-small" x="346" y="124">Crate A, Crate B, Camera</text>
+                    <text class="t-small t-muted" x="346" y="152">in memory, updated every frame</text>
+
+                    <line class="s-line" x1="560" y1="20" x2="560" y2="240"/>
+
+                    <text class="t-caps" x="590" y="26">ONE BIG WORLD, STREAMED</text>
+                    <g>
+                      <rect class="f-sunken s-line" x="590" y="44" width="44" height="44"/><rect class="f-acc-soft s-line" x="634" y="44" width="44" height="44"/><rect class="f-acc-soft s-line" x="678" y="44" width="44" height="44"/><rect class="f-acc-soft s-line" x="722" y="44" width="44" height="44"/><rect class="f-sunken s-line" x="766" y="44" width="44" height="44"/><rect class="f-sunken s-line" x="810" y="44" width="44" height="44"/>
+                      <rect class="f-sunken s-line" x="590" y="88" width="44" height="44"/><rect class="f-acc-soft s-line" x="634" y="88" width="44" height="44"/><rect class="f-acc-soft s-line" x="678" y="88" width="44" height="44"/><rect class="f-acc-soft s-line" x="722" y="88" width="44" height="44"/><rect class="f-sunken s-line" x="766" y="88" width="44" height="44"/><rect class="f-sunken s-line" x="810" y="88" width="44" height="44"/>
+                      <rect class="f-sunken s-line" x="590" y="132" width="44" height="44"/><rect class="f-acc-soft s-line" x="634" y="132" width="44" height="44"/><rect class="f-acc-soft s-line" x="678" y="132" width="44" height="44"/><rect class="f-acc-soft s-line" x="722" y="132" width="44" height="44"/><rect class="f-sunken s-line" x="766" y="132" width="44" height="44"/><rect class="f-sunken s-line" x="810" y="132" width="44" height="44"/>
+                      <rect class="f-sunken s-line" x="590" y="176" width="44" height="44"/><rect class="f-sunken s-line" x="634" y="176" width="44" height="44"/><rect class="f-acc-soft s-line" x="678" y="176" width="44" height="44"/><rect class="f-sunken s-line" x="722" y="176" width="44" height="44"/><rect class="f-sunken s-line" x="766" y="176" width="44" height="44"/><rect class="f-sunken s-line" x="810" y="176" width="44" height="44"/>
+                    </g>
+                    <circle class="s-acc dash w15" cx="702" cy="128" r="80"/>
+                    <circle class="f-acc" cx="702" cy="128" r="6"/>
+                    <text class="t-small t-acc t-strong" x="712" y="125">player</text>
+                    <text class="t-small t-muted" x="590" y="240">cells near the player load; the rest stay on disk</text>
+                  </svg>
+                </div>
+                <figcaption><b>Scenes are the files a world is saved in.</b> A small game loads one at a time. A large world keeps one level and streams pieces of it in and out around the player, which is what Unreal's World Partition does with its grid of cells.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="transforms"><span class="step-num">2</span> Transforms: where, which way, how big</h3>
+              <p>Every placed object has a transform. Position says where it is, usually in metres. Rotation says which way it faces. Scale says how big it is compared with the model as it was made. Rendering reads the transform to know where to draw the mesh, physics reads it to know where the collider is, and gameplay code changes it to move things.</p>
+              <p>Engines differ in where the transform lives. In Unity every GameObject has a Transform component and cannot exist without one. In Unreal an Actor has no transform of its own: it borrows the transform of its root component. In Godot the transform is built into every 3D node.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="Three panels seen from above. Position: a crate moved from a dashed start place to a new place. Rotation: a crate turned 30 degrees about its centre. Scale: a crate made 1.5 times larger. A card lists Crate B's transform: position minus 1, 0, 4; rotation 0, 30, 0 degrees; scale 1.5 on every axis.">
+                    <defs>
+                      <marker id="tr-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-head" x="20" y="28">Position</text>
+                    <text class="t-head" x="236" y="28">Rotation</text>
+                    <text class="t-head" x="452" y="28">Scale</text>
+
+                    <rect class="f-sunken s-line" x="20" y="40" width="200" height="150" rx="6"/>
+                    <rect class="s-muted dash" x="50" y="140" width="36" height="36"/>
+                    <rect class="f-surface s-strong" x="140" y="70" width="36" height="36"/>
+                    <line class="s-acc w15" x1="76" y1="150" x2="146" y2="104" marker-end="url(#tr-arr)"/>
+                    <text class="t-small t-acc" x="124" y="146">moved</text>
+
+                    <rect class="f-sunken s-line" x="236" y="40" width="200" height="150" rx="6"/>
+                    <rect class="f-surface s-strong" x="316" y="95" width="40" height="40" transform="rotate(30 336 115)"/>
+                    <rect class="s-muted dash" x="316" y="95" width="40" height="40"/>
+                    <path class="s-acc w15" d="M336,73 A42,42 0 0 1 357,78.6" marker-end="url(#tr-arr)"/>
+                    <text class="t-small t-acc" x="366" y="74">30°</text>
+
+                    <rect class="f-sunken s-line" x="452" y="40" width="200" height="150" rx="6"/>
+                    <rect class="f-surface s-strong" x="525" y="88" width="54" height="54"/>
+                    <rect class="s-muted dash" x="534" y="97" width="36" height="36"/>
+                    <text class="t-small t-acc" x="590" y="92">× 1.5</text>
+
+                    <text class="t-small t-muted mid" x="120" y="212">where it is</text>
+                    <text class="t-small t-muted mid" x="336" y="212">which way it faces</text>
+                    <text class="t-small t-muted mid" x="552" y="212">how big it is</text>
+
+                    <rect class="f-surface s-strong" x="672" y="40" width="208" height="150" rx="6"/>
+                    <text class="t-caps" x="686" y="62">TRANSFORM · CRATE B</text>
+                    <text class="t-small t-muted" x="686" y="92">position</text><text class="t-mono" x="760" y="92">-1, 0, 4</text>
+                    <text class="t-small t-muted" x="686" y="120">rotation</text><text class="t-mono" x="760" y="120">0°, 30°, 0°</text>
+                    <text class="t-small t-muted" x="686" y="148">scale</text><text class="t-mono" x="760" y="148">1.5, 1.5, 1.5</text>
+                    <text class="t-small t-muted" x="686" y="176">metres, degrees, multiples</text>
+                  </svg>
+                </div>
+                <figcaption><b>A transform is three things.</b> Seen from above, the dashed outline is the crate as modelled and the solid one is where the transform puts it. Engines store the three parts together for every placed object, and every system that draws, collides or moves the crate reads them.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="parents"><span class="step-num">3</span> Parents and children: local and world</h3>
+              <p>Objects form a tree. The <dfn class="term" data-term="scene-graph">scene graph</dfn> is that tree: the scene at the root, objects below it, and objects hanging under other objects. Unity shows it in the Hierarchy window, Unreal in the Outliner, Godot in the Scene dock.</p>
+              <p>The links in the tree make a <dfn class="term" data-term="transform-hierarchy">transform hierarchy</dfn>: whatever happens to a parent happens to its children. So a child stores a <dfn class="term" data-term="local-transform">local transform</dfn>, measured from its parent, and the engine works out its <dfn class="term" data-term="world-transform">world transform</dfn>, measured from the world's origin, by combining the local one with every parent above it. Move the post and the lantern's local transform does not change at all. Its world transform does.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Side view, before and after. Before: a post stands at x equals 3 metres with a lantern half a metre to the side and two metres up, so the lantern's world position is 3.5, 2. After the post moves to x equals 6, the lantern's local position is still 0.5, 2 and its world position is 6.5, 2.">
+                    <defs>
+                      <marker id="pc-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="40" y="24">BEFORE</text>
+                    <text class="t-caps" x="500" y="24">AFTER MOVING THE POST TO x = 6</text>
+
+                    <line class="s-strong" x1="30" y1="210" x2="370" y2="210"/>
+                    <path class="s-muted" d="M40,210 V216 M80,210 V216 M120,210 V216 M160,210 V216 M200,210 V216 M240,210 V216 M280,210 V216 M320,210 V216 M360,210 V216"/>
+                    <g class="t-mono t-small t-muted">
+                      <text class="mid" x="40" y="230">0</text><text class="mid" x="80" y="230">1</text><text class="mid" x="120" y="230">2</text><text class="mid" x="160" y="230">3</text><text class="mid" x="200" y="230">4</text><text class="mid" x="240" y="230">5</text><text class="mid" x="280" y="230">6</text><text class="mid" x="320" y="230">7</text><text class="mid" x="360" y="230">8</text>
+                    </g>
+                    <rect class="f-solid s-strong" x="154" y="110" width="12" height="100"/>
+                    <line class="s-strong w2" x1="166" y1="118" x2="182" y2="118"/>
+                    <line class="s-strong" x1="180" y1="118" x2="180" y2="122"/>
+                    <rect class="f-lit-soft s-lit" x="172" y="122" width="16" height="20" rx="3"/>
+                    <line class="s-acc w15 dash" x1="160" y1="210" x2="179" y2="134" marker-end="url(#pc-arr)"/>
+                    <circle class="f-ink" cx="160" cy="210" r="3.5"/>
+                    <circle class="f-acc" cx="180" cy="130" r="3.5"/>
+                    <text class="t-small t-acc" x="196" y="170">local (0.5, 2)</text>
+                    <text class="t-small t-muted" x="44" y="198">world origin</text>
+                    <text class="t-small t-muted end" x="370" y="248">x in metres</text>
+                    <text class="t-small" x="40" y="268">Post world position (3, 0)</text>
+                    <text class="t-small t-acc" x="40" y="283">Lantern local position (0.5, 2)</text>
+                    <text class="t-small t-strong" x="40" y="298">Lantern world position (3.5, 2)</text>
+
+                    <line class="s-line" x1="440" y1="30" x2="440" y2="290"/>
+
+                    <line class="s-strong" x1="490" y1="210" x2="830" y2="210"/>
+                    <path class="s-muted" d="M500,210 V216 M540,210 V216 M580,210 V216 M620,210 V216 M660,210 V216 M700,210 V216 M740,210 V216 M780,210 V216 M820,210 V216"/>
+                    <g class="t-mono t-small t-muted">
+                      <text class="mid" x="500" y="230">0</text><text class="mid" x="540" y="230">1</text><text class="mid" x="580" y="230">2</text><text class="mid" x="620" y="230">3</text><text class="mid" x="660" y="230">4</text><text class="mid" x="700" y="230">5</text><text class="mid" x="740" y="230">6</text><text class="mid" x="780" y="230">7</text><text class="mid" x="820" y="230">8</text>
+                    </g>
+                    <rect class="s-muted dash" x="614" y="110" width="12" height="100"/>
+                    <rect class="s-muted dash" x="632" y="122" width="16" height="20" rx="3"/>
+                    <line class="s-acc w15" x1="630" y1="96" x2="730" y2="96" marker-end="url(#pc-arr)"/>
+                    <text class="t-small t-acc mid" x="680" y="88">post moved +3 m</text>
+                    <rect class="f-solid s-strong" x="734" y="110" width="12" height="100"/>
+                    <line class="s-strong w2" x1="746" y1="118" x2="762" y2="118"/>
+                    <line class="s-strong" x1="760" y1="118" x2="760" y2="122"/>
+                    <rect class="f-lit-soft s-lit" x="752" y="122" width="16" height="20" rx="3"/>
+                    <line class="s-acc w15 dash" x1="740" y1="210" x2="759" y2="134" marker-end="url(#pc-arr)"/>
+                    <circle class="f-ink" cx="740" cy="210" r="3.5"/>
+                    <circle class="f-acc" cx="760" cy="130" r="3.5"/>
+                    <text class="t-small t-acc" x="776" y="170">local (0.5, 2)</text>
+                    <text class="t-small t-muted end" x="830" y="248">x in metres</text>
+                    <text class="t-small" x="500" y="268">Post world position (6, 0)</text>
+                    <text class="t-small t-acc" x="500" y="283">Lantern local position (0.5, 2), unchanged</text>
+                    <text class="t-small t-strong" x="500" y="298">Lantern world position (6.5, 2)</text>
+                  </svg>
+                </div>
+                <figcaption><b>A child stores where it is relative to its parent.</b> The lantern's local position, half a metre across and two metres up from the post's base, never changes. Its world position is worked out from the post's, so moving the post carries the lantern with it.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The figure only adds positions. Real engines combine position, rotation and scale as a matrix, so turning the post would also swing the lantern around it, and scaling the post would push the lantern further out. <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a> shows how.</p>
+              </aside>
+              <p>Every engine gives code both views, and mixing them up is one of the commonest bugs in AI-written gameplay code. In Unity, <code>transform.position</code> is the world position and <code>transform.localPosition</code> the local one. In Godot, <code>position</code> is local and <code>global_position</code> is world. Unreal splits it by call: <code>SetActorLocation</code> places an Actor in the world, while <code>SetRelativeLocation</code> moves a component relative to its parent.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="objects-components"><span class="step-num">4</span> Objects and components in each engine</h3>
+              <p>The three big engines agree that objects are built from parts. They disagree about what an object is.</p>
+              <p>In Unreal Engine an <dfn class="term" data-term="actor">Actor</dfn> is anything that can be placed in a level. Its components come in three kinds. Actor Components add behaviour and have no position. Scene Components have a transform and can attach to each other, and one of them is the root that gives the Actor its place in the world. Primitive Components are Scene Components that can be drawn or collided with, such as a static mesh.</p>
+              <p>In Unity a <dfn class="term" data-term="gameobject">GameObject</dfn> is a container that always has a Transform, and every other part is a component added to it: a mesh renderer, a collider, a light, and scripts, which are components too. Parts that need their own position become child GameObjects.</p>
+              <p>Godot has no separate idea of a component. A <dfn class="term" data-term="godot-node">node</dfn> does one job, such as drawing a mesh, holding a collision shape or casting light, and an object is a small branch of nodes. Each node can carry one script.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="The same lantern post built three ways. Unreal: one Actor with a post mesh component as root, a lantern mesh component attached to it, a point light component attached to the lantern, and a flicker Actor Component with no transform. Unity: a LanternPost GameObject with Transform, MeshFilter, MeshRenderer and BoxCollider, and a child Lantern GameObject with Transform, MeshFilter, MeshRenderer, Light and a Flicker script. Godot: a StaticBody3D node with three children, a MeshInstance3D for the post, a CollisionShape3D and a MeshInstance3D for the lantern with a script, which has an OmniLight3D child.">
+                    <text class="t-caps" x="20" y="26">UNREAL ENGINE · ONE ACTOR</text>
+                    <text class="t-caps" x="310" y="26">UNITY · TWO GAMEOBJECTS</text>
+                    <text class="t-caps" x="600" y="26">GODOT · A BRANCH OF NODES</text>
+
+                    <!-- Unreal -->
+                    <rect class="f-sunken s-strong" x="20" y="40" width="270" height="228" rx="8"/>
+                    <text class="t-strong" x="34" y="62">BP_LanternPost</text>
+                    <text class="t-small t-muted" x="34" y="78">an Actor, made as a Blueprint class</text>
+                    <rect class="f-geo-soft s-geo" x="34" y="92" width="240" height="34" rx="4"/>
+                    <text class="t-strong" x="44" y="107">PostMesh</text>
+                    <text class="t-small t-muted" x="44" y="120">Static Mesh Component · root</text>
+                    <path class="s-strong" d="M44,126 V153 H54 M64,170 V197 H74"/>
+                    <rect class="f-geo-soft s-geo" x="54" y="136" width="220" height="34" rx="4"/>
+                    <text class="t-strong" x="64" y="151">LanternMesh</text>
+                    <text class="t-small t-muted" x="64" y="164">Static Mesh Component</text>
+                    <rect class="f-lit-soft s-lit" x="74" y="180" width="200" height="34" rx="4"/>
+                    <text class="t-strong" x="84" y="195">LanternLight</text>
+                    <text class="t-small t-muted" x="84" y="208">Point Light Component</text>
+                    <rect class="f-surface s-strong dash" x="34" y="224" width="240" height="34" rx="4"/>
+                    <text class="t-strong" x="44" y="239">Flicker</text>
+                    <text class="t-small t-muted" x="44" y="252">Actor Component · no transform</text>
+
+                    <!-- Unity -->
+                    <rect class="f-surface s-strong" x="310" y="40" width="270" height="86" rx="6"/>
+                    <text class="t-strong" x="322" y="60">LanternPost</text>
+                    <text class="t-small t-muted end" x="568" y="60">GameObject</text>
+                    <rect class="f-acc-soft s-acc" x="322" y="70" width="62" height="20" rx="10"/><text class="t-small mid" x="353" y="84">Transform</text>
+                    <rect class="f-geo-soft s-geo" x="388" y="70" width="66" height="20" rx="10"/><text class="t-small mid" x="421" y="84">MeshFilter</text>
+                    <rect class="f-geo-soft s-geo" x="458" y="70" width="82" height="20" rx="10"/><text class="t-small mid" x="499" y="84">MeshRenderer</text>
+                    <rect class="f-sunken s-strong" x="322" y="96" width="72" height="20" rx="10"/><text class="t-small mid" x="358" y="110">BoxCollider</text>
+                    <path class="s-strong" d="M318,126 V196 H334"/>
+                    <rect class="f-surface s-strong" x="334" y="150" width="246" height="92" rx="6"/>
+                    <text class="t-strong" x="346" y="170">Lantern</text>
+                    <text class="t-small t-muted end" x="568" y="170">child GameObject</text>
+                    <rect class="f-acc-soft s-acc" x="346" y="180" width="62" height="20" rx="10"/><text class="t-small mid" x="377" y="194">Transform</text>
+                    <rect class="f-geo-soft s-geo" x="412" y="180" width="66" height="20" rx="10"/><text class="t-small mid" x="445" y="194">MeshFilter</text>
+                    <rect class="f-geo-soft s-geo" x="482" y="180" width="82" height="20" rx="10"/><text class="t-small mid" x="523" y="194">MeshRenderer</text>
+                    <rect class="f-lit-soft s-lit" x="346" y="206" width="40" height="20" rx="10"/><text class="t-small mid" x="366" y="220">Light</text>
+                    <rect class="f-sunken s-strong" x="390" y="206" width="92" height="20" rx="10"/><text class="t-small mid" x="436" y="220">Flicker (script)</text>
+
+                    <!-- Godot -->
+                    <path class="s-strong" d="M612,74 V179 M612,99 H626 M612,139 H626 M612,179 H626 M638,194 V219 H652"/>
+                    <rect class="f-surface s-strong" x="600" y="44" width="270" height="30" rx="4"/>
+                    <text class="t-strong" x="610" y="64">LanternPost</text><text class="t-small t-muted" x="700" y="64">StaticBody3D</text>
+                    <rect class="f-geo-soft s-geo" x="626" y="84" width="244" height="30" rx="4"/>
+                    <text class="t-strong" x="636" y="104">PostMesh</text><text class="t-small t-muted" x="726" y="104">MeshInstance3D</text>
+                    <rect class="f-sunken s-strong" x="626" y="124" width="244" height="30" rx="4"/>
+                    <text class="t-strong" x="636" y="144">Shape</text><text class="t-small t-muted" x="726" y="144">CollisionShape3D</text>
+                    <rect class="f-geo-soft s-geo" x="626" y="164" width="244" height="30" rx="4"/>
+                    <text class="t-strong" x="636" y="184">Lantern</text><text class="t-small t-muted" x="726" y="184">MeshInstance3D</text><text class="t-small t-acc end" x="862" y="184">+ script</text>
+                    <rect class="f-lit-soft s-lit" x="652" y="204" width="218" height="30" rx="4"/>
+                    <text class="t-strong" x="662" y="224">Light</text><text class="t-small t-muted" x="752" y="224">OmniLight3D</text>
+
+                    <text class="t-small" x="20" y="290">1 Actor, 4 components</text>
+                    <text class="t-small" x="310" y="290">2 GameObjects, 9 components</text>
+                    <text class="t-small" x="600" y="290">5 nodes, 1 script</text>
+                  </svg>
+                </div>
+                <figcaption><b>The same lantern post in three engines.</b> Unreal builds it as one Actor whose components attach to each other. Unity uses a parent and a child GameObject, each with a stack of components. Godot has no separate components: every part is a node, and the branch of nodes is the object.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>These are reasonable setups, not the only ones. An Unreal team might make the lantern a separate Actor attached to the post; a Unity team might put the light on its own child. The parts and the rules stay the same.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="prefabs"><span class="step-num">5</span> Prefabs, instances and overrides</h3>
+              <p>A courtyard needs many crates. Nobody builds each one by hand. A <dfn class="term" data-term="prefab">prefab</dfn> is a saved object, with its components and children, that can be placed again and again. Each placed copy is a <dfn class="term" data-term="prefab-instance">prefab instance</dfn>, still linked to the prefab, so a change to the prefab reaches every copy.</p>
+              <p>A level designer can still change one copy. That change is an <dfn class="term" data-term="instance-override">override</dfn>, and it always wins: if Crate B's scale is overridden, later edits to the prefab's scale skip Crate B. Unity marks overrides in the Inspector with a blue line and bold text and offers Apply and Revert. Godot shows a revert icon beside each overridden property. When many copies share the same changes, a <dfn class="term" data-term="prefab-variant">prefab variant</dfn> is cleaner: a mossy crate made from the plain one, inheriting everything it does not change.</p>
+              <p>The names differ. Unity calls them prefabs, with variants and prefabs nested inside prefabs. In Godot any saved scene can be placed inside another as an instance, so scenes double as prefabs. In Unreal the usual template is a <dfn class="term" data-term="blueprint">Blueprint</dfn> class: an asset made with Unreal's visual scripting system that bundles an Actor's components, settings and logic, placed in levels as instances whose properties can be changed one by one.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="A Crate prefab with mesh crate, material oak, scale 1 and mass 20 kilograms is placed three times. Crate A has no overrides, Crate B overrides scale to 1.5 and Crate C overrides mass to 40 kilograms. After the prefab's material is changed from oak to wet oak, all three crates get wet oak, Crate B keeps scale 1.5 and Crate C keeps 40 kilograms.">
+                    <defs>
+                      <marker id="pf-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="pf-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="30">PREFAB ASSET</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="44" width="210" height="176" rx="6"/>
+                    <text class="t-head" x="36" y="70">Crate</text>
+                    <rect class="f-surface s-strong" x="184" y="54" width="30" height="30"/>
+                    <path class="s-strong" d="M184,54 L214,84 M214,54 L184,84"/>
+                    <text class="t-small t-muted" x="36" y="100">mesh</text><text class="t-mono t-small" x="110" y="100">crate</text>
+                    <text class="t-small t-muted" x="36" y="124">material</text><text class="t-mono t-small" x="110" y="124">oak</text>
+                    <text class="t-small t-muted" x="36" y="148">scale</text><text class="t-mono t-small" x="110" y="148">1</text>
+                    <text class="t-small t-muted" x="36" y="172">mass</text><text class="t-mono t-small" x="110" y="172">20 kg</text>
+                    <text class="t-small t-muted" x="36" y="204">saved once, as an asset</text>
+
+                    <line class="s-muted" x1="232" y1="126" x2="296" y2="68" marker-end="url(#pf-arr)"/>
+                    <line class="s-muted" x1="232" y1="132" x2="296" y2="136" marker-end="url(#pf-arr)"/>
+                    <line class="s-muted" x1="232" y1="138" x2="296" y2="204" marker-end="url(#pf-arr)"/>
+
+                    <text class="t-caps" x="300" y="30">INSTANCES IN THE COURTYARD</text>
+                    <rect class="f-surface s-strong" x="300" y="40" width="230" height="52" rx="4"/>
+                    <text class="t-strong" x="316" y="62">Crate A</text>
+                    <text class="t-small t-muted" x="316" y="80">no overrides</text>
+                    <rect class="f-surface s-strong" x="300" y="110" width="230" height="52" rx="4"/>
+                    <rect class="f-acc" x="300" y="110" width="4" height="52"/>
+                    <text class="t-strong" x="316" y="132">Crate B</text>
+                    <text class="t-small t-acc" x="316" y="150">scale 1.5 · override</text>
+                    <rect class="f-surface s-strong" x="300" y="180" width="230" height="52" rx="4"/>
+                    <rect class="f-acc" x="300" y="180" width="4" height="52"/>
+                    <text class="t-strong" x="316" y="202">Crate C</text>
+                    <text class="t-small t-acc" x="316" y="220">mass 40 kg · override</text>
+
+                    <line class="s-acc w15" x1="536" y1="136" x2="592" y2="136" marker-end="url(#pf-arr-a)"/>
+                    <text class="t-small t-acc mid" x="564" y="156">edit</text>
+                    <text class="t-small t-acc mid" x="564" y="170">prefab</text>
+
+                    <text class="t-caps" x="600" y="30">AFTER THE EDIT</text>
+                    <rect class="f-acc-soft s-acc" x="600" y="40" width="280" height="40" rx="4"/>
+                    <text class="t-small" x="614" y="64">prefab material: oak → <tspan class="t-strong">wet oak</tspan></text>
+                    <rect class="f-surface s-strong" x="600" y="96" width="280" height="40" rx="4"/>
+                    <text class="t-strong" x="614" y="113">Crate A</text>
+                    <text class="t-small" x="614" y="128"><tspan class="t-strong">wet oak</tspan> · scale 1 · 20 kg</text>
+                    <rect class="f-surface s-strong" x="600" y="146" width="280" height="40" rx="4"/>
+                    <text class="t-strong" x="614" y="163">Crate B</text>
+                    <text class="t-small" x="614" y="178"><tspan class="t-strong">wet oak</tspan> · scale <tspan class="t-acc t-strong">1.5</tspan> · 20 kg</text>
+                    <rect class="f-surface s-strong" x="600" y="196" width="280" height="40" rx="4"/>
+                    <text class="t-strong" x="614" y="213">Crate C</text>
+                    <text class="t-small" x="614" y="228"><tspan class="t-strong">wet oak</tspan> · scale 1 · <tspan class="t-acc t-strong">40 kg</tspan></text>
+
+                    <text class="t-small t-muted" x="20" y="268">The material change reaches all three. Crate B keeps scale 1.5 and Crate C keeps 40 kg, because an override always wins over the prefab's value.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Edit once, update everywhere, except where overridden.</b> Prefabs let a team change a hundred crates in one place. Overrides let a level designer adjust one crate. The catch is that an override silently blocks later prefab changes to that property, which is the source of a very common bug report.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ecs"><span class="step-num">6</span> ECS: components in tables</h3>
+              <p>The object model is easy to understand and edit, but it scatters data. Each object is created on its own, somewhere in memory, and its components are separate pieces reached through pointers. Code that updates 10,000 crates jumps from place to place.</p>
+              <p>That matters because the <a class="term" data-term="cpu" data-forward href="glossary.html#cpu">CPU</a> never reads one value from main memory. It copies a whole block, usually 64 bytes, into its <dfn class="term" data-term="cpu-cache">cache</dfn>, a small, fast memory next to each core. Reading a value already in the cache takes around half a nanosecond. Missing the cache and going to main memory takes around 100 nanoseconds, about 200 times longer.</p>
+              <p>An <dfn class="term" data-term="ecs">entity component system</dfn> (ECS) turns the data inside out. An <dfn class="term" data-term="entity">entity</dfn> is only an ID number. Components are plain data with no code, stored in tightly packed arrays, one array per component type. A <dfn class="term" data-term="ecs-system">system</dfn> is code that runs over every entity with the components it needs, in order, one array at a time. Entities with exactly the same set of component types form an <dfn class="term" data-term="archetype">archetype</dfn>, and each archetype is stored in fixed-size blocks called chunks; in Unity's Entities each chunk is 16 KiB.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="Two strips of memory, drawn one pixel per byte, with cache lines of 64 bytes. Top: four crate objects at scattered addresses; reading each crate's 12-byte position loads four separate cache lines, 256 bytes for 48 useful ones. Bottom: an ECS chunk where 22 positions sit side by side in one array, followed by arrays of mesh references, colliders and entity IDs. A system reads the positions in order from five consecutive cache lines.">
+                    <defs>
+                      <marker id="ca-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="24" y="22">OBJECTS · EACH ONE ALLOCATED ON ITS OWN</text>
+                    <rect class="f-sunken s-line" x="24" y="56" width="832" height="36"/>
+                    <path class="s-line" d="M88,56 V92 M152,56 V92 M216,56 V92 M280,56 V92 M344,56 V92 M408,56 V92 M472,56 V92 M536,56 V92 M600,56 V92 M664,56 V92 M728,56 V92 M792,56 V92"/>
+                    <rect class="f-surface s-strong" x="96" y="56" width="96" height="36"/>
+                    <rect class="f-surface s-strong" x="354" y="56" width="96" height="36"/>
+                    <rect class="f-surface s-strong" x="564" y="56" width="96" height="36"/>
+                    <rect class="f-surface s-strong" x="736" y="56" width="96" height="36"/>
+                    <rect class="f-acc" x="112" y="56" width="12" height="36"/>
+                    <rect class="f-acc" x="370" y="56" width="12" height="36"/>
+                    <rect class="f-acc" x="580" y="56" width="12" height="36"/>
+                    <rect class="f-acc" x="752" y="56" width="12" height="36"/>
+                    <text class="t-small mid" x="172" y="78">crate 1</text>
+                    <text class="t-small mid" x="430" y="78">crate 2</text>
+                    <text class="t-small mid" x="630" y="78">crate 3</text>
+                    <text class="t-small mid" x="812" y="78">crate 4</text>
+                    <rect class="s-acc w15" x="88" y="52" width="64" height="44"/>
+                    <rect class="s-acc w15" x="344" y="52" width="64" height="44"/>
+                    <rect class="s-acc w15" x="536" y="52" width="64" height="44"/>
+                    <rect class="s-acc w15" x="728" y="52" width="64" height="44"/>
+                    <path class="s-acc" d="M120,48 C180,24 310,24 372,46" marker-end="url(#ca-arr)"/>
+                    <path class="s-acc" d="M380,48 C440,26 520,26 582,46" marker-end="url(#ca-arr)"/>
+                    <path class="s-acc" d="M590,48 C640,28 700,28 754,46" marker-end="url(#ca-arr)"/>
+                    <path class="s-muted" d="M24,100 V106 H88 V100"/>
+                    <text class="t-small t-muted" x="96" y="108">one cache line = 64 bytes</text>
+                    <text class="t-small t-muted" x="300" y="108">blue = a crate's 12-byte position · outlined = lines the CPU had to load</text>
+                    <text class="t-small" x="24" y="134">Reading 4 positions loads 4 whole lines from 4 places: 256 bytes fetched for 48 useful ones.</text>
+
+                    <line class="s-line" x1="24" y1="156" x2="856" y2="156"/>
+
+                    <text class="t-caps" x="24" y="182">ECS CHUNK · EACH COMPONENT IN ITS OWN ARRAY</text>
+                    <path class="s-muted" d="M24,193 V199 M88,193 V199 M152,193 V199 M216,193 V199 M280,193 V199 M344,193 V199 M408,193 V199 M472,193 V199 M536,193 V199 M600,193 V199 M664,193 V199 M728,193 V199 M792,193 V199 M856,193 V199"/>
+                    <rect class="f-sunken s-line" x="24" y="200" width="832" height="36"/>
+                    <rect class="f-acc-soft" x="24" y="200" width="264" height="36"/>
+                    <rect class="f-geo-soft" x="288" y="200" width="176" height="36"/>
+                    <rect class="f-surface" x="464" y="200" width="176" height="36"/>
+                    <rect class="f-solid" x="640" y="200" width="176" height="36"/>
+                    <path class="s-acc" d="M36,200 V236 M48,200 V236 M60,200 V236 M72,200 V236 M84,200 V236 M96,200 V236 M108,200 V236 M120,200 V236 M132,200 V236 M144,200 V236 M156,200 V236 M168,200 V236 M180,200 V236 M192,200 V236 M204,200 V236 M216,200 V236 M228,200 V236 M240,200 V236 M252,200 V236 M264,200 V236 M276,200 V236"/>
+                    <path class="s-surface" d="M296,200 V236 M304,200 V236 M312,200 V236 M320,200 V236 M328,200 V236 M336,200 V236 M344,200 V236 M352,200 V236 M360,200 V236 M368,200 V236 M376,200 V236 M384,200 V236 M392,200 V236 M400,200 V236 M408,200 V236 M416,200 V236 M424,200 V236 M432,200 V236 M440,200 V236 M448,200 V236 M456,200 V236"/>
+                    <path class="s-line" d="M472,200 V236 M480,200 V236 M488,200 V236 M496,200 V236 M504,200 V236 M512,200 V236 M520,200 V236 M528,200 V236 M536,200 V236 M544,200 V236 M552,200 V236 M560,200 V236 M568,200 V236 M576,200 V236 M584,200 V236 M592,200 V236 M600,200 V236 M608,200 V236 M616,200 V236 M624,200 V236 M632,200 V236"/>
+                    <path class="s-surface" d="M648,200 V236 M656,200 V236 M664,200 V236 M672,200 V236 M680,200 V236 M688,200 V236 M696,200 V236 M704,200 V236 M712,200 V236 M720,200 V236 M728,200 V236 M736,200 V236 M744,200 V236 M752,200 V236 M760,200 V236 M768,200 V236 M776,200 V236 M784,200 V236 M792,200 V236 M800,200 V236 M808,200 V236"/>
+                    <rect class="s-strong" x="24" y="200" width="832" height="36"/>
+                    <text class="t-small t-acc t-strong mid" x="156" y="252">positions, 12 B each</text>
+                    <text class="t-small mid" x="376" y="252">mesh refs, 8 B</text>
+                    <text class="t-small mid" x="552" y="252">colliders</text>
+                    <text class="t-small mid" x="728" y="252">entity IDs</text>
+                    <line class="s-acc w2" x1="24" y1="270" x2="284" y2="270" marker-end="url(#ca-arr)"/>
+                    <text class="t-small t-acc" x="298" y="274">the system walks straight along: 22 positions (264 bytes) from 5 lines in a row</text>
+                    <text class="t-small" x="24" y="302">The same 4 positions as above: 48 bytes, all in the first line.</text>
+                    <text class="t-small t-muted" x="24" y="318">Reading in order lets the CPU see the next line coming and fetch it early.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Why ECS is cache-friendly.</b> Drawn at one pixel per byte. Scattered objects make the CPU load a whole 64-byte line for every 12-byte position, from a new place each time. Packed arrays put the positions side by side, so almost every byte fetched is used and the reads arrive in an order the CPU can predict.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The top strip is the worst case. Real CPUs keep several cache misses in flight at once, and engines already pack some object data: Unity, for example, has optimised the memory layout of its transforms. Measure with a profiler before redesigning anything for the cache.</p>
+              </aside>
+              <p>ECS has costs too. The data is harder to see and edit than an object with a list of components, debugging means reading tables rather than clicking on a thing, and adding or removing a component moves an entity to a different archetype, which Unity's documentation warns is expensive when done often.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="both"><span class="step-num">7</span> How the engines combine both</h3>
+              <p>No major engine asks designers to edit tables. Each keeps objects for editing and puts bulk data underneath.</p>
+              <p>Unity's <dfn class="term" data-term="dots">DOTS</dfn>, its data-oriented toolset, is built around the Entities package. Designers place ordinary GameObjects in a subscene, and a step called baking converts them to entities, in the editor only, never during play. Unity's ECS packages now ship as core packages of the editor, and Unity is aligning the IDs of GameObjects and entities so the two can work together more closely.</p>
+              <p>Unreal's <dfn class="term" data-term="mass-entity">Mass Entity</dfn> framework is an ECS for large numbers of similar things. Its components are called fragments and its systems processors. Epic's City Sample uses it for the crowds and the traffic, with spawner Actors placed in the level creating the entities. Hand-placed gameplay objects stay Actors.</p>
+              <p>Godot has no ECS. Its developers explained in 2021 that nodes are the interface designers work with, while the heavy data for rendering, physics and audio lives in servers that process it in bulk.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="Three rows. Unity: authoring GameObjects in a subscene are baked in the editor into entities stored in 16 KiB chunks. Unreal: Actors in the level, including Mass spawners, spawn Mass entities whose fragments are processed by processors, as in City Sample's crowds and traffic. Godot: nodes in the scene tree pass their data to servers that hold rendering, physics and audio data in bulk.">
+                    <defs>
+                      <marker id="hy-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="120" y="26">WHAT DESIGNERS EDIT</text>
+                    <text class="t-caps" x="390" y="26">THE BRIDGE</text>
+                    <text class="t-caps" x="640" y="26">WHAT RUNS IN BULK</text>
+
+                    <text class="t-head" x="20" y="74">Unity</text>
+                    <rect class="f-surface s-strong" x="120" y="40" width="220" height="56" rx="6"/>
+                    <text class="t-strong" x="132" y="62">Authoring GameObjects</text>
+                    <text class="t-small t-muted" x="132" y="80">in a subscene, edited as usual</text>
+                    <line class="s-muted" x1="342" y1="68" x2="386" y2="68" marker-end="url(#hy-arr)"/>
+                    <rect class="f-sunken s-strong" x="390" y="40" width="200" height="56" rx="6"/>
+                    <text class="t-strong" x="402" y="62">Baking</text>
+                    <text class="t-small t-muted" x="402" y="80">in the editor, never in game</text>
+                    <line class="s-muted" x1="592" y1="68" x2="636" y2="68" marker-end="url(#hy-arr)"/>
+                    <rect class="f-acc-soft s-acc" x="640" y="40" width="240" height="56" rx="6"/>
+                    <text class="t-strong" x="652" y="62">Entities in 16 KiB chunks</text>
+                    <text class="t-small t-muted" x="652" y="80">systems run over them each frame</text>
+
+                    <text class="t-head" x="20" y="146">Unreal</text>
+                    <rect class="f-surface s-strong" x="120" y="112" width="220" height="56" rx="6"/>
+                    <text class="t-strong" x="132" y="134">Actors in the level</text>
+                    <text class="t-small t-muted" x="132" y="152">including Mass spawners</text>
+                    <line class="s-muted" x1="342" y1="140" x2="386" y2="140" marker-end="url(#hy-arr)"/>
+                    <rect class="f-sunken s-strong" x="390" y="112" width="200" height="56" rx="6"/>
+                    <text class="t-strong" x="402" y="134">Spawning</text>
+                    <text class="t-small t-muted" x="402" y="152">spawners create entities</text>
+                    <line class="s-muted" x1="592" y1="140" x2="636" y2="140" marker-end="url(#hy-arr)"/>
+                    <rect class="f-acc-soft s-acc" x="640" y="112" width="240" height="56" rx="6"/>
+                    <text class="t-strong" x="652" y="134">Mass Entity</text>
+                    <text class="t-small t-muted" x="652" y="152">fragments in chunks, run by processors</text>
+
+                    <text class="t-head" x="20" y="218">Godot</text>
+                    <rect class="f-surface s-strong" x="120" y="184" width="220" height="56" rx="6"/>
+                    <text class="t-strong" x="132" y="206">Nodes in the scene tree</text>
+                    <text class="t-small t-muted" x="132" y="224">how every Godot game is built</text>
+                    <line class="s-muted" x1="342" y1="212" x2="386" y2="212" marker-end="url(#hy-arr)"/>
+                    <rect class="f-sunken s-strong" x="390" y="184" width="200" height="56" rx="6"/>
+                    <text class="t-strong" x="402" y="206">Node calls</text>
+                    <text class="t-small t-muted" x="402" y="224">nodes pass data to servers</text>
+                    <line class="s-muted" x1="592" y1="212" x2="636" y2="212" marker-end="url(#hy-arr)"/>
+                    <rect class="f-acc-soft s-acc" x="640" y="184" width="240" height="56" rx="6"/>
+                    <text class="t-strong" x="652" y="206">Servers</text>
+                    <text class="t-small t-muted" x="652" y="224">rendering, physics and audio in bulk</text>
+                  </svg>
+                </div>
+                <figcaption><b>Objects for editing, bulk data underneath.</b> Unity bakes GameObjects into entities, Unreal's Mass spawners fill a data-oriented world for crowds and traffic, and Godot's nodes hand their data to servers. The left column is what your team works in every day; the right column is where the frame time is won.</figcaption>
+              </figure>
+              <aside class="note" data-kind="warning">
+                <p class="note-label">Moving target</p>
+                <p>This area is changing. Unity is bringing GameObjects and entities closer in each Unity 6 release. Epic's Unreal Editor for Fortnite uses a newer entity-and-component model called Scene Graph, still in beta, and Epic has said Unreal Engine 6 will eventually move gameplay to a framework built on it, keeping Actors and Blueprints in early versions. Check the current state before committing a project to either.</p>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Take a system that moves 10,000 crates each frame. Each crate's position is three 4-byte numbers, 12 bytes. The work per crate is tiny; fetching the data is what costs.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">64 B</span><span class="what">one cache line, the smallest amount the CPU fetches from memory</span></div>
+              <div class="stat"><span class="value">0.5 ns</span><span class="what">reading a value already in the fastest cache</span></div>
+              <div class="stat"><span class="value">100 ns</span><span class="what">a trip to main memory, about 200 times longer</span></div>
+              <div class="stat"><span class="value">6%</span><span class="what">of a 60 fps frame (16.7 ms) spent if 10,000 reads each miss in turn</span></div>
+            </div>
+            <p class="stamp">Latency figures from the widely quoted list first compiled by Peter Norvig and presented by Jeff Dean, around 2012. Exact numbers vary by CPU; the gap between cache and main memory is what matters.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">10,000 positions</th><th scope="col" class="num">Useful bytes</th><th scope="col" class="num">Bytes loaded</th><th scope="col" class="num">Cache lines</th><th scope="col" class="num">If every line missed</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Scattered objects, one line each</th><td class="num">120,000</td><td class="num">640,000</td><td class="num">10,000</td><td class="num">1.0 ms</td></tr>
+                  <tr><th scope="row">Packed array, in order</th><td class="num">120,000</td><td class="num">120,000</td><td class="num">1,875</td><td class="num">0.19 ms</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>The packed array moves 5.3 times less memory, and the last column overstates its cost: read in order, the CPU fetches lines before the code asks for them, so most of those 0.19 ms disappear. The scattered case cannot be predicted that way. Neither row includes the cost of calling a separate update function on each of 10,000 objects, which per-object scripts add on top.</p>
+            <h3>The hierarchy has a cost as well</h3>
+            <p>Every child's world transform depends on its parents, so moving a parent means recomputing everything under it. Unity's own performance team described a game that moved ability objects out from under its moving characters and spawned characters at the root of the scene, and gained about 10 frames per second on its target hardware.</p>
+            <ul class="grows">
+              <li><strong>Object count</strong><span>Each object that updates every frame adds a call and scattered reads. Thousands add up to milliseconds.</span></li>
+              <li><strong>Moving parents with many children</strong><span>Every frame the parent moves, every child's world transform is recomputed.</span></li>
+              <li><strong>Spawning and destroying during play</strong><span>Creating objects allocates memory and runs setup code; reusing a pool of objects avoids most of it.</span></li>
+              <li><strong>Structural changes in an ECS</strong><span>Adding or removing a component moves the entity's data to another archetype's chunk.</span></li>
+              <li><strong>Many archetypes</strong><span>Each archetype gets its own chunks, so thousands of nearly empty ones waste memory and break up the arrays.</span></li>
+              <li><strong>People-time</strong><span>ECS code needs programmers who think in data layouts and tools that show tables. Budget for that before choosing it.</span></li>
+            </ul>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Most scene bugs are one of a few shapes. The first four you can usually see in the editor; the last two show up in a profiler.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A post has moved to the right, but its lantern floats in mid-air above the post's old position.">
+                    <line class="s-strong" x1="10" y1="112" x2="230" y2="112"/>
+                    <rect class="s-muted dash" x="60" y="40" width="10" height="72"/>
+                    <rect class="f-solid s-strong" x="170" y="40" width="10" height="72"/>
+                    <line class="s-strong w2" x1="180" y1="46" x2="194" y2="46"/>
+                    <rect class="f-pix-soft s-pix w15" x="72" y="50" width="14" height="18" rx="3"/>
+                    <path class="s-pix dash" d="M100,58 H160"/>
+                    <text class="t-small t-pix" x="96" y="84">left behind</text>
+                  </svg>
+                </div>
+                <h4>A part stays behind</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The lantern sits at the root of the scene, or code detached it, so it is not a child of the post and does not follow it.</dd></div>
+                  <div><dt>Ask for</dt><dd>The parent of every moving part in the hierarchy, and a check that the code spawning it also attaches it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A hand socket on the left and, far to the right, the lantern that should be in it, with a dashed arrow showing the gap.">
+                    <circle class="f-surface s-strong" cx="50" cy="66" r="18"/>
+                    <circle class="s-acc dash" cx="50" cy="66" r="7"/>
+                    <rect class="f-pix-soft s-pix w15" x="182" y="30" width="18" height="24" rx="3"/>
+                    <path class="s-pix dash" d="M60,60 C110,30 150,30 178,40"/>
+                    <text class="t-small t-pix" x="104" y="92">lands in the wrong place</text>
+                  </svg>
+                </div>
+                <h4>Jumps when attached</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Code set a world position where it meant a local one, or attached with a rule that kept the old world position. Unreal's attachment rules and Unity's <code>worldPositionStays</code> flag decide this.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which space each transform write uses and which attachment rule is used, plus a test that attaches at a known offset.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wide, flattened parent box with a child that should be a turned square but appears as a sheared diamond.">
+                    <rect class="f-surface s-strong" x="20" y="70" width="200" height="40"/>
+                    <text class="t-small t-muted" x="28" y="104">parent scale (2, 1, 1)</text>
+                    <polygon class="f-pix-soft s-pix w15" points="112,20 152,40 112,60 72,40"/>
+                    <rect class="s-muted dash" x="98" y="26" width="28" height="28" transform="rotate(45 112 40)"/>
+                    <text class="t-small t-pix" x="160" y="44">sheared</text>
+                  </svg>
+                </div>
+                <h4>A child looks sheared</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A parent with different scale on each axis and a rotated child. Combined, they shear the child into a shape no position, rotation and scale can describe, and colliders stop matching.</dd></div>
+                  <div><dt>Ask for</dt><dd>Uniform scale on parents. Scale the mesh itself or a child at the end of the chain instead.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Three crates; two show the new dark material, the third still has the old light one and is outlined.">
+                    <rect class="f-solid s-strong" x="24" y="44" width="52" height="52"/>
+                    <rect class="f-solid s-strong" x="94" y="44" width="52" height="52"/>
+                    <rect class="f-surface s-pix w2" x="164" y="44" width="52" height="52"/>
+                    <path class="s-strong" d="M24,44 L76,96 M94,44 L146,96"/>
+                    <path class="s-pix" d="M164,44 L216,96"/>
+                    <text class="t-small t-pix mid" x="190" y="114">old material</text>
+                  </svg>
+                </div>
+                <h4>A prefab change does not arrive</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>That instance has an override on the property, and an override always wins over the prefab.</dd></div>
+                  <div><dt>Ask for</dt><dd>The instance's list of overrides (Unity's Overrides dropdown, Godot's revert icons) and a team rule on which properties level designers may override.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A bar chart where frame time rises steeply as the number of objects grows, with the tallest bars highlighted.">
+                    <line class="s-strong" x1="20" y1="110" x2="226" y2="110"/>
+                    <rect class="f-solid" x="30" y="100" width="26" height="10"/>
+                    <rect class="f-solid" x="68" y="92" width="26" height="18"/>
+                    <rect class="f-solid" x="106" y="78" width="26" height="32"/>
+                    <rect class="f-pix-soft s-pix" x="144" y="52" width="26" height="58"/>
+                    <rect class="f-pix-soft s-pix" x="182" y="16" width="26" height="94"/>
+                    <text class="t-small t-muted" x="24" y="24">ms per frame</text>
+                    <text class="t-small t-muted end" x="226" y="124">objects →</text>
+                  </svg>
+                </div>
+                <h4>Frame time climbs with object count</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Every object runs its own update each frame and reads scattered memory. Hundreds are fine; tens of thousands are not.</dd></div>
+                  <div><dt>Ask for</dt><dd>A profile of per-object update cost, then fewer updates (only nearby or visible things), pooling, or moving the hot set to Entities or Mass.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A grid of memory chunks, each with only a thin sliver used and the rest empty.">
+                    <rect class="f-sunken s-strong" x="20" y="20" width="44" height="40"/><rect class="f-pix-soft" x="20.5" y="20.5" width="7" height="39"/>
+                    <rect class="f-sunken s-strong" x="74" y="20" width="44" height="40"/><rect class="f-pix-soft" x="74.5" y="20.5" width="5" height="39"/>
+                    <rect class="f-sunken s-strong" x="128" y="20" width="44" height="40"/><rect class="f-pix-soft" x="128.5" y="20.5" width="6" height="39"/>
+                    <rect class="f-sunken s-strong" x="182" y="20" width="44" height="40"/><rect class="f-pix-soft" x="182.5" y="20.5" width="4" height="39"/>
+                    <rect class="f-sunken s-strong" x="20" y="70" width="44" height="40"/><rect class="f-pix-soft" x="20.5" y="70.5" width="5" height="39"/>
+                    <rect class="f-sunken s-strong" x="74" y="70" width="44" height="40"/><rect class="f-pix-soft" x="74.5" y="70.5" width="8" height="39"/>
+                    <rect class="f-sunken s-strong" x="128" y="70" width="44" height="40"/><rect class="f-pix-soft" x="128.5" y="70.5" width="4" height="39"/>
+                    <rect class="f-sunken s-strong" x="182" y="70" width="44" height="40"/><rect class="f-pix-soft" x="182.5" y="70.5" width="6" height="39"/>
+                    <text class="t-small t-pix" x="20" y="124">chunks almost empty</text>
+                  </svg>
+                </div>
+                <h4>ECS memory balloons</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too many archetypes, often from giving entities many different shared component values, so each chunk holds only a few entities. Unity's documentation shows 100,000 one-entity archetypes taking more than 1.5 GB.</dd></div>
+                  <div><dt>Ask for</dt><dd>The archetype count and how full the chunks are, and a review of how shared components are used.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To confirm the last two, record a CPU profile: Unreal Insights, the Unity Profiler or Godot's profiler. Look for one function called thousands of times per frame, or for time spent in transform updates.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>The same ideas under each engine's own names. <a class="xref" data-ch="2.4">2.4 The engine landscape</a> extends this to materials, lighting and tools.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Scene</th>
+                    <td>A <strong>Level</strong> (also called a map), saved as <code>.umap</code>. <strong>World Partition</strong> splits large worlds into grid cells streamed by distance.</td>
+                    <td>A <strong>Scene</strong>, saved as <code>.unity</code>.</td>
+                    <td>A <strong>scene</strong>, saved as <code>.tscn</code>. The running game is a tree of scenes.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Object</th>
+                    <td><strong>Actor</strong>: anything placed in a level. It has no transform of its own; its root component supplies it.</td>
+                    <td><strong>GameObject</strong>: a container for components that always has a Transform.</td>
+                    <td><strong>Node</strong>: <code>Node3D</code> is the base of every 3D node and holds the transform.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Components</th>
+                    <td>Actor Components (no transform), Scene Components (transform, attachable), Primitive Components (drawn or collided).</td>
+                    <td>Components on the GameObject. Scripts are components that derive from <code>MonoBehaviour</code>.</td>
+                    <td>No component type. Child nodes do the job, and each node can carry one script.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Hierarchy panel</th>
+                    <td><strong>Outliner</strong>. Drag one Actor onto another to attach it.</td>
+                    <td><strong>Hierarchy</strong> window.</td>
+                    <td><strong>Scene</strong> dock.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Local and world</th>
+                    <td><code>SetActorLocation</code> places an Actor in the world; <code>SetRelativeLocation</code> moves a component relative to its parent.</td>
+                    <td><code>transform.position</code> is world, <code>transform.localPosition</code> is relative to the parent. <code>SetParent</code> changes the parent.</td>
+                    <td><code>position</code> is relative to the parent, <code>global_position</code> is world. <code>top_level</code> stops a node inheriting its parent's transform.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Prefab</th>
+                    <td><strong>Blueprint class</strong>, placed as instances whose properties can be changed per instance in the Details panel.</td>
+                    <td><strong>Prefab</strong>, with <strong>Prefab Variants</strong> and nesting. Overrides show a blue line in the Inspector; Apply and Revert under <strong>Overrides</strong>.</td>
+                    <td>Any saved scene, <strong>instanced</strong> into another. Overridden properties show a revert icon.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">ECS option</th>
+                    <td><strong>Mass Entity</strong>: fragments, processors, archetypes and chunks. Used for City Sample's crowds and traffic.</td>
+                    <td><strong>Entities</strong>, part of DOTS. GameObjects in subscenes are baked into entities in the editor; the ECS packages are now core packages.</td>
+                    <td>None built in. Bulk work happens in servers; nodes are the interface to them.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.8, Unity 6.6 (Entities 6.5) and Godot 4.7 in November 2026. Engines rename panels and APIs between versions; if one is missing, search for it in your version's documentation.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about scene structure say how many of each thing exist, what runs on them every frame, and who edits them. Without that, an AI will pick a structure that suits a tutorial rather than your game. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when deciding how to build large numbers of things</span></div>
+              <pre class="prompt-body">Engine: Unity 6.6, URP. Targets: PC and PlayStation 5 at 60 fps.
+Our market square needs 3,000 walking townsfolk. Today each one is a GameObject with an Animator, a NavMeshAgent and our Townsperson script. Level designers place market stalls by hand; townsfolk are spawned at runtime.
+
+1. Profile the current setup and tell us where the CPU time per frame goes.
+2. Compare three options: keep GameObjects but update less often, move townsfolk to Entities, or a hybrid where only nearby townsfolk are GameObjects. For each, estimate CPU time, list what designers lose in the editor, and name the risks.
+3. For the option you recommend, list the components or fragments each townsperson would have.
+4. Tell us how we will measure before and after, on PlayStation 5.</pre>
+              <ul class="prompt-why">
+                <li>Counts, frame rate and platform tell the AI whether ECS is worth its cost.</li>
+                <li>Saying who edits what keeps the answer from removing tools designers rely on.</li>
+                <li>Asking for options and a measurement plan avoids a rewrite on faith.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when objects jump or drift when parented</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8. When the player picks up a lantern we attach it to the hand socket. Since yesterday's merge the lantern appears about 3 m in front of the hand instead of in it. Lanterns placed in the level and then picked up are wrong; lanterns spawned straight into the hand are fine.
+
+Find the cause. Check every place the lantern's transform is written: whether it sets a world or a relative location, and which attachment rule each attach call uses. Show me the line that is wrong, the fix, and an automated test that attaches a lantern at a known offset and checks its world position.</pre>
+              <ul class="prompt-why">
+                <li>The pattern (placed lanterns wrong, spawned ones fine) points at a kept world position.</li>
+                <li>Naming local, world and attachment rules keeps the search on transforms.</li>
+                <li>A test with a known offset stops the bug coming back.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing scene and object code</h3>
+            <ol class="review-list">
+              <li>Which objects are children of which, and why?<span class="why">Deep chains under moving parents cost CPU every frame and cause parts to be left behind when they are wrong.</span></li>
+              <li>Does each transform write mean local or world, and does the code say so?<span class="why">Mixing the two is the commonest cause of objects that jump.</span></li>
+              <li>How many of these will exist at once, and what runs on each one per frame?<span class="why">Per-object cost times object count is the bill.</span></li>
+              <li>Are these created and destroyed during play, or pooled?<span class="why">Spawning in bulk during play causes hitches.</span></li>
+              <li>Does this change edit the prefab, or override one instance?<span class="why">Overrides silently block later prefab edits.</span></li>
+              <li>In ECS code, does anything add or remove components every frame?<span class="why">Each one moves an entity's data to another archetype.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A post stands at world x = 3 m. Its child lantern has local position (0.5, 2). You move the post to x = 10 m. What are the lantern's local and world positions now?</p>
+                <details><summary>Show answer</summary><p>Local is unchanged at (0.5, 2). World is (10.5, 2), because the engine combines the post's new position with the lantern's local one.</p></details>
+              </li>
+              <li>
+                <p class="q">A designer changes the crate prefab's material. Every crate in the level updates except one. What is the likely cause?</p>
+                <details><summary>Show answer</summary><p>That crate has an override on its material. Overrides always win over the prefab, so the edit skips it. Revert the override, or apply it to the prefab if it was intended.</p></details>
+              </li>
+              <li>
+                <p class="q">Why does an ECS system that moves 10,000 entities usually beat 10,000 objects that each move themselves?</p>
+                <details><summary>Show answer</summary><p>The positions sit side by side in one array, so the CPU loads only the bytes it needs, in an order it can fetch ahead, and runs one loop instead of 10,000 separate update calls. Scattered objects load a whole cache line from a new place for each one.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#scene">scene</a></li>
+              <li><a class="chip" href="glossary.html#transform">transform</a></li>
+              <li><a class="chip" href="glossary.html#component">component</a></li>
+              <li><a class="chip" href="glossary.html#scene-graph">scene graph</a></li>
+              <li><a class="chip" href="glossary.html#transform-hierarchy">transform hierarchy</a></li>
+              <li><a class="chip" href="glossary.html#local-transform">local transform</a></li>
+              <li><a class="chip" href="glossary.html#world-transform">world transform</a></li>
+              <li><a class="chip" href="glossary.html#actor">Actor</a></li>
+              <li><a class="chip" href="glossary.html#gameobject">GameObject</a></li>
+              <li><a class="chip" href="glossary.html#godot-node">node</a></li>
+              <li><a class="chip" href="glossary.html#prefab">prefab</a></li>
+              <li><a class="chip" href="glossary.html#prefab-instance">prefab instance</a></li>
+              <li><a class="chip" href="glossary.html#instance-override">override</a></li>
+              <li><a class="chip" href="glossary.html#prefab-variant">prefab variant</a></li>
+              <li><a class="chip" href="glossary.html#blueprint">Blueprint</a></li>
+              <li><a class="chip" href="glossary.html#cpu-cache">CPU cache</a></li>
+              <li><a class="chip" href="glossary.html#ecs">ECS</a></li>
+              <li><a class="chip" href="glossary.html#entity">entity</a></li>
+              <li><a class="chip" href="glossary.html#ecs-system">system</a></li>
+              <li><a class="chip" href="glossary.html#archetype">archetype</a></li>
+              <li><a class="chip" href="glossary.html#dots">DOTS</a></li>
+              <li><a class="chip" href="glossary.html#mass-entity">Mass Entity</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="2.4"></a> compares Unreal Engine, Unity and Godot side by side: their names for everything, their renderers, and what they cost.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/actors-in-unreal-engine?application_version=5.8">Actors</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/components-in-unreal-engine?application_version=5.8">Components</a>, Unreal Engine 5.8 documentation, Epic Games. What an Actor is, the root component, and the three kinds of component.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/outliner-in-unreal-engine?application_version=5.8">Outliner</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/world-partition-in-unreal-engine?application_version=5.8">World Partition</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/blueprint-class-assets-in-unreal-engine?application_version=5.8">Blueprint Class</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/blueprints-visual-scripting-in-unreal-engine?application_version=5.8">Blueprint Visual Scripting</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/overview-of-mass-entity-in-unreal-engine?application_version=5.8">Overview of Mass Entity</a>, Unreal Engine 5.8 documentation, and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/city-sample-project-unreal-engine-demonstration">City Sample</a>, which uses it for crowds and traffic.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/uefn/scene-graph-in-unreal-editor-for-fortnite">Scene Graph in Unreal Editor for Fortnite</a>, Epic Games, and <a href="https://gamesbeat.com/unreal-engine-6-will-combine-ue5-and-uefn-into-a-unified-engine-state-of-unreal/">Unreal Engine 6 will combine UE5 and UEFN</a>, GamesBeat, 17 June 2026.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/working-with-gameobjects/gameobject-fundamentals/class-game-object">GameObject</a>, <a href="https://docs.unity.com/en-us/engine/current/script-reference/unityengine/transform">Transform</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/working-with-gameobjects/prefabs/override/prefab-instance-overrides">Override prefab instances</a>, Unity 6.6 documentation.</li>
+              <li><a href="https://docs.unity3d.com/Packages/com.unity.entities@6.5/manual/concepts-archetypes.html">Archetypes</a>, <a href="https://docs.unity3d.com/Packages/com.unity.entities@6.5/manual/performance-chunk-allocations.html">Manage chunk allocations</a> and <a href="https://docs.unity3d.com/Packages/com.unity.entities@6.5/manual/baking-overview.html">Baking overview</a>, Unity Entities 6.5 documentation.</li>
+              <li><a href="https://unity.com/blog/engine-platform/on-dots-entity-component-system">On DOTS: Entity Component System</a>, Lucas Meijer, Unity, 2019. Why GameObjects scatter memory and how chunks fix it.</li>
+              <li><a href="https://discussions.unity.com/t/ecs-development-status-for-unity-6-6/1724480">ECS Development Status for Unity 6.6</a>, Unity, June 2026.</li>
+              <li><a href="https://unity.com/blog/engine-platform/best-practices-from-the-spotlight-team-optimizing-the-hierarchy">Spotlight Team best practices: optimizing the hierarchy</a>, William Armstrong, Unity, 2017.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/getting_started/step_by_step/nodes_and_scenes.html">Nodes and scenes</a>, <a href="https://docs.godotengine.org/en/stable/getting_started/step_by_step/instancing.html">Creating instances</a> and <a href="https://docs.godotengine.org/en/stable/classes/class_node3d.html">Node3D</a>, Godot 4.7 documentation.</li>
+              <li><a href="https://godotengine.org/article/why-isnt-godot-ecs-based-game-engine/">Why isn't Godot an ECS-based game engine?</a>, Juan Linietsky, 2021.</li>
+              <li><a href="https://gist.github.com/jboner/2841832">Latency numbers every programmer should know</a>, originally by Peter Norvig, presented by Jeff Dean.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>

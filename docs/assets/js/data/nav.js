@@ -27,8 +27,8 @@
     {
       n: 0, title: "Start here", blurb: "The whole route in one sitting, before any detail.",
       chapters: [
-        { num: "0.1", slug: "whole-journey", title: "The whole journey on one page", terms: "asset, draw call, frame, pass", core: true, status: "planned" },
-        { num: "0.2", slug: "what-a-frame-is", title: "What a frame is", terms: "fps, frame time, 16.6 ms, game loop, vsync", core: true, status: "planned" }
+        { num: "0.1", slug: "whole-journey", title: "The whole journey on one page", terms: "asset, draw call, frame, pass", core: true, status: "published" },
+        { num: "0.2", slug: "what-a-frame-is", title: "What a frame is", terms: "fps, frame time, 16.6 ms, game loop, vsync", core: true, status: "published" }
       ]
     },
     {
@@ -45,8 +45,8 @@
       chapters: [
         { num: "2.1", slug: "engine-anatomy", title: "Anatomy of an engine", terms: "renderer, physics, animation, audio, scripting, asset system, editor, RHI", core: true, status: "published" },
         { num: "2.2", slug: "game-loop-threads", title: "The game loop and threads", terms: "update, fixed timestep, game thread, render thread, GPU queue, frame latency", core: true, status: "published" },
-        { num: "2.3", slug: "scenes-objects", title: "Scenes, objects and components", terms: "scene graph, Actor, GameObject, Node, component, ECS, prefab, transform hierarchy", core: false, status: "planned" },
-        { num: "2.4", slug: "engine-landscape", title: "The engine landscape", terms: "Unreal, Unity URP and HDRP, Godot, custom engines; Nanite, Lumen, VSM by name", core: false, status: "planned" }
+        { num: "2.3", slug: "scenes-objects", title: "Scenes, objects and components", terms: "scene graph, Actor, GameObject, Node, component, ECS, prefab, transform hierarchy", core: false, status: "published" },
+        { num: "2.4", slug: "engine-landscape", title: "The engine landscape", terms: "Unreal, Unity URP and HDRP, Godot, custom engines; Nanite, Lumen, VSM by name", core: false, status: "published" }
       ]
     },
     {
