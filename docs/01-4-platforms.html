@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>1.4 Platforms and what they change · Graphics Handbook</title>
+  <meta name="description" content="What PC, PlayStation 5, Xbox Series X|S, Switch 2, phones, standalone VR and the web change about a game: screens, frame rates, memory, GPUs, power and heat, certification, and scalability settings.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="1.4">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 1 · How games get made</p>
+            <h1><span class="ch-num">1.4</span> Platforms and what they change</h1>
+            <p class="lead">One game may have to run on a desktop PC, a console under a TV, a phone in a pocket and a headset strapped to someone's face. Each platform fixes a different screen, frame rate, memory size and power budget, and each sets rules the game must pass before it can be sold there.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="1.3">1.3 The content pipeline</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a>, <a class="xref" data-ch="10.2">10.2 A mobile frame</a>, <a class="xref" data-ch="11.1">11.1 Frame budgets</a>, <a class="xref" data-ch="11.5">11.5 Profilers and the settings menu</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 392" role="img" aria-label="A matrix of seven platforms against screen, frame rate, memory, GPU and power. PC varies: half of Steam players use 1080p, the most common memory is 16 GB of RAM plus 8 GB of VRAM, and a graphics card alone draws 130 to 575 watts. PlayStation 5 is fixed: up to 4K output, 16 GB of shared GDDR6, a 10.3 teraflop AMD GPU, about 197 to 219 watts in games. Xbox Series X and S are fixed: 4K and 1440p targets, 16 and 10 GB, 12 and 4 teraflops, 122 and 61 watts on average. Switch 2 is fixed: 1080p handheld and up to 4K on a TV, 12 GB with 9 GB for games, a custom NVIDIA processor, on battery. Phones vary, share memory with the operating system, use tile-based GPUs and are limited by heat. Quest 3 is fixed: 2064 by 2208 pixels per eye, at least 72 hertz, 8 GB, a tile-based Snapdragon XR2 Gen 2. The web varies with the device and browser.">
+<rect class="f-acc-soft" x="542.5" y="248.5" width="114" height="55"/>
+<rect class="f-acc-soft" x="657.5" y="248.5" width="114" height="55"/>
+<line class="s-strong" x1="12" y1="80" x2="887" y2="80"/>
+<line class="s-line" x1="12" y1="136" x2="887" y2="136"/>
+<line class="s-line" x1="12" y1="192" x2="887" y2="192"/>
+<line class="s-line" x1="12" y1="248" x2="887" y2="248"/>
+<line class="s-line" x1="12" y1="304" x2="887" y2="304"/>
+<line class="s-line" x1="12" y1="360" x2="887" y2="360"/>
+<line class="s-line" x1="197" y1="14" x2="197" y2="360"/>
+<line class="s-line" x1="312" y1="14" x2="312" y2="360"/>
+<line class="s-line" x1="427" y1="14" x2="427" y2="360"/>
+<line class="s-line" x1="542" y1="14" x2="542" y2="360"/>
+<line class="s-line" x1="657" y1="14" x2="657" y2="360"/>
+<line class="s-line" x1="772" y1="14" x2="772" y2="360"/>
+<text class="t-caps" x="12" y="100">SCREEN</text>
+<text class="t-caps" x="12" y="156">FRAME RATE</text>
+<text class="t-caps" x="12" y="212">MEMORY</text>
+<text class="t-caps" x="12" y="268">GPU</text>
+<text class="t-caps" x="12" y="324">POWER</text>
+<text class="t-head" x="90" y="32">PC</text>
+<text class="t-small t-muted" x="90" y="48">Windows desktop</text>
+<rect class="f-surface s-acc" x="90" y="56" width="52" height="15" rx="7.5"/>
+<text class="t-acc t-small t-strong mid" x="116" y="67">VARIES</text>
+<text class="t-small" x="90" y="100">1080p: 50% of</text>
+<text class="t-small" x="90" y="113.5">Steam players;</text>
+<text class="t-small" x="90" y="127">1440p 22%, 4K 5%</text>
+<text class="t-small" x="90" y="156">Player's choice,</text>
+<text class="t-small" x="90" y="169.5">up to the</text>
+<text class="t-small" x="90" y="183">monitor's refresh</text>
+<text class="t-small" x="90" y="212">Separate RAM and</text>
+<text class="t-small" x="90" y="225.5">VRAM; most often</text>
+<text class="t-small" x="90" y="239">16 GB + 8 GB</text>
+<text class="t-small" x="90" y="268">Desktop or laptop</text>
+<text class="t-small" x="90" y="281.5">GPU of any vendor</text>
+<text class="t-small" x="90" y="295">and age</text>
+<text class="t-small" x="90" y="324">Graphics card</text>
+<text class="t-small" x="90" y="337.5">alone: 130 to</text>
+<text class="t-small" x="90" y="351">575 W (RTX 50)</text>
+<text class="t-head" x="205" y="32">PlayStation 5</text>
+<text class="t-small t-muted" x="205" y="48">and PS5 Pro</text>
+<rect class="f-acc" x="205" y="56" width="46" height="15" rx="7.5"/>
+<text class="t-on-acc t-small t-strong mid" x="228" y="67">FIXED</text>
+<text class="t-small" x="205" y="100">Up to 4K output;</text>
+<text class="t-small" x="205" y="113.5">120 Hz TVs</text>
+<text class="t-small" x="205" y="127">and VRR</text>
+<text class="t-small" x="205" y="156">The game's choice,</text>
+<text class="t-small" x="205" y="169.5">up to 120 Hz</text>
+<text class="t-small" x="205" y="212">16 GB GDDR6,</text>
+<text class="t-small" x="205" y="225.5">shared, 448 GB/s</text>
+<text class="t-small" x="205" y="268">AMD RDNA 2,</text>
+<text class="t-small" x="205" y="281.5">10.3 TFLOPS; Pro:</text>
+<text class="t-small" x="205" y="295">67% more CUs</text>
+<text class="t-small" x="205" y="324">197 to 219 W</text>
+<text class="t-small" x="205" y="337.5">measured in games,</text>
+<text class="t-small" x="205" y="351">by model (Sony)</text>
+<text class="t-head" x="320" y="32">Xbox Series</text>
+<text class="t-small t-muted" x="320" y="48">X and S models</text>
+<rect class="f-acc" x="320" y="56" width="46" height="15" rx="7.5"/>
+<text class="t-on-acc t-small t-strong mid" x="343" y="67">FIXED</text>
+<text class="t-small" x="320" y="100">X: 4K at 60 fps</text>
+<text class="t-small" x="320" y="113.5">S: 1440p</text>
+<text class="t-small" x="320" y="156">Up to 120 fps</text>
+<text class="t-small" x="320" y="169.5">on both models</text>
+<text class="t-small" x="320" y="212">X: 16 GB, 10 GB</text>
+<text class="t-small" x="320" y="225.5">at 560 GB/s</text>
+<text class="t-small" x="320" y="239">S: 10 GB, 8 fast</text>
+<text class="t-small" x="320" y="268">AMD RDNA 2:</text>
+<text class="t-small" x="320" y="281.5">X 12 TFLOPS,</text>
+<text class="t-small" x="320" y="295">S 4 TFLOPS</text>
+<text class="t-small" x="320" y="324">Average in games:</text>
+<text class="t-small" x="320" y="337.5">X 122 W, S 61 W</text>
+<text class="t-small" x="320" y="351">(Microsoft)</text>
+<text class="t-head" x="435" y="32">Switch 2</text>
+<text class="t-small t-muted" x="435" y="48">Nintendo</text>
+<rect class="f-acc" x="435" y="56" width="46" height="15" rx="7.5"/>
+<text class="t-on-acc t-small t-strong mid" x="458" y="67">FIXED</text>
+<text class="t-small" x="435" y="100">1080p handheld;</text>
+<text class="t-small" x="435" y="113.5">up to 4K on a TV</text>
+<text class="t-small" x="435" y="156">VRR up to 120 Hz</text>
+<text class="t-small" x="435" y="169.5">handheld; 4K at</text>
+<text class="t-small" x="435" y="183">60 fps on a TV</text>
+<text class="t-small" x="435" y="212">12 GB LPDDR5X,</text>
+<text class="t-small" x="435" y="225.5">9 GB for games</text>
+<text class="t-small" x="435" y="268">Custom NVIDIA;</text>
+<text class="t-small" x="435" y="281.5">slower handheld</text>
+<text class="t-small" x="435" y="295">than docked</text>
+<text class="t-small" x="435" y="324">Battery, 5,220 mAh:</text>
+<text class="t-small" x="435" y="337.5">about 2 to 6.5</text>
+<text class="t-small" x="435" y="351">hours a charge</text>
+<text class="t-head" x="550" y="32">Phones</text>
+<text class="t-small t-muted" x="550" y="48">iOS and Android</text>
+<rect class="f-surface s-acc" x="550" y="56" width="52" height="15" rx="7.5"/>
+<text class="t-acc t-small t-strong mid" x="576" y="67">VARIES</text>
+<text class="t-small" x="550" y="100">Varies by device;</text>
+<text class="t-small" x="550" y="113.5">engines can render</text>
+<text class="t-small" x="550" y="127">below native</text>
+<text class="t-small" x="550" y="156">Chosen per</text>
+<text class="t-small" x="550" y="169.5">device tier</text>
+<text class="t-small" x="550" y="212">Shared with the</text>
+<text class="t-small" x="550" y="225.5">OS; engines group</text>
+<text class="t-small" x="550" y="239">devices by GB</text>
+<text class="t-small" x="550" y="268">Tile-based</text>
+<text class="t-small" x="550" y="281.5">mobile GPU</text>
+<text class="t-small" x="550" y="324">Battery and no</text>
+<text class="t-small" x="550" y="337.5">fan; heat caps</text>
+<text class="t-small" x="550" y="351">sustained speed</text>
+<text class="t-head" x="665" y="32">Quest 3</text>
+<text class="t-small t-muted" x="665" y="48">standalone VR</text>
+<rect class="f-acc" x="665" y="56" width="46" height="15" rx="7.5"/>
+<text class="t-on-acc t-small t-strong mid" x="688" y="67">FIXED</text>
+<text class="t-small" x="665" y="100">2064 × 2208</text>
+<text class="t-small" x="665" y="113.5">per eye,</text>
+<text class="t-small" x="665" y="127">two eyes</text>
+<text class="t-small" x="665" y="156">72 Hz or more;</text>
+<text class="t-small" x="665" y="169.5">render 60 fps or</text>
+<text class="t-small" x="665" y="183">more (Meta VRC)</text>
+<text class="t-small" x="665" y="212">8 GB, shared</text>
+<text class="t-small" x="665" y="268">Snapdragon XR2</text>
+<text class="t-small" x="665" y="281.5">Gen 2, tile-based</text>
+<text class="t-small" x="665" y="324">Battery, worn on</text>
+<text class="t-small" x="665" y="337.5">the head; heat</text>
+<text class="t-small" x="665" y="351">lowers clocks</text>
+<text class="t-head" x="780" y="32">Web</text>
+<text class="t-small t-muted" x="780" y="48">any browser</text>
+<rect class="f-surface s-acc" x="780" y="56" width="52" height="15" rx="7.5"/>
+<text class="t-acc t-small t-strong mid" x="806" y="67">VARIES</text>
+<text class="t-small" x="780" y="100">The size of the</text>
+<text class="t-small" x="780" y="113.5">browser canvas</text>
+<text class="t-small" x="780" y="156">Set by the</text>
+<text class="t-small" x="780" y="169.5">browser and</text>
+<text class="t-small" x="780" y="183">the display</text>
+<text class="t-small" x="780" y="212">What the browser</text>
+<text class="t-small" x="780" y="225.5">grants the tab</text>
+<text class="t-small" x="780" y="268">The device's GPU,</text>
+<text class="t-small" x="780" y="281.5">through WebGL 2</text>
+<text class="t-small" x="780" y="295">or WebGPU</text>
+<text class="t-small" x="780" y="324">Whatever the</text>
+<text class="t-small" x="780" y="337.5">device has</text>
+<rect class="f-acc-soft s-strong" x="12" y="372" width="14" height="12"/>
+<text class="t-small t-muted" x="32" y="382">tile-based mobile GPU (see 3.5)</text>
+<text class="t-small t-muted end" x="887" y="382">Steam shares from Valve's October 2026 survey. Sources at the end of the chapter.</text>
+                </svg>
+              </div>
+              <figcaption><b>Seven platforms, seven sets of limits.</b> Consoles and the headset are fixed hardware: every owner of a model has the same machine. PCs, phones and the web vary from player to player, so the game has to adapt. Shaded cells mark tile-based mobile GPUs, which favour different rendering choices from desktop GPUs. The table in section 3 gives each number with its source.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A <dfn class="term" data-term="platform">platform</dfn> is everything a game runs on and sells through: the hardware, its operating system, its store and the rules of the company behind it. PlayStation 5, Xbox Series X|S, Nintendo Switch 2, Windows PCs, iPhones and Android phones, Meta Quest headsets and web browsers are all platforms.</p>
+            <p>Each one changes the game. It sets the screen the art is seen on, how many frames per second the game must deliver, how much memory it can fill, how much power it can burn before the device gets hot or the battery runs down, and which checks the game must pass before release. A studio shipping on four platforms is tuning four versions of one game.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A touring band. At an arena the stage, lights and sound system are specified weeks ahead and are the same at every arena on the tour. At a pub gig they play through whatever is there that night.</p>
+                <p>The songs stay the same. The set list, the volume and the light show change with the venue.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Knowing each venue's limits in advance lets the band design one show that scales up and down, instead of a show that only works in an arena.</p>
+                <p>Games do the same with budgets set per platform, settings that scale, and a separate build for each target.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Platform choices set the art budget, the technical plan and the schedule. The weakest target you commit to usually decides how much memory every level gets. Each console adds a certification step to the release plan, and every PC game needs a minimum specification someone has actually tested. Make these decisions at the start of the project; discovering them at the end is expensive.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Seven ideas explain most of what platforms do to a game. The hardware words used here, such as <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a> and <a class="term" data-term="vram" data-forward href="glossary.html#vram">VRAM</a>, are covered properly in <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a>.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="what-platforms-fix"><span class="step-num">1</span> What each platform fixes</h3>
+              <p>Every platform holder publishes the basics: output resolution, frame rate, memory and the processor. PCs and phones have no single answer, so the useful numbers there describe the spread of hardware players own. Valve's Steam Hardware Survey is the standard public source for PC.</p>
+              <div class="table-wrap">
+                <table class="is-wide">
+                  <thead><tr><th scope="col">Platform</th><th scope="col">Screen and frame rate</th><th scope="col">Memory</th><th scope="col">GPU</th><th scope="col">Power</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">PC (Steam, October 2026)</th><td>1920 × 1080 for 50.2% of players, 2560 × 1440 for 21.8%, 3840 × 2160 for 5.1%</td><td>System RAM: 16 GB for 41.4%, 32 GB for 37.1%. VRAM: 8 GB for 26.9%, 16 GB for 26.4%, 12 GB for 12.9%</td><td>Any vendor and age</td><td>Graphics card alone: 130 W (RTX 5050) to 575 W (RTX 5090), NVIDIA's rated figures</td></tr>
+                    <tr><th scope="row">PlayStation 5</th><td>Supports 4K 120 Hz TVs and HDMI 2.1 VRR</td><td>16 GB GDDR6, 448 GB/s</td><td>AMD RDNA 2, 10.3 TFLOPS; PS5 Pro has 67% more compute units and 28% faster memory</td><td>196.9 to 219.2 W in active PS5 gaming, by model (Sony's measurements)</td></tr>
+                    <tr><th scope="row">Xbox Series X</th><td>4K at 60 fps, up to 120 fps</td><td>16 GB GDDR6: 10 GB at 560 GB/s, 6 GB at 336 GB/s</td><td>AMD RDNA 2, 12 TFLOPS, 52 compute units</td><td>122 W average in games (Microsoft telemetry)</td></tr>
+                    <tr><th scope="row">Xbox Series S</th><td>1440p, up to 120 fps</td><td>10 GB GDDR6: 8 GB at 224 GB/s, 2 GB at 56 GB/s</td><td>AMD RDNA 2, 4 TFLOPS, 20 compute units</td><td>61 W average in games (Microsoft telemetry)</td></tr>
+                    <tr><th scope="row">Nintendo Switch 2</th><td>7.9-inch 1920 × 1080 screen, VRR up to 120 Hz; up to 3840 × 2160 at 60 fps on a TV</td><td>12 GB LPDDR5X, 9 GB of it for games; 102 GB/s docked, 68 GB/s handheld (Digital Foundry)</td><td>Custom processor made by NVIDIA</td><td>5,220 mAh battery, about 2 to 6.5 hours depending on the game</td></tr>
+                    <tr><th scope="row">Meta Quest 3</th><td>2064 × 2208 per eye, up to 120 Hz; store rules require at least 72 Hz</td><td>8 GB</td><td>Snapdragon XR2 Gen 2</td><td>Battery; clocks capped by heat</td></tr>
+                    <tr><th scope="row">Phones, web</th><td colspan="4">No single answer. Engines sort phones into tiers by memory and chip; a web build gets whatever device and browser the player has.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="fixed-variable"><span class="step-num">2</span> Fixed and variable hardware</h3>
+              <p>On <dfn class="term" data-term="fixed-hardware">fixed hardware</dfn> every player owns the same machine. The studio can tune each scene until it hits its frame rate on that machine, and know that every player gets the same result. Studios build and test on a <dfn class="term" data-term="devkit">devkit</dfn>, a development version of the console that the platform holder supplies under a confidential contract.</p>
+              <p>Fixed no longer means single. Xbox Series X and Series S are two targets with 16 GB and 10 GB of memory. PS5 has a Pro model. Switch 2 runs its GPU and memory slower in handheld mode than when docked. Each of these is its own fixed target, tuned and tested separately.</p>
+              <p>On <dfn class="term" data-term="variable-hardware">variable hardware</dfn> players own very different machines. That is why PC games publish a <dfn class="term" data-term="min-spec">minimum specification</dfn>, the least powerful hardware the game promises to run on, and a <dfn class="term" data-term="recommended-spec">recommended specification</dfn> for playing it as intended. Steam store pages show both. Where you set the minimum decides who can buy the game.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="Left: six fixed targets, each one known machine: PS5, PS5 Pro, Xbox Series X, Xbox Series S, Switch 2 docked and Switch 2 handheld. Right: a bar chart of Steam players by GPU memory in October 2026: 4 GB or less 14.9 percent, 6 GB 5.2 percent, 8 GB 26.9 percent, 10 to 11 GB 2.8 percent, 12 GB 12.9 percent, 16 GB 26.4 percent, 20 to 24 GB 7.7 percent, 32 GB or more 1.9 percent. Brackets map example presets onto the spread: below a 6 GB minimum spec, Low and Medium, High, and Epic.">
+<text class="t-caps" x="12" y="22">FIXED · ONE KNOWN MACHINE PER TARGET</text>
+<rect class="f-acc-soft s-acc" x="12" y="40" width="142" height="44" rx="6"/>
+<text class="t-strong" x="22" y="59">PS5</text>
+<text class="t-small t-muted" x="22" y="75">16 GB · 10.3 TFLOPS</text>
+<rect class="f-acc-soft s-acc" x="164" y="40" width="142" height="44" rx="6"/>
+<text class="t-strong" x="174" y="59">PS5 Pro</text>
+<text class="t-small t-muted" x="174" y="75">67% more CUs</text>
+<rect class="f-acc-soft s-acc" x="12" y="94" width="142" height="44" rx="6"/>
+<text class="t-strong" x="22" y="113">Xbox Series X</text>
+<text class="t-small t-muted" x="22" y="129">16 GB · 12 TFLOPS</text>
+<rect class="f-acc-soft s-acc" x="164" y="94" width="142" height="44" rx="6"/>
+<text class="t-strong" x="174" y="113">Xbox Series S</text>
+<text class="t-small t-muted" x="174" y="129">10 GB · 4 TFLOPS</text>
+<rect class="f-acc-soft s-acc" x="12" y="148" width="142" height="44" rx="6"/>
+<text class="t-strong" x="22" y="167">Switch 2 docked</text>
+<text class="t-small t-muted" x="22" y="183">102 GB/s memory</text>
+<rect class="f-acc-soft s-acc" x="164" y="148" width="142" height="44" rx="6"/>
+<text class="t-strong" x="174" y="167">Switch 2 handheld</text>
+<text class="t-small t-muted" x="174" y="183">68 GB/s memory</text>
+<text class="t-small" x="12" y="226">Every owner of one model has the same</text>
+<text class="t-small" x="12" y="241">machine. The studio tunes each target</text>
+<text class="t-small" x="12" y="256">once and tests it on a devkit.</text>
+<line class="s-line" x1="326" y1="14" x2="326" y2="320"/>
+<text class="t-caps" x="346" y="22">VARIABLE · STEAM PLAYERS BY GPU MEMORY, OCTOBER 2026</text>
+<line class="s-strong" x1="346" y1="262" x2="870" y2="262"/>
+<rect class="f-pix-soft s-pix" x="352" y="172.7" width="48" height="89.3"/>
+<text class="t-small t-strong mid" x="376" y="166.7">14.9%</text>
+<text class="t-small t-muted mid" x="376" y="277">4 GB or less</text>
+<rect class="f-acc-soft s-acc" x="418" y="230.8" width="48" height="31.2"/>
+<text class="t-small t-strong mid" x="442" y="224.8">5.2%</text>
+<text class="t-small t-muted mid" x="442" y="277">6 GB</text>
+<rect class="f-acc-soft s-acc" x="484" y="100.5" width="48" height="161.5"/>
+<text class="t-small t-strong mid" x="508" y="94.5">26.9%</text>
+<text class="t-small t-muted mid" x="508" y="277">8 GB</text>
+<rect class="f-acc-soft s-acc" x="550" y="245.3" width="48" height="16.7"/>
+<text class="t-small t-strong mid" x="574" y="239.3">2.8%</text>
+<text class="t-small t-muted mid" x="574" y="277">10–11 GB</text>
+<rect class="f-acc-soft s-acc" x="616" y="184.5" width="48" height="77.5"/>
+<text class="t-small t-strong mid" x="640" y="178.5">12.9%</text>
+<text class="t-small t-muted mid" x="640" y="277">12 GB</text>
+<rect class="f-acc-soft s-acc" x="682" y="103.9" width="48" height="158.1"/>
+<text class="t-small t-strong mid" x="706" y="97.9">26.4%</text>
+<text class="t-small t-muted mid" x="706" y="277">16 GB</text>
+<rect class="f-acc-soft s-acc" x="748" y="216.1" width="48" height="45.9"/>
+<text class="t-small t-strong mid" x="772" y="210.1">7.7%</text>
+<text class="t-small t-muted mid" x="772" y="277">20–24 GB</text>
+<rect class="f-acc-soft s-acc" x="814" y="250.5" width="48" height="11.5"/>
+<text class="t-small t-strong mid" x="838" y="244.5">1.9%</text>
+<text class="t-small t-muted mid" x="838" y="277">32 GB+</text>
+<path class="s-muted" d="M352,288 V293 H400 V288"/><text class="t-small mid" x="376" y="308">below min spec</text>
+<path class="s-muted" d="M418,288 V293 H532 V288"/><text class="t-small mid" x="475" y="308">Low and Medium</text>
+<path class="s-muted" d="M550,288 V293 H730 V288"/><text class="t-small mid" x="640" y="308">High</text>
+<path class="s-muted" d="M748,288 V293 H862 V288"/><text class="t-small mid" x="805" y="308">Epic</text>
+                  </svg>
+                </div>
+                <figcaption><b>Six known machines against a spread.</b> Console targets are few and exact. PC players are spread across every amount of GPU memory; the bars are Steam's October 2026 figures, grouped, with the 1.4% Steam reports as other left out. A minimum spec of 6 GB of VRAM would turn away about 15% of Steam players, and 8 GB about 20%. The preset brackets are an example of how a game might map its settings onto that spread.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="memory"><span class="step-num">3</span> Memory: shared or split</h3>
+              <p>On most PCs the <a class="term" data-term="cpu" data-forward href="glossary.html#cpu">CPU</a> has its system RAM and the graphics card has its own VRAM, and data the GPU needs is copied across. Consoles, Switch 2, phones and headsets use <dfn class="term" data-term="unified-memory">unified memory</dfn>: one pool that the CPU and GPU share. Textures, meshes, game logic and audio all come out of the same budget, and the operating system takes its share first.</p>
+              <p>The details matter. Xbox Series X splits its 16 GB into 10 GB at 560 GB/s and 6 GB at 336 GB/s, so what sits where affects speed. Digital Foundry reports that Switch 2 keeps 3 GB of its 12 GB for the system, leaving 9 GB for the game. A game that fits comfortably on a PS5 may not fit on a Series S at all.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 310" role="img" aria-label="Memory drawn to scale. PlayStation 5: 16 GB shared at 448 GB per second. Xbox Series X: 10 GB at 560 GB per second plus 6 GB at 336. Xbox Series S: 8 GB at 224 plus 2 GB at 56. Switch 2: 9 GB for games plus 3 GB for the system. Quest 3: 8 GB shared. The most common Steam PC: 16 GB of system RAM and a separate 8 GB of VRAM.">
+<text class="t-caps" x="12" y="20">MEMORY DRAWN TO SCALE · 28 PX PER GB</text>
+<text class="t-strong" x="12" y="51">PlayStation 5</text>
+<rect class="f-acc-soft s-acc" x="196" y="34" width="448" height="24"/>
+<text class="t-small" x="204" y="50">16 GB GDDR6, shared by CPU and GPU · 448 GB/s</text>
+<text class="t-strong" x="12" y="91">Xbox Series X</text>
+<rect class="f-acc-soft s-acc" x="196" y="74" width="280" height="24"/>
+<text class="t-small" x="204" y="90">10 GB at 560 GB/s</text>
+<rect class="f-sunken s-strong" x="476" y="74" width="168" height="24"/>
+<text class="t-small" x="484" y="90">6 GB at 336 GB/s</text>
+<text class="t-strong" x="12" y="131">Xbox Series S</text>
+<rect class="f-acc-soft s-acc" x="196" y="114" width="224" height="24"/>
+<text class="t-small" x="204" y="130">8 GB at 224 GB/s</text>
+<rect class="f-sunken s-strong" x="420" y="114" width="56" height="24"/>
+<text class="t-small t-muted" x="484" y="130">2 GB at 56 GB/s</text>
+<text class="t-strong" x="12" y="171">Switch 2</text>
+<rect class="f-acc-soft s-acc" x="196" y="154" width="252" height="24"/>
+<text class="t-small" x="204" y="170">9 GB for games</text>
+<rect class="f-sunken s-strong" x="448" y="154" width="84" height="24"/>
+<text class="t-small" x="456" y="170">system</text>
+<text class="t-strong" x="12" y="211">Quest 3</text>
+<rect class="f-acc-soft s-acc" x="196" y="194" width="224" height="24"/>
+<text class="t-small" x="204" y="210">8 GB, shared</text>
+<text class="t-strong" x="12" y="251">PC, most common</text>
+<rect class="f-surface s-strong" x="196" y="234" width="448" height="24"/>
+<text class="t-small" x="204" y="250">16 GB system RAM, for the CPU</text>
+<rect class="f-acc-soft s-acc" x="654" y="234" width="224" height="24"/>
+<text class="t-small" x="662" y="250">8 GB VRAM</text>
+<line class="s-muted" x1="196" y1="286" x2="644" y2="286"/>
+<line class="s-muted" x1="196" y1="282" x2="196" y2="290"/>
+<text class="t-mono t-small t-muted mid" x="196" y="303">0 GB</text>
+<line class="s-muted" x1="308" y1="282" x2="308" y2="290"/>
+<text class="t-mono t-small t-muted mid" x="308" y="303">4 GB</text>
+<line class="s-muted" x1="420" y1="282" x2="420" y2="290"/>
+<text class="t-mono t-small t-muted mid" x="420" y="303">8 GB</text>
+<line class="s-muted" x1="532" y1="282" x2="532" y2="290"/>
+<text class="t-mono t-small t-muted mid" x="532" y="303">12 GB</text>
+<line class="s-muted" x1="644" y1="282" x2="644" y2="290"/>
+<text class="t-mono t-small t-muted mid" x="644" y="303">16 GB</text>
+                  </svg>
+                </div>
+                <figcaption><b>How much memory each target has, and how it is split.</b> On consoles and the headset, one shared pool serves the CPU and GPU. Grey marks the slower part of each Xbox pool and the part Switch 2 keeps for its system. On PC, the graphics card's VRAM (blue) is a separate, smaller pool from system RAM. Plan level budgets for the smallest pool you ship on.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="power-heat"><span class="step-num">4</span> Power, heat and throttling</h3>
+              <p>Every device has a <dfn class="term" data-term="power-budget">power budget</dfn>: how much electricity it can draw and how much heat it can get rid of. NVIDIA rates its current desktop graphics cards at 130 W to 575 W for the card alone. Sony measures a PS5 at about 197 to 219 W while playing PS5 games, depending on the model, and Microsoft's telemetry puts the average Xbox Series X game at 122 W and Series S at 61 W. A phone or a headset runs from a battery in a case held in a hand or worn on the head.</p>
+              <p>When a chip gets too hot, the system lowers its clock speeds to cool it. That is <dfn class="term" data-term="thermal-throttling">thermal throttling</dfn>. Android's documentation puts it plainly: devices can maintain high performance only for a limited time before they are throttled. Meta's headsets lower their CPU and GPU clock limits as they heat up. A phone game can hold its frame rate in a five-minute test and lose it twenty minutes into real play.</p>
+              <p>The answer is to run at a level the device can sustain. Android's thermal API reports thermal headroom, a forecast of how close the device is to throttling, so the game can lower resolution, frame rate or effects before it gets there. Android's guidance is to test sessions of 15 minutes or more. Apple's iOS reports a thermal state to apps for the same purpose.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="An illustrative graph of frames per second over 30 minutes of play on a phone. With fixed high settings the game holds 60 fps for about 8 minutes, then falls to around 40 and wobbles there as the device throttles. With adaptive settings the game lowers render scale at about 8 minutes and shadows at about 14 minutes and holds 60 fps throughout. A dashed line at 15 minutes marks Android's advice to test sessions of 15 minutes or more.">
+                    <text class="t-caps" x="12" y="24">FRAMES PER SECOND · ILLUSTRATIVE</text>
+                    <path class="s-line" d="M70,77.1 H860 M70,158.6 H860"/>
+                    <line class="s-muted" x1="70" y1="50" x2="70" y2="240"/>
+                    <line class="s-muted" x1="70" y1="240" x2="860" y2="240"/>
+                    <text class="t-mono t-small t-muted end" x="62" y="81">60</text>
+                    <text class="t-mono t-small t-muted end" x="62" y="162">30</text>
+                    <text class="t-mono t-small t-muted end" x="62" y="244">0</text>
+                    <g>
+                      <text class="t-mono t-small t-muted mid" x="70" y="258">0</text>
+                      <text class="t-mono t-small t-muted mid" x="201.7" y="258">5</text>
+                      <text class="t-mono t-small t-muted mid" x="333.3" y="258">10</text>
+                      <text class="t-mono t-small t-muted mid" x="465" y="258">15</text>
+                      <text class="t-mono t-small t-muted mid" x="596.7" y="258">20</text>
+                      <text class="t-mono t-small t-muted mid" x="728.3" y="258">25</text>
+                      <text class="t-mono t-small t-muted mid" x="860" y="258">30</text>
+                      <text class="t-caps end" x="860" y="280">MINUTES OF PLAY</text>
+                    </g>
+                    <line class="s-muted dash" x1="465" y1="44" x2="465" y2="240"/>
+                    <text class="t-small t-muted" x="472" y="44">Android: test 15 minutes or more</text>
+                    <polyline class="s-pix w2 round" points="70,77.1 280.7,77.1 307,85.3 333.3,104.3 359.7,120.6 386,131.4 438.7,136.9 491.3,128.7 544,139.6 596.7,131.4 649.3,136.9 702,128.7 754.7,139.6 807.3,131.4 860,136.9"/>
+                    <polyline class="s-acc w2 round" points="70,77.1 280.7,77.1 293.9,82.6 312.3,77.1 438.7,77.1 449.2,79.9 465,77.1 860,77.1"/>
+                    <path class="s-muted" d="M286,74 V62 M444,74 V62"/>
+                    <text class="t-small t-acc" x="232" y="58">lowers render scale</text>
+                    <text class="t-small t-acc" x="376" y="58">lowers shadows</text>
+                    <text class="t-small t-acc t-strong" x="660" y="70">adaptive settings: 60 fps held</text>
+                    <text class="t-small t-pix t-strong" x="560" y="166">fixed high settings: the device</text>
+                    <text class="t-small t-pix t-strong" x="560" y="181">throttles and the game drops to about 40</text>
+                  </svg>
+                </div>
+                <figcaption><b>The same phone, two strategies.</b> An illustration of the shape, not measured data. Running flat out, the device heats up, throttles, and the frame rate falls and wobbles for the rest of the session. Lowering quality a step at a time as thermal headroom shrinks keeps the frame rate steady at a level the phone can sustain.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="vr"><span class="step-num">5</span> VR: frame rate as a requirement</h3>
+              <p>In VR a missed frame is felt as well as seen: the world should stay still when the head moves. Meta's store requirements for Quest apps set a display refresh rate of at least 72 Hz and a rendering rate of at least 60 frames per second, outside loading screens. At 72 Hz each frame has 13.9 ms.</p>
+              <p>Headsets soften missed frames with <dfn class="term" data-term="vr-reprojection">reprojection</dfn>. When a new frame is late, the system shows the previous one again, turned to match where the head now points. Meta calls this TimeWarp. It corrects head rotation but not head movement through space, and moving objects judder. Application SpaceWarp goes further: the app renders at half the refresh rate, for example 36 frames per second on a 72 Hz display, and also supplies motion vectors and depth; the system builds the frames in between. Meta's rules allow that half rate for apps that provide the motion vectors.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Three timelines of eight display refreshes at 72 hertz, each slot 13.9 milliseconds. Top: every frame, F1 to F8, arrives on time. Middle: frame F4 takes too long, so in its slot the system shows F3 again, warped to the new head direction, and F4 appears one slot late. Bottom: with Application SpaceWarp the app renders every other slot, A1 to A4, and the system synthesises the frames in between.">
+                    <text class="t-caps" x="110" y="20">DISPLAY REFRESHES AT 72 HZ · ONE SLOT = 13.9 MS</text>
+                    <path class="s-line" d="M110,28 V226 M206,28 V226 M302,28 V226 M398,28 V226 M494,28 V226 M590,28 V226 M686,28 V226 M782,28 V226 M878,28 V226"/>
+                    <text class="t-strong" x="12" y="56">All frames</text>
+                    <text class="t-small t-muted" x="12" y="70">on time</text>
+                    <g>
+                      <rect class="f-acc-soft s-acc" x="114" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="158" y="60">F1</text>
+                      <rect class="f-acc-soft s-acc" x="210" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="254" y="60">F2</text>
+                      <rect class="f-acc-soft s-acc" x="306" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="350" y="60">F3</text>
+                      <rect class="f-acc-soft s-acc" x="402" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="446" y="60">F4</text>
+                      <rect class="f-acc-soft s-acc" x="498" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="542" y="60">F5</text>
+                      <rect class="f-acc-soft s-acc" x="594" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="638" y="60">F6</text>
+                      <rect class="f-acc-soft s-acc" x="690" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="734" y="60">F7</text>
+                      <rect class="f-acc-soft s-acc" x="786" y="40" width="88" height="30" rx="4"/><text class="t-mono mid" x="830" y="60">F8</text>
+                    </g>
+                    <text class="t-strong" x="12" y="110">One frame late</text>
+                    <text class="t-small t-muted" x="12" y="124">TimeWarp fills in</text>
+                    <g>
+                      <rect class="f-acc-soft s-acc" x="114" y="94" width="88" height="30" rx="4"/><text class="t-mono mid" x="158" y="114">F1</text>
+                      <rect class="f-acc-soft s-acc" x="210" y="94" width="88" height="30" rx="4"/><text class="t-mono mid" x="254" y="114">F2</text>
+                      <rect class="f-acc-soft s-acc" x="306" y="94" width="88" height="30" rx="4"/><text class="t-mono mid" x="350" y="114">F3</text>
+                      <rect class="f-surface s-acc dash" x="402" y="94" width="88" height="30" rx="4"/><text class="t-small t-acc t-strong mid" x="446" y="113">F3, warped</text>
+                      <rect class="f-acc-soft s-acc" x="498" y="94" width="88" height="30" rx="4"/><text class="t-mono mid" x="542" y="114">F4</text>
+                      <rect class="f-acc-soft s-acc" x="594" y="94" width="88" height="30" rx="4"/><text class="t-mono mid" x="638" y="114">F5</text>
+                      <rect class="f-acc-soft s-acc" x="690" y="94" width="88" height="30" rx="4"/><text class="t-mono mid" x="734" y="114">F6</text>
+                      <rect class="f-acc-soft s-acc" x="786" y="94" width="88" height="30" rx="4"/><text class="t-mono mid" x="830" y="114">F7</text>
+                    </g>
+                    <rect class="f-pix-soft s-pix" x="314" y="132" width="160" height="12" rx="3"/>
+                    <text class="t-small t-pix t-strong" x="480" y="142">F4 took longer than one slot to render</text>
+                    <text class="t-strong" x="12" y="176">SpaceWarp</text>
+                    <text class="t-small t-muted" x="12" y="190">36 fps rendered</text>
+                    <text class="t-small t-muted" x="12" y="204">plus motion vectors</text>
+                    <g>
+                      <rect class="f-acc-soft s-acc" x="114" y="164" width="88" height="30" rx="4"/><text class="t-mono mid" x="158" y="184">A1</text>
+                      <rect class="f-surface s-acc dash" x="210" y="164" width="88" height="30" rx="4"/><text class="t-small t-acc mid" x="254" y="183">synthesised</text>
+                      <rect class="f-acc-soft s-acc" x="306" y="164" width="88" height="30" rx="4"/><text class="t-mono mid" x="350" y="184">A2</text>
+                      <rect class="f-surface s-acc dash" x="402" y="164" width="88" height="30" rx="4"/><text class="t-small t-acc mid" x="446" y="183">synthesised</text>
+                      <rect class="f-acc-soft s-acc" x="498" y="164" width="88" height="30" rx="4"/><text class="t-mono mid" x="542" y="184">A3</text>
+                      <rect class="f-surface s-acc dash" x="594" y="164" width="88" height="30" rx="4"/><text class="t-small t-acc mid" x="638" y="183">synthesised</text>
+                      <rect class="f-acc-soft s-acc" x="690" y="164" width="88" height="30" rx="4"/><text class="t-mono mid" x="734" y="184">A4</text>
+                      <rect class="f-surface s-acc dash" x="786" y="164" width="88" height="30" rx="4"/><text class="t-small t-acc mid" x="830" y="183">synthesised</text>
+                    </g>
+                    <path class="s-muted" d="M114,202 H302 M114,198 V206 M302,198 V206"/>
+                    <text class="t-small t-muted" x="310" y="210">each app frame has two slots, 27.8 ms, to render</text>
+                    <text class="t-small t-muted" x="110" y="248">TimeWarp turns the old frame to the new head direction. SpaceWarp also moves objects using the app's motion vectors.</text>
+                  </svg>
+                </div>
+                <figcaption><b>What a headset does with late or half-rate frames.</b> The display never waits: every 13.9 ms it shows something. A late frame is replaced by the previous one, turned to follow the head. With SpaceWarp the app deliberately renders every other frame and the system fills the gaps, trading some image accuracy for nearly twice the render time per frame.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="certification"><span class="step-num">6</span> Certification</h3>
+              <p>A <dfn class="term" data-term="platform-holder">platform holder</dfn> is the company that controls a closed platform and its store, such as Sony, Microsoft, Nintendo or Meta. Before a game can go on sale on a console, it passes <dfn class="term" data-term="certification">certification</dfn>: the platform holder tests a submitted build against its published requirements, and a build that fails goes back to the studio to fix and resubmit.</p>
+              <p>Each platform holder has its own name for the list. Sony's is the TRC (Technical Requirements Checklist). Microsoft's was the TCR (Technical Certification Requirements) and is now the Xbox Requirements, numbered XR-001 onwards. Nintendo's process is called Lotcheck. Meta checks Quest apps against its Virtual Reality Checks, which include the performance rule in step 5.</p>
+              <p>The requirements check how the game behaves as a guest on the platform. Microsoft's public list includes title stability, staying stable through suspend, sleep and hibernate, official naming standards, losing the connection to Xbox services, player data and privacy, user-generated content, and save games that stay compatible across content updates. Most platform documentation is under NDA and changes between versions, so certification belongs in the production plan: someone owns compliance, QA tests against the list before submission, and the schedule allows for a failed submission. Updates and downloadable content go through it as well.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="A flow: release candidate, then your own pre-check against the requirements, then submission, then the platform holder's testing. A pass leads to release; patches and downloadable content are submitted again. A fail produces a failure report, the studio fixes the build and resubmits. Below, eight example requirements: title stability, suspend sleep and resume, official naming standards, losing the network, player data and privacy, user-generated content, saves across content updates, and system language and controller loss.">
+                    <defs>
+                      <marker id="cert-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="cert-arr-p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="12" y="30" width="140" height="60" rx="6"/>
+                    <text class="t-strong" x="24" y="52">Release candidate</text>
+                    <text class="t-small t-muted" x="24" y="68">the build you plan</text>
+                    <text class="t-small t-muted" x="24" y="81">to ship</text>
+                    <rect class="f-surface s-strong" x="176" y="30" width="160" height="60" rx="6"/>
+                    <text class="t-strong" x="188" y="52">Pre-check</text>
+                    <text class="t-small t-muted" x="188" y="68">your QA tests the build</text>
+                    <text class="t-small t-muted" x="188" y="81">against the requirements</text>
+                    <rect class="f-surface s-strong" x="360" y="30" width="124" height="60" rx="6"/>
+                    <text class="t-strong" x="372" y="52">Submit</text>
+                    <text class="t-small t-muted" x="372" y="68">build and store</text>
+                    <text class="t-small t-muted" x="372" y="81">details</text>
+                    <rect class="f-acc-soft s-acc" x="508" y="30" width="160" height="60" rx="6"/>
+                    <text class="t-strong" x="520" y="52">Platform testing</text>
+                    <text class="t-small t-muted" x="520" y="68">by the platform</text>
+                    <text class="t-small t-muted" x="520" y="81">holder's testers</text>
+                    <rect class="f-acc" x="736" y="30" width="152" height="60" rx="6"/>
+                    <text class="t-on-acc t-strong" x="748" y="52">Release</text>
+                    <text class="t-on-acc t-small" x="748" y="68">patches and DLC are</text>
+                    <text class="t-on-acc t-small" x="748" y="81">submitted again</text>
+                    <path class="s-acc w15" d="M152,60 H172 M336,60 H356 M484,60 H504 M668,60 H732" marker-end="url(#cert-arr)"/>
+                    <text class="t-small t-acc t-strong mid" x="700" y="52">pass</text>
+                    <path class="s-pix w15" d="M588,90 V118" marker-end="url(#cert-arr-p)"/>
+                    <text class="t-small t-pix t-strong" x="596" y="110">fail</text>
+                    <rect class="f-pix-soft s-pix" x="508" y="122" width="160" height="48" rx="6"/>
+                    <text class="t-strong" x="520" y="142">Failure report</text>
+                    <text class="t-small t-muted" x="520" y="158">what failed, and why</text>
+                    <rect class="f-surface s-pix" x="360" y="122" width="124" height="48" rx="6"/>
+                    <text class="t-strong" x="372" y="142">Fix</text>
+                    <text class="t-small t-muted" x="372" y="158">then resubmit</text>
+                    <path class="s-pix w15" d="M508,146 H488" marker-end="url(#cert-arr-p)"/>
+                    <path class="s-pix w15" d="M422,122 V94" marker-end="url(#cert-arr-p)"/>
+                    <text class="t-caps" x="12" y="206">WHAT THE REQUIREMENTS CHECK · EXAMPLES</text>
+                    <g>
+                      <rect class="f-sunken s-strong" x="12" y="216" width="212" height="42" rx="6"/><text class="t-small t-strong" x="22" y="233">Title stability</text><text class="t-small t-muted" x="22" y="249">no crashes or hangs (XR-001)</text>
+                      <rect class="f-sunken s-strong" x="231" y="216" width="212" height="42" rx="6"/><text class="t-small t-strong" x="241" y="233">Suspend, sleep and resume</text><text class="t-small t-muted" x="241" y="249">stable after each one</text>
+                      <rect class="f-sunken s-strong" x="450" y="216" width="212" height="42" rx="6"/><text class="t-small t-strong" x="460" y="233">Official naming standards</text><text class="t-small t-muted" x="460" y="249">console and terms (XR-022)</text>
+                      <rect class="f-sunken s-strong" x="669" y="216" width="219" height="42" rx="6"/><text class="t-small t-strong" x="679" y="233">Losing the network</text><text class="t-small t-muted" x="679" y="249">handled cleanly (XR-074)</text>
+                      <rect class="f-sunken s-strong" x="12" y="266" width="212" height="42" rx="6"/><text class="t-small t-strong" x="22" y="283">Player data and privacy</text><text class="t-small t-muted" x="22" y="299">personal information (XR-014)</text>
+                      <rect class="f-sunken s-strong" x="231" y="266" width="212" height="42" rx="6"/><text class="t-small t-strong" x="241" y="283">User-generated content</text><text class="t-small t-muted" x="241" y="299">moderation and safety (XR-018)</text>
+                      <rect class="f-sunken s-strong" x="450" y="266" width="212" height="42" rx="6"/><text class="t-small t-strong" x="460" y="283">Saves across updates</text><text class="t-small t-muted" x="460" y="299">old saves still load</text>
+                      <rect class="f-sunken s-strong" x="669" y="266" width="219" height="42" rx="6"/><text class="t-small t-strong" x="679" y="283">System language, controllers</text><text class="t-small t-muted" x="679" y="299">a pad losing power mid-game</text>
+                    </g>
+                    <text class="t-small t-muted" x="12" y="324">XR numbers are from Microsoft's public Xbox Requirements. The last example is from a university course on Sony-style TRCs.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Certification is a loop, so plan for at least two trips.</b> Your own QA checks the build against the platform's list first. The platform holder then tests it and either passes it for release or sends back a report. Every patch and piece of downloadable content goes round the same loop.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="scalability"><span class="step-num">7</span> Scalability: one game, many settings</h3>
+              <p><dfn class="term" data-term="scalability">Scalability</dfn> is how one game adapts to all of this: the same content, with settings that trade visual quality for speed and memory, grouped into presets per platform and per device tier. Engines expose it as quality levels with per-platform overrides on top (section 6 compares them).</p>
+              <p>On consoles the studio chooses the settings for each model and mode. On PC the player chooses, and the game should start from a sensible preset by detecting the hardware. On phones, engines sort devices into tiers: Unreal's example configuration for Android groups devices into memory buckets from 3 GB to 8 GB. Lowering the <a class="term" data-term="internal-resolution" data-forward href="glossary.html#internal-resolution">internal resolution</a> and upscaling is usually the strongest single lever, and chapter 9.3 covers it.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="An example game's settings on eight targets. Render resolution ranges from native 4K on a high-end PC to 720p upscaled to 1080p on Switch 2 handheld and 75 percent of the screen on a mid-range phone. Frame rate ranges from uncapped on a high-end PC to 30 on handheld and phone and 72 on Quest 3. Shadows, textures, view distance and effects are shown as levels from Low to Epic: Epic on the high-end PC, High on PS5 and Series X, mostly Medium on Series S and Switch 2 docked, and mostly Low on the min-spec PC, Switch 2 handheld, phone and Quest 3.">
+<text class="t-strong t-small mid" x="190.5" y="24">High-end</text>
+<text class="t-strong t-small mid" x="190.5" y="38">PC</text>
+<text class="t-strong t-small mid" x="283.5" y="24">Min-spec</text>
+<text class="t-strong t-small mid" x="283.5" y="38">PC</text>
+<text class="t-strong t-small mid" x="376.5" y="24">PS5 or</text>
+<text class="t-strong t-small mid" x="376.5" y="38">Series X</text>
+<text class="t-strong t-small mid" x="469.5" y="24">Series S</text>
+<text class="t-strong t-small mid" x="562.5" y="24">Switch 2</text>
+<text class="t-strong t-small mid" x="562.5" y="38">docked</text>
+<text class="t-strong t-small mid" x="655.5" y="24">Switch 2</text>
+<text class="t-strong t-small mid" x="655.5" y="38">handheld</text>
+<text class="t-strong t-small mid" x="748.5" y="24">Mid-range</text>
+<text class="t-strong t-small mid" x="748.5" y="38">phone</text>
+<text class="t-strong t-small mid" x="841.5" y="24">Quest 3</text>
+<line class="s-line" x1="237" y1="12" x2="237" y2="254"/>
+<line class="s-line" x1="330" y1="12" x2="330" y2="254"/>
+<line class="s-line" x1="423" y1="12" x2="423" y2="254"/>
+<line class="s-line" x1="516" y1="12" x2="516" y2="254"/>
+<line class="s-line" x1="609" y1="12" x2="609" y2="254"/>
+<line class="s-line" x1="702" y1="12" x2="702" y2="254"/>
+<line class="s-line" x1="795" y1="12" x2="795" y2="254"/>
+<line class="s-line" x1="12" y1="50" x2="888" y2="50"/>
+<text class="t-small t-strong" x="12" y="72">Render resolution</text>
+<text class="t-small mid" x="190.5" y="72">native 4K</text>
+<text class="t-small mid" x="283.5" y="72">1080p</text>
+<text class="t-small mid" x="376.5" y="72">1440p → 4K</text>
+<text class="t-small mid" x="469.5" y="72">1080p → 1440p</text>
+<text class="t-small mid" x="562.5" y="72">1080p</text>
+<text class="t-small mid" x="655.5" y="72">720p → 1080p</text>
+<text class="t-small mid" x="748.5" y="72">75% of screen</text>
+<text class="t-small mid" x="841.5" y="72">90% per eye</text>
+<line class="s-line" x1="12" y1="84" x2="888" y2="84"/>
+<text class="t-small t-strong" x="12" y="106">Frame rate</text>
+<text class="t-small mid" x="190.5" y="106">uncapped</text>
+<text class="t-small mid" x="283.5" y="106">30</text>
+<text class="t-small mid" x="376.5" y="106">60</text>
+<text class="t-small mid" x="469.5" y="106">60</text>
+<text class="t-small mid" x="562.5" y="106">60</text>
+<text class="t-small mid" x="655.5" y="106">30</text>
+<text class="t-small mid" x="748.5" y="106">30</text>
+<text class="t-small mid" x="841.5" y="106">72</text>
+<line class="s-line" x1="12" y1="118" x2="888" y2="118"/>
+<text class="t-small t-strong" x="12" y="140">Shadows</text>
+<rect class="f-acc" x="162" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="177" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="192" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="207" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="255" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="270" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="285" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="300" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="348" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="363" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="378" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="393" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="441" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="456" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="471" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="486" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="534" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="549" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="564" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="579" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="627" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="642" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="657" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="672" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="720" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="735" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="750" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="765" y="129" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="813" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="828" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="843" y="129" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="858" y="129" width="12" height="12" rx="2"/>
+<line class="s-line" x1="12" y1="152" x2="888" y2="152"/>
+<text class="t-small t-strong" x="12" y="174">Textures</text>
+<rect class="f-acc" x="162" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="177" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="192" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="207" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="255" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="270" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="285" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="300" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="348" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="363" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="378" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="393" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="441" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="456" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="471" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="486" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="534" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="549" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="564" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="579" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="627" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="642" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="657" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="672" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="720" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="735" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="750" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="765" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="813" y="163" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="828" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="843" y="163" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="858" y="163" width="12" height="12" rx="2"/>
+<line class="s-line" x1="12" y1="186" x2="888" y2="186"/>
+<text class="t-small t-strong" x="12" y="208">View distance</text>
+<rect class="f-acc" x="162" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="177" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="192" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="207" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="255" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="270" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="285" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="300" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="348" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="363" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="378" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="393" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="441" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="456" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="471" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="486" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="534" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="549" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="564" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="579" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="627" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="642" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="657" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="672" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="720" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="735" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="750" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="765" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="813" y="197" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="828" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="843" y="197" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="858" y="197" width="12" height="12" rx="2"/>
+<line class="s-line" x1="12" y1="220" x2="888" y2="220"/>
+<text class="t-small t-strong" x="12" y="242">Effects: AO, fog</text>
+<rect class="f-acc" x="162" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="177" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="192" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="207" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="255" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="270" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="285" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="300" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="348" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="363" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="378" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="393" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="441" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="456" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="471" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="486" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="534" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="549" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="564" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="579" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="627" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="642" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="657" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="672" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="720" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="735" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="750" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="765" y="231" width="12" height="12" rx="2"/>
+<rect class="f-acc" x="813" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="828" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="843" y="231" width="12" height="12" rx="2"/>
+<rect class="f-surface s-strong" x="858" y="231" width="12" height="12" rx="2"/>
+<line class="s-line" x1="12" y1="254" x2="888" y2="254"/>
+<rect class="f-acc" x="144" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-surface s-strong" x="155" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-surface s-strong" x="166" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-surface s-strong" x="177" y="267" width="9" height="9" rx="1.5"/>
+<text class="t-small t-muted" x="194" y="276">Low</text>
+<rect class="f-acc" x="264" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-acc" x="275" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-surface s-strong" x="286" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-surface s-strong" x="297" y="267" width="9" height="9" rx="1.5"/>
+<text class="t-small t-muted" x="314" y="276">Medium</text>
+<rect class="f-acc" x="384" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-acc" x="395" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-acc" x="406" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-surface s-strong" x="417" y="267" width="9" height="9" rx="1.5"/>
+<text class="t-small t-muted" x="434" y="276">High</text>
+<rect class="f-acc" x="504" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-acc" x="515" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-acc" x="526" y="267" width="9" height="9" rx="1.5"/>
+<rect class="f-acc" x="537" y="267" width="9" height="9" rx="1.5"/>
+<text class="t-small t-muted" x="554" y="276">Epic</text>
+<text class="t-small t-muted end" x="888" y="276">An example game, not engine defaults.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One example game's settings on eight targets.</b> The studio fixes every column except the two PCs, where players can change them. Resolution and frame rate set the budget; shadows, textures, view distance and effects are spent from it. These values illustrate the pattern; real ones come from profiling each target.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Every platform you add costs time, money and attention. The hardest cost to see is time per <a class="term" data-term="frame" href="glossary.html#frame">frame</a>: the faster a display refreshes, the less time the game has to draw each frame. Chapter 11.1 turns these into a <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a>.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 220" role="img" aria-label="Time for one frame, drawn to scale: 33.3 milliseconds at 30 frames per second, 16.7 at 60, 13.9 at 72 hertz, the Quest minimum refresh, 11.1 at 90 hertz, and 8.3 at 120 hertz, the most PS5, Xbox and Switch 2 offer.">
+<text class="t-caps" x="12" y="20">TIME FOR ONE FRAME · DRAWN TO SCALE, 18 PX PER MILLISECOND</text>
+<text class="t-strong" x="12" y="50">30 fps</text>
+<rect class="f-sunken s-strong" x="200" y="34" width="600" height="22"/>
+<text class="t-mono t-small" x="808" y="49">33.3 ms</text>
+<text class="t-strong" x="12" y="86">60 fps</text>
+<rect class="f-acc-soft s-acc" x="200" y="70" width="300" height="22"/>
+<text class="t-mono t-small" x="508" y="85">16.7 ms</text>
+<text class="t-strong" x="12" y="122">72 Hz</text>
+<rect class="f-acc-soft s-acc" x="200" y="106" width="250" height="22"/>
+<text class="t-mono t-small" x="458" y="121">13.9 ms</text>
+<text class="t-small t-muted" x="520" y="121">Quest minimum refresh</text>
+<text class="t-strong" x="12" y="158">90 Hz</text>
+<rect class="f-acc-soft s-acc" x="200" y="142" width="200" height="22"/>
+<text class="t-mono t-small" x="408" y="157">11.1 ms</text>
+<text class="t-strong" x="12" y="194">120 Hz</text>
+<rect class="f-acc-soft s-acc" x="200" y="178" width="150" height="22"/>
+<text class="t-mono t-small" x="358" y="193">8.3 ms</text>
+<text class="t-small t-muted" x="420" y="193">the most PS5, Xbox and Switch 2 offer</text>
+                </svg>
+              </div>
+              <figcaption><b>Higher refresh rates leave less time per frame.</b> Moving a game from 30 to 60 frames per second halves its time for each frame. A headset at 72 Hz gives each frame 13.9 ms, and that budget covers both eyes.</figcaption>
+            </figure>
+            <p>Testing grows by multiplication. A PC game with 4 presets, tested at 3 resolutions on GPUs from 3 vendors, already has 4 × 3 × 3 = 36 combinations, before counting drivers and memory sizes. PS5, PS5 Pro, Series X, Series S and Switch 2 docked and handheld add six fixed configurations, each with its own certification pass. Getting onto a console at all takes time: Godot's documentation notes that a platform holder's acceptance process can take several months, and devkit prices are confidential.</p>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>More platforms and models</strong><span>Each target, down to Series S and Switch 2 handheld, adds builds, a test pass and, on consoles, certification for launch and every patch.</span></li>
+              <li><strong>The lowest target</strong><span>The smallest memory and slowest GPU you commit to cap what every level can contain.</span></li>
+              <li><strong>Phones and PCs</strong><span>Wide hardware ranges need device tiers, auto-detected presets and a lab of test devices.</span></li>
+              <li><strong>VR</strong><span>A hard frame-rate floor, comfort testing and two eyes to render in every frame.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>Adding a platform late is the expensive way. A game designed for 16 GB and a 60 fps PS5 can need content cuts as well as settings changes to reach Series S or Switch 2 handheld. Decide the lowest target before content production starts, and give it a test device from the first month.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Platform problems tend to surface late, on the one target nobody tested enough. These six cover most of them.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two memory bars. On Series X the game's content fits inside 16 GB. On Series S the same content overflows the 10 GB bar.">
+                    <text class="t-small t-strong" x="14" y="26">Series X</text>
+                    <rect class="f-surface s-strong" x="14" y="34" width="192" height="22"/>
+                    <rect class="f-acc-soft s-acc" x="14" y="34" width="144" height="22"/>
+                    <text class="t-small t-strong" x="14" y="82">Series S</text>
+                    <rect class="f-surface s-strong" x="14" y="90" width="120" height="22"/>
+                    <rect class="f-acc-soft s-acc" x="14" y="90" width="120" height="22"/>
+                    <polygon class="f-pix-soft s-pix" points="134,90 158,90 152,96 160,101 152,106 158,112 134,112"/>
+                    <text class="t-small t-pix t-strong" x="166" y="106">out of</text>
+                    <text class="t-small t-pix t-strong" x="166" y="119">memory</text>
+                  </svg>
+                </div>
+                <h4>Crashes on the smallest console</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Content was built and tested on the largest target, then shipped to one with less memory, such as Series S or Switch 2.</dd></div>
+                  <div><dt>Ask for</dt><dd>A memory budget per level for the smallest target, and a nightly test that loads every level on that hardware and reports peak memory.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-rate line that runs flat, then drops and wobbles, beside a thermometer.">
+                    <line class="s-muted" x1="14" y1="112" x2="184" y2="112"/>
+                    <line class="s-muted" x1="14" y1="20" x2="14" y2="112"/>
+                    <polyline class="s-pix w2 round" points="14,36 80,36 96,58 112,72 128,66 144,76 160,68 176,74"/>
+                    <text class="t-small t-muted" x="20" y="28">60 fps</text>
+                    <rect class="f-surface s-strong" x="204" y="22" width="12" height="70" rx="6"/>
+                    <rect class="f-pix" x="207" y="46" width="6" height="50"/>
+                    <circle class="f-pix" cx="210" cy="102" r="11"/>
+                  </svg>
+                </div>
+                <h4>Smooth at first, slow later</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Thermal throttling on a phone or headset. Short tests run before the device heats up.</dd></div>
+                  <div><dt>Ask for</dt><dd>Tests of 15 minutes or more on real devices, thermal headroom logged next to frame times, and a quality level the device can sustain.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A checklist on a clipboard with three ticks and one red cross.">
+                    <rect class="f-surface s-strong" x="70" y="14" width="100" height="108" rx="6"/>
+                    <rect class="f-solid s-strong" x="100" y="8" width="40" height="12" rx="3"/>
+                    <path class="s-acc w2 round" d="M82,38 L87,43 L95,33 M82,62 L87,67 L95,57 M82,86 L87,91 L95,81"/>
+                    <path class="s-pix w2 round" d="M83,104 L94,115 M94,104 L83,115"/>
+                    <path class="s-line w2" d="M104,38 H158 M104,62 H158 M104,86 H158"/>
+                    <path class="s-pix w2" d="M104,110 H158"/>
+                  </svg>
+                </div>
+                <h4>Failed certification</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Platform behaviour was left to the end: suspend and resume, a lost network, a disconnected controller, the wrong name for the console or its buttons.</dd></div>
+                  <div><dt>Ask for</dt><dd>An owner for compliance from pre-production, a pre-check against the platform's list on every milestone build, and time in the schedule for a resubmission.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A lantern seen twice, slightly offset, the doubled image of judder in a headset.">
+                    <g>
+                      <circle class="s-strong w2" cx="112" cy="18" r="6"/>
+                      <polygon class="f-solid s-strong" points="90,44 134,44 128,28 96,28"/>
+                      <rect class="f-lit-soft s-strong" x="96" y="44" width="32" height="48"/>
+                      <rect class="f-solid s-strong" x="88" y="92" width="48" height="12"/>
+                    </g>
+                    <g class="dash">
+                      <circle class="s-pix" cx="134" cy="18" r="6"/>
+                      <polygon class="s-pix" points="112,44 156,44 150,28 118,28"/>
+                      <rect class="s-pix" x="118" y="44" width="32" height="48"/>
+                      <rect class="s-pix" x="110" y="92" width="48" height="12"/>
+                    </g>
+                    <path class="s-muted w15" d="M40,64 H74 M166,64 H200"/>
+                  </svg>
+                </div>
+                <h4>Judder in VR</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Frames miss the refresh, so the headset shows old frames turned to follow the head. Under SpaceWarp, objects without motion vectors stutter.</dd></div>
+                  <div><dt>Ask for</dt><dd>GPU time per frame measured on the headset against 13.9 ms at 72 Hz, and motion vectors for every moving object if SpaceWarp is used.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A monitor showing a frame-time graph with tall spikes.">
+                    <rect class="f-surface s-strong" x="30" y="12" width="180" height="92" rx="6"/>
+                    <path class="s-strong w2" d="M104,104 V116 M86,118 H154"/>
+                    <polyline class="s-pix w15" points="40,80 58,80 62,40 66,80 92,80 96,26 100,80 128,80 132,48 136,80 164,80 168,30 172,80 200,80"/>
+                    <text class="t-mono t-small t-muted" x="44" y="98">min spec</text>
+                  </svg>
+                </div>
+                <h4>Stutter on minimum-spec PCs</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The minimum spec was chosen on paper and never tested, or the default preset needs more VRAM than the card has, so textures stream in and out.</dd></div>
+                  <div><dt>Ask for</dt><dd>A real minimum-spec machine in QA, a preset picked by detecting the hardware, and VRAM use per preset measured against the cards you support.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A phone showing a browser tab that failed to load, with a red cross.">
+                    <rect class="f-surface s-strong" x="86" y="6" width="68" height="118" rx="10"/>
+                    <rect class="f-sunken s-strong" x="92" y="16" width="56" height="12" rx="3"/>
+                    <path class="s-pix w3 round" d="M108,54 L132,78 M132,54 L108,78"/>
+                    <text class="t-mono t-small t-pix mid" x="120" y="100">out of</text>
+                    <text class="t-mono t-small t-pix mid" x="120" y="113">memory</text>
+                  </svg>
+                </div>
+                <h4>Web build fails on phones</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The build's memory grows past what a mobile browser will give one tab. Unity's documentation warns that growing the heap can crash if the browser cannot find a large enough block.</dd></div>
+                  <div><dt>Ask for</dt><dd>Peak memory measured in mobile browsers, an initial heap sized to typical use, and a target device list for the web build.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>All six have the same root: a target that was not in the daily test loop. The cheapest fix is a device for every target on someone's desk, and builds for every target from the start of production.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>The three engines reach different sets of platforms and offer different tools for scaling one game across them.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Platforms</th>
+                    <td>Windows, macOS, Linux, iOS, Android, and XR headsets through OpenXR. Consoles for developers the platform holders approve.</td>
+                    <td>Desktop, mobile, web, XR, dedicated servers and closed platforms (consoles).</td>
+                    <td>Windows, macOS, Linux, Android, iOS, visionOS and the web. Steam Deck through the Linux export.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Consoles</th>
+                    <td>Access comes through each platform holder's developer programme; Epic lists the console SDK versions each engine release needs.</td>
+                    <td>Closed platforms need a relationship with the platform holder; their build support modules are separate installers.</td>
+                    <td>Not official. Console export templates cannot be shared openly, so studios use porting companies or W4 Games' middleware ports.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Quality presets</th>
+                    <td>Scalability groups such as <code>sg.ShadowQuality</code> and <code>sg.TextureQuality</code>, from Low (0) to Epic (3), defined in <code>BaseScalability.ini</code> and overridden in <code>DefaultScalability.ini</code>.</td>
+                    <td>Quality levels in Project Settings; the Default row picks each platform's level. In URP and HDRP each level can use its own render pipeline asset.</td>
+                    <td>No built-in quality levels. Three renderers instead: Forward+ (desktop default), Mobile (mobile default) and Compatibility (web default, older hardware).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Per platform and device</th>
+                    <td>Device profiles set console variables per platform and device, and are Epic's recommended way to scale on mobile. Android devices are sorted into memory buckets.</td>
+                    <td>Build Profiles (File &gt; Build Profiles) can override settings per platform, including Quality settings.</td>
+                    <td>Any project setting can be overridden per feature tag, such as <code>mobile</code>, <code>pc</code> or <code>web</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Web</th>
+                    <td>No browser build target. Pixel Streaming runs the game on a server and streams it to a browser.</td>
+                    <td>WebGL 2 by default; WebGPU has limited browser support. The heap can grow up to 16 GB if the browser allows it.</td>
+                    <td>Web export uses the Compatibility renderer on WebGL 2. No WebGPU support yet, and C# projects cannot export to the web.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Checked against the documentation for Unreal Engine 5.8, Unity 6.6 and Godot 4.7 in November 2026 (Godot's console page in its 4.5 version). Platform lists change with every release and with each platform holder's agreements; check current documentation before committing to a target.</p>
+            <aside class="note" data-kind="simplified">
+              <p class="note-label">Simplified</p>
+              <p>WebGPU now runs in Chrome, Edge, Firefox and Safari, but not yet on every operating system for each of them, which is why engines still treat WebGL 2 as the safe default for the web.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Platform briefs work when they state the target's real limits as numbers, ask for the reasoning behind each trade-off, and ask for a way to measure on the device.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when planning settings for a new platform</span></div>
+              <pre class="prompt-body">Game: third-person action game in Unreal Engine 5.8, shipping on PC and PS5 at 60 fps. We are porting to Nintendo Switch 2, docked and handheld.
+
+Switch 2 facts to work from: 12 GB of memory, about 9 GB available to games; memory bandwidth about 102 GB/s docked and 68 GB/s handheld; 1080p screen with VRR up to 120 Hz; up to 4K at 60 fps on a TV.
+
+1. Propose a render resolution and frame-rate target for docked and for handheld, with reasons.
+2. Map our scalability groups (view distance, shadows, textures, effects, post-processing) to a docked device profile and a handheld one, and say what each change will look like on screen.
+3. Compare our current peak memory per level with a 9 GB budget and list the biggest savings.
+4. List the tests we need, including switching between docked and handheld mid-game and a 30-minute handheld session.
+
+Mark any number you are unsure of instead of guessing.</pre>
+              <ul class="prompt-why">
+                <li>Real limits in numbers stop advice written for a PC.</li>
+                <li>Asking what each change looks like keeps art direction in the decision.</li>
+                <li>Mode switching and long sessions are where handheld ports fail.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when a mobile game slows down during a session</span></div>
+              <pre class="prompt-body">Android build, Unity 6.6, URP. On our mid-range test phone the game holds 60 fps for about 8 minutes, then falls to 35 to 40 fps and stays there. On a high-end phone it holds 60 fps for 25 minutes. CPU and GPU frame times rise together after the drop.
+
+First confirm whether this is thermal throttling: log Android's thermal headroom (PowerManager.getThermalHeadroom, no more than once every 10 seconds) and thermal status next to our frame times. If it is, propose a sustainable quality level for this device tier and an adaptive scheme that lowers render scale, then shadow quality, as headroom falls, with hysteresis so it does not flip back and forth. Show how we test it over a 30-minute session.</pre>
+              <ul class="prompt-why">
+                <li>A drop after minutes, on one device, with CPU and GPU rising together, points at heat.</li>
+                <li>Naming the API and its 10-second limit avoids a broken measurement.</li>
+                <li>Measuring first prevents a fix for the wrong problem.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing platform work</h3>
+            <ol class="review-list">
+              <li>Which platform and model is the lowest target, and what are its memory and frame-time budgets?<span class="why">Everything else scales down to it.</span></li>
+              <li>Was this measured on the device, in a session of 15 minutes or more?<span class="why">Editor runs and short tests hide memory and heat limits.</span></li>
+              <li>What does this change cost on each target, including the ones you did not test?<span class="why">A saving on PC can be a loss on a tile-based mobile GPU.</span></li>
+              <li>Which certification requirements could this touch?<span class="why">Saves, suspend and resume, connectivity and accounts all have explicit requirements.</span></li>
+              <li>How does the game choose its starting settings on a new PC or phone?<span class="why">The starting preset is the game every player sees first.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Why does a PC game need a settings menu and a minimum specification when a PS5 game can ship with neither?</p>
+                <details><summary>Show answer</summary><p>PC is variable hardware: Steam players' GPUs range from 4 GB of VRAM or less (about 15%) to 24 GB and beyond, so the game must scale and say what it needs. Every PS5 is the same machine, which the studio tunes for directly.</p></details>
+              </li>
+              <li>
+                <p class="q">Your phone game runs at 60 fps in a five-minute test, but players say it slows down after a while. What is the likely cause, and how do you confirm it?</p>
+                <details><summary>Show answer</summary><p>Thermal throttling. Run sessions of 15 minutes or more on the real device and log thermal headroom and status alongside frame times. If the drop follows the heat, choose a quality level the device can sustain and scale down as headroom falls.</p></details>
+              </li>
+              <li>
+                <p class="q">Your Quest 3 game drops to 50 fps in busy scenes. Does it meet Meta's performance requirement, and what are your options?</p>
+                <details><summary>Show answer</summary><p>No: Meta requires a rendering rate of at least 60 fps outside loading screens and fades. Either cut the cost of those scenes, or use Application SpaceWarp, which Meta allows at half the refresh rate (36 fps at 72 Hz) if the app supplies motion vectors.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#platform">platform</a></li>
+              <li><a class="chip" href="glossary.html#fixed-hardware">fixed hardware</a></li>
+              <li><a class="chip" href="glossary.html#variable-hardware">variable hardware</a></li>
+              <li><a class="chip" href="glossary.html#devkit">devkit</a></li>
+              <li><a class="chip" href="glossary.html#min-spec">minimum specification</a></li>
+              <li><a class="chip" href="glossary.html#recommended-spec">recommended specification</a></li>
+              <li><a class="chip" href="glossary.html#unified-memory">unified memory</a></li>
+              <li><a class="chip" href="glossary.html#power-budget">power budget</a></li>
+              <li><a class="chip" href="glossary.html#thermal-throttling">thermal throttling</a></li>
+              <li><a class="chip" href="glossary.html#vr-reprojection">reprojection</a></li>
+              <li><a class="chip" href="glossary.html#platform-holder">platform holder</a></li>
+              <li><a class="chip" href="glossary.html#certification">certification</a></li>
+              <li><a class="chip" href="glossary.html#scalability">scalability</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="2.1"></a> opens the engine itself: the parts every engine has, and how they divide the work of a frame.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://blog.playstation.com/2020/03/18/unveiling-new-details-of-playstation-5-hardware-technical-specs/">PS5 hardware technical specs</a> and <a href="https://blog.playstation.com/2024/09/10/welcome-playstation-5-pro-the-most-visually-impressive-way-to-play-games-on-playstation/">PS5 Pro announcement</a>, PlayStation Blog; <a href="https://www.playstation.com/en-gb/legal/ecodesign/">PlayStation ecodesign power measurements</a>, Sony.</li>
+              <li><a href="https://news.xbox.com/en-us/2020/03/16/xbox-series-x-tech/">Xbox Series X tech</a>, Xbox Wire; <a href="https://www.xbox.com/en-US/consoles/xbox-series-s">Xbox Series S</a>, Microsoft; <a href="https://learn.microsoft.com/en-us/gaming/sustainability/global-platform-baselines">Global platform baselines</a>, Microsoft Learn.</li>
+              <li><a href="https://www.nintendo.com/us/gaming-systems/switch-2/tech-specs/">Nintendo Switch 2 tech specs</a>, Nintendo; <a href="https://www.notebookcheck.net/Digital-Foundry-confirms-Nintendo-Switch-2-specs-with-CPU-GPU-and-surprising-memory-allocation-details.1015981.0.html">Digital Foundry's Switch 2 memory findings</a>, reported by Notebookcheck.</li>
+              <li><a href="https://developers.meta.com/horizon/essentials/compare-devices">Compare Meta Quest devices</a>, <a href="https://developers.meta.com/horizon/resources/vrc-quest-performance-1/">VRC.Quest.Performance.1</a>, <a href="https://developers.meta.com/horizon/documentation/native/android/os-missed-frames/">Missed frames</a>, <a href="https://developers.meta.com/horizon/documentation/unity/os-cpu-gpu-levels">CPU and GPU levels</a> and <a href="https://developers.meta.com/horizon/blog/introducing-application-spacewarp/">Introducing Application SpaceWarp</a>, Meta.</li>
+              <li><a href="https://store.steampowered.com/hwsurvey/">Steam Hardware and Software Survey</a>, Valve, October 2026; <a href="https://www.nvidia.com/en-us/geforce/graphics-cards/compare/">GeForce graphics card comparison</a>, NVIDIA.</li>
+              <li><a href="https://developer.android.com/games/optimize/adpf/thermal">Thermal API</a> and <a href="https://developer.android.com/games/optimize/adpf/best-practices-adpf">Best practices for ADPF</a>, Android Developers.</li>
+              <li><a href="https://learn.microsoft.com/en-us/gaming/gdk/docs/store/policies/console/certification-requirements">Xbox Requirements for Xbox console games</a>, Microsoft; <a href="https://research.ncl.ac.uk/game/mastersdegree/workshops/technicalrequirementschecklists/Technical%20Requirements%20Checklist%20Workshop.pdf">Technical Requirements Checklist workshop</a>, Newcastle University.</li>
+              <li><a href="https://web.dev/blog/webgpu-supported-major-browsers">WebGPU is now supported in major browsers</a>, web.dev, November 2025.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/scalability-reference-for-unreal-engine?application_version=5.8">Scalability reference</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/setting-up-device-profiles-in-unreal-engine?application_version=5.8">Setting up device profiles</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/sharing-and-releasing-projects-for-unreal-engine?application_version=5.8">Sharing and releasing projects</a>.</li>
+              <li>Unity 6.6 manual: <a href="https://docs.unity.com/en-us/engine/6000.6/manual/unity-editor/editor-settings-reference/comp-manager-group/class-quality-settings">Quality settings</a>, <a href="https://docs.unity3d.com/6/Documentation/Manual/platform-browser-reference.html">Platform browser</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/platform-specific/webgl/develop/graphics/web-graphics-apis-intro">Web graphics APIs</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/platform-specific/webgl/develop/memory">Memory in Web</a>.</li>
+              <li>Godot documentation: <a href="https://docs.godotengine.org/en/stable/tutorials/rendering/renderers.html">Overview of renderers</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/export/feature_tags.html">Feature tags</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_web.html">Exporting for the web</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/export/index.html">Export</a>, <a href="https://docs.godotengine.org/en/4.5/tutorials/platform/consoles.html">Console support in Godot</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>

@@ -36,8 +36,8 @@
       chapters: [
         { num: "1.1", slug: "idea-to-gold", title: "From idea to gold master", terms: "concept, prototype, vertical slice, production, alpha, beta, gold, live ops", core: true, status: "published" },
         { num: "1.2", slug: "who-does-what", title: "Who does what", terms: "concept, 3D and technical artists; designers; gameplay, engine and graphics programmers; producers; QA", core: false, status: "published" },
-        { num: "1.3", slug: "content-pipeline", title: "The content pipeline", terms: "DCC tool, source and cooked assets, FBX, glTF, USD, baking, import, build, Perforce, Git LFS", core: true, status: "planned" },
-        { num: "1.4", slug: "platforms", title: "Platforms and what they change", terms: "PC, console, mobile, VR, web; fixed and variable hardware; certification", core: false, status: "planned" }
+        { num: "1.3", slug: "content-pipeline", title: "The content pipeline", terms: "DCC tool, source and cooked assets, FBX, glTF, USD, baking, import, build, Perforce, Git LFS", core: true, status: "published" },
+        { num: "1.4", slug: "platforms", title: "Platforms and what they change", terms: "PC, console, mobile, VR, web; fixed and variable hardware; certification", core: false, status: "published" }
       ]
     },
     {

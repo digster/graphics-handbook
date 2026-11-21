@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>1.3 The content pipeline · Graphics Handbook</title>
+  <meta name="description" content="How art travels from artists' tools into a shipped game: DCC tools, source and cooked assets, baking, FBX, glTF and USD, import, cooking, version control and locking, and automatic validation.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="1.3">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 1 · How games get made</p>
+            <h1><span class="ch-num">1.3</span> The content pipeline</h1>
+            <p class="lead">Every model and texture in a game starts as a large, editable file in an artist's tool and ships as a small file built for one platform. The content pipeline is the chain of tools, people and checks that turns one into the other for every file in the game, without losing anyone's work.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="1.1">1.1 From idea to gold master</a>, <a class="xref" data-ch="1.2">1.2 Who does what</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="1.4">1.4 Platforms and what they change</a>, <a class="xref" data-ch="2.1">2.1 Anatomy of an engine</a>, <a class="xref" data-ch="6.3">6.3 Texture memory</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 476" role="img" aria-label="One lantern prop travels through ten steps. In the artists' tools: concept painting, high-poly sculpt of millions of polygons, retopology to about 8,000 triangles, UV unwrap, baking normal and ambient occlusion maps, and texture painting, producing source files from about 1 megabyte to hundreds of megabytes each, owned by concept, 3D and texture artists. Export hands the work to the engine, which imports it and cooks a version per platform: about 16 megabytes for PC and consoles, about 2 megabytes for a phone and about 0.6 megabytes for a low-end phone, which are then packaged. A bar drawn to scale shows about 1 gigabyte of source files against 16 and 2 megabytes shipped.">
+<defs>
+  <marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+  <pattern id="pic-dense" width="3" height="3" patternUnits="userSpaceOnUse"><path class="s-geo" stroke-width="0.7" d="M0,3 L3,0 M0,0 L3,3"/></pattern>
+</defs>
+<text class="t-caps" x="12" y="20">IN THE ARTISTS' TOOLS · SOURCE FILES THE TEAM KEEPS</text>
+<g>
+<rect class="f-surface s-strong" x="12" y="32" width="136" height="150" rx="6"/>
+<circle class="f-acc" cx="28" cy="50" r="10"/>
+<text class="t-on-acc t-strong mid" x="28" y="54">1</text>
+<text class="t-head" x="44" y="55">Concept</text>
+<circle class="s-muted dash" cx="42" cy="69" r="3"/><polygon class="s-muted dash" points="32,80 52,80 48,73 36,73"/><rect class="s-muted dash" x="34" y="80" width="16" height="20"/><rect class="s-muted dash" x="31" y="100" width="22" height="5"/><circle class="f-lit" cx="42" cy="90" r="3.2"/>
+<text class="t-small t-muted" x="70" y="82">sketches and</text>
+<text class="t-small t-muted" x="70" y="95.5">paintover</text>
+<line class="s-line" x1="22" y1="114" x2="138" y2="114"/>
+<text class="t-mono t-small" x="22" y="131">concept.psd</text>
+<text class="t-strong" x="22" y="149">10s of MB</text>
+<text class="t-small t-muted" x="22" y="168">concept artist</text>
+</g>
+<polygon class="f-acc" points="150,101 157,107 150,113"/>
+<g>
+<rect class="f-surface s-strong" x="158" y="32" width="136" height="150" rx="6"/>
+<circle class="f-acc" cx="174" cy="50" r="10"/>
+<text class="t-on-acc t-strong mid" x="174" y="54">2</text>
+<text class="t-head" x="190" y="55">Sculpt</text>
+<circle class="s-geo" cx="188" cy="69" r="3"/><polygon class="f-geo-soft s-geo" points="178,80 198,80 194,73 182,73"/><rect class="f-geo-soft s-geo" x="180" y="80" width="16" height="20"/><rect class="f-geo-soft s-geo" x="177" y="100" width="22" height="5"/><rect x="180" y="80" width="16" height="20" fill="url(#pic-dense)"/><rect x="177" y="100" width="22" height="5" fill="url(#pic-dense)"/>
+<text class="t-small t-muted" x="216" y="82">millions of</text>
+<text class="t-small t-muted" x="216" y="95.5">polygons</text>
+<line class="s-line" x1="168" y1="114" x2="284" y2="114"/>
+<text class="t-mono t-small" x="168" y="131">lantern_hi.ztl</text>
+<text class="t-strong" x="168" y="149">100s of MB</text>
+<text class="t-small t-muted" x="168" y="168">3D artist</text>
+</g>
+<polygon class="f-acc" points="296,101 303,107 296,113"/>
+<g>
+<rect class="f-surface s-strong" x="304" y="32" width="136" height="150" rx="6"/>
+<circle class="f-acc" cx="320" cy="50" r="10"/>
+<text class="t-on-acc t-strong mid" x="320" y="54">3</text>
+<text class="t-head" x="336" y="55">Retopology</text>
+<circle class="s-geo" cx="334" cy="69" r="3"/><polygon class="f-geo-soft s-geo" points="324,80 344,80 340,73 328,73"/><rect class="f-geo-soft s-geo" x="326" y="80" width="16" height="20"/><rect class="f-geo-soft s-geo" x="323" y="100" width="22" height="5"/><path class="s-geo" d="M331,80 V100 M337,80 V100 M326,90 H342"/>
+<text class="t-small t-muted" x="362" y="82">about 8,000</text>
+<text class="t-small t-muted" x="362" y="95.5">triangles</text>
+<line class="s-line" x1="314" y1="114" x2="430" y2="114"/>
+<text class="t-mono t-small" x="314" y="131">lantern.blend</text>
+<text class="t-strong" x="314" y="149">about 1 MB</text>
+<text class="t-small t-muted" x="314" y="168">3D artist</text>
+</g>
+<polygon class="f-acc" points="442,101 449,107 442,113"/>
+<g>
+<rect class="f-surface s-strong" x="450" y="32" width="136" height="150" rx="6"/>
+<circle class="f-acc" cx="466" cy="50" r="10"/>
+<text class="t-on-acc t-strong mid" x="466" y="54">4</text>
+<text class="t-head" x="482" y="55">UV unwrap</text>
+<rect class="f-surface s-strong" x="461" y="66" width="38" height="38"/><rect class="f-geo-soft s-geo" x="464" y="69" width="20" height="16"/><polygon class="f-geo-soft s-geo" points="487,80 496,80 494,70 489,70"/><rect class="f-geo-soft s-geo" x="464" y="90" width="30" height="5"/><circle class="f-geo-soft s-geo" cx="491" cy="96" r="4"/>
+<text class="t-small t-muted" x="508" y="82">flattened onto</text>
+<text class="t-small t-muted" x="508" y="95.5">a square</text>
+<line class="s-line" x1="460" y1="114" x2="576" y2="114"/>
+<text class="t-mono t-small" x="460" y="131">lantern.blend</text>
+<text class="t-strong" x="460" y="149">about 1 MB</text>
+<text class="t-small t-muted" x="460" y="168">3D artist</text>
+</g>
+<polygon class="f-acc" points="588,101 595,107 588,113"/>
+<g>
+<rect class="f-surface s-strong" x="596" y="32" width="136" height="150" rx="6"/>
+<circle class="f-acc" cx="612" cy="50" r="10"/>
+<text class="t-on-acc t-strong mid" x="612" y="54">5</text>
+<text class="t-head" x="628" y="55">Bake</text>
+<rect class="f-acc-soft s-strong" x="605" y="70" width="19" height="19"/><circle class="s-acc" cx="614.5" cy="79.5" r="5"/><rect class="f-surface s-strong" x="628" y="70" width="19" height="19"/><circle class="f-shade" fill-opacity="0.45" cx="637.5" cy="79.5" r="6"/><circle class="f-surface" cx="637.5" cy="79.5" r="3"/><text class="t-small t-muted mid" x="614.5" y="103">N</text><text class="t-small t-muted mid" x="637.5" y="103">AO</text>
+<text class="t-small t-muted" x="654" y="82">detail written</text>
+<text class="t-small t-muted" x="654" y="95.5">into textures</text>
+<line class="s-line" x1="606" y1="114" x2="722" y2="114"/>
+<text class="t-mono t-small" x="606" y="131">normal.png, ao.png</text>
+<text class="t-strong" x="606" y="149">10s of MB each</text>
+<text class="t-small t-muted" x="606" y="168">3D artist</text>
+</g>
+<polygon class="f-acc" points="734,101 741,107 734,113"/>
+<g>
+<rect class="f-surface s-strong" x="742" y="32" width="136" height="150" rx="6"/>
+<circle class="f-acc" cx="758" cy="50" r="10"/>
+<text class="t-on-acc t-strong mid" x="758" y="54">6</text>
+<text class="t-head" x="774" y="55">Texture</text>
+<circle class="s-strong" cx="772" cy="69" r="3"/><polygon class="f-solid s-strong" points="762,80 782,80 778,73 766,73"/><rect class="f-lit-soft s-strong" x="764" y="80" width="16" height="20"/><rect class="f-solid s-strong" x="761" y="100" width="22" height="5"/><circle class="f-lit" cx="772" cy="90" r="3.2"/>
+<text class="t-small t-muted" x="800" y="82">painted maps,</text>
+<text class="t-small t-muted" x="800" y="95.5">4096 × 4096</text>
+<line class="s-line" x1="752" y1="114" x2="868" y2="114"/>
+<text class="t-mono t-small" x="752" y="131">lantern.spp</text>
+<text class="t-strong" x="752" y="149">100s of MB</text>
+<text class="t-small t-muted" x="752" y="168">texture artist</text>
+</g>
+<path class="s-acc w15 dash" d="M814,183 V204 H87 V234" marker-end="url(#pic-arr)"/>
+<text class="t-acc t-small t-strong mid" x="450" y="199">export: the hand-off from the artists' tools to the engine</text>
+<text class="t-caps end" x="888" y="226">IN THE ENGINE AND ON BUILD MACHINES</text>
+<g><rect class="f-surface s-strong" x="12" y="238" width="150" height="150" rx="6"/><circle class="f-acc" cx="28" cy="256" r="10"/><text class="t-on-acc t-strong mid" x="28" y="260">7</text><text class="t-head" x="44" y="261">Export</text><text class="t-small t-muted" x="22" y="284">units, axis and parts</text>
+<text class="t-small t-muted" x="22" y="297.5">set by an export preset</text><line class="s-line" x1="22" y1="316" x2="152" y2="316"/><text class="t-mono t-small" x="22" y="333">lantern.fbx + maps</text><text class="t-strong" x="22" y="351">about 1 MB + maps</text><text class="t-small t-muted" x="22" y="370">3D or technical artist</text></g>
+<g><rect class="f-surface s-strong" x="172" y="238" width="170" height="150" rx="6"/><circle class="f-acc" cx="188" cy="256" r="10"/><text class="t-on-acc t-strong mid" x="188" y="260">8</text><text class="t-head" x="204" y="261">Import</text><text class="t-small t-muted" x="182" y="284">settings stored with it;</text>
+<text class="t-small t-muted" x="182" y="297.5">checked by validation</text><line class="s-line" x1="182" y1="316" x2="332" y2="316"/><text class="t-mono t-small" x="182" y="333">engine asset + ID</text><text class="t-strong" x="182" y="351">a few MB</text><text class="t-small t-muted" x="182" y="370">technical artist</text></g>
+<g><rect class="f-surface s-strong" x="352" y="238" width="360" height="150" rx="6"/><circle class="f-acc" cx="368" cy="256" r="10"/><text class="t-on-acc t-strong mid" x="368" y="260">9</text><text class="t-head" x="384" y="261">Cook, per platform</text></g>
+<rect class="f-acc-soft s-acc" x="362" y="272" width="108" height="80" rx="4"/>
+<text class="t-strong" x="370" y="290">PC and consoles</text>
+<text class="t-mono t-small" x="370" y="307">2048², BC7</text>
+<text class="t-small t-muted" x="370" y="322">3 maps + mesh</text>
+<text class="t-strong t-acc" x="370" y="342">about 16 MB</text>
+<rect class="f-acc-soft s-acc" x="478" y="272" width="108" height="80" rx="4"/>
+<text class="t-strong" x="486" y="290">Phone</text>
+<text class="t-mono t-small" x="486" y="307">1024², ASTC 6×6</text>
+<text class="t-small t-muted" x="486" y="322">3 maps + mesh</text>
+<text class="t-strong t-acc" x="486" y="342">about 2 MB</text>
+<rect class="f-acc-soft s-acc" x="594" y="272" width="108" height="80" rx="4"/>
+<text class="t-strong" x="602" y="290">Low-end phone</text>
+<text class="t-mono t-small" x="602" y="307">512², ASTC 8×8</text>
+<text class="t-small t-muted" x="602" y="322">3 maps + mesh</text>
+<text class="t-strong t-acc" x="602" y="342">about 0.6 MB</text>
+<text class="t-small t-muted" x="362" y="370">build machines, on every change or overnight</text>
+<g><rect class="f-surface s-strong" x="722" y="238" width="156" height="150" rx="6"/><circle class="f-acc" cx="738" cy="256" r="10"/><text class="t-on-acc t-strong mid" x="738" y="260">10</text><text class="t-head" x="754" y="261">Package</text><text class="t-small t-muted" x="732" y="284">packed with every</text>
+<text class="t-small t-muted" x="732" y="297.5">other cooked asset</text><line class="s-line" x1="732" y1="316" x2="868" y2="316"/><text class="t-mono t-small" x="732" y="333">inside .pak or .pck</text><text class="t-strong" x="732" y="351">ships to players</text><text class="t-small t-muted" x="732" y="370">build engineer</text></g>
+<polygon class="f-acc" points="163,307 170,313 163,319"/>
+<polygon class="f-acc" points="343,307 350,313 343,319"/>
+<polygon class="f-acc" points="713,307 720,313 713,319"/>
+<text class="t-caps" x="12" y="410">DRAWN TO SCALE · WHAT THE TEAM KEEPS AGAINST WHAT SHIPS</text>
+<text class="t-small end" x="196" y="430">source files, about 1 GB</text>
+<rect class="f-solid s-strong" x="204" y="420" width="600" height="12"/>
+<text class="t-small end" x="196" y="448">PC and consoles, about 16 MB</text>
+<rect class="f-acc" x="204" y="438" width="9.6" height="12"/>
+<text class="t-small t-acc" x="221.6" y="448">1.6% of the source</text>
+<text class="t-small end" x="196" y="466">phone, about 2 MB</text>
+<rect class="f-acc" x="204" y="456" width="1.5" height="12"/>
+<text class="t-small t-acc" x="213.5" y="466">0.2% of the source</text>
+                </svg>
+              </div>
+              <figcaption><b>One lantern, from first sketch to shipped file.</b> Six steps happen in artists' tools and leave large, editable source files the team keeps. Export hands the work to the engine, which imports it once and then cooks a separate, much smaller version for each platform. The bars at the bottom are drawn to scale: a PC build carries under 2 percent of what the team stores, and a phone far less. Source sizes are rough orders of magnitude; the cooked sizes are computed from the texture formats shown.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A game's art is made in specialist programs: one for sculpting, one for modelling, one for painting textures. Each saves its own working files, full of layers, history and settings that only that program understands. A game engine cannot load those files quickly, and a console or phone has neither the memory nor the time to make sense of them while a player waits.</p>
+            <p>So every piece of art travels down a <dfn class="term" data-term="content-pipeline">content pipeline</dfn>. It is exported from the artist's tool, imported into the engine, checked against the project's rules, and finally converted into compact files for each platform the game ships on. The working files stay with the team, with every version kept. Players only ever receive the converted copies.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A newspaper story. The reporter's draft is long and full of notes and tracked changes. Sub-editors check it against the house style and cut it to fit, and production turns that one story into the print page, the website and the phone app, each laid out for its own screen.</p>
+                <p>Nobody prints the reporter's draft, and nobody throws it away either.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Artists need rich files they can keep changing for months. Players' machines need small files in exactly the format their hardware reads, and they need them to load fast.</p>
+                <p>A pipeline lets both exist, keeps them in step, and catches mistakes before they reach a build the whole team depends on.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>The pipeline decides how fast your team can iterate and how often the build breaks. Models arriving at the wrong size, missing textures, overwritten work and a failed nightly build are all pipeline failures, cheap to prevent and expensive to chase. The pipeline is also where AI-generated assets either get checked or slip into the game unchecked.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow the lantern from the first sketch to the shipped game. There are eight steps, and the roles named here are covered in <a class="xref" data-ch="1.2">1.2 Who does what</a>.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="dcc-tools"><span class="step-num">1</span> Artists' tools and source files</h3>
+              <p>A <dfn class="term" data-term="dcc-tool">DCC tool</dfn> (digital content creation tool) is a program artists make content in. For 3D game art the common ones are Blender, Maya, 3ds Max, Houdini, ZBrush, and Adobe's Substance 3D Painter and Substance 3D Designer. Most studios use several, because each is strongest at a different job.</p>
+              <p>Each tool saves its own native file. These are the <dfn class="term" data-term="source-asset">source assets</dfn>: the editable originals the team keeps and keeps changing. They hold far more than the game needs, such as sculpting layers, undo history and paint strokes, and they are large. They are also the only files from which the asset can be changed properly later, so losing one is losing the work.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 252" role="img" aria-label="Five columns of jobs with the tools commonly used for each. Sculpt: ZBrush by Maxon, Blender. Model, retopology and UV: Maya and 3ds Max by Autodesk, Blender. Procedural: Houdini by SideFX, Substance 3D Designer by Adobe. Bake and paint: Substance 3D Painter by Adobe, Blender. Rig and animate: Maya, 3ds Max, Blender. Each tool saves its own native file format.">
+                    <g>
+                      <rect class="f-sunken s-strong" x="12" y="12" width="164" height="40" rx="6"/><text class="t-head mid" x="94" y="37">Sculpt</text>
+                      <rect class="f-sunken s-strong" x="190" y="12" width="164" height="40" rx="6"/><text class="t-head mid" x="272" y="37">Model, retopo, UV</text>
+                      <rect class="f-sunken s-strong" x="368" y="12" width="164" height="40" rx="6"/><text class="t-head mid" x="450" y="37">Procedural</text>
+                      <rect class="f-sunken s-strong" x="546" y="12" width="164" height="40" rx="6"/><text class="t-head mid" x="628" y="37">Bake and paint</text>
+                      <rect class="f-sunken s-strong" x="724" y="12" width="164" height="40" rx="6"/><text class="t-head mid" x="806" y="37">Rig and animate</text>
+                    </g>
+                    <g>
+                      <rect class="f-surface s-strong" x="12" y="62" width="164" height="40" rx="8"/><text class="t-strong" x="24" y="79">ZBrush</text><text class="t-small t-muted" x="24" y="94">Maxon</text>
+                      <rect class="f-surface s-acc dash" x="12" y="110" width="164" height="40" rx="8"/><text class="t-strong" x="24" y="127">Blender</text><text class="t-small t-muted" x="24" y="142">free and open source</text>
+
+                      <rect class="f-surface s-strong" x="190" y="62" width="164" height="40" rx="8"/><text class="t-strong" x="202" y="79">Maya</text><text class="t-small t-muted" x="202" y="94">Autodesk</text>
+                      <rect class="f-surface s-strong" x="190" y="110" width="164" height="40" rx="8"/><text class="t-strong" x="202" y="127">3ds Max</text><text class="t-small t-muted" x="202" y="142">Autodesk</text>
+                      <rect class="f-surface s-acc dash" x="190" y="158" width="164" height="40" rx="8"/><text class="t-strong" x="202" y="175">Blender</text><text class="t-small t-muted" x="202" y="190">free and open source</text>
+
+                      <rect class="f-surface s-strong" x="368" y="62" width="164" height="40" rx="8"/><text class="t-strong" x="380" y="79">Houdini</text><text class="t-small t-muted" x="380" y="94">SideFX</text>
+                      <rect class="f-surface s-strong" x="368" y="110" width="164" height="40" rx="8"/><text class="t-strong" x="380" y="127">Substance 3D Designer</text><text class="t-small t-muted" x="380" y="142">Adobe · procedural materials</text>
+
+                      <rect class="f-surface s-strong" x="546" y="62" width="164" height="40" rx="8"/><text class="t-strong" x="558" y="79">Substance 3D Painter</text><text class="t-small t-muted" x="558" y="94">Adobe</text>
+                      <rect class="f-surface s-acc dash" x="546" y="110" width="164" height="40" rx="8"/><text class="t-strong" x="558" y="127">Blender</text><text class="t-small t-muted" x="558" y="142">built-in baking</text>
+
+                      <rect class="f-surface s-strong" x="724" y="62" width="164" height="40" rx="8"/><text class="t-strong" x="736" y="79">Maya</text><text class="t-small t-muted" x="736" y="94">Autodesk</text>
+                      <rect class="f-surface s-strong" x="724" y="110" width="164" height="40" rx="8"/><text class="t-strong" x="736" y="127">3ds Max</text><text class="t-small t-muted" x="736" y="142">Autodesk</text>
+                      <rect class="f-surface s-acc dash" x="724" y="158" width="164" height="40" rx="8"/><text class="t-strong" x="736" y="175">Blender</text><text class="t-small t-muted" x="736" y="190">free and open source</text>
+                    </g>
+                    <text class="t-caps" x="12" y="228">NATIVE FILES</text>
+                    <text class="t-mono t-small" x="118" y="228">.ztl</text>
+                    <text class="t-mono t-small" x="166" y="228">.ma .mb</text>
+                    <text class="t-mono t-small" x="232" y="228">.max</text>
+                    <text class="t-mono t-small" x="276" y="228">.blend</text>
+                    <text class="t-mono t-small" x="330" y="228">.hip</text>
+                    <text class="t-mono t-small" x="372" y="228">.sbs</text>
+                    <text class="t-mono t-small" x="414" y="228">.spp</text>
+                    <text class="t-small t-muted" x="12" y="246">Engines read few of these directly, so work leaves each tool as an exported file (step 4).</text>
+                  </svg>
+                </div>
+                <figcaption><b>Common DCC tools, by the job they do best.</b> Teams mix and match, and most tools can do more than the column they sit in. Blender, outlined in blue, appears in four columns. What matters for the pipeline is that every tool saves a different native format.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="high-to-low"><span class="step-num">2</span> From sculpt to game mesh</h3>
+              <p>Fine detail is easiest to sculpt with millions of polygons, far more than a game can draw for one prop. A game version of the lantern might have around 8,000 <a class="term" data-term="triangle" data-forward href="glossary.html#triangle">triangles</a>, and further away it switches to simpler versions still (<a class="term" data-term="lod" data-forward href="glossary.html#lod">level of detail</a>, chapter 4.5).</p>
+              <p><dfn class="term" data-term="retopology">Retopology</dfn> builds that light <a class="term" data-term="mesh" data-forward href="glossary.html#mesh">mesh</a> over the sculpt, by hand or with automatic tools, with edges placed where the shape and any animation need them. The artist then unwraps it: cuts the surface along seams and flattens it onto a square, so that every triangle gets its own area of a 2D texture. That gives each corner of the mesh its <a class="term" data-term="uv" data-forward href="glossary.html#uv">UV coordinates</a>. Chapter <a class="xref" data-ch="6.1">6.1 Textures and UVs</a> covers unwrapping in depth.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="baking"><span class="step-num">3</span> Baking: moving detail into textures</h3>
+              <p><dfn class="term" data-term="baking">Baking</dfn> moves the detail the light mesh cannot hold into <a class="term" data-term="texture" data-forward href="glossary.html#texture">textures</a> it can. The baker casts rays from the low-poly surface towards the high-poly sculpt, records what each ray hits and writes it into an image. A normal map stores which way the sculpted surface faced at each point, so lighting can draw bumps that are not there (chapter 6.4). An <a class="term" data-term="ambient-occlusion" data-forward href="glossary.html#ambient-occlusion">ambient occlusion</a> map stores how enclosed each point is, which darkens creases.</p>
+              <p>A cage, a slightly inflated copy of the low-poly mesh, sets where the rays start. Substance 3D Painter bakes this way, and Blender does it with its Selected to Active option. Without a cage, rays follow the mesh's normals, which Blender's manual warns can cause glitches at edges.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Left: a side view of one surface. The high-poly sculpt has two raised rivets and a groove. The low-poly mesh is a flat line. A dashed cage sits above both, and rays travel down from the cage to the sculpt. Below, a strip of texels stores an arrow per texel showing which way the sculpt faced: straight up on flat areas, tilted on the rivet and groove sides. Right: the baked normal map and ambient occlusion map, which let a few flat triangles look sculpted in the game.">
+                    <defs>
+                      <marker id="bake-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="bake-arr-k" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">SIDE VIEW OF ONE SURFACE</text>
+                    <path class="f-geo-soft s-geo w15" d="M40,150 L120,150 C130,150 132,128 145,128 C158,128 160,150 170,150 L250,150 L260,168 L300,168 L310,150 L380,150 C390,150 392,128 405,128 C418,128 420,150 430,150 L500,150 L500,196 L40,196 Z"/>
+                    <line class="s-ink w2" x1="40" y1="150" x2="500" y2="150"/>
+                    <line class="s-acc w15 dash" x1="40" y1="108" x2="500" y2="108"/>
+                    <text class="t-acc t-small t-strong end" x="500" y="100">cage: where rays start</text>
+                    <text class="t-geo t-small t-strong" x="420" y="186">high-poly sculpt</text>
+                    <text class="t-small t-strong" x="512" y="154">low-poly</text>
+                    <text class="t-small t-strong" x="512" y="168">mesh</text>
+                    <g>
+                      <line class="s-acc w15" x1="80" y1="108" x2="80" y2="146" marker-end="url(#bake-arr)"/>
+                      <line class="s-acc w15" x1="131" y1="108" x2="131" y2="135" marker-end="url(#bake-arr)"/>
+                      <line class="s-acc w15" x1="145" y1="108" x2="145" y2="124" marker-end="url(#bake-arr)"/>
+                      <line class="s-acc w15" x1="210" y1="108" x2="210" y2="146" marker-end="url(#bake-arr)"/>
+                      <line class="s-acc w15" x1="280" y1="108" x2="280" y2="164" marker-end="url(#bake-arr)"/>
+                      <line class="s-acc w15" x1="405" y1="108" x2="405" y2="124" marker-end="url(#bake-arr)"/>
+                      <line class="s-acc w15" x1="460" y1="108" x2="460" y2="146" marker-end="url(#bake-arr)"/>
+                    </g>
+                    <line class="s-ink w15" x1="131" y1="139" x2="117" y2="127" marker-end="url(#bake-arr-k)"/>
+                    <text class="t-small" x="60" y="66">a ray on the side of a rivet records</text>
+                    <text class="t-small" x="60" y="80">a tilted surface direction</text>
+                    <path class="s-muted" d="M118,84 L124,120"/>
+
+                    <g>
+                      <rect class="f-acc-soft s-line" x="40" y="214" width="460" height="28"/>
+                      <path class="s-line" d="M60,214 V242 M80,214 V242 M100,214 V242 M120,214 V242 M140,214 V242 M160,214 V242 M180,214 V242 M200,214 V242 M220,214 V242 M240,214 V242 M260,214 V242 M280,214 V242 M300,214 V242 M320,214 V242 M340,214 V242 M360,214 V242 M380,214 V242 M400,214 V242 M420,214 V242 M440,214 V242 M460,214 V242 M480,214 V242"/>
+                      <path class="s-ink" d="M50,238 V220 M70,238 V220 M90,238 V220 M110,238 V220 M150,238 V220 M190,238 V220 M210,238 V220 M230,238 V220 M270,238 V220 M290,238 V220 M330,238 V220 M350,238 V220 M370,238 V220 M410,238 V220 M450,238 V220 M470,238 V220 M490,238 V220"/>
+                      <path class="s-ink" d="M134,238 L125,221 M166,238 L175,221 M394,238 L385,221 M310,238 L301,221 M246,238 L255,221 M426,238 L435,221"/>
+                    </g>
+                    <text class="t-small" x="40" y="262">Normal map: each texel stores which way the sculpt faced there.</text>
+                    <text class="t-small t-muted" x="40" y="277">Upright strokes are flat areas; tilted ones are the sides of rivets and the groove.</text>
+
+                    <line class="s-line" x1="556" y1="14" x2="556" y2="280"/>
+                    <text class="t-caps" x="576" y="22">WHAT THE GAME GETS</text>
+                    <rect class="f-acc-soft s-strong" x="576" y="40" width="130" height="130"/>
+                    <rect class="f-acc" fill-opacity="0.18" x="576" y="104" width="130" height="10"/>
+                    <circle class="s-acc w15" cx="612" cy="74" r="15"/>
+                    <path class="f-acc" fill-opacity="0.4" d="M612,59 A15,15 0 0 0 612,89 Z"/>
+                    <circle class="s-acc w15" cx="672" cy="142" r="15"/>
+                    <path class="f-acc" fill-opacity="0.4" d="M672,127 A15,15 0 0 0 672,157 Z"/>
+                    <rect class="f-surface s-strong" x="740" y="40" width="130" height="130"/>
+                    <rect class="f-shade" fill-opacity="0.35" x="740" y="103" width="130" height="12"/>
+                    <circle class="f-shade" fill-opacity="0.4" cx="776" cy="74" r="20"/>
+                    <circle class="f-surface" cx="776" cy="74" r="13"/>
+                    <circle class="f-shade" fill-opacity="0.4" cx="836" cy="142" r="20"/>
+                    <circle class="f-surface" cx="836" cy="142" r="13"/>
+                    <text class="t-strong mid" x="641" y="190">normal map</text>
+                    <text class="t-small t-muted mid" x="641" y="205">lighting fakes the bumps</text>
+                    <text class="t-strong mid" x="805" y="190">ambient occlusion map</text>
+                    <text class="t-small t-muted mid" x="805" y="205">creases come out darker</text>
+                    <text class="t-small" x="576" y="240">In the game: a few flat triangles,</text>
+                    <text class="t-small" x="576" y="255">lit as if they had been sculpted.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Baking moves the sculpt's detail into textures.</b> Rays start on a cage just outside the low-poly mesh and travel to the high-poly surface. Each one records what it finds: the surface direction for the normal map, how enclosed the point is for the ambient occlusion map. The game then draws the light mesh and reads the detail from the images.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="export"><span class="step-num">4</span> Export: the hand-off</h3>
+              <p>To leave the DCC tool, the work is exported to a format engines read. Three formats matter today, and they were built for different jobs.</p>
+              <p><dfn class="term" data-term="fbx">FBX</dfn> is Autodesk's exchange format. It carries meshes, materials, skeletons, animation, cameras and lights, and almost every DCC tool writes it. Autodesk's own documentation says the file format is not documented, so programs read and write it through Autodesk's FBX SDK.</p>
+              <p><dfn class="term" data-term="gltf">glTF</dfn> is an open standard from the Khronos Group, published as ISO/IEC 12113:2022. It describes meshes, PBR materials, skins and animation in a JSON file with binary data alongside, or packs everything into one <code>.glb</code> file. Its specification fixes the units and axes: metres, with Y pointing up.</p>
+              <p><dfn class="term" data-term="usd">USD</dfn> (Universal Scene Description) came from Pixar and is open source. It is built for assembling large scenes from many files: layers stack changes on top of each other without editing the originals, references pull assets in, and variants pack alternatives into one asset. The Alliance for OpenUSD, founded by Pixar, Adobe, Apple, Autodesk and NVIDIA, published its Core Specification 1.0 in December 2025.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 418" role="img" aria-label="A comparison of FBX, glTF 2.0 and USD. All three carry meshes, skeletons, animation and blend shapes. FBX has basic materials, cameras and lights, units and up axis that vary by file, no layering, and an undocumented format read through Autodesk's SDK. glTF has PBR materials, cameras with lights by extension, fixed metres and Y up, no layering, and an open ISO standard. USD has shading networks, cameras and lights, units stored per stage, layers and variants as its core strength, and an open-source implementation with Core Specification 1.0.">
+<rect class="f-sunken s-strong" x="200" y="12" width="218" height="46" rx="6"/>
+<text class="t-head" x="212" y="32">FBX</text>
+<text class="t-small t-muted" x="212" y="49">Autodesk · .fbx</text>
+<rect class="f-sunken s-strong" x="428" y="12" width="218" height="46" rx="6"/>
+<text class="t-head" x="440" y="32">glTF 2.0</text>
+<text class="t-small t-muted" x="440" y="49">Khronos · .gltf, .glb</text>
+<rect class="f-sunken s-strong" x="656" y="12" width="218" height="46" rx="6"/>
+<text class="t-head" x="668" y="32">USD</text>
+<text class="t-small t-muted" x="668" y="49">Pixar and AOUSD · .usda, .usdc, .usdz</text>
+<rect class="f-sunken" x="12" y="66" width="876" height="29"/>
+<text class="t-strong t-small" x="20" y="85">Meshes, UVs, normals</text>
+<circle class="f-acc" cx="214" cy="80.5" r="6"/>
+<text class="t-small" x="228" y="85">yes</text>
+<circle class="f-acc" cx="442" cy="80.5" r="6"/>
+<text class="t-small" x="456" y="85">yes</text>
+<circle class="f-acc" cx="670" cy="80.5" r="6"/>
+<text class="t-small" x="684" y="85">yes</text>
+<text class="t-strong t-small" x="20" y="114">Materials</text>
+<circle class="s-acc w15" cx="214" cy="109.5" r="6"/><path class="f-acc" d="M214,103.5 A6,6 0 0 0 214,115.5 Z"/>
+<text class="t-small" x="228" y="114">basic, with texture links</text>
+<circle class="f-acc" cx="442" cy="109.5" r="6"/>
+<text class="t-small" x="456" y="114">PBR metal and roughness</text>
+<circle class="f-acc" cx="670" cy="109.5" r="6"/>
+<text class="t-small" x="684" y="114">shading networks</text>
+<rect class="f-sunken" x="12" y="124" width="876" height="29"/>
+<text class="t-strong t-small" x="20" y="143">Skeletons and skinning</text>
+<circle class="f-acc" cx="214" cy="138.5" r="6"/>
+<text class="t-small" x="228" y="143">yes</text>
+<circle class="f-acc" cx="442" cy="138.5" r="6"/>
+<text class="t-small" x="456" y="143">yes</text>
+<circle class="f-acc" cx="670" cy="138.5" r="6"/>
+<text class="t-small" x="684" y="143">yes</text>
+<text class="t-strong t-small" x="20" y="172">Animation</text>
+<circle class="f-acc" cx="214" cy="167.5" r="6"/>
+<text class="t-small" x="228" y="172">yes</text>
+<circle class="f-acc" cx="442" cy="167.5" r="6"/>
+<text class="t-small" x="456" y="172">yes</text>
+<circle class="f-acc" cx="670" cy="167.5" r="6"/>
+<text class="t-small" x="684" y="172">yes</text>
+<rect class="f-sunken" x="12" y="182" width="876" height="29"/>
+<text class="t-strong t-small" x="20" y="201">Blend shapes</text>
+<circle class="f-acc" cx="214" cy="196.5" r="6"/>
+<text class="t-small" x="228" y="201">yes</text>
+<circle class="f-acc" cx="442" cy="196.5" r="6"/>
+<text class="t-small" x="456" y="201">yes, as morph targets</text>
+<circle class="f-acc" cx="670" cy="196.5" r="6"/>
+<text class="t-small" x="684" y="201">yes</text>
+<text class="t-strong t-small" x="20" y="230">Cameras and lights</text>
+<circle class="f-acc" cx="214" cy="225.5" r="6"/>
+<text class="t-small" x="228" y="230">both</text>
+<circle class="s-acc w15" cx="442" cy="225.5" r="6"/><path class="f-acc" d="M442,219.5 A6,6 0 0 0 442,231.5 Z"/>
+<text class="t-small" x="456" y="230">cameras; lights by extension</text>
+<circle class="f-acc" cx="670" cy="225.5" r="6"/>
+<text class="t-small" x="684" y="230">both</text>
+<rect class="f-sunken" x="12" y="240" width="876" height="29"/>
+<text class="t-strong t-small" x="20" y="259">Units and up axis</text>
+<circle class="s-acc w15" cx="214" cy="254.5" r="6"/><path class="f-acc" d="M214,248.5 A6,6 0 0 0 214,260.5 Z"/>
+<text class="t-small" x="228" y="259">stored per file, differ by tool</text>
+<circle class="f-acc" cx="442" cy="254.5" r="6"/>
+<text class="t-small" x="456" y="259">fixed: metres, Y up</text>
+<circle class="s-acc w15" cx="670" cy="254.5" r="6"/><path class="f-acc" d="M670,248.5 A6,6 0 0 0 670,260.5 Z"/>
+<text class="t-small" x="684" y="259">stored per stage</text>
+<text class="t-strong t-small" x="20" y="288">Layers and variants</text>
+<circle class="s-strong w15" cx="214" cy="283.5" r="6"/>
+<text class="t-small" x="228" y="288">no</text>
+<circle class="s-strong w15" cx="442" cy="283.5" r="6"/>
+<text class="t-small" x="456" y="288">no</text>
+<circle class="f-acc" cx="670" cy="283.5" r="6"/>
+<text class="t-small" x="684" y="288">its core strength</text>
+<rect class="f-sunken" x="12" y="298" width="876" height="29"/>
+<text class="t-strong t-small" x="20" y="317">Specification</text>
+<circle class="s-acc w15" cx="214" cy="312.5" r="6"/><path class="f-acc" d="M214,306.5 A6,6 0 0 0 214,318.5 Z"/>
+<text class="t-small" x="228" y="317">undocumented; Autodesk SDK</text>
+<circle class="f-acc" cx="442" cy="312.5" r="6"/>
+<text class="t-small" x="456" y="317">open, ISO/IEC 12113:2022</text>
+<circle class="f-acc" cx="670" cy="312.5" r="6"/>
+<text class="t-small" x="684" y="317">open source; Core Spec 1.0</text>
+<line class="s-strong" x1="12" y1="331" x2="888" y2="331"/>
+<text class="t-strong t-small" x="20" y="351">Typical use</text>
+<text class="t-small" x="212" y="351">The hand-off from DCC tools;</text>
+<text class="t-small" x="212" y="365">all three engines read it</text>
+<text class="t-small" x="440" y="351">Compact delivery; Godot's</text>
+<text class="t-small" x="440" y="365">recommended format; the web</text>
+<text class="t-small" x="668" y="351">Assembling big scenes across</text>
+<text class="t-small" x="668" y="365">tools, people and departments</text>
+<circle class="f-acc" cx="26" cy="387" r="6"/><text class="t-small t-muted" x="38" y="391">yes</text>
+<circle class="s-acc w15" cx="86" cy="387" r="6"/><path class="f-acc" d="M86,381 A6,6 0 0 0 86,393 Z"/><text class="t-small t-muted" x="98" y="391">partly or with limits</text>
+<circle class="s-strong w15" cx="232" cy="387" r="6"/><text class="t-small t-muted" x="244" y="391">no</text>
+                  </svg>
+                </div>
+                <figcaption><b>What each export format carries.</b> FBX is the everyday hand-off from DCC tools, glTF is a compact, fully specified delivery format, and USD is for assembling big scenes from many people's files. The row that causes the most day-to-day trouble is units and up axis: FBX files differ by tool, which is where wrongly sized and rotated imports come from.</figcaption>
+              </figure>
+              <p>The export settings matter as much as the format: which unit the scene uses, which axis is up, which objects to include, whether to triangulate, how to treat smoothing. Studios write these down as export presets so that every artist exports the same way.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="import"><span class="step-num">5</span> Import and the asset database</h3>
+              <p><dfn class="term" data-term="asset-import">Import</dfn> reads the exported file and converts it into the engine's own representation. The import settings are stored with it: scale, whether to use the artist's normals, whether to generate levels of detail, how to compress each texture. Change a setting, or the file, and the engine imports it again.</p>
+              <p>Engines differ in what they keep. Unreal turns the file into its own <code>.uasset</code> files, which become the working copies the team edits and submits. Unity and Godot keep the original file in the project and store the processed result in a cache folder that each machine builds for itself and that stays out of version control.</p>
+              <p>Every imported asset also gets an identity. The <dfn class="term" data-term="asset-database">asset database</dfn> tracks each asset by a stable ID, with its type, location and what it depends on, so a level refers to the lantern by ID and the link survives a rename. Unity stores that ID as a GUID in a <code>.meta</code> file beside the source file, Godot 4 uses <code>uid://</code> identifiers, and Unreal's Asset Registry lets the editor list and search assets without loading them.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="An exported file, lantern.fbx, and its import settings go into the importer. Out comes an engine asset with a stable ID, 7c1e. The asset database lists three entries: the lantern mesh with ID 7c1e, the lantern normal map with ID a904, and the courtyard level with ID 3bd2, which uses 7c1e and a904. When the lantern is moved to a new folder its path changes but its ID stays, so the level's reference still works.">
+                    <defs>
+                      <marker id="imp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="imp-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <path class="f-surface s-strong" d="M20,36 H104 L124,56 V120 H20 Z"/>
+                    <path class="s-strong" d="M104,36 V56 H124"/>
+                    <text class="t-mono t-strong" x="32" y="84">lantern.fbx</text>
+                    <text class="t-small t-muted" x="32" y="102">exported file</text>
+                    <rect class="f-sunken s-strong" x="20" y="136" width="150" height="104" rx="6"/>
+                    <text class="t-caps" x="32" y="156">IMPORT SETTINGS</text>
+                    <text class="t-mono t-small" x="32" y="176">scale 1.0</text>
+                    <text class="t-mono t-small" x="32" y="193">normals: import</text>
+                    <text class="t-mono t-small" x="32" y="210">LODs: generate</text>
+                    <text class="t-mono t-small" x="32" y="227">nrm map: BC5</text>
+
+                    <path class="s-acc w15" d="M126,80 H190" marker-end="url(#imp-arr)"/>
+                    <path class="s-acc w15" d="M172,188 H180 V96 H190" marker-end="url(#imp-arr)"/>
+                    <rect class="f-acc" x="194" y="66" width="80" height="34" rx="6"/>
+                    <text class="t-on-acc t-strong mid" x="234" y="88">import</text>
+                    <path class="s-acc w15" d="M274,83 H306" marker-end="url(#imp-arr)"/>
+
+                    <rect class="f-acc-soft s-acc" x="310" y="40" width="190" height="96" rx="6"/>
+                    <text class="t-caps" x="324" y="60">ENGINE ASSET</text>
+                    <text class="t-strong" x="324" y="80">Lantern mesh</text>
+                    <text class="t-mono t-small" x="324" y="98">ID 7c1e…</text>
+                    <text class="t-small t-muted" x="324" y="116">plus cached, processed data</text>
+                    <text class="t-small t-muted" x="310" y="160">The ID never changes. Paths can.</text>
+
+                    <rect class="f-surface s-strong" x="540" y="20" width="348" height="160" rx="8"/>
+                    <text class="t-caps" x="556" y="42">ASSET DATABASE</text>
+                    <text class="t-caps" x="556" y="64">ID</text><text class="t-caps" x="616" y="64">PATH</text><text class="t-caps" x="778" y="64">USES</text>
+                    <line class="s-line" x1="552" y1="72" x2="876" y2="72"/>
+                    <rect class="f-acc-soft" x="552" y="76" width="324" height="26"/>
+                    <text class="t-mono t-small t-acc t-strong" x="556" y="94">7c1e…</text><text class="t-mono t-small" x="616" y="94">Props/Lights/Lantern</text><text class="t-mono t-small t-muted" x="778" y="94">a904…</text>
+                    <text class="t-mono t-small" x="556" y="122">a904…</text><text class="t-mono t-small" x="616" y="122">Props/T_Lantern_N</text><text class="t-mono t-small t-muted" x="778" y="122">none</text>
+                    <text class="t-mono t-small" x="556" y="150">3bd2…</text><text class="t-mono t-small" x="616" y="150">Levels/Courtyard</text><text class="t-mono t-small t-acc" x="778" y="150">7c1e…, a904…</text>
+                    <path class="s-muted dash" d="M502,88 H546" marker-end="url(#imp-arr-m)"/>
+
+                    <rect class="f-sunken s-strong" x="540" y="196" width="348" height="54" rx="6"/>
+                    <text class="t-small t-strong" x="556" y="216">Moved from Props/Lantern to Props/Lights/Lantern:</text>
+                    <text class="t-small" x="556" y="234">the ID stays 7c1e…, so the courtyard still finds it.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Import gives every asset an identity.</b> The engine converts the exported file using its stored settings, and records the result in the asset database under an ID that never changes. References go through the ID, so moving or renaming files inside the editor is safe. Moving them behind the editor's back is how references break.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cooking"><span class="step-num">6</span> Cooking and packaging</h3>
+              <p><dfn class="term" data-term="asset-cooking">Cooking</dfn> converts imported assets into the exact form one platform loads. Unreal's documentation describes it as turning editor-only formats into runtime-ready ones: textures compressed into that <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a>'s formats and sized for its memory, <a class="term" data-term="shader" data-forward href="glossary.html#shader">shaders</a> compiled for its graphics API, editor-only data removed and assets that no level uses left out. The result is a <dfn class="term" data-term="cooked-asset">cooked asset</dfn>: fast to load, useless for editing, and different for every platform.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="One 4096 by 4096 source colour texture, 64 megabytes uncompressed, is cooked into four versions drawn to scale by resolution: 4096 squared in BC7 for a high-end PC at 21.3 megabytes, 2048 squared in BC7 for PC and consoles at 5.3 megabytes, 1024 squared in ASTC 6 by 6 for a phone at 0.6 megabytes, and 512 squared in ASTC 8 by 8 for a low-end phone at 0.09 megabytes.">
+<defs><marker id="ck-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<text class="t-caps" x="12" y="20">ONE SOURCE TEXTURE, FOUR COOKED VERSIONS · SQUARES DRAWN TO SCALE BY RESOLUTION</text>
+<rect class="f-lit-soft s-strong" x="30" y="62" width="160" height="160"/>
+<text class="t-small t-muted mid" x="110" y="136">the painted</text>
+<text class="t-small t-muted mid" x="110" y="150">colour map</text>
+<text class="t-strong mid" x="110" y="242">Source texture</text>
+<text class="t-mono t-small mid" x="110" y="258">4096 × 4096, RGBA</text>
+<text class="t-small t-muted mid" x="110" y="274">64 MB uncompressed</text>
+<line class="s-acc w15" x1="192" y1="142" x2="216" y2="142" marker-end="url(#ck-arr)"/>
+<rect class="f-acc" x="220" y="126" width="66" height="32" rx="6"/>
+<text class="t-on-acc t-strong mid" x="253" y="147">cook</text>
+<path class="s-acc w15" d="M286,142 H306 V46 H826"/>
+<line class="s-acc w15" x1="410" y1="46" x2="410" y2="59" marker-end="url(#ck-arr)"/>
+<rect class="f-lit-soft s-acc w15" x="330" y="62" width="160" height="160"/>
+<text class="t-strong mid" x="410" y="242">High-end PC</text>
+<text class="t-mono t-small mid" x="410" y="258">4096², BC7</text>
+<text class="t-acc t-strong mid" x="410" y="276">21.3 MB</text>
+<line class="s-acc w15" x1="572" y1="46" x2="572" y2="139" marker-end="url(#ck-arr)"/>
+<rect class="f-lit-soft s-acc w15" x="532" y="142" width="80" height="80"/>
+<text class="t-strong mid" x="572" y="242">PC and consoles</text>
+<text class="t-mono t-small mid" x="572" y="258">2048², BC7</text>
+<text class="t-acc t-strong mid" x="572" y="276">5.3 MB</text>
+<line class="s-acc w15" x1="706" y1="46" x2="706" y2="179" marker-end="url(#ck-arr)"/>
+<rect class="f-lit-soft s-acc w15" x="686" y="182" width="40" height="40"/>
+<text class="t-strong mid" x="706" y="242">Phone</text>
+<text class="t-mono t-small mid" x="706" y="258">1024², ASTC 6×6</text>
+<text class="t-acc t-strong mid" x="706" y="276">0.6 MB</text>
+<line class="s-acc w15" x1="826" y1="46" x2="826" y2="199" marker-end="url(#ck-arr)"/>
+<rect class="f-lit-soft s-acc w15" x="816" y="202" width="20" height="20"/>
+<text class="t-strong mid" x="826" y="242">Low-end phone</text>
+<text class="t-mono t-small mid" x="826" y="258">512², ASTC 8×8</text>
+<text class="t-acc t-strong mid" x="826" y="276">0.09 MB</text>
+                  </svg>
+                </div>
+                <figcaption><b>One source, many cooked outputs.</b> An example cook of the lantern's colour map. Each platform gets a resolution that suits its memory and a compression format its GPU reads directly: BC7 on PCs and consoles, ASTC on phones. Sizes include the full chain of smaller copies GPUs use for distant surfaces. Chapter <a class="xref" data-ch="6.3">6.3 Texture memory</a> explains the formats.</figcaption>
+              </figure>
+              <p>Cooking is slow, so engines cache what it produces. Unreal keeps the results in a <dfn class="term" data-term="derived-data-cache">derived data cache</dfn> (DDC); a shared DDC means that once one person or build machine has processed an asset, nobody else repeats the work. Unity Accelerator plays the same role for Unity, storing import results, compiled shaders and compressed textures for the whole team.</p>
+              <p>Finally the cooked content is packed into a <dfn class="term" data-term="build">build</dfn>: a runnable copy of the game for one platform, made of compiled code plus a few large files of cooked assets. Unreal's packaging runs build, cook, stage and package in turn and writes <code>.pak</code> files, alongside <code>.utoc</code> and <code>.ucas</code> containers for its newer loader. Godot exports a <code>.pck</code> file. Unity puts content in the player build, and content loaded separately ships as AssetBundles, usually managed through the Addressables package.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="version-control"><span class="step-num">7</span> Version control and locking</h3>
+              <p><dfn class="term" data-term="version-control">Version control</dfn> keeps every revision of every file, records who changed what, and lets the team go back to any earlier state. For code it also merges work: two people can change different lines of the same text file and the system combines them. Most art files are binary, and binary files cannot be merged. Unreal's documentation says this plainly about its own <code>.uasset</code> and <code>.umap</code> files.</p>
+              <p>Teams therefore use <dfn class="term" data-term="file-locking">file locking</dfn>, also called exclusive checkout. The first person to open a file locks it, and nobody else can change it until they submit or release it.</p>
+              <ul>
+                <li><dfn class="term" data-term="perforce">Perforce</dfn> handles very large binary files and locks them with its <code>+l</code> file type. Its server, long called Helix Core, is now named P4. Unreal's editor checks files out in Perforce automatically when you start editing them.</li>
+                <li><dfn class="term" data-term="git-lfs">Git LFS</dfn> (Large File Storage) adds big-file handling to Git: the repository keeps a small pointer and the file itself lives on a separate server. Files marked lockable stay read-only until you run <code>git lfs lock</code>, and Git LFS checks on every push that you are not changing a file someone else has locked.</li>
+                <li>Unity Version Control has Smart Locks, which do the same for files that cannot be merged.</li>
+              </ul>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 318" role="img" aria-label="Two timelines from 10:00 to 12:00. Without a lock: Ana edits lantern.uasset from 10:00 and submits at 11:30; Ben edits the same file from 10:20 and at 12:00 his submit is refused because the file changed, and a binary file cannot be merged, so Ben redoes his morning. With exclusive checkout: Ana checks the file out at 10:00, locking it, and submits at 11:30, releasing the lock; Ben tries at 10:20, sees it is locked by Ana, works on another asset, then checks it out at 11:30 and edits the latest version. Nothing is lost.">
+                    <defs>
+                      <marker id="lk-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <g>
+                      <text class="t-mono t-small t-muted mid" x="150" y="20">10:00</text>
+                      <text class="t-mono t-small t-muted mid" x="285" y="20">10:30</text>
+                      <text class="t-mono t-small t-muted mid" x="420" y="20">11:00</text>
+                      <text class="t-mono t-small t-muted mid" x="555" y="20">11:30</text>
+                      <text class="t-mono t-small t-muted mid" x="690" y="20">12:00</text>
+                      <path class="s-line" d="M150,26 V304 M285,26 V304 M420,26 V304 M555,26 V304 M690,26 V304"/>
+                    </g>
+                    <text class="t-caps" x="12" y="44">WITHOUT A LOCK</text>
+                    <text class="t-strong" x="12" y="76">Ana</text>
+                    <rect class="f-acc-soft s-acc" x="150" y="60" width="405" height="24" rx="4"/>
+                    <text class="t-small" x="160" y="76">editing lantern.uasset</text>
+                    <circle class="f-acc" cx="555" cy="72" r="6"/>
+                    <text class="t-small t-acc t-strong" x="566" y="76">submits</text>
+                    <text class="t-strong" x="12" y="120">Ben</text>
+                    <rect class="f-pix-soft s-pix" x="240" y="104" width="450" height="24" rx="4"/>
+                    <text class="t-small" x="250" y="120">editing the same file</text>
+                    <path class="s-pix w2" d="M684,110 L696,122 M696,110 L684,122"/>
+                    <text class="t-small t-pix t-strong" x="704" y="112">submit refused: the file</text>
+                    <text class="t-small t-pix t-strong" x="704" y="126">changed and cannot merge.</text>
+                    <text class="t-small t-pix" x="704" y="140">Ben redoes his morning.</text>
+
+                    <line class="s-strong" x1="12" y1="160" x2="888" y2="160"/>
+
+                    <text class="t-caps" x="12" y="186">WITH EXCLUSIVE CHECKOUT</text>
+                    <text class="t-strong" x="12" y="218">Ana</text>
+                    <rect class="f-acc-soft s-acc" x="150" y="202" width="405" height="24" rx="4"/>
+                    <text class="t-small" x="160" y="218">checked out and locked</text>
+                    <circle class="f-acc" cx="555" cy="214" r="6"/>
+                    <text class="t-small t-acc t-strong" x="566" y="218">submits; lock released</text>
+                    <text class="t-strong" x="12" y="276">Ben</text>
+                    <circle class="f-muted" cx="240" cy="246" r="4"/>
+                    <text class="t-small t-muted" x="248" y="250">tries to check out: "locked by Ana"</text>
+                    <rect class="f-surface s-strong dash" x="240" y="260" width="312" height="24" rx="4"/>
+                    <text class="t-small t-muted" x="250" y="276">works on another asset</text>
+                    <rect class="f-acc-soft s-acc" x="558" y="260" width="132" height="24" rx="4"/>
+                    <text class="t-small" x="566" y="276">edits the latest</text>
+                    <path class="s-muted" d="M555,226 C555,242 566,246 566,256" marker-end="url(#lk-arr)"/>
+                    <text class="t-small t-acc t-strong" x="704" y="268">Nothing lost.</text>
+                    <text class="t-small t-acc" x="704" y="282">Ben waited, but knew</text>
+                    <text class="t-small t-acc" x="704" y="296">at once.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Two people, one binary file.</b> Code can be merged line by line, so two people can safely change the same text file. A model, texture or engine asset cannot, so without a lock the second person to finish loses their work. With exclusive checkout the second person learns straight away that the file is taken.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="validation"><span class="step-num">8</span> Validation: the automatic gate</h3>
+              <p><dfn class="term" data-term="asset-validation">Asset validation</dfn> is code that checks every asset against the project's rules before it reaches a build: names follow the convention, triangle counts are within the budget for that kind of object, textures are no larger than allowed, levels of detail and collision exist, nothing points at a missing file. Unreal ships a Data Validation plugin that runs on save and from the command line. Unity runs <code>AssetPostprocessor</code> scripts before and after each import. Godot can run an import script after a 3D scene imports.</p>
+              <p>The most dependable place to run it is <dfn class="term" data-term="continuous-integration">continuous integration</dfn> (CI): build machines that pick up every submitted change, import, validate and cook it, and report failures straight back to whoever submitted it. Checks that only run on artists' machines are easy to skip under deadline pressure; the build machine cannot skip them.</p>
+              <p>AI-generated models and textures enter the pipeline the way work from an outside vendor does: as exported files. Meshy, for example, lists GLB, FBX, OBJ and USDZ among its export formats. They should pass the same gate, plus a few extra checks: where the asset came from and under what terms, whether its triangle count and UV layout suit a game, and whether its scale and up axis match the project.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 318" role="img" aria-label="Three sources feed the import step: team artists, an outsourcing partner, and an AI generator delivering GLB, FBX, OBJ or USDZ files. After import, every asset passes a validation gate that checks naming, triangle budget, texture size, LODs and collision, and missing references, with extra checks for AI and outside work: source and licence recorded, scale and up axis, topology and UVs. Assets that pass go on to cook and the nightly build. Failures go back to whoever submitted them with a report. The gate runs at save on artists' machines and on CI for every change.">
+                    <defs>
+                      <marker id="val-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="val-arr-p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="12" y="22">WHERE ASSETS COME FROM</text>
+                    <rect class="f-surface s-strong" x="12" y="34" width="168" height="44" rx="6"/>
+                    <text class="t-strong" x="24" y="53">Team artists</text><text class="t-small t-muted" x="24" y="69">exports from DCC tools</text>
+                    <rect class="f-surface s-strong" x="12" y="92" width="168" height="44" rx="6"/>
+                    <text class="t-strong" x="24" y="111">Outsourcing partner</text><text class="t-small t-muted" x="24" y="127">batches of delivered files</text>
+                    <rect class="f-acc-soft s-acc dash" x="12" y="150" width="168" height="44" rx="6"/>
+                    <text class="t-strong" x="24" y="169">AI generator</text><text class="t-small t-muted" x="24" y="185">GLB, FBX, OBJ, USDZ</text>
+                    <path class="s-acc w15" d="M180,56 H196 V112 M180,114 H208 M180,172 H196 V116" />
+                    <path class="s-acc w15" d="M196,114 H210" marker-end="url(#val-arr)"/>
+                    <rect class="f-acc" x="214" y="96" width="78" height="36" rx="6"/>
+                    <text class="t-on-acc t-strong mid" x="253" y="119">import</text>
+                    <path class="s-acc w15" d="M292,114 H318" marker-end="url(#val-arr)"/>
+
+                    <rect class="f-surface s-acc w2" x="322" y="14" width="290" height="246" rx="8"/>
+                    <text class="t-caps" x="338" y="36">VALIDATION GATE</text>
+                    <g>
+                      <path class="s-acc w2 round" d="M340,52 L344,56 L351,48 M340,74 L344,78 L351,70 M340,96 L344,100 L351,92 M340,118 L344,122 L351,114 M340,140 L344,144 L351,136"/>
+                      <text class="t-small" x="360" y="57">Name follows the convention</text>
+                      <text class="t-small" x="360" y="79">Triangles within budget for its type</text>
+                      <text class="t-small" x="360" y="101">Textures within the size limit</text>
+                      <text class="t-small" x="360" y="123">LODs and collision present</text>
+                      <text class="t-small" x="360" y="145">No missing references</text>
+                    </g>
+                    <line class="s-line" x1="338" y1="160" x2="596" y2="160"/>
+                    <text class="t-small t-acc t-strong" x="338" y="178">Extra for AI and outside work</text>
+                    <g>
+                      <path class="s-acc w2 round" d="M340,192 L344,196 L351,188 M340,214 L344,218 L351,210 M340,236 L344,240 L351,232"/>
+                      <text class="t-small" x="360" y="197">Source, tool and licence recorded</text>
+                      <text class="t-small" x="360" y="219">Scale and up axis match the project</text>
+                      <text class="t-small" x="360" y="241">Topology and UVs fit for a game</text>
+                    </g>
+
+                    <path class="s-acc w15" d="M612,80 H642" marker-end="url(#val-arr)"/>
+                    <text class="t-small t-acc t-strong" x="616" y="72">pass</text>
+                    <rect class="f-acc-soft s-acc" x="646" y="60" width="96" height="40" rx="6"/>
+                    <text class="t-strong mid" x="694" y="85">cook</text>
+                    <path class="s-acc w15" d="M742,80 H766" marker-end="url(#val-arr)"/>
+                    <rect class="f-acc-soft s-acc" x="770" y="60" width="118" height="40" rx="6"/>
+                    <text class="t-strong mid" x="829" y="85">nightly build</text>
+
+                    <text class="t-caps" x="646" y="140">RUNS IN TWO PLACES</text>
+                    <text class="t-small" x="646" y="160">On the artist's machine, at save</text>
+                    <text class="t-small" x="646" y="175">or import: fast feedback.</text>
+                    <text class="t-small" x="646" y="197">On CI, for every submitted change:</text>
+                    <text class="t-small" x="646" y="212">nothing reaches the team unchecked.</text>
+
+                    <path class="s-pix w15" d="M4,34 V194"/>
+                    <path class="s-pix w15" d="M467,260 V292 H4 V200" marker-end="url(#val-arr-p)"/>
+                    <text class="t-small t-pix t-strong" x="480" y="285">fail: a report goes back to whoever submitted it, naming the rule and the asset</text>
+                  </svg>
+                </div>
+                <figcaption><b>An automated gate in front of the build.</b> Every asset, whoever or whatever made it, passes the same checks before it can be cooked. AI-generated assets add a few checks of their own, starting with a record of where they came from. Failures go back to the person who submitted the asset, with the rule that failed.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>A pipeline costs disk space, machine time and, most of all, people's waiting time. Here is the lantern again, as a worked example.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">≈ 1 GB</span><span class="what">source files for one mid-sized prop: sculpt, texture project, baked and painted maps (order of magnitude)</span></div>
+              <div class="stat"><span class="value">16 MB</span><span class="what">cooked for PC and consoles: three 2048 × 2048 maps at 5.3 MB each, plus the mesh</span></div>
+              <div class="stat"><span class="value">2 MB</span><span class="what">cooked for a phone: three 1024 × 1024 ASTC 6×6 maps at 0.6 MB each, plus the mesh</span></div>
+              <div class="stat"><span class="value">× every revision</span><span class="what">version control keeps them all, so storage grows with every save</span></div>
+            </div>
+            <p>Scale it up. A game with 2,000 props of this kind carries about 2 TB of current source art. If each file is saved twenty times over the project, the version control server holds around 40 TB. That is why studios plan server storage early, and why team members usually sync only the parts of the project they work on.</p>
+            <p>Machine time grows the same way. If importing and cooking one asset took 5 seconds, 20,000 assets would take 100,000 seconds, almost 28 hours, on one machine, for one platform. Shared caches turn most of that into downloads: the first machine does the work and everyone else fetches the result.</p>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>More platforms</strong><span>Each one cooks separately and needs its own build machine time and testing.</span></li>
+              <li><strong>Bigger textures</strong><span>A 4096 × 4096 map holds four times the texels of a 2048 × 2048 one, on disk, in the cache and in memory.</span></li>
+              <li><strong>Changing settings</strong><span>A changed import or cook setting reprocesses every asset it touches, sometimes the whole project.</span></li>
+              <li><strong>A team in many places</strong><span>Without a shared cache near each office, every machine repeats the same work.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>People waiting cost more than disks. An artist who waits ten minutes for every export, import and check, twenty times a day, loses over three hours a day. When an artist says iteration is slow, ask for the time from saving in the DCC tool to seeing the change in the game, and treat it as a production cost.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Pipeline failures usually show up as art problems. Their cause is almost always a setting, a missing check or a missing lock. These six turn up on most projects.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A doorway and a person beside a lantern far taller than both.">
+                    <rect class="f-sunken s-strong" x="22" y="58" width="34" height="62"/>
+                    <circle class="s-ink" cx="84" cy="88" r="6"/>
+                    <path class="s-ink w15" d="M84,94 V110 M84,110 L78,120 M84,110 L90,120 M76,100 H92"/>
+                    <circle class="s-strong w2" cx="172" cy="12" r="7"/>
+                    <polygon class="f-solid s-strong" points="140,40 204,40 194,20 150,20"/>
+                    <rect class="f-lit-soft s-strong" x="148" y="40" width="48" height="62"/>
+                    <circle class="f-lit" cx="172" cy="70" r="9"/>
+                    <rect class="f-solid s-strong" x="138" y="102" width="68" height="18"/>
+                    <line class="s-strong" x1="10" y1="120" x2="230" y2="120"/>
+                    <text class="t-small t-pix t-strong" x="208" y="64">×100</text>
+                  </svg>
+                </div>
+                <h4>Wrong size</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The DCC tool and the engine disagree about units, often centimetres against metres, so models arrive 100 times too big or too small.</dd></div>
+                  <div><dt>Ask for</dt><dd>One export preset per tool with the unit stated, and a validation check that flags props whose size is outside a sensible range.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A lantern lying on its side on the floor, with a dashed outline showing where it should stand upright.">
+                    <g class="dash">
+                      <circle class="s-pix" cx="178" cy="22" r="5"/>
+                      <polygon class="s-pix" points="160,48 196,48 190,34 166,34"/>
+                      <rect class="s-pix" x="164" y="48" width="28" height="44"/>
+                      <rect class="s-pix" x="158" y="92" width="40" height="10"/>
+                    </g>
+                    <circle class="s-strong w2" cx="20" cy="96" r="5"/>
+                    <polygon class="f-solid s-strong" points="46,78 46,114 32,108 32,84"/>
+                    <rect class="f-lit-soft s-strong" x="46" y="82" width="44" height="28"/>
+                    <circle class="f-lit" cx="68" cy="96" r="5"/>
+                    <rect class="f-solid s-strong" x="90" y="76" width="10" height="40"/>
+                    <line class="s-strong" x1="10" y1="116" x2="230" y2="116"/>
+                    <text class="t-small t-muted" x="14" y="24">Z up or Y up?</text>
+                  </svg>
+                </div>
+                <h4>Lying on its side</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>One tool treats Z as up and the other treats Y as up, and the export did not convert, so every model arrives rotated by 90 degrees.</dd></div>
+                  <div><dt>Ask for</dt><dd>The axis settings in the export preset and the importer, fixed once at the source rather than by rotating objects in each level.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A baked metal plate with dark smears along one edge and a rivet that appears doubled.">
+                    <rect class="f-acc-soft s-strong" x="40" y="14" width="160" height="104"/>
+                    <circle class="s-acc w15" cx="76" cy="48" r="11"/>
+                    <circle class="s-acc w15" cx="164" cy="48" r="11"/>
+                    <circle class="s-pix w15 dash" cx="172" cy="54" r="11"/>
+                    <circle class="s-acc w15" cx="76" cy="90" r="11"/>
+                    <polygon class="f-shade" fill-opacity="0.55" points="200,14 186,30 200,40 184,58 200,70 188,88 200,100 186,118 200,118"/>
+                    <polygon class="f-shade" fill-opacity="0.4" points="120,118 132,96 144,118"/>
+                  </svg>
+                </div>
+                <h4>Bake artefacts</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The cage or ray distance is wrong, so rays miss the sculpt or hit the wrong part of it; or the map was baked with a different tangent basis from the one the engine uses.</dd></div>
+                  <div><dt>Ask for</dt><dd>The baker's cage settings and the engine's normal map settings side by side, and a shared baking preset that matches the engine.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two copies of the same file, one from Ana and one from Ben, collide; Ben's copy is crossed out.">
+                    <path class="f-acc-soft s-acc" d="M30,22 H82 L96,36 V104 H30 Z"/>
+                    <text class="t-small t-strong mid" x="63" y="120">Ana</text>
+                    <path class="f-pix-soft s-pix" d="M144,22 H196 L210,36 V104 H144 Z"/>
+                    <text class="t-small t-strong mid" x="177" y="120">Ben</text>
+                    <path class="s-pix w3" d="M150,30 L204,98 M204,30 L150,98"/>
+                    <path class="s-muted w15" d="M100,64 H138"/>
+                  </svg>
+                </div>
+                <h4>Overwritten work</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Two people edited the same binary file without a lock. Only one version can be kept.</dd></div>
+                  <div><dt>Ask for</dt><dd>Every binary file type marked lockable or exclusive-checkout in version control, set up before work starts, and a rule for who may break a lock.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A lantern drawn in a pink and white checkerboard, the placeholder engines show for a missing texture.">
+                    <defs>
+                      <pattern id="sym-check" width="12" height="12" patternUnits="userSpaceOnUse"><rect class="f-pix" x="0" y="0" width="6" height="6"/><rect class="f-pix" x="6" y="6" width="6" height="6"/><rect class="f-surface" x="6" y="0" width="6" height="6"/><rect class="f-surface" x="0" y="6" width="6" height="6"/></pattern>
+                    </defs>
+                    <circle class="s-strong w2" cx="120" cy="14" r="6"/>
+                    <polygon points="94,42 146,42 138,22 102,22" fill="url(#sym-check)"/>
+                    <polygon class="s-strong" points="94,42 146,42 138,22 102,22"/>
+                    <rect x="100" y="42" width="40" height="56" fill="url(#sym-check)"/>
+                    <rect class="s-strong" x="100" y="42" width="40" height="56"/>
+                    <rect x="90" y="98" width="60" height="14" fill="url(#sym-check)"/>
+                    <rect class="s-strong" x="90" y="98" width="60" height="14"/>
+                  </svg>
+                </div>
+                <h4>Missing textures or links</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A file was moved or renamed outside the editor, so the asset database lost track of it, or it was never submitted to version control.</dd></div>
+                  <div><dt>Ask for</dt><dd>Moves and renames done inside the editor only, and a CI check that fails the build on any reference to a missing asset.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A build pipeline of sync, cook and package where the cook step has failed with a missing file.">
+                    <rect class="f-surface s-strong" x="14" y="30" width="58" height="34" rx="5"/>
+                    <text class="t-small mid" x="43" y="51">sync</text>
+                    <rect class="f-pix-soft s-pix w2" x="90" y="30" width="58" height="34" rx="5"/>
+                    <text class="t-small t-pix t-strong mid" x="119" y="51">cook</text>
+                    <rect class="f-surface s-strong dash" x="166" y="30" width="62" height="34" rx="5"/>
+                    <text class="t-small t-muted mid" x="197" y="51">package</text>
+                    <path class="s-muted" d="M72,47 H90 M148,47 H166"/>
+                    <path class="s-pix w3" d="M112,74 L126,88 M126,74 L112,88"/>
+                    <text class="t-mono t-small t-pix mid" x="120" y="112">missing: T_Lantern_N</text>
+                  </svg>
+                </div>
+                <h4>Works on my machine</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The change relied on a file that exists on one artist's machine but was never submitted, or on stale cached data. The build machine starts clean and fails.</dd></div>
+                  <div><dt>Ask for</dt><dd>A cook on CI for every submitted change, so the failure reaches the person who caused it the same day, before the rest of the team syncs it.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>The build machine is the honest witness. If a clean machine cannot import, validate and cook the project from version control alone, something is missing, however good the game looks on the artist's screen.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines follow the same pipeline: import, cache, cook, package. They differ in which formats they read natively, what they keep in version control and how teams share processed data.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Model formats</th>
+                    <td>FBX, glTF, USD and others. The Interchange framework handles glTF and MaterialX; its FBX support is still marked Experimental, so formats it does not handle go through the legacy importer.</td>
+                    <td>Reads <code>.fbx</code>, <code>.obj</code>, <code>.dae</code> and <code>.dxf</code>. Opens <code>.blend</code>, <code>.ma</code>, <code>.mb</code> and <code>.max</code> only if that program is installed, by converting to FBX. Recommends FBX. glTF needs the glTFast package.</td>
+                    <td>glTF 2.0 is the recommended format. Also <code>.blend</code> (calls an installed Blender), FBX through ufbx since 4.3, Collada and OBJ.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">What import keeps</th>
+                    <td>Creates <code>.uasset</code> files in the Content folder. These are the working files the team submits.</td>
+                    <td>The source stays in Assets with a <code>.meta</code> file holding its GUID and import settings. Results go in the Library folder, whose database files stay out of version control.</td>
+                    <td>The source stays with a <code>.import</code> file beside it. Results go in <code>.godot/imported/</code>; commit the <code>.import</code> files, not the <code>.godot</code> folder.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Asset identity</th>
+                    <td>The Asset Registry lists and searches assets without loading them.</td>
+                    <td>The Asset Database tracks source files and import results (SourceAssetDB and ArtifactDB), keyed by GUID.</td>
+                    <td><code>uid://</code> identifiers in file headers and <code>.import</code> files; scripts and shaders get <code>.uid</code> files since 4.4.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Shared cache</th>
+                    <td>Derived Data Cache. Zen is the default local DDC since 5.4; teams share one through a Zen server or a cloud DDC.</td>
+                    <td>Unity Accelerator caches import results, compiled shaders and texture compression for the team.</td>
+                    <td>No shared cache. Each machine imports the project into <code>.godot/</code> itself.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Cook and package</th>
+                    <td>Packaging runs build, cook, stage and package, through <code>BuildCookRun</code> in the Unreal Automation Tool. Output goes into <code>.pak</code> files (plus <code>.utoc</code> and <code>.ucas</code>), which are not interchangeable between platforms.</td>
+                    <td>Build Profiles (File &gt; Build Profiles) hold per-platform settings, and textures have platform-specific overrides. Separately loaded content ships as AssetBundles, usually through Addressables; 6.6 adds content directories for local content.</td>
+                    <td>Export presets live in <code>export_presets.cfg</code>, safe to commit, and need export templates installed. Content goes into a <code>.pck</code> file. Compressed textures use S3TC or BPTC on desktop and ETC2 or ASTC on mobile.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Validation hooks</th>
+                    <td>Data Validation plugin, on by default: validates on save, from the Content Browser, or on CI with <code>-run=DataValidation</code>. Rules in C++, Blueprint or Python.</td>
+                    <td><code>AssetPostprocessor</code> scripts run before and after imports (<code>OnPreprocessTexture</code>, <code>OnPostprocessModel</code> and others).</td>
+                    <td>An import script (<code>EditorScenePostImport</code>) runs after a 3D scene imports and can inspect or change it.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Version control</th>
+                    <td>Built-in Perforce support. The editor checks out, and so locks, <code>.uasset</code> and <code>.umap</code> files because they are binary.</td>
+                    <td>Unity Version Control, with Smart Locks for files that cannot be merged.</td>
+                    <td>Official Git plugin. Godot generates <code>.gitignore</code> and <code>.gitattributes</code>, and its docs recommend Git LFS for binary assets.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.8, Unity 6.6 and Godot 4.7 in November 2026. Import and cook features change quickly between versions; if a setting is missing, search for it in your version's documentation.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Pipeline work suits AI agents well: it is code, rules and scripts more than art. Good briefs name the engine and version control, give the rules as numbers, and say where the check must run.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when you want an automatic asset check</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.8. Version control: Perforce. Build machines cook PC, PS5 and Xbox Series X|S every night.
+
+Write data validation rules for static meshes and textures under /Game/Props:
+1. Names: SM_ for static meshes, T_ for textures, with the suffixes _BC, _N and _ORM for base colour, normal and packed masks.
+2. Triangle budget for LOD0: 5,000 for props under /Small, 15,000 under /Large.
+3. Textures no larger than 2048 × 2048 unless the asset is tagged Hero. Textures ending _N must use normal map compression.
+4. Every prop needs at least two LODs and simple collision.
+
+Use the Data Validation plugin so the rules run on save and with -run=DataValidation on the build machines. For each rule, show the message an artist will see when it fails, and list the assets in the project that would fail today.</pre>
+              <ul class="prompt-why">
+                <li>Folders, names and numbers turn vague taste into rules a machine can check.</li>
+                <li>Saying where it runs (save and CI) stops a script that only works on one machine.</li>
+                <li>Asking for current failures shows the size of the clean-up before you switch it on.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when imported models arrive at the wrong size or angle</span></div>
+              <pre class="prompt-body">Since we moved prop modelling from Maya to Blender, new props import into Unity 6 with a scale of 100 and rotated 90 degrees onto their backs. Props made in Maya last month still import correctly. We export FBX with Blender's default settings.
+
+Find the cause in our export and import settings. Compare one old Maya prop with one new Blender prop: scene units, the FBX unit scale, the up and forward axes, and Unity's model import scale settings. Propose a single Blender export preset, a way to fix the props already imported, and an import check that flags any prop whose bounds fall outside 5 cm to 5 m.</pre>
+              <ul class="prompt-why">
+                <li>The pattern (only Blender props) points at Blender's export settings.</li>
+                <li>Naming the four things to compare keeps the search short.</li>
+                <li>Asking for an import check turns a one-off fix into a guard.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing pipeline work</h3>
+            <ol class="review-list">
+              <li>Which file is the source of truth for this asset, and where is it versioned?<span class="why">If only an imported or cooked copy exists, nobody can change the asset properly later.</span></li>
+              <li>What happens when a file this script touches is renamed or moved?<span class="why">References by path break; references by ID survive.</span></li>
+              <li>Does this check run on the build machines as well as on artists' machines?<span class="why">Checks that only run locally get skipped under deadline pressure.</span></li>
+              <li>Which file types are locked, and who can break someone else's lock?<span class="why">Unlocked binary files are where work gets lost.</span></li>
+              <li>For AI-generated assets, where are the tool, prompt, date and terms of use recorded?<span class="why">You may be asked where an asset came from long after the game ships.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">The PS5 build and the phone build contain different texture files for the lantern, though both came from the same painted maps. Why?</p>
+                <details><summary>Show answer</summary><p>Cooking makes a separate version for each platform. The PS5 version is compressed in a format its GPU reads, such as BC7, at a resolution its memory allows. The phone version uses a mobile format such as ASTC, usually at a lower resolution. One source asset, several cooked assets.</p></details>
+              </li>
+              <li>
+                <p class="q">Two artists changed <code>lantern.uasset</code> this morning, and the second cannot submit. What went wrong, and what prevents it?</p>
+                <details><summary>Show answer</summary><p>The file is binary, so the two sets of changes cannot be merged; one person's work has to be redone. File locking prevents it: exclusive checkout in Perforce (the <code>+l</code> file type), lockable files in Git LFS, or Smart Locks in Unity Version Control.</p></details>
+              </li>
+              <li>
+                <p class="q">An outsourcing partner delivers 40 props as FBX files. What should happen before any of them appear in a level?</p>
+                <details><summary>Show answer</summary><p>Import them with the project's settings and put them through the validation gate: names, triangle and texture budgets, scale and up axis, LODs and collision, no missing references. Run the same checks on CI, and record where the files came from and on what terms.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#content-pipeline">content pipeline</a></li>
+              <li><a class="chip" href="glossary.html#dcc-tool">DCC tool</a></li>
+              <li><a class="chip" href="glossary.html#source-asset">source asset</a></li>
+              <li><a class="chip" href="glossary.html#retopology">retopology</a></li>
+              <li><a class="chip" href="glossary.html#baking">baking</a></li>
+              <li><a class="chip" href="glossary.html#fbx">FBX</a></li>
+              <li><a class="chip" href="glossary.html#gltf">glTF</a></li>
+              <li><a class="chip" href="glossary.html#usd">USD</a></li>
+              <li><a class="chip" href="glossary.html#asset-import">import</a></li>
+              <li><a class="chip" href="glossary.html#asset-database">asset database</a></li>
+              <li><a class="chip" href="glossary.html#asset-cooking">cooking</a></li>
+              <li><a class="chip" href="glossary.html#cooked-asset">cooked asset</a></li>
+              <li><a class="chip" href="glossary.html#derived-data-cache">derived data cache</a></li>
+              <li><a class="chip" href="glossary.html#build">build</a></li>
+              <li><a class="chip" href="glossary.html#version-control">version control</a></li>
+              <li><a class="chip" href="glossary.html#file-locking">file locking</a></li>
+              <li><a class="chip" href="glossary.html#perforce">Perforce</a></li>
+              <li><a class="chip" href="glossary.html#git-lfs">Git LFS</a></li>
+              <li><a class="chip" href="glossary.html#asset-validation">asset validation</a></li>
+              <li><a class="chip" href="glossary.html#continuous-integration">continuous integration</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="1.4"></a> looks at the platforms those cooked builds are made for, and what each one changes about the game.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://www.khronos.org/gltf/">glTF overview</a>, Khronos Group. What glTF carries and its ISO/IEC 12113:2022 status.</li>
+              <li><a href="https://github.com/KhronosGroup/glTF/blob/main/specification/2.0/README.md">glTF 2.0 specification</a> and <a href="https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_lights_punctual/README.md">KHR_lights_punctual</a>, Khronos Group. Units, axes, morph targets, and lights as an extension.</li>
+              <li><a href="https://openusd.org/release/intro.html">Introduction to USD</a>, Pixar. Layers, references, variants and file formats.</li>
+              <li><a href="https://www.linuxfoundation.org/press/alliance-for-openusd-announces-core-specification-1.0-the-universal-language-for-building-3d-worlds">AOUSD Core Specification 1.0 announcement</a>, Linux Foundation, December 2025.</li>
+              <li><a href="https://help.autodesk.com/cloudhelp/2016/ENU/FBX-Developer-Help/files/GUID-274163DA-9E89-4DCC-8AF6-10B0C498582E.htm">What is Autodesk FBX Technology?</a>, Autodesk FBX SDK documentation.</li>
+              <li><a href="https://experienceleague.adobe.com/en/docs/substance-3d-painter/using/baking/how-to-bake-mesh-maps">How to bake mesh maps</a>, Adobe Substance 3D Painter, and <a href="https://docs.blender.org/manual/en/latest/render/cycles/baking.html">Render Baking</a>, Blender Manual.</li>
+              <li><a href="https://help.perforce.com/helix-core/server-apps/p4guide/current/Content/P4Guide/resolve.lock.exclusive.html">Preventing multiple checkouts</a>, Perforce P4 documentation.</li>
+              <li><a href="https://git-lfs.com/">Git LFS</a> and <a href="https://github.com/git-lfs/git-lfs/wiki/File-Locking">Git LFS file locking</a>.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/packaging-your-project?application_version=5.8">Packaging your project</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-derived-data-cache-in-unreal-engine?application_version=5.8">Using the Derived Data Cache</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/importing-assets-using-interchange-in-unreal-engine?application_version=5.8">Importing assets using Interchange</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/data-validation-in-unreal-engine?application_version=5.8">Data validation</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/asset-registry-in-unreal-engine?application_version=5.8">Asset Registry</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-perforce-as-source-control-for-unreal-engine?application_version=5.8">Using Perforce</a>.</li>
+              <li>Unity 6.6 manual: <a href="https://docs.unity.com/en-us/engine/current/manual/assets-and-media/asset-database/contents">Contents of the Asset Database</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/assets-and-media/asset-types/models/creating-dccassets/3d-formats">Model file formats</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/assets-and-media/importing-caching-assets/unity-accelerator">Unity Accelerator</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/assets-and-media/assets-managing-runtime/content-directories/introduction">Content directories</a>, <a href="https://docs.unity.com/en-us/engine/current/script-reference/unityeditor/assetpostprocessor">AssetPostprocessor</a>; and <a href="https://docs.unity.com/en-us/unity-version-control/smart-locks">Smart Locks</a>, Unity Version Control.</li>
+              <li>Godot 4.7 documentation: <a href="https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/import_process.html">Import process</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/assets_pipeline/importing_3d_scenes/available_formats.html">Available 3D formats</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/export/exporting_projects.html">Exporting projects</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/best_practices/version_control_systems.html">Version control systems</a>; and <a href="https://godotengine.org/article/uid-changes-coming-to-godot-4-4/">UID changes coming to Godot 4.4</a>.</li>
+              <li><a href="https://docs.meshy.ai/en/webapp/guides/platform/export-formats">Export and file formats</a>, Meshy. An example of what AI 3D generators deliver.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>
