@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>2.2 The game loop and threads · Graphics Handbook</title>
+  <meta name="description" content="How an engine spends each frame: update and delta time, fixed timesteps for physics, the game, render and RHI threads, GPU queues, pipelining, job systems, input latency and hitches.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="2.2">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 2 · Inside a game engine</p>
+            <h1><span class="ch-num">2.2</span> The game loop and threads</h1>
+            <p class="lead">Every frame, an engine reads input, updates the game and draws the result, and it spreads that work over several threads and the GPU so they all run at once. That overlap is what makes high frame rates possible. It is also where input latency and hitches come from.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="0.2">0.2 What a frame is</a>, <a class="xref" data-ch="2.1">2.1 Anatomy of an engine</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="3.1">3.1 Pixels and displays</a>, <a class="xref" data-ch="11.1">11.1 Frame budgets</a>, <a class="xref" data-ch="11.3">11.3 Where CPU time goes</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Frame pipeline timeline</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 282" role="img" aria-label="A timeline at 60 frames per second with lanes for the game thread, the render thread, the GPU and the display. Frames cascade from lane to lane, one 16.7 millisecond slot at a time: frame N is updated on the game thread, prepared on the render thread in the next slot, drawn by the GPU in the slot after, and reaches the display in the fourth. In any one slot three different frames are in progress. From input to the screen, frame N takes 50 milliseconds.">
+                  <text class="t-mono t-small t-muted mid" x="150" y="22">0</text>
+                  <text class="t-mono t-small t-muted mid" x="296" y="22">16.7</text>
+                  <text class="t-mono t-small t-muted mid" x="442" y="22">33.3</text>
+                  <text class="t-mono t-small t-muted mid" x="588" y="22">50.0</text>
+                  <text class="t-mono t-small t-muted mid" x="734" y="22">66.7</text>
+                  <text class="t-mono t-small t-muted mid" x="880" y="22">83.3 ms</text>
+                  <path class="s-muted" d="M150,26 V34 M296,26 V34 M442,26 V34 M588,26 V34 M734,26 V34 M880,26 V34 M150,30 H880"/>
+
+                  <rect class="s-muted dash" x="440" y="52" width="150" height="152" rx="4"/>
+                  <text class="t-small t-muted mid" x="515" y="48">3 frames in progress at once</text>
+
+                  <text class="t-strong" x="16" y="78">Game thread</text>
+                  <text class="t-strong" x="16" y="130">Render thread</text>
+                  <text class="t-strong" x="16" y="182">GPU</text>
+                  <text class="t-strong" x="16" y="229">Display</text>
+                  <path class="s-line" d="M150,98 H880 M150,150 H880 M150,202 H880"/>
+
+                  <polygon class="f-acc" points="145,52 155,52 150,59"/>
+                  <rect class="f-acc-soft s-acc w15" x="150" y="62" width="105" height="34" rx="3"/>
+                  <text class="t-mono t-acc t-strong mid" x="202" y="83">N</text>
+                  <rect class="f-surface s-strong" x="296" y="62" width="105" height="34" rx="3"/>
+                  <text class="t-mono mid" x="348" y="83">N+1</text>
+                  <rect class="f-surface s-strong" x="442" y="62" width="105" height="34" rx="3"/>
+                  <text class="t-mono mid" x="494" y="83">N+2</text>
+                  <rect class="f-surface s-strong" x="588" y="62" width="105" height="34" rx="3"/>
+                  <text class="t-mono mid" x="640" y="83">N+3</text>
+                  <rect class="f-surface s-strong" x="734" y="62" width="105" height="34" rx="3"/>
+                  <text class="t-mono mid" x="786" y="83">N+4</text>
+
+                  <rect class="f-solid s-strong" x="150" y="114" width="79" height="34" rx="3"/>
+                  <text class="t-mono mid" x="189" y="135">N−1</text>
+                  <rect class="f-acc-soft s-acc w15" x="296" y="114" width="79" height="34" rx="3"/>
+                  <text class="t-mono t-acc t-strong mid" x="335" y="135">N</text>
+                  <rect class="f-surface s-strong" x="442" y="114" width="79" height="34" rx="3"/>
+                  <text class="t-mono mid" x="481" y="135">N+1</text>
+                  <rect class="f-surface s-strong" x="588" y="114" width="79" height="34" rx="3"/>
+                  <text class="t-mono mid" x="627" y="135">N+2</text>
+                  <rect class="f-surface s-strong" x="734" y="114" width="79" height="34" rx="3"/>
+                  <text class="t-mono mid" x="773" y="135">N+3</text>
+
+                  <rect class="f-solid s-strong" x="150" y="166" width="131" height="34" rx="3"/>
+                  <text class="t-mono mid" x="215" y="187">N−2</text>
+                  <rect class="f-solid s-strong" x="296" y="166" width="131" height="34" rx="3"/>
+                  <text class="t-mono mid" x="361" y="187">N−1</text>
+                  <rect class="f-acc-soft s-acc w15" x="442" y="166" width="131" height="34" rx="3"/>
+                  <text class="t-mono t-acc t-strong mid" x="507" y="187">N</text>
+                  <rect class="f-surface s-strong" x="588" y="166" width="131" height="34" rx="3"/>
+                  <text class="t-mono mid" x="653" y="187">N+1</text>
+                  <rect class="f-surface s-strong" x="734" y="166" width="131" height="34" rx="3"/>
+                  <text class="t-mono mid" x="799" y="187">N+2</text>
+
+                  <rect class="f-sunken s-strong" x="150" y="214" width="146" height="22"/>
+                  <text class="t-mono t-small mid" x="223" y="229">N−3</text>
+                  <rect class="f-sunken s-strong" x="296" y="214" width="146" height="22"/>
+                  <text class="t-mono t-small mid" x="369" y="229">N−2</text>
+                  <rect class="f-sunken s-strong" x="442" y="214" width="146" height="22"/>
+                  <text class="t-mono t-small mid" x="515" y="229">N−1</text>
+                  <rect class="f-acc-soft s-acc w15" x="588" y="214" width="146" height="22"/>
+                  <text class="t-mono t-small t-acc t-strong mid" x="661" y="229">N</text>
+                  <rect class="f-sunken s-strong" x="734" y="214" width="146" height="22"/>
+                  <text class="t-mono t-small mid" x="807" y="229">N+1</text>
+
+                  <path class="s-acc w15" d="M150,246 V254 H588 V246"/>
+                  <text class="t-small t-acc t-strong mid" x="369" y="272">frame N: input read → starts reaching the screen 50 ms later, 3 frames</text>
+                </svg>
+              </div>
+              <figcaption><b>An engine works on several frames at once.</b> While the GPU draws frame N, the render thread prepares N+1 and the game thread updates N+2. Each lane gets a whole frame's time, so the game runs at 60 fps even though each frame spends 50 ms in the pipeline before it starts to appear on screen.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A game is a loop. Each pass through it reads the controller, moves the world forward a little, and draws a picture of the result. <a class="xref" data-ch="0.2">0.2 What a frame is</a> called that the game loop, and one pass through it a <a class="term" data-term="frame" href="glossary.html#frame">frame</a>. At 60 frames per second, each pass has 16.7 milliseconds.</p>
+            <p>Done one step at a time on one processor, that budget runs out fast. So engines split the loop into stages and run the stages at the same time on different frames. One <a class="term" data-term="cpu" data-forward href="glossary.html#cpu">CPU</a> thread updates the game, another prepares the drawing, and the <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a> draws. This is <dfn class="term" data-term="pipelining">pipelining</dfn>. The slowest stage sets the frame rate, and each frame takes longer from start to finish than one frame's time.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A launderette with a washer, a dryer and a folding table. With one load at a time, each load takes wash plus dry plus fold. Run all three at once on different loads and a clean, folded load comes out every time the slowest machine finishes.</p>
+                <p>But any single load still spends the whole wash, dry and fold time in the building, plus any time it sits in a basket waiting for the dryer.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Game logic, preparing the drawing and the drawing itself each take several milliseconds. Done one after the other, they add up. Overlapped, the game runs as fast as its slowest stage allows, and every CPU core and the GPU stay busy.</p>
+                <p>The price is delay. A button press made now shows up a few frames later, and the deeper the pipeline, the later.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Frame rate and responsiveness are two separate numbers, and you can improve one while making the other worse. When someone says "we're GPU-bound" or "it's the game thread", they are naming the lane that sets the pace, and that decides who on the team can fix it. A profile that shows only fps cannot tell you which lane that is.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Start with one thread and one frame, then add a fixed physics rate, more threads, the GPU's queue and worker cores. Eight steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="update"><span class="step-num">1</span> Update, and the time since the last frame</h3>
+              <p>The heart of each frame is the <dfn class="term" data-term="tick">update</dfn>, also called the tick. The engine reads input, then calls every object that wants it: the player character, enemies, doors, timers. Unreal calls this <code>Tick</code>, Unity <code>Update</code>, Godot <code>_process</code>.</p>
+              <p>Frames never take exactly the same time, so each update receives the <dfn class="term" data-term="delta-time">delta time</dfn>: how long the previous frame took. A car moving at 30 metres per second moves 30 × 0.0167 = 0.5 m in a 60 fps frame and 1 m in a 30 fps frame. Multiplying by delta time keeps the speed the same on every machine.</p>
+              <p>For gameplay, that is enough. For physics it is not. A big delta time means a big jump, and a big jump can skip straight past a thin wall.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 244" role="img" aria-label="A ball moving at 30 metres per second toward a wall half a metre thick, drawn to scale. At 144 fps it moves 0.21 metres per frame, so one frame finds it touching the wall and the collision is found. At 20 fps it moves 1.5 metres per frame: one frame it is half a metre before the wall, the next it is half a metre past it, and the collision is never seen.">
+                    <rect class="f-solid s-strong" x="300" y="44" width="50" height="152"/>
+                    <text class="t-small t-muted mid" x="325" y="36">wall, 0.5 m thick</text>
+
+                    <text class="t-strong" x="100" y="72">144 fps: 0.21 m per frame</text>
+                    <circle class="f-muted" cx="100" cy="96" r="3"/><circle class="f-muted" cx="120.8" cy="96" r="3"/><circle class="f-muted" cx="141.7" cy="96" r="3"/><circle class="f-muted" cx="162.5" cy="96" r="3"/><circle class="f-muted" cx="183.3" cy="96" r="3"/><circle class="f-muted" cx="204.2" cy="96" r="3"/><circle class="f-muted" cx="225" cy="96" r="3"/><circle class="f-muted" cx="245.8" cy="96" r="3"/><circle class="f-muted" cx="266.7" cy="96" r="3"/>
+                    <circle class="f-acc" cx="292" cy="96" r="8"/>
+                    <text class="t-small" x="362" y="100">collision found, the ball stops</text>
+
+                    <text class="t-strong" x="100" y="142">20 fps: 1.5 m per frame</text>
+                    <circle class="f-muted" cx="100" cy="166" r="3"/><circle class="f-muted" cx="250" cy="166" r="3"/>
+                    <line class="s-pix w15 dash" x1="256" y1="166" x2="390" y2="166"/>
+                    <circle class="f-pix-soft s-pix w15" cx="400" cy="166" r="8"/>
+                    <text class="t-small t-pix" x="414" y="170">never touched the wall</text>
+
+                    <path class="s-muted" d="M100,210 H500 M100,206 V214 M200,206 V214 M300,206 V214 M400,206 V214 M500,206 V214"/>
+                    <text class="t-mono t-small t-muted mid" x="100" y="228">0 m</text>
+                    <text class="t-mono t-small t-muted mid" x="200" y="228">1</text>
+                    <text class="t-mono t-small t-muted mid" x="300" y="228">2</text>
+                    <text class="t-mono t-small t-muted mid" x="400" y="228">3</text>
+                    <text class="t-mono t-small t-muted mid" x="500" y="228">4 m</text>
+
+                    <text class="t-head" x="560" y="70">Same ball, same speed: 30 m/s</text>
+                    <text class="t-small" x="560" y="92">With delta time, each frame moves the ball by</text>
+                    <text class="t-small" x="560" y="106">speed × delta time. A slow frame takes one big</text>
+                    <text class="t-small" x="560" y="120">step, and the step can jump past a thin object</text>
+                    <text class="t-small" x="560" y="134">without ever overlapping it.</text>
+                    <text class="t-head" x="560" y="168">The fix</text>
+                    <text class="t-small" x="560" y="188">Step physics at a fixed rate: at 60 Hz the ball</text>
+                    <text class="t-small" x="560" y="202">moves 0.5 m per step, and a 20 fps frame runs</text>
+                    <text class="t-small" x="560" y="216">three steps. Very fast, thin objects also need</text>
+                    <text class="t-small" x="560" y="230">continuous collision detection.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Variable steps make physics depend on the frame rate.</b> The same throw can hit the wall on a fast PC and pass through it on a slow one. Springs, stacks of boxes and car suspension misbehave the same way when the step changes size from frame to frame.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="fixed-timestep"><span class="step-num">2</span> A fixed timestep for physics</h3>
+              <p>Physics engines are stable and repeatable only when every step is the same length. So engines run physics on a <dfn class="term" data-term="fixed-timestep">fixed timestep</dfn>: Godot steps 60 times a second by default, Unity 50. Each frame adds its real elapsed time to a running total and runs as many fixed steps as fit. A 144 fps frame often runs no physics step at all; a 30 fps frame runs two.</p>
+              <p>That creates a new problem. If the display shows 144 frames a second but physics only moves things 60 times, some frames show the same position as the frame before, then the object jumps. The cure is <dfn class="term" data-term="physics-interpolation">physics interpolation</dfn>: keep the last two physics states and draw each object part of the way between them, by how far the frame lies between the two steps.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="Fifty milliseconds of time. Physics steps at 60 hertz, at 0, 16.7, 33.3 and 50 milliseconds, labelled A to D. Frames are drawn at 144 hertz, every 6.9 milliseconds, each with its interpolation fraction alpha. Below, a chart of the position drawn on screen. Without interpolation the drawn position holds for three frames, jumps, holds for two, jumps, and holds for three. With interpolation the drawn positions are evenly spaced along a straight line, one physics step behind where the simulation is.">
+                    <text class="t-strong" x="20" y="62">Physics, 60 Hz</text>
+                    <line class="s-line" x1="140" y1="58" x2="860" y2="58"/>
+                    <path class="s-ink w2" d="M140,46 V70 M380,46 V70 M620,46 V70 M860,46 V70"/>
+                    <text class="t-mono t-strong mid" x="140" y="40">A</text>
+                    <text class="t-mono t-strong mid" x="380" y="40">B</text>
+                    <text class="t-mono t-strong mid" x="620" y="40">C</text>
+                    <text class="t-mono t-strong mid" x="860" y="40">D</text>
+
+                    <text class="t-strong" x="20" y="112">Frames, 144 Hz</text>
+                    <line class="s-line" x1="140" y1="108" x2="860" y2="108"/>
+                    <path class="s-acc w15" d="M140,98 V118 M240,98 V118 M340,98 V118 M440,98 V118 M540,98 V118 M640,98 V118 M740,98 V118 M840,98 V118"/>
+                    <text class="t-mono t-small t-muted mid" x="140" y="134">α 0.00</text>
+                    <text class="t-mono t-small t-muted mid" x="240" y="134">α 0.42</text>
+                    <text class="t-mono t-small t-muted mid" x="340" y="134">α 0.83</text>
+                    <text class="t-mono t-small t-muted mid" x="440" y="134">α 0.25</text>
+                    <text class="t-mono t-small t-muted mid" x="540" y="134">α 0.67</text>
+                    <text class="t-mono t-small t-muted mid" x="640" y="134">α 0.08</text>
+                    <text class="t-mono t-small t-muted mid" x="740" y="134">α 0.50</text>
+                    <text class="t-mono t-small t-muted mid" x="840" y="134">α 0.92</text>
+
+                    <text class="t-small t-muted" x="20" y="232">position</text>
+                    <text class="t-small t-muted" x="20" y="246">on screen</text>
+
+                    <line class="s-muted dash" x1="140" y1="260" x2="860" y2="140"/>
+                    <path class="s-strong w15" d="M140,260 H440 V220 H640 V180 H860"/>
+                    <circle class="f-ink" cx="140" cy="260" r="4"/><circle class="f-ink" cx="240" cy="260" r="4"/><circle class="f-ink" cx="340" cy="260" r="4"/><circle class="f-ink" cx="440" cy="220" r="4"/><circle class="f-ink" cx="540" cy="220" r="4"/><circle class="f-ink" cx="640" cy="180" r="4"/><circle class="f-ink" cx="740" cy="180" r="4"/><circle class="f-ink" cx="840" cy="180" r="4"/>
+                    <line class="s-acc w15" x1="140" y1="300" x2="840" y2="183.3"/>
+                    <circle class="f-acc" cx="140" cy="300" r="4"/><circle class="f-acc" cx="240" cy="283.3" r="4"/><circle class="f-acc" cx="340" cy="266.7" r="4"/><circle class="f-acc" cx="440" cy="250" r="4"/><circle class="f-acc" cx="540" cy="233.3" r="4"/><circle class="f-acc" cx="640" cy="216.7" r="4"/><circle class="f-acc" cx="740" cy="200" r="4"/><circle class="f-acc" cx="840" cy="183.3" r="4"/>
+
+                    <line class="s-muted dash" x1="150" y1="152" x2="176" y2="152"/>
+                    <text class="t-small t-muted" x="184" y="156">where the simulation says the object is now</text>
+                    <circle class="f-ink" cx="163" cy="170" r="4"/>
+                    <text class="t-small" x="184" y="174">drawn without interpolation: holds for 2 or 3 frames, then jumps</text>
+                    <circle class="f-acc" cx="163" cy="188" r="4"/>
+                    <text class="t-small t-acc" x="184" y="192">drawn with interpolation: even steps, one physics step behind</text>
+
+                    <path class="s-muted" d="M140,316 H860 M140,312 V320 M284,312 V320 M428,312 V320 M572,312 V320 M716,312 V320 M860,312 V320"/>
+                    <text class="t-mono t-small t-muted mid" x="140" y="334">0</text>
+                    <text class="t-mono t-small t-muted mid" x="284" y="334">10</text>
+                    <text class="t-mono t-small t-muted mid" x="428" y="334">20</text>
+                    <text class="t-mono t-small t-muted mid" x="572" y="334">30</text>
+                    <text class="t-mono t-small t-muted mid" x="716" y="334">40</text>
+                    <text class="t-mono t-small t-muted mid" x="860" y="334">50 ms</text>
+                  </svg>
+                </div>
+                <figcaption><b>Physics at 60 Hz, frames at 144 Hz.</b> Each frame runs zero or one physics step. Alpha is how far the frame sits between the last two steps. Drawing at that fraction turns the uneven 3, 2, 3 rhythm into smooth motion, at the cost of showing objects up to one physics step, 16.7 ms here, behind the simulation.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Code</span> The fixed-timestep loop in twelve lines</summary>
+                <div class="fold-body">
+                  <p>This is the pattern from Glenn Fiedler's article "Fix Your Timestep!", which most engines follow. The renderer produces time; physics consumes it in fixed steps.</p>
+<pre class="code"><span class="k">const</span> STEP = <span class="n">1</span> / <span class="n">60</span>;              <span class="c">// physics step: 16.7 ms</span>
+<span class="k">let</span> accumulator = <span class="n">0</span>;
+<span class="k">let</span> previous = state, current = state;
+
+<span class="k">function</span> frame(dt) {                <span class="c">// dt: real time since the last frame</span>
+  accumulator += Math.min(dt, <span class="n">0.25</span>); <span class="c">// clamp, or a long hitch snowballs</span>
+  <span class="k">while</span> (accumulator &gt;= STEP) {
+    previous = current;
+    current = physicsStep(current, STEP);
+    accumulator -= STEP;
+  }
+  <span class="k">const</span> alpha = accumulator / STEP;   <span class="c">// 0 to 1: how far between steps</span>
+  draw(interpolate(previous, current, alpha));
+}</pre>
+                  <p>When reviewing code like this, check that physics and anything that must be repeatable runs inside the <code>while</code> loop with <code>STEP</code>, that drawing uses the interpolated state, and that the clamp exists.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="threads"><span class="step-num">3</span> The game thread and the render thread</h3>
+              <p>The update runs on the <dfn class="term" data-term="game-thread">game thread</dfn>, which most engines call the main thread. In a simple engine the same thread then walks the scene and prepares the drawing. Larger engines hand that second job to a <dfn class="term" data-term="render-thread">render thread</dfn>, so the two run side by side on different CPU cores: the game thread updates frame N+1 while the render thread prepares frame N.</p>
+              <p>Two threads must never change the same data at the same moment. So at the end of each update the game thread copies what the <a class="term" data-term="renderer" href="glossary.html#renderer">renderer</a> needs, such as each object's mesh, material and position, into a separate snapshot. The render thread reads only that. Unreal's documentation describes its renderer as running a frame or two behind the game thread, with the game thread waiting at the end of each tick if it gets too far ahead.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Left, the game thread working on frame N plus one owns the game objects: the player, enemy AI, a door and the camera. In the middle, a snapshot of frame N holds only what drawing needs: meshes with transforms, a light and the camera view. Right, the render thread working on frame N reads only the snapshot, culls, sorts and records GPU commands, and never touches game objects.">
+                    <defs>
+                      <marker id="th-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="20" y="30" width="280" height="190" rx="8"/>
+                    <text class="t-caps" x="36" y="52">GAME THREAD · FRAME N+1</text>
+                    <rect class="f-sunken s-line" x="36" y="64" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="48" y="81">player: input, health, position</text>
+                    <rect class="f-sunken s-line" x="36" y="96" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="48" y="113">enemy AI: target, path</text>
+                    <rect class="f-sunken s-line" x="36" y="128" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="48" y="145">door: 40% open</text>
+                    <rect class="f-sunken s-line" x="36" y="160" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="48" y="177">camera: follows the player</text>
+                    <text class="t-small t-muted" x="36" y="208">owns and changes the game world</text>
+
+                    <line class="s-ink w15" x1="302" y1="125" x2="336" y2="125" marker-end="url(#th-arr)"/>
+
+                    <rect class="f-acc-soft s-acc w15" x="340" y="60" width="220" height="130" rx="8"/>
+                    <text class="t-caps" x="354" y="82">SNAPSHOT OF FRAME N</text>
+                    <text class="t-mono t-small" x="354" y="104">mesh 213 · transform</text>
+                    <text class="t-mono t-small" x="354" y="122">mesh 214 · transform</text>
+                    <text class="t-mono t-small" x="354" y="140">light 7 · colour, place</text>
+                    <text class="t-mono t-small" x="354" y="158">camera · view</text>
+                    <text class="t-mono t-small t-muted" x="354" y="176">…</text>
+
+                    <line class="s-ink w15" x1="562" y1="125" x2="596" y2="125" marker-end="url(#th-arr)"/>
+
+                    <rect class="f-surface s-strong" x="600" y="30" width="280" height="190" rx="8"/>
+                    <text class="t-caps" x="616" y="52">RENDER THREAD · FRAME N</text>
+                    <rect class="f-sunken s-line" x="616" y="64" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="628" y="81">reads only the snapshot</text>
+                    <rect class="f-sunken s-line" x="616" y="96" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="628" y="113">culls and sorts</text>
+                    <rect class="f-sunken s-line" x="616" y="128" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="628" y="145">records GPU commands</text>
+                    <rect class="f-sunken s-line" x="616" y="160" width="248" height="26" rx="4"/>
+                    <text class="t-small" x="628" y="177">never touches game objects</text>
+                    <text class="t-small t-muted" x="616" y="208">one frame behind the game thread</text>
+
+                    <text class="t-small t-muted mid" x="450" y="252">Unreal keeps two objects per drawable thing: UPrimitiveComponent for the game thread, FPrimitiveSceneProxy for the render thread.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A snapshot is the handoff between threads.</b> The game thread can change the world freely because the render thread is working from a copy. Bugs appear when code skips the snapshot and reaches across: flickering, objects drawn in last frame's place, or a crash once a week.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="gpu-queue"><span class="step-num">4</span> Handing work to the GPU</h3>
+              <p>The render thread does not draw anything itself. It records a <dfn class="term" data-term="command-buffer">command buffer</dfn>: a list of instructions such as "use these settings, read this mesh, draw 5,400 triangles", thousands of them per frame. Then it submits the list to a <dfn class="term" data-term="gpu-queue">GPU queue</dfn> and moves on. The GPU works through the queue in order, as fast as it can.</p>
+              <p>Unreal adds a third CPU thread here. Its render thread records platform-neutral commands, and an <dfn class="term" data-term="rhi-thread">RHI thread</dfn> translates them into DirectX 12, Vulkan or Metal calls through the <a class="term" data-term="rhi" href="glossary.html#rhi">RHI</a> from chapter 2.1, and submits them. Unity and Godot do that translation on their render or main thread, sometimes helped by worker threads.</p>
+              <p>The queue has a limit. If the CPU could run arbitrarily far ahead, a GPU-bound game would pile up frames, each one older than the last. Engines cap the number of frames in flight, typically at 2: Unity's <code>QualitySettings.maxQueuedFrames</code> defaults to 2 on PC, and Godot's <code>frame_queue_size</code> to 2. When the queue is full, the CPU waits.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left, the render thread records a command buffer for frame N plus one: set pipeline, bind mesh 213, draw 5,400 triangles, bind mesh 214, draw 12,000 triangles and thousands more. It submits it to the GPU queue in the middle, where frame N plus one waits. Right, the GPU executes frame N and is 60 percent done. With two frames in flight the queue is full, so a third frame must wait until N finishes.">
+                    <defs>
+                      <marker id="q-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="20" y="30" width="270" height="180" rx="8"/>
+                    <text class="t-caps" x="36" y="50">RENDER THREAD</text>
+                    <text class="t-small t-muted" x="36" y="66">records frame N+1</text>
+                    <rect class="f-bg s-strong" x="36" y="76" width="238" height="122" rx="3"/>
+                    <text class="t-caps" x="48" y="94">COMMAND BUFFER</text>
+                    <text class="t-mono t-small" x="48" y="113">set pipeline: opaque</text>
+                    <text class="t-mono t-small" x="48" y="128">bind mesh 213</text>
+                    <text class="t-mono t-small t-acc" x="48" y="143">draw 5,400 triangles</text>
+                    <text class="t-mono t-small" x="48" y="158">bind mesh 214</text>
+                    <text class="t-mono t-small t-acc" x="48" y="173">draw 12,000 triangles</text>
+                    <text class="t-mono t-small t-muted" x="48" y="188">… thousands more</text>
+
+                    <line class="s-ink w15" x1="292" y1="127" x2="336" y2="127" marker-end="url(#q-arr)"/>
+                    <text class="t-small mid" x="314" y="118">submit</text>
+
+                    <rect class="f-sunken s-strong" x="340" y="78" width="260" height="88" rx="6"/>
+                    <text class="t-caps" x="354" y="96">GPU QUEUE</text>
+                    <rect class="s-strong dash" x="354" y="106" width="112" height="46" rx="4"/>
+                    <text class="t-small t-muted mid" x="410" y="133">full: N+2 waits</text>
+                    <rect class="f-surface s-strong" x="474" y="106" width="112" height="46" rx="4"/>
+                    <text class="t-mono t-strong mid" x="530" y="126">N+1</text>
+                    <text class="t-small t-muted mid" x="530" y="142">waiting</text>
+                    <text class="t-small t-muted" x="340" y="184">limit: 2 frames in flight, N and N+1</text>
+                    <text class="t-small t-muted" x="340" y="198">a third must wait until N finishes</text>
+
+                    <line class="s-ink w15" x1="602" y1="127" x2="646" y2="127" marker-end="url(#q-arr)"/>
+
+                    <rect class="f-surface s-strong" x="650" y="30" width="230" height="180" rx="8"/>
+                    <text class="t-caps" x="666" y="50">GPU</text>
+                    <text class="t-small t-muted" x="666" y="66">executes frame N</text>
+                    <rect class="f-acc-soft s-acc w15" x="666" y="80" width="198" height="44" rx="4"/>
+                    <text class="t-mono t-acc t-strong mid" x="765" y="107">N</text>
+                    <rect class="f-sunken" x="666" y="138" width="198" height="12" rx="3"/>
+                    <rect class="f-acc" x="666" y="138" width="119" height="12" rx="3"/>
+                    <text class="t-small t-muted" x="666" y="170">60% done</text>
+
+                    <text class="t-small t-muted" x="20" y="236">Submitting is quick: the CPU hands over the list and moves on. The GPU works through the queue in order, so every frame waiting there is a frame of delay.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The CPU records, the queue holds, the GPU executes.</b> Recording and executing happen at different times on different processors. A short queue keeps the GPU fed without letting it fall far behind the CPU.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="pipelining"><span class="step-num">5</span> Who sets the frame rate</h3>
+              <p>Put the three lanes together and each frame moves along them like a car on an assembly line. When every lane has its own frame to work on, the time between finished frames is set by the slowest lane alone. If the GPU needs 14 ms and the CPU threads need less, the game runs at 1000 ÷ 14 = 71 fps and is GPU-bound. If the game thread needs 20 ms, it is CPU-bound at 50 fps, and a faster graphics card changes nothing.</p>
+              <p>The faster lanes wait. A GPU-bound game's game thread spends part of every frame stalled, waiting for room in the queue; a CPU-bound game's GPU sits idle. Those waits are what profilers show when you look at the threads side by side.</p>
+              <p>Try it. Slow down one lane at a time and watch the limit move. Switch to one thread at a time and see the frame rate drop while the latency in frames falls to one. Turn on the hitch to see a single slow update ripple through the lanes after it, then add low-latency mode: the queued frames that added latency were also hiding part of the hitch, and without them the longest frame grows from 38 ms to 59 ms.</p>
+              <figure>
+                <div class="demo" data-demo="frame-pipeline-timeline">
+                  <p class="demo-hint">The frame pipeline timeline needs JavaScript. Without it: with a 9 ms game thread, a 6 ms render thread and a 14 ms GPU, the game runs at 71 fps, limited by the GPU, and each frame takes 50 ms from input to the GPU finishing it.</p>
+                </div>
+                <figcaption><b>Frame pipeline timeline.</b> Three lanes, frames moving from left to right through them. Frame N is highlighted from the moment it reads input to the moment the GPU finishes it. Low-latency mode starts CPU work just in time, the idea behind NVIDIA Reflex and Unreal's low-latency syncing: same frame rate, less waiting.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The demo's lanes each take the same time every frame, and the display is left out. Real frames vary, vsync makes the GPU wait for the screen's refresh, and engines differ in exactly where threads wait for each other. The shape is the same: the slowest lane sets the pace, and queued frames add delay.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="jobs"><span class="step-num">6</span> Spreading the work over cores</h3>
+              <p>A modern CPU has 8 or more cores, and the game and render threads use two. The rest are filled by a <dfn class="term" data-term="job-system">job system</dfn>. Systems split their work into small independent jobs, such as "animate these 50 characters" or "test these 1,000 objects against the camera", and a pool of worker threads, about one per core, runs them in parallel.</p>
+              <p>The catch is the sync point. The game thread must wait for every job's results before it uses them, so the slowest job and any work that cannot be split, such as most gameplay scripts, set the floor. Unity's job system and Burst compiler, Unreal's Tasks System and Godot's <code>WorkerThreadPool</code> are all versions of this.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="Top, one thread does 12.5 milliseconds of work in sequence: input, gameplay scripts, animation, physics and culling. Below, the same work with a job system on seven cores: input and gameplay scripts still run on the main thread for 3.5 milliseconds while the workers are idle, then animation is split into four jobs and physics into three, running at the same time on the main thread and six workers, then culling is split into four short jobs. The frame's work finishes at 5.2 milliseconds.">
+                    <text class="t-caps" x="20" y="28">ONE THREAD DOES EVERYTHING</text>
+                    <text class="t-small" x="20" y="56">main thread</text>
+                    <rect class="f-solid s-strong" x="150" y="40" width="27" height="24"/>
+                    <rect class="f-solid s-strong" x="177" y="40" width="162" height="24"/>
+                    <text class="t-small mid" x="258" y="56">gameplay scripts</text>
+                    <rect class="f-surface s-strong" x="339" y="40" width="216" height="24"/>
+                    <text class="t-small mid" x="447" y="56">animation</text>
+                    <rect class="f-surface s-strong" x="555" y="40" width="162" height="24"/>
+                    <text class="t-small mid" x="636" y="56">physics</text>
+                    <rect class="f-surface s-strong" x="717" y="40" width="108" height="24"/>
+                    <text class="t-small mid" x="771" y="56">culling</text>
+                    <text class="t-head" x="833" y="57">12.5 ms</text>
+
+                    <text class="t-caps" x="20" y="108">THE SAME WORK AS JOBS ON 7 CORES</text>
+                    <text class="t-small" x="20" y="140">main thread</text>
+                    <text class="t-small" x="20" y="166">worker 1</text>
+                    <text class="t-small" x="20" y="192">worker 2</text>
+                    <text class="t-small" x="20" y="218">worker 3</text>
+                    <text class="t-small" x="20" y="244">worker 4</text>
+                    <text class="t-small" x="20" y="270">worker 5</text>
+                    <text class="t-small" x="20" y="296">worker 6</text>
+                    <path class="s-line" d="M150,150 H880 M150,176 H880 M150,202 H880 M150,228 H880 M150,254 H880 M150,280 H880 M150,306 H880"/>
+
+                    <rect class="f-solid s-strong" x="150" y="126" width="27" height="20"/>
+                    <rect class="f-solid s-strong" x="177" y="126" width="162" height="20"/>
+                    <text class="t-small mid" x="258" y="140">gameplay scripts</text>
+                    <rect class="f-acc-soft s-acc" x="344.4" y="126" width="54" height="20"/>
+                    <text class="t-small mid" x="371.4" y="140">phys</text>
+                    <rect class="f-acc-soft s-acc" x="403.8" y="126" width="27" height="20"/>
+                    <text class="t-small mid" x="417.3" y="140">cull</text>
+
+                    <rect class="f-acc-soft s-acc" x="344.4" y="152" width="54" height="20"/>
+                    <text class="t-small mid" x="371.4" y="166">anim</text>
+                    <rect class="f-acc-soft s-acc" x="403.8" y="152" width="27" height="20"/>
+                    <text class="t-small mid" x="417.3" y="166">cull</text>
+                    <rect class="f-acc-soft s-acc" x="344.4" y="178" width="54" height="20"/>
+                    <text class="t-small mid" x="371.4" y="192">anim</text>
+                    <rect class="f-acc-soft s-acc" x="403.8" y="178" width="27" height="20"/>
+                    <text class="t-small mid" x="417.3" y="192">cull</text>
+                    <rect class="f-acc-soft s-acc" x="344.4" y="204" width="54" height="20"/>
+                    <text class="t-small mid" x="371.4" y="218">anim</text>
+                    <rect class="f-acc-soft s-acc" x="403.8" y="204" width="27" height="20"/>
+                    <text class="t-small mid" x="417.3" y="218">cull</text>
+                    <rect class="f-acc-soft s-acc" x="344.4" y="230" width="54" height="20"/>
+                    <text class="t-small mid" x="371.4" y="244">anim</text>
+                    <rect class="f-acc-soft s-acc" x="344.4" y="256" width="54" height="20"/>
+                    <text class="t-small mid" x="371.4" y="270">phys</text>
+                    <rect class="f-acc-soft s-acc" x="344.4" y="282" width="54" height="20"/>
+                    <text class="t-small mid" x="371.4" y="296">phys</text>
+
+                    <text class="t-small t-muted" x="160" y="193">idle: scripts run on main</text>
+                    <path class="s-muted dash" d="M401.1,120 V306 M433.5,120 V306"/>
+                    <text class="t-small t-muted" x="442" y="187">sync points: the main thread</text>
+                    <text class="t-small t-muted" x="442" y="199">waits for every job to finish</text>
+                    <text class="t-head t-acc" x="442" y="141">5.2 ms</text>
+
+                    <path class="s-muted" d="M150,316 H825 M150,312 V320 M258,312 V320 M366,312 V320 M474,312 V320 M582,312 V320 M690,312 V320 M798,312 V320"/>
+                    <text class="t-mono t-small t-muted mid" x="150" y="334">0</text>
+                    <text class="t-mono t-small t-muted mid" x="258" y="334">2</text>
+                    <text class="t-mono t-small t-muted mid" x="366" y="334">4</text>
+                    <text class="t-mono t-small t-muted mid" x="474" y="334">6</text>
+                    <text class="t-mono t-small t-muted mid" x="582" y="334">8</text>
+                    <text class="t-mono t-small t-muted mid" x="690" y="334">10</text>
+                    <text class="t-mono t-small t-muted mid" x="798" y="334">12 ms</text>
+                  </svg>
+                </div>
+                <figcaption><b>The same 12.5 ms of work, finished in 5.2 ms.</b> Animation, physics and culling split cleanly into jobs; gameplay scripts do not, so they now take most of the frame. The numbers are illustrative: real jobs are uneven and scheduling costs a little, so the gain is usually smaller than the core count suggests.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="latency"><span class="step-num">7</span> From input to photon</h3>
+              <p><dfn class="term" data-term="frame-latency">Frame latency</dfn>, or input latency, is the time from pressing a button to seeing its effect on screen. Add up the stages. The press waits for the next update to read it, then rides through the game thread, the render thread and the GPU, then the display scans the image out from top to bottom.</p>
+              <p>At 60 fps with every stage taking a whole frame, that is about 67 ms, roughly four frames. Each frame that waits in the GPU queue adds another 16.7 ms. Unreal's documentation gives a worst case of up to 130 ms for a 30 fps game with its default syncing, and about 66 ms, two 30 Hz frames, as the best case with its low-latency mode.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 244" role="img" aria-label="Two rows of stages drawn to scale. In the first, at 60 frames per second with every stage taking a whole frame: input waits on average 8.3 milliseconds, then the game thread, render thread and GPU take 16.7 milliseconds each, and scan-out to the middle of the screen takes 8.3, about 67 milliseconds in all. In the second, the same pipeline is GPU-bound and the frame waits one more frame in the GPU queue, about 83 milliseconds.">
+                    <text class="t-caps" x="40" y="56">EVERY STAGE TAKES A WHOLE FRAME · 60 FPS</text>
+                    <rect class="f-surface s-strong dash" x="40" y="66" width="75" height="40" rx="3"/>
+                    <text class="t-small mid" x="77.5" y="90">input waits</text>
+                    <rect class="f-acc-soft s-acc" x="115" y="66" width="150" height="40" rx="3"/>
+                    <text class="t-small mid" x="190" y="90">game thread</text>
+                    <rect class="f-acc-soft s-acc" x="265" y="66" width="150" height="40" rx="3"/>
+                    <text class="t-small mid" x="340" y="90">render thread</text>
+                    <rect class="f-acc-soft s-acc" x="415" y="66" width="150" height="40" rx="3"/>
+                    <text class="t-small mid" x="490" y="90">GPU</text>
+                    <rect class="f-solid s-strong" x="565" y="66" width="75" height="40" rx="3"/>
+                    <text class="t-small mid" x="602.5" y="90">scan-out</text>
+                    <text class="t-head" x="652" y="91">≈ 67 ms</text>
+                    <text class="t-mono t-small t-muted mid" x="77.5" y="120">0–16.7</text>
+                    <text class="t-mono t-small t-muted mid" x="190" y="120">16.7</text>
+                    <text class="t-mono t-small t-muted mid" x="340" y="120">16.7</text>
+                    <text class="t-mono t-small t-muted mid" x="490" y="120">16.7</text>
+                    <text class="t-mono t-small t-muted mid" x="602.5" y="120">0–16.7</text>
+
+                    <text class="t-caps" x="40" y="150">THE SAME, GPU-BOUND, WITH ONE FRAME WAITING IN THE QUEUE</text>
+                    <rect class="f-surface s-strong dash" x="40" y="160" width="75" height="40" rx="3"/>
+                    <text class="t-small mid" x="77.5" y="184">input waits</text>
+                    <rect class="f-acc-soft s-acc" x="115" y="160" width="150" height="40" rx="3"/>
+                    <text class="t-small mid" x="190" y="184">game thread</text>
+                    <rect class="f-acc-soft s-acc" x="265" y="160" width="150" height="40" rx="3"/>
+                    <text class="t-small mid" x="340" y="184">render thread</text>
+                    <rect class="f-sunken s-strong dash" x="415" y="160" width="150" height="40" rx="3"/>
+                    <text class="t-small mid" x="490" y="184">waits in the GPU queue</text>
+                    <rect class="f-acc-soft s-acc" x="565" y="160" width="150" height="40" rx="3"/>
+                    <text class="t-small mid" x="640" y="184">GPU</text>
+                    <rect class="f-solid s-strong" x="715" y="160" width="75" height="40" rx="3"/>
+                    <text class="t-small mid" x="752.5" y="184">scan-out</text>
+                    <text class="t-head" x="802" y="185">≈ 83 ms</text>
+                    <text class="t-mono t-small t-muted mid" x="490" y="214">+16.7</text>
+
+                    <text class="t-small t-muted" x="40" y="236">Drawn to scale, 9 px per ms, using averages for the two waits. The controller, the operating system and the display add their own delay on top.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Latency is the sum of the stages a frame passes through, plus every wait.</b> Pipelining does not slow the frame rate, but it does add stages, and queues add waiting. That is why a GPU-bound game at a steady frame rate can still feel sluggish, and why low-latency modes work by shortening the queue rather than speeding anything up.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="hitch"><span class="step-num">8</span> What a hitch does</h3>
+              <p>A hitch is one frame that takes far longer than the rest: a file read on the game thread, a burst of garbage collection, a shader compiled on first use. Players feel it as a freeze or a stutter even when the average frame rate looks fine.</p>
+              <p>Everything downstream feels it too. The render thread and the GPU run out of work and the screen keeps showing the last frame. Then the fixed timestep tries to catch up on the missed time by running several physics steps in one frame, which makes that frame slower as well. If each catch-up step costs more time than it covers, the game falls further behind every frame: Glenn Fiedler named this the spiral of death. Engines cap the catch-up to stop it.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 282" role="img" aria-label="A bar chart of frame times for 24 frames at 60 frames per second. Eleven bars sit at the 16.7 millisecond line, frame 12 rises to 100 milliseconds, frame 13 is 24 milliseconds while physics catches up, frame 14 is 18, and the rest return to 16.7. Beside it, notes explain that the screen keeps showing the last frame for about six refreshes during the hitch, that physics then runs extra steps up to a cap, and how a spiral of death can follow.">
+                    <text class="t-caps" x="56" y="34">FRAME TIME, ONE BAR PER FRAME</text>
+                    <line class="s-muted dash" x1="56" y1="185" x2="586" y2="185"/>
+                    <g>
+                      <rect class="f-surface s-strong" x="60" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="82" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="104" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="126" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="148" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="170" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="192" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="214" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="236" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="258" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="280" y="185" width="14" height="25"/>
+                      <rect class="f-pix-soft s-pix w15" x="302" y="60" width="14" height="150"/>
+                      <rect class="f-acc-soft s-acc" x="324" y="174" width="14" height="36"/>
+                      <rect class="f-surface s-strong" x="346" y="183" width="14" height="27"/>
+                      <rect class="f-surface s-strong" x="368" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="390" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="412" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="434" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="456" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="478" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="500" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="522" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="544" y="185" width="14" height="25"/>
+                      <rect class="f-surface s-strong" x="566" y="185" width="14" height="25"/>
+                    </g>
+                    <line class="s-ink" x1="56" y1="210" x2="586" y2="210"/>
+                    <text class="t-mono t-small t-muted" x="592" y="189">16.7 ms</text>
+                    <text class="t-small t-pix t-strong" x="324" y="70">frame 12: one update takes 100 ms</text>
+                    <text class="t-small t-muted" x="324" y="84">loading, garbage collection, a shader compile</text>
+                    <text class="t-small t-acc" x="346" y="160">catch-up: 6 physics steps</text>
+                    <text class="t-small t-muted" x="56" y="228">frames, oldest on the left, 1.5 px per ms</text>
+
+                    <text class="t-head" x="670" y="66">During the hitch</text>
+                    <text class="t-small" x="670" y="86">the screen keeps showing the last</text>
+                    <text class="t-small" x="670" y="100">frame for about 6 refreshes at 60 Hz</text>
+                    <text class="t-head" x="670" y="134">Just after</text>
+                    <text class="t-small" x="670" y="154">physics runs extra fixed steps to</text>
+                    <text class="t-small" x="670" y="168">catch up, up to a cap: Godot allows</text>
+                    <text class="t-small" x="670" y="182">8 steps per frame by default; Unity</text>
+                    <text class="t-small" x="670" y="196">simulates at most 0.333 s per frame</text>
+                    <text class="t-head" x="670" y="230">Spiral of death</text>
+                    <text class="t-small" x="670" y="250">if catching up costs more time than it</text>
+                    <text class="t-small" x="670" y="264">covers, each frame falls further behind</text>
+                  </svg>
+                </div>
+                <figcaption><b>One slow update stalls every lane behind it.</b> The average over a second can still read 55 fps, which is why frame time graphs and worst-frame numbers matter more than averages. Hitches are covered in depth in <a class="xref" data-ch="11.4">11.4 Memory, streaming and hitches</a>.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>With pipelining, each lane gets the whole <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a> to itself. At 60 fps the game thread has 16.7 ms, the render thread has 16.7 ms and the GPU has 16.7 ms, all at once. What you pay is latency, and a little memory.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Target</th><th scope="col" class="num">Frame time</th><th scope="col" class="num">Each lane's budget</th><th scope="col" class="num">60 Hz physics steps per frame</th><th scope="col" class="num">Latency, 3 frames in the pipe</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">30 fps</th><td class="num">33.3 ms</td><td class="num">33.3 ms</td><td class="num">2</td><td class="num">100 ms</td></tr>
+                  <tr><th scope="row">60 fps</th><td class="num">16.7 ms</td><td class="num">16.7 ms</td><td class="num">1</td><td class="num">50 ms</td></tr>
+                  <tr><th scope="row">120 fps</th><td class="num">8.3 ms</td><td class="num">8.3 ms</td><td class="num">0 or 1, 0.5 on average</td><td class="num">25 ms</td></tr>
+                  <tr><th scope="row">144 fps</th><td class="num">6.9 ms</td><td class="num">6.9 ms</td><td class="num">0 or 1, 0.42 on average</td><td class="num">20.8 ms</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Two things follow. Higher frame rates cut latency as well as smoothing motion, because every stage gets shorter. And physics cost per second depends on the physics rate, not the frame rate: a 60 Hz simulation costs the same per second at 30 fps and at 144 fps, it just lands in different frames.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">16.7 ms</span><span class="what">per lane at 60 fps, not 16.7 ms shared between CPU and GPU</span></div>
+              <div class="stat"><span class="value">2</span><span class="what">frames the CPU may queue ahead of the GPU by default in Unity (PC) and Godot</span></div>
+              <div class="stat"><span class="value">≈ 67 ms</span><span class="what">input to screen at 60 fps when each of game, render and GPU takes a whole frame</span></div>
+              <div class="stat"><span class="value">2–3 ×</span><span class="what">copies of per-frame data, one for each frame in flight</span></div>
+            </div>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Frames in flight</strong><span>Each extra queued frame adds a whole frame of latency, and another copy of every per-frame buffer.</span></li>
+              <li><strong>Sync points</strong><span>Every place a thread waits for another, or for jobs to finish, is time no work gets done on that thread.</span></li>
+              <li><strong>Physics rate</strong><span>Godot's documentation notes that CPU use scales roughly with the physics tick rate. Doubling it to 120 Hz doubles the physics cost.</span></li>
+              <li><strong>Work that cannot be split</strong><span>Single-threaded gameplay code sets a floor that more cores cannot lower.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>Competitive and rhythm games trade a little frame rate for less latency: fewer frames queued, low-latency modes, sometimes a frame cap just below what the GPU can do. Cinematic games usually take the extra frames of latency for a stable frame rate. Decide which yours is before anyone tunes the queue.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Timing and threading bugs are hard to see in a screenshot and easy to feel in the hands. Learn these six and you can usually name the cause from a description.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two arrows showing how far a character moves in one second. At 144 fps the arrow is long; at 30 fps it is short.">
+                    <text class="t-small t-muted" x="16" y="24">distance moved in 1 second</text>
+                    <text class="t-small" x="16" y="56">144 fps</text>
+                    <line class="s-pix w3 round" x1="66" y1="52" x2="220" y2="52"/>
+                    <circle class="f-pix" cx="220" cy="52" r="5"/>
+                    <text class="t-small" x="16" y="96">30 fps</text>
+                    <line class="s-ink w3 round" x1="66" y1="92" x2="98" y2="92"/>
+                    <circle class="f-ink" cx="98" cy="92" r="5"/>
+                  </svg>
+                </div>
+                <h4>The game runs faster on faster machines</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Movement or timers advance by a fixed amount per frame instead of being multiplied by delta time.</dd></div>
+                  <div><dt>Ask for</dt><dd>A search for per-frame changes that ignore delta time, and a test that runs the same input at 30 and 144 fps and compares positions.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A ball's positions in two frames, one before a thin wall and one beyond it, with a dashed rose line showing it skipped through.">
+                    <rect class="f-solid s-strong" x="118" y="16" width="14" height="100"/>
+                    <circle class="f-muted" cx="40" cy="66" r="4"/>
+                    <circle class="f-muted" cx="88" cy="66" r="4"/>
+                    <line class="s-pix w15 dash" x1="94" y1="66" x2="176" y2="66"/>
+                    <circle class="f-pix-soft s-pix w15" cx="186" cy="66" r="9"/>
+                  </svg>
+                </div>
+                <h4>Fast objects pass through walls</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Physics stepped with a large or variable delta time, or a fast, thin object without continuous collision detection.</dd></div>
+                  <div><dt>Ask for</dt><dd>Physics moved to the fixed step, the step rate and the object's speed per step compared with the thinnest thing it can hit, and continuous collision on fast objects.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A moving object's position in eight frames: the dots bunch up in threes and twos with big gaps between groups.">
+                    <text class="t-small t-muted" x="16" y="30">position each frame</text>
+                    <line class="s-line" x1="16" y1="70" x2="224" y2="70"/>
+                    <circle class="f-ink" cx="30" cy="70" r="5"/><circle class="f-ink" cx="36" cy="70" r="5"/><circle class="f-ink" cx="42" cy="70" r="5"/>
+                    <circle class="f-ink" cx="100" cy="70" r="5"/><circle class="f-ink" cx="106" cy="70" r="5"/>
+                    <circle class="f-ink" cx="164" cy="70" r="5"/><circle class="f-ink" cx="170" cy="70" r="5"/><circle class="f-ink" cx="176" cy="70" r="5"/>
+                    <path class="s-pix w15" d="M48,86 H94 M112,86 H158"/>
+                    <text class="t-small t-pix" x="60" y="104">jump</text>
+                    <text class="t-small t-pix" x="124" y="104">jump</text>
+                  </svg>
+                </div>
+                <h4>Stutter on high-refresh displays</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Objects moved by physics at 50 or 60 Hz, drawn at 120 or 144 Hz without interpolation, or a camera updated on a different step from what it follows.</dd></div>
+                  <div><dt>Ask for</dt><dd>Physics interpolation on moving bodies, and the camera and its target updated on the same step.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Three lanes. The game thread is far ahead of the GPU, with a long rose bracket labelled 4 frames between a frame on the game thread and the same frame on the GPU.">
+                    <text class="t-small t-muted" x="10" y="30">game</text>
+                    <text class="t-small t-muted" x="10" y="56">render</text>
+                    <text class="t-small t-muted" x="10" y="82">GPU</text>
+                    <rect class="f-acc-soft s-acc" x="56" y="18" width="26" height="18"/>
+                    <rect class="f-surface s-strong" x="92" y="18" width="26" height="18"/>
+                    <rect class="f-surface s-strong" x="128" y="44" width="26" height="18"/>
+                    <rect class="f-surface s-strong" x="56" y="70" width="44" height="18"/>
+                    <rect class="f-surface s-strong" x="100" y="70" width="44" height="18"/>
+                    <rect class="f-surface s-strong" x="144" y="70" width="44" height="18"/>
+                    <rect class="f-acc-soft s-acc" x="188" y="70" width="44" height="18"/>
+                    <path class="s-pix w15" d="M56,100 V106 H232 V100"/>
+                    <text class="t-small t-pix mid" x="144" y="122">4 frames from input to GPU</text>
+                  </svg>
+                </div>
+                <h4>Controls feel heavy at a good frame rate</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The game is GPU-bound and the CPU runs several frames ahead, so every frame waits in the queue.</dd></div>
+                  <div><dt>Ask for</dt><dd>Measured input latency, the number of frames queued, and a test of the engine's low-latency options, such as fewer queued frames or NVIDIA Reflex.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time bar chart where steady bars are followed by bars that keep getting taller.">
+                    <line class="s-muted dash" x1="14" y1="96" x2="226" y2="96"/>
+                    <rect class="f-surface s-strong" x="20" y="96" width="14" height="18"/>
+                    <rect class="f-surface s-strong" x="40" y="96" width="14" height="18"/>
+                    <rect class="f-surface s-strong" x="60" y="96" width="14" height="18"/>
+                    <rect class="f-pix-soft s-pix" x="80" y="40" width="14" height="74"/>
+                    <rect class="f-pix-soft s-pix" x="100" y="78" width="14" height="36"/>
+                    <rect class="f-pix-soft s-pix" x="120" y="66" width="14" height="48"/>
+                    <rect class="f-pix-soft s-pix" x="140" y="50" width="14" height="64"/>
+                    <rect class="f-pix-soft s-pix" x="160" y="34" width="14" height="80"/>
+                    <rect class="f-pix-soft s-pix" x="180" y="20" width="14" height="94"/>
+                    <line class="s-ink" x1="14" y1="114" x2="226" y2="114"/>
+                  </svg>
+                </div>
+                <h4>Hitches, or a spiral of death</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Loading, allocation or compilation on the game thread; or physics catch-up that costs more than it covers, so frames keep getting slower.</dd></div>
+                  <div><dt>Ask for</dt><dd>A capture of the slow frame with every thread visible, the work moved off the game thread or ahead of time, and the catch-up cap checked.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two threads, the game thread writing and the render thread reading, both pointing at the same data box at the same time, marked with a rose zigzag.">
+                    <defs>
+                      <marker id="sy-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="12" y="20" width="74" height="30" rx="4"/>
+                    <text class="t-small mid" x="49" y="39">game thread</text>
+                    <rect class="f-surface s-strong" x="12" y="80" width="74" height="30" rx="4"/>
+                    <text class="t-small mid" x="49" y="99">render thread</text>
+                    <rect class="f-sunken s-strong" x="150" y="48" width="76" height="34" rx="4"/>
+                    <text class="t-small mid" x="188" y="69">transform</text>
+                    <line class="s-ink w15" x1="88" y1="38" x2="146" y2="58" marker-end="url(#sy-arr)"/>
+                    <line class="s-ink w15" x1="148" y1="74" x2="90" y2="94" marker-end="url(#sy-arr)"/>
+                    <polyline class="s-pix w2" points="120,52 128,62 116,68 126,78"/>
+                    <text class="t-small t-muted" x="110" y="124">write and read at once</text>
+                  </svg>
+                </div>
+                <h4>Flicker, or a crash once a week</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Two threads touch the same data without a handoff: game code changing something the render thread or a job is reading.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which thread owns each piece of shared data, how changes are handed over, and a run with the engine's thread-checking or a thread sanitizer.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To confirm any of these, look at all the threads together, not only the frame rate. Unreal's <code>stat unit</code>, Unity's Profiler timeline and Godot's Profiler each show time per thread or per stage; <a class="term" data-term="profiler" data-forward href="glossary.html#profiler">frame capture tools</a> show the GPU side.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines have an update, a fixed step for physics and a queue in front of the GPU. They differ most in how many threads they use for rendering by default.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Per-frame update</th>
+                    <td><code>Tick(DeltaSeconds)</code> on Actors and Components, run in tick groups: <code>TG_PrePhysics</code>, <code>TG_DuringPhysics</code>, <code>TG_PostPhysics</code>, <code>TG_PostUpdateWork</code>.</td>
+                    <td><code>Update()</code> every frame, with <code>Time.deltaTime</code>; <code>LateUpdate()</code> after it.</td>
+                    <td><code>_process(delta)</code> every frame.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Physics step</th>
+                    <td>Physics follows the frame's variable step by default. Project Settings, Physics, Framerate: <strong>Substepping</strong> splits long frames (<strong>Max Substep Delta Time</strong>, <strong>Max Substeps</strong>); <strong>Tick Physics Async</strong> with <strong>Async Fixed Time Step Size</strong> runs physics on its own fixed step. Both are marked experimental.</td>
+                    <td><code>FixedUpdate()</code> at <strong>Fixed Timestep</strong>, default 0.02 s (50 Hz). <strong>Maximum Allowed Timestep</strong>, default 0.333 s, caps how much time physics simulates per frame.</td>
+                    <td><code>_physics_process(delta)</code> at <strong>Physics Ticks per Second</strong>, default 60. <strong>Max Physics Steps per Frame</strong>, default 8, caps catch-up.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Interpolation</th>
+                    <td>Not needed on the default path, where physics steps once per frame, substepped if long.</td>
+                    <td>Per Rigidbody: <strong>Interpolate</strong> or <strong>Extrapolate</strong>; None by default.</td>
+                    <td>Project Settings, Physics, Common: <strong>Physics Interpolation</strong>, off by default.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Rendering threads</th>
+                    <td>Game thread, render thread and RHI thread. The renderer runs a frame or two behind the game thread. <code>r.rhithread.enable 0</code> folds the RHI thread's work into the render thread.</td>
+                    <td>Main thread and render thread with <strong>Multithreaded Rendering</strong>. <strong>Graphics Jobs</strong> lets worker threads build rendering commands. <code>SystemInfo.renderingThreadingMode</code> reports the mode in use.</td>
+                    <td>Rendering runs on the main thread by default (<strong>Thread Model</strong>: Safe). <strong>Separate</strong> moves it to its own thread, but is marked experimental with known bugs.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Frames queued</th>
+                    <td><code>r.OneFrameThreadLag</code> keeps the game thread at most one frame ahead of the render thread. <code>r.GTSyncType</code> 1 or 2 syncs the game thread to the RHI thread or to the display's present, for lower latency.</td>
+                    <td><code>QualitySettings.maxQueuedFrames</code>, default 2 on PC; used with Direct3D 11, Direct3D 12 and Vulkan.</td>
+                    <td><code>rendering/rendering_device/vsync/frame_queue_size</code>, default 2. <code>swapchain_image_count</code>, default 3.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Jobs</th>
+                    <td>The Tasks System, sharing worker threads with the older TaskGraph.</td>
+                    <td>The C# Job System with the Burst compiler. Worker threads match the CPU's cores and steal work from each other.</td>
+                    <td><code>WorkerThreadPool</code>; <code>threading/worker_pool/max_threads</code> defaults to all logical cores. 3D physics can run on its own thread.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Seeing the threads</th>
+                    <td><code>stat unit</code>: Frame, Game, Draw (render thread), RHIT and GPU times. Unreal Insights for detail.</td>
+                    <td>Profiler timeline. <code>Gfx.WaitForPresentOnGfxThread</code> on the main thread suggests GPU-bound; <code>Gfx.WaitForCommands</code> on the render thread suggests main-thread-bound.</td>
+                    <td>Debugger, Profiler: frame time, physics time and idle (process) time.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names and defaults checked against the documentation for Unreal Engine 5.9, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Changing the defaults</p>
+              <p>Unreal's forums report freezes and corrupted animation data with some combinations of its low-latency settings, and Godot labels its separate render thread experimental. Change these settings on a branch, measure, and test on every platform before shipping them.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about frame timing give per-thread numbers, not just fps, say which thread code runs on, and ask for measurement before and after. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when the frame rate is low and nobody agrees why</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.9, PC, DirectX 12. Target: 60 fps.
+In our forest level, stat unit shows: Frame 21 ms, Game 9 ms, Draw 7 ms, RHIT 8 ms, GPU 20 ms.
+
+1. Tell us which lane limits the frame rate, and what in these numbers shows it.
+2. List the three most likely causes in that lane for a dense forest, and how to confirm each with Unreal Insights or a GPU capture.
+3. For each fix, estimate the saving in ms and say which other lane it might move the cost to.
+Do not change gameplay code or engine source.</pre>
+              <ul class="prompt-why">
+                <li>Per-thread numbers let the AI reason about the bottleneck instead of guessing.</li>
+                <li>Asking for confirmation steps keeps it from jumping straight to fixes.</li>
+                <li>Costs move between lanes; asking where they go avoids a fix that only shifts the problem.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when motion stutters or objects pass through things</span></div>
+              <pre class="prompt-body">Unity 6.6, URP, PC. Our car is a Rigidbody moved by forces in FixedUpdate. Fixed Timestep is the default 0.02 s.
+On a 144 Hz monitor the car visibly stutters. When the frame rate drops below 30 fps in busy scenes, the car sometimes passes through the thin crash barriers.
+
+Find the causes. For each: explain it in terms of the fixed timestep and the frame rate, propose the change (interpolation, step rate, collision detection mode, or code moved between Update and FixedUpdate), and state its CPU cost. Tell us how to verify the stutter fix at 144 Hz and the barrier fix at 25 fps.</pre>
+              <ul class="prompt-why">
+                <li>Stating the step rate and the display rate points straight at interpolation.</li>
+                <li>Tying the tunnelling to low frame rates points at step size and collision mode.</li>
+                <li>Asking for cost stops a blanket "raise the physics rate" answer.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing timing and threading code</h3>
+            <ol class="review-list">
+              <li>Which thread does this code run on, and which data does it share with other threads?<span class="why">Unsynchronised sharing causes the rarest and worst bugs.</span></li>
+              <li>Does movement use delta time, and does physics-related code run on the fixed step?<span class="why">Mixing them up makes behaviour depend on the frame rate.</span></li>
+              <li>Does this add a wait in the middle of the frame: a job completed early, a flush, a read back from the GPU?<span class="why">Every wait is time a thread does nothing.</span></li>
+              <li>Does it change how many frames are queued, or where threads sync?<span class="why">That changes input latency, often silently.</span></li>
+              <li>How was the improvement measured: per-thread times and worst frames, or only average fps?<span class="why">Averages hide hitches and moved costs.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">The game thread takes 8 ms per frame, the render thread 6 ms and the GPU 14 ms, all pipelined. What is the frame rate, and does optimising the game thread to 5 ms help?</p>
+                <details><summary>Show answer</summary><p>About 71 fps (1000 ÷ 14), limited by the GPU. Making the game thread faster does not raise the frame rate; it only makes the game thread wait longer each frame.</p></details>
+              </li>
+              <li>
+                <p class="q">Physics runs at 60 Hz and the game renders at 144 fps. How many physics steps run per frame, and why might motion look jerky?</p>
+                <details><summary>Show answer</summary><p>Zero or one, about 0.42 on average. Without interpolation, a moving body is drawn at the same position for two or three frames, then jumps, so motion stutters. Physics interpolation fixes it at the cost of up to one physics step of delay.</p></details>
+              </li>
+              <li>
+                <p class="q">Your game holds a steady 60 fps, but players say aiming feels sluggish. The profiler shows the GPU busy all frame and the game thread waiting. What do you ask for?</p>
+                <details><summary>Show answer</summary><p>A measurement of input latency and frames queued, then a test of fewer queued frames or the engine's low-latency mode, such as NVIDIA Reflex, or a frame cap slightly below what the GPU can sustain. The game is GPU-bound, so frames wait in the queue and each one is older by the time it is shown.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#pipelining">pipelining</a></li>
+              <li><a class="chip" href="glossary.html#tick">update (tick)</a></li>
+              <li><a class="chip" href="glossary.html#delta-time">delta time</a></li>
+              <li><a class="chip" href="glossary.html#fixed-timestep">fixed timestep</a></li>
+              <li><a class="chip" href="glossary.html#physics-interpolation">physics interpolation</a></li>
+              <li><a class="chip" href="glossary.html#game-thread">game thread</a></li>
+              <li><a class="chip" href="glossary.html#render-thread">render thread</a></li>
+              <li><a class="chip" href="glossary.html#command-buffer">command buffer</a></li>
+              <li><a class="chip" href="glossary.html#gpu-queue">GPU queue</a></li>
+              <li><a class="chip" href="glossary.html#rhi-thread">RHI thread</a></li>
+              <li><a class="chip" href="glossary.html#job-system">job system</a></li>
+              <li><a class="chip" href="glossary.html#frame-latency">frame latency</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="2.3"></a> looks inside the game thread's world: how engines organise objects, components and scenes.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://gafferongames.com/post/fix_your_timestep/">Fix Your Timestep!</a>, Glenn Fiedler, 2004. The accumulator, interpolation and the spiral of death.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/threaded-rendering-in-unreal-engine">Rendering thread</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/parallel-rendering-overview-for-unreal-engine">Threading overview</a>, Unreal Engine documentation. Game, render and RHI threads and how they sync.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/low-latency-frame-syncing-in-unreal-engine">Low latency frame syncing</a>, Unreal Engine documentation. <code>r.GTSyncType</code>, <code>r.OneFrameThreadLag</code> and worked latency numbers.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/physics-sub-stepping-in-unreal-engine">Physics sub-stepping</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/physics-settings-in-the-unreal-engine-project-settings">Physics settings</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/actor-ticking-in-unreal-engine">Actor ticking</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/tasks-systems-in-unreal-engine">Tasks System</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/stat-commands-in-unreal-engine">Stat commands</a>, Unreal Engine documentation.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/scripting/managing-time-and-frame-rate/fixed-updates">Fixed updates</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/scripting/managing-time-and-frame-rate/time-handling-variations">Handling variation in time</a>, Unity 6.6 Manual.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/scripting/programming-distribute-work-threads/job-system/overview">Job system overview</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/profiler/markers">Common Profiler markers</a> and <a href="https://docs.unity.com/en-us/engine/current/script-reference/unityengine/qualitysettings/maxqueuedframes">QualitySettings.maxQueuedFrames</a>, Unity 6.6 documentation.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/classes/class_projectsettings.html">ProjectSettings</a>, Godot 4.7 class reference. Physics tick rate, catch-up cap, interpolation, thread model and frame queue size.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/tutorials/physics/interpolation/physics_interpolation_introduction.html">Physics interpolation</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html">Thread-safe APIs</a> and <a href="https://docs.godotengine.org/en/4.7/classes/class_workerthreadpool.html">WorkerThreadPool</a>, Godot 4.7 documentation.</li>
+              <li><a href="https://www.nvidia.com/en-gb/geforce/news/reflex-low-latency-platform/">Introducing NVIDIA Reflex</a>, NVIDIA, 2020. System latency and the render queue.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/frame-pipeline-timeline.js"></script>
+</body>
+</html>

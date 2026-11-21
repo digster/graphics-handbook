@@ -43,8 +43,8 @@
     {
       n: 2, title: "Inside a game engine", blurb: "What an engine is made of and how it spends each frame.",
       chapters: [
-        { num: "2.1", slug: "engine-anatomy", title: "Anatomy of an engine", terms: "renderer, physics, animation, audio, scripting, asset system, editor, RHI", core: true, status: "planned" },
-        { num: "2.2", slug: "game-loop-threads", title: "The game loop and threads", terms: "update, fixed timestep, game thread, render thread, GPU queue, frame latency", core: true, status: "planned" },
+        { num: "2.1", slug: "engine-anatomy", title: "Anatomy of an engine", terms: "renderer, physics, animation, audio, scripting, asset system, editor, RHI", core: true, status: "published" },
+        { num: "2.2", slug: "game-loop-threads", title: "The game loop and threads", terms: "update, fixed timestep, game thread, render thread, GPU queue, frame latency", core: true, status: "published" },
         { num: "2.3", slug: "scenes-objects", title: "Scenes, objects and components", terms: "scene graph, Actor, GameObject, Node, component, ECS, prefab, transform hierarchy", core: false, status: "planned" },
         { num: "2.4", slug: "engine-landscape", title: "The engine landscape", terms: "Unreal, Unity URP and HDRP, Godot, custom engines; Nanite, Lumen, VSM by name", core: false, status: "planned" }
       ]

@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>2.1 Anatomy of an engine · Graphics Handbook</title>
+  <meta name="description" content="What a game engine is made of: the runtime and the editor, the renderer, physics, animation, audio, scripting, the asset system, the RHI and the platform layer, and where changes are cheap or risky.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="2.1">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 2 · Inside a game engine</p>
+            <h1><span class="ch-num">2.1</span> Anatomy of an engine</h1>
+            <p class="lead">An engine is a stack of systems, each owning one job: drawing, simulating, animating, playing sound, loading content. Knowing where each one sits tells you who should change it, what a change can break, and which parts end up in the game players install.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="0.1">0.1 The whole journey on one page</a>, <a class="xref" data-ch="1.3">1.3 The content pipeline</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="2.2">2.2 The game loop and threads</a>, <a class="xref" data-ch="2.3">2.3 Scenes, objects and components</a>, <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 25 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 470" role="img" aria-label="An engine drawn as an exploded stack of layers. From the bottom: the platform layer and the RHI, then core services and the asset system, then the engine systems (renderer, physics, animation, audio), then the gameplay framework, the scripting layer and your game on top. The renderer is pulled forward out of its slot. Beside the stack stands the editor, with tools such as the level viewport and asset importers that use the same systems. The stack ships in the game; the editor stays with the team.">
+                  <defs>
+                    <marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+                  <text class="t-caps" x="60" y="26">RUNTIME · SHIPS IN THE GAME</text>
+                  <text class="t-small t-muted" x="60" y="42">the same in every copy players install</text>
+                  <text class="t-caps" x="640" y="26">EDITOR · STAYS WITH THE TEAM</text>
+                  <text class="t-small t-muted" x="640" y="42">tools for making the game</text>
+
+                  <!-- Your game -->
+                  <polygon class="f-bg s-strong dash" points="60,64 76,54 576,54 560,64"/>
+                  <polygon class="f-bg s-strong dash" points="560,64 576,54 576,88 560,98"/>
+                  <rect class="f-bg s-strong dash" x="60" y="64" width="500" height="34"/>
+                  <text class="t-caps" x="76" y="86">YOUR GAME</text>
+                  <text class="t-small t-muted" x="170" y="86">game code, levels, characters, rules and content</text>
+
+                  <!-- Scripting layer -->
+                  <polygon class="f-solid s-strong" points="60,126 76,116 576,116 560,126"/>
+                  <polygon class="f-sunken s-strong" points="560,126 576,116 576,150 560,160"/>
+                  <rect class="f-surface s-strong" x="60" y="126" width="500" height="34"/>
+                  <text class="t-strong" x="76" y="148">Scripting layer</text>
+                  <text class="t-small t-muted" x="230" y="148">Blueprints · C# · GDScript: the game's logic</text>
+
+                  <!-- Gameplay framework -->
+                  <polygon class="f-solid s-strong" points="60,188 76,178 576,178 560,188"/>
+                  <polygon class="f-sunken s-strong" points="560,188 576,178 576,212 560,222"/>
+                  <rect class="f-surface s-strong" x="60" y="188" width="500" height="34"/>
+                  <text class="t-strong" x="76" y="210">Gameplay framework</text>
+                  <text class="t-small t-muted" x="230" y="210">world, objects and components, game rules, input, UI</text>
+
+                  <!-- Engine systems: physics, animation, audio; renderer slot left empty -->
+                  <rect class="s-muted dash" x="60" y="250" width="130" height="50"/>
+                  <polygon class="s-muted dash" points="60,250 76,240 206,240 190,250"/>
+                  <polygon class="f-solid s-strong" points="190,250 206,240 326,240 310,250"/>
+                  <rect class="f-surface s-strong" x="190" y="250" width="120" height="50"/>
+                  <text class="t-strong" x="202" y="270">Physics</text>
+                  <text class="t-small t-muted" x="202" y="284">bodies, joints,</text>
+                  <text class="t-small t-muted" x="202" y="296">collisions</text>
+                  <polygon class="f-solid s-strong" points="310,250 326,240 456,240 440,250"/>
+                  <rect class="f-surface s-strong" x="310" y="250" width="130" height="50"/>
+                  <text class="t-strong" x="322" y="270">Animation</text>
+                  <text class="t-small t-muted" x="322" y="284">skeletons, blends,</text>
+                  <text class="t-small t-muted" x="322" y="296">state machines</text>
+                  <polygon class="f-solid s-strong" points="440,250 456,240 576,240 560,250"/>
+                  <polygon class="f-sunken s-strong" points="560,250 576,240 576,290 560,300"/>
+                  <rect class="f-surface s-strong" x="440" y="250" width="120" height="50"/>
+                  <text class="t-strong" x="452" y="270">Audio</text>
+                  <text class="t-small t-muted" x="452" y="284">mixing, 3D sound,</text>
+                  <text class="t-small t-muted" x="452" y="296">music streams</text>
+
+                  <!-- Renderer, pulled forward out of its slot -->
+                  <polygon class="f-surface s-acc w15" points="44,264 60,254 190,254 174,264"/>
+                  <polygon class="f-solid s-acc w15" points="174,264 190,254 190,304 174,314"/>
+                  <rect class="f-acc-soft s-acc w15" x="44" y="264" width="130" height="50"/>
+                  <text class="t-head t-acc" x="56" y="284">Renderer</text>
+                  <text class="t-small" x="56" y="298">visibility, passes,</text>
+                  <text class="t-small" x="56" y="310">GPU commands</text>
+
+                  <!-- Core and asset system -->
+                  <polygon class="f-solid s-strong" points="60,328 76,318 406,318 390,328"/>
+                  <rect class="f-surface s-strong" x="60" y="328" width="330" height="34"/>
+                  <text class="t-strong" x="76" y="350">Core</text>
+                  <text class="t-small t-muted" x="120" y="350">memory, maths, jobs, logging, files</text>
+                  <polygon class="f-solid s-strong" points="390,328 406,318 576,318 560,328"/>
+                  <polygon class="f-sunken s-strong" points="560,328 576,318 576,352 560,362"/>
+                  <rect class="f-surface s-strong" x="390" y="328" width="170" height="34"/>
+                  <text class="t-strong" x="402" y="343">Asset system</text>
+                  <text class="t-small t-muted" x="402" y="356">load, stream, unload</text>
+
+                  <!-- Platform layer and RHI -->
+                  <polygon class="f-solid s-strong" points="60,390 76,380 356,380 340,390"/>
+                  <rect class="f-surface s-strong" x="60" y="390" width="280" height="34"/>
+                  <text class="t-strong" x="76" y="405">Platform layer</text>
+                  <text class="t-small t-muted" x="76" y="418">windows, input, files, clocks, threads</text>
+                  <polygon class="f-acc-soft s-acc" points="340,390 356,380 576,380 560,390"/>
+                  <polygon class="f-acc-soft s-acc" points="560,390 576,380 576,414 560,424"/>
+                  <rect class="f-acc-soft s-acc" x="340" y="390" width="220" height="34"/>
+                  <text class="t-strong t-acc" x="352" y="405">RHI</text>
+                  <text class="t-small" x="352" y="418">one API over D3D12, Vulkan, Metal</text>
+
+                  <line class="s-line" x1="60" y1="440" x2="576" y2="440"/>
+                  <text class="t-small t-muted mid" x="318" y="458">operating system and graphics driver, then the CPU and GPU</text>
+
+                  <!-- Editor, beside the runtime -->
+                  <polygon class="f-solid s-strong" points="640,64 656,54 876,54 860,64"/>
+                  <polygon class="f-sunken s-strong" points="860,64 876,54 876,414 860,424"/>
+                  <rect class="f-surface s-strong" x="640" y="64" width="220" height="360"/>
+                  <rect class="f-sunken s-line" x="654" y="80" width="192" height="28" rx="4"/>
+                  <text class="t-small" x="666" y="98">level editor and outliner</text>
+                  <rect class="f-sunken s-line" x="654" y="118" width="192" height="28" rx="4"/>
+                  <text class="t-small" x="666" y="136">material and shader graphs</text>
+                  <rect class="f-sunken s-line" x="654" y="156" width="192" height="28" rx="4"/>
+                  <text class="t-small" x="666" y="174">animation and audio tools</text>
+                  <rect class="f-sunken s-line" x="654" y="194" width="192" height="28" rx="4"/>
+                  <text class="t-small" x="666" y="212">profiler and debugger</text>
+                  <rect class="f-sunken s-line" x="654" y="262" width="192" height="40" rx="4"/>
+                  <text class="t-small" x="666" y="279">viewport: draws through</text>
+                  <text class="t-small" x="666" y="293">the runtime's renderer</text>
+                  <rect class="f-sunken s-line" x="654" y="330" width="192" height="36" rx="4"/>
+                  <text class="t-small" x="666" y="345">importers: turn source</text>
+                  <text class="t-small" x="666" y="358">files into assets</text>
+                  <rect class="f-sunken s-line" x="654" y="384" width="192" height="28" rx="4"/>
+                  <text class="t-small" x="666" y="402">build, cook and package</text>
+                  <line class="s-ink w15" x1="652" y1="282" x2="582" y2="282" marker-end="url(#pic-arr)"/>
+                  <line class="s-ink w15" x1="652" y1="346" x2="582" y2="346" marker-end="url(#pic-arr)"/>
+                </svg>
+              </div>
+              <figcaption><b>An engine is a stack of layers, plus an editor beside it.</b> Each layer uses the ones below it and never the ones above. The stack on the left ships in every copy of the game. The editor on the right uses the same systems to show and test your work, then stays behind. The renderer, pulled forward here, and the RHI beneath it are what the rest of this book opens up.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Every game needs the same plumbing. It must open a window, read a controller, load files, draw thousands of objects many times a second, make things fall and collide, play sounds and move characters. A <dfn class="term" data-term="game-engine">game engine</dfn> is that plumbing, written once and reused across many games, plus the tools to make content for it.</p>
+            <p>Inside, the engine is split into systems that each own one job. The <dfn class="term" data-term="renderer">renderer</dfn> turns the game world into an image every <a class="term" data-term="frame" href="glossary.html#frame">frame</a>. Other systems simulate physics, pose animated characters and mix sound. Gameplay code sits on top and tells them what to do. The systems sit on a thin layer that talks to the operating system and the graphics hardware for them.</p>
+            <p>There are two halves to every engine. The <dfn class="term" data-term="runtime">runtime</dfn> is the part that runs the game and ships to players. The <dfn class="term" data-term="editor">editor</dfn> is the application your team uses to build levels, import art and test. It contains the runtime, but the runtime does not contain it.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>Think of a theatre. The stage machinery, lighting rig and sound desk are the engine systems. The script and the actors are the gameplay code. The building's wiring and plumbing are the platform layer that everything plugs into.</p>
+                <p>The workshop where sets are built and painted is the editor. The audience never sees it, but nothing reaches the stage without it.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without an engine, every team would rebuild windowing, file loading, rendering, physics and audio before making anything players can see, and rebuild them again for every platform.</p>
+                <p>Splitting that work into layers with clear jobs lets specialists own each one, lets most of the team work high up the stack, and lets the same game run on very different hardware.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Most scope, risk and hiring questions map onto these layers. A change high in the stack, such as a script or a level, touches one feature. A change low in the stack, such as the renderer's internals or the RHI, touches every frame on every platform and needs a specialist to review it. When someone, or an AI, proposes a change, the first question to ask is which layer it touches.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Walk through the stack from the top, follow one event down through it, then open the renderer and the layers beneath it. Six steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="layers"><span class="step-num">1</span> The layers, top to bottom</h3>
+              <p>At the top is your game: levels, characters, rules and the code that ties them together. Most of that code is written in the <dfn class="term" data-term="scripting-layer">scripting layer</dfn>, a language chosen so that gameplay programmers and designers can work quickly: Blueprints in Unreal, C# in Unity, GDScript in Godot. It calls into a gameplay framework, the engine's model of a world full of objects with components, which <a class="xref" data-ch="2.3">2.3 Scenes, objects and components</a> covers.</p>
+              <p>Below that are the engine systems. Besides the renderer there is a <dfn class="term" data-term="physics-engine">physics engine</dfn> that moves bodies and resolves collisions, an <dfn class="term" data-term="animation-system">animation system</dfn> that poses skeletons and blends motions, and an <dfn class="term" data-term="audio-engine">audio engine</dfn> that mixes sounds and places them in 3D. Most engines also have systems for input, UI and networking.</p>
+              <p>Under the systems are shared services. The core provides memory, maths, logging and a way to spread work across CPU cores. The <dfn class="term" data-term="asset-system">asset system</dfn> finds, loads and unloads content, so the renderer can ask for "the rock mesh" without knowing which file or package it lives in. At the bottom, the <dfn class="term" data-term="platform-layer">platform layer</dfn> wraps each operating system's way of opening windows, reading controllers, reading files, keeping time and starting threads.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th scope="col">Layer</th><th scope="col">What it does</th><th scope="col">Usually changed by</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Your game</th><td>Levels, characters, rules, content.</td><td>Designers, artists, gameplay programmers</td></tr>
+                    <tr><th scope="row">Scripting layer</th><td>Game logic in a fast-to-write language.</td><td>Gameplay programmers, technical designers</td></tr>
+                    <tr><th scope="row">Gameplay framework</th><td>The world, its objects and components, saving, input mapping.</td><td>Gameplay and engine programmers</td></tr>
+                    <tr><th scope="row">Engine systems</th><td>Rendering, physics, animation, audio.</td><td>Engine and graphics programmers</td></tr>
+                    <tr><th scope="row">Core and asset system</th><td>Memory, maths, jobs, loading and streaming.</td><td>Engine programmers</td></tr>
+                    <tr><th scope="row">Platform layer and RHI</th><td>Talking to the operating system and the graphics API.</td><td>Engine and platform programmers</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Calls flow downward. A grenade script does not open an audio device; it asks the audio engine to play a sound, which asks the platform layer to hand samples to the operating system. Follow one event and you meet most of the stack.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="One grenade explosion travelling down the stack. A script function calls the gameplay framework, which finds the six objects within five metres and tells four systems. Physics pushes six bodies. Animation blends two characters into a hit reaction. Audio plays a sound at the blast. The renderer draws 400 smoke particles and a flash of light. Below, physics and animation read data the asset system loaded earlier, audio hands its mix to the platform layer, and the renderer's draws go through the RHI to DirectX 12, Vulkan or Metal.">
+                    <defs>
+                      <marker id="cp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="cp-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="300" y="16" width="300" height="42" rx="6"/>
+                    <text class="t-caps" x="316" y="33">SCRIPTING LAYER</text>
+                    <text class="t-mono" x="316" y="50">OnGrenadeExploded()</text>
+                    <line class="s-ink w15" x1="450" y1="58" x2="450" y2="84" marker-end="url(#cp-arr)"/>
+
+                    <rect class="f-surface s-strong" x="220" y="86" width="460" height="40" rx="6"/>
+                    <text class="t-caps" x="236" y="102">GAMEPLAY FRAMEWORK</text>
+                    <text class="t-small" x="236" y="118">finds the 6 objects within 5 m, applies damage, tells each system</text>
+                    <line class="s-ink w15" x1="300" y1="126" x2="140" y2="158" marker-end="url(#cp-arr)"/>
+                    <line class="s-ink w15" x1="400" y1="126" x2="348" y2="158" marker-end="url(#cp-arr)"/>
+                    <line class="s-ink w15" x1="500" y1="126" x2="552" y2="158" marker-end="url(#cp-arr)"/>
+                    <line class="s-ink w15" x1="600" y1="126" x2="760" y2="158" marker-end="url(#cp-arr)"/>
+
+                    <rect class="f-surface s-strong" x="40" y="162" width="190" height="56" rx="6"/>
+                    <text class="t-strong" x="54" y="183">Physics</text>
+                    <text class="t-small t-muted" x="54" y="199">pushes 6 bodies away</text>
+                    <text class="t-small t-muted" x="54" y="212">from the blast</text>
+                    <rect class="f-surface s-strong" x="250" y="162" width="190" height="56" rx="6"/>
+                    <text class="t-strong" x="264" y="183">Animation</text>
+                    <text class="t-small t-muted" x="264" y="199">blends 2 characters into</text>
+                    <text class="t-small t-muted" x="264" y="212">a hit reaction</text>
+                    <rect class="f-surface s-strong" x="460" y="162" width="190" height="56" rx="6"/>
+                    <text class="t-strong" x="474" y="183">Audio</text>
+                    <text class="t-small t-muted" x="474" y="199">plays boom.wav at the blast,</text>
+                    <text class="t-small t-muted" x="474" y="212">louder for nearby listeners</text>
+                    <rect class="f-acc-soft s-acc w15" x="670" y="162" width="190" height="56" rx="6"/>
+                    <text class="t-strong t-acc" x="684" y="183">Renderer</text>
+                    <text class="t-small" x="684" y="199">draws 400 smoke particles</text>
+                    <text class="t-small" x="684" y="212">and a flash of light</text>
+
+                    <line class="s-muted dash" x1="135" y1="218" x2="135" y2="254" marker-end="url(#cp-arr-m)"/>
+                    <line class="s-muted dash" x1="345" y1="218" x2="345" y2="254" marker-end="url(#cp-arr-m)"/>
+                    <line class="s-ink w15" x1="555" y1="218" x2="555" y2="254" marker-end="url(#cp-arr)"/>
+                    <line class="s-ink w15" x1="765" y1="218" x2="765" y2="254" marker-end="url(#cp-arr)"/>
+
+                    <rect class="f-sunken s-strong" x="40" y="256" width="400" height="50" rx="6"/>
+                    <text class="t-strong" x="54" y="275">Asset system</text>
+                    <text class="t-small t-muted" x="54" y="290">boom.wav, the smoke texture and the animations were loaded</text>
+                    <text class="t-small t-muted" x="54" y="302">with the level, so nothing waits for the disk now</text>
+                    <rect class="f-sunken s-strong" x="460" y="256" width="190" height="50" rx="6"/>
+                    <text class="t-strong" x="474" y="275">Platform layer</text>
+                    <text class="t-small t-muted" x="474" y="290">sends the mixed sound to</text>
+                    <text class="t-small t-muted" x="474" y="302">the OS audio device</text>
+                    <rect class="f-acc-soft s-acc" x="670" y="256" width="190" height="50" rx="6"/>
+                    <text class="t-strong t-acc" x="684" y="275">RHI</text>
+                    <text class="t-small" x="684" y="290">turns the draws into D3D12,</text>
+                    <text class="t-small" x="684" y="302">Vulkan or Metal calls</text>
+
+                    <line class="s-ink w15" x1="40" y1="324" x2="70" y2="324"/>
+                    <text class="t-small t-muted" x="78" y="327">calls</text>
+                    <line class="s-muted dash" x1="120" y1="324" x2="150" y2="324"/>
+                    <text class="t-small t-muted" x="158" y="327">reads data that is already loaded</text>
+                  </svg>
+                </div>
+                <figcaption><b>One event, most of the stack.</b> A single line of gameplay code fans out into four systems, which lean on the services and adapters underneath. Each box is owned by different people and can be profiled on its own, which is how teams find out which system a slowdown belongs to.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="runtime-editor"><span class="step-num">2</span> The runtime and the editor</h3>
+              <p>The editor is a large application built on top of the runtime. Its viewport draws your level with the same renderer the game uses. Its play button runs the game inside the editor. Around that it adds everything needed to make content: importers that turn source files from tools such as Blender or Photoshop into engine assets, material and animation editors, profilers and the build tools.</p>
+              <p>None of that ships. When you build the game, the engine cooks the content into formats the target platform reads quickly, compiles your code for that platform, and leaves the editor's code and the source files behind. <a class="xref" data-ch="1.3">1.3 The content pipeline</a> covers the cooking step in detail. Engines enforce the split in code: Unreal marks each code module as Runtime or Editor, Unity keeps scripts in folders named <code>Editor</code> out of player builds, and Godot exports games with a separate engine binary that has no editor in it.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left, the editor build on the team's machines holds editor tools, importers and the asset database, the runtime systems, the game's code and the source files. An arrow labelled cook and package leads right to the shipped game on players' machines, which holds only the runtime systems, the compiled game code and cooked content. Editor tools, importers and source files are left behind.">
+                    <defs>
+                      <marker id="re-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-sunken s-strong" x="20" y="30" width="370" height="236" rx="8"/>
+                    <text class="t-caps" x="36" y="52">EDITOR BUILD · YOUR TEAM'S MACHINES</text>
+                    <rect class="f-surface s-strong dash" x="36" y="66" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="50" y="86">editor interface and tools</text>
+                    <rect class="f-surface s-strong dash" x="36" y="104" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="50" y="124">importers and the asset database</text>
+                    <rect class="f-acc-soft s-acc" x="36" y="142" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="50" y="162">runtime: renderer, physics, animation, audio</text>
+                    <rect class="f-surface s-strong" x="36" y="180" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="50" y="200">your game code and scripts</text>
+                    <rect class="f-surface s-strong dash" x="36" y="218" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="50" y="238">source files: .fbx, .psd, .wav, .blend</text>
+
+                    <line class="s-ink w2" x1="398" y1="157" x2="500" y2="157" marker-end="url(#re-arr)"/>
+                    <text class="t-strong mid" x="449" y="130">cook and</text>
+                    <text class="t-strong mid" x="449" y="146">package</text>
+                    <text class="t-small t-muted mid" x="449" y="178">convert, compress,</text>
+                    <text class="t-small t-muted mid" x="449" y="192">strip editor code</text>
+
+                    <rect class="f-sunken s-strong" x="510" y="30" width="370" height="236" rx="8"/>
+                    <text class="t-caps" x="526" y="52">SHIPPED GAME · PLAYERS' MACHINES</text>
+                    <rect class="s-line dash" x="526" y="66" width="338" height="30" rx="4"/>
+                    <text class="t-small t-muted" x="540" y="86">editor tools: not shipped</text>
+                    <rect class="s-line dash" x="526" y="104" width="338" height="30" rx="4"/>
+                    <text class="t-small t-muted" x="540" y="124">importers and source files: not shipped</text>
+                    <rect class="f-acc-soft s-acc" x="526" y="142" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="540" y="162">runtime: renderer, physics, animation, audio</text>
+                    <rect class="f-surface s-strong" x="526" y="180" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="540" y="200">your game code, compiled for the platform</text>
+                    <rect class="f-surface s-strong" x="526" y="218" width="338" height="30" rx="4"/>
+                    <text class="t-strong" x="540" y="238">cooked content in platform formats</text>
+
+                    <rect class="f-surface s-strong dash" x="20" y="280" width="24" height="14" rx="3"/>
+                    <text class="t-small t-muted" x="52" y="291">editor-only: it runs while you make the game, then stays behind</text>
+                    <rect class="f-acc-soft s-acc" x="430" y="280" width="24" height="14" rx="3"/>
+                    <text class="t-small t-muted" x="462" y="291">the same runtime code in both</text>
+                  </svg>
+                </div>
+                <figcaption><b>The editor contains the runtime; the game contains only the runtime.</b> That asymmetry explains a whole class of bugs. Code and content can work perfectly inside the editor, where editor-only code and source files are present, then fail in the shipped build where they are not.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="inside-renderer"><span class="step-num">3</span> Inside the renderer</h3>
+              <p>The renderer does four things every frame. It keeps its own representation of the scene: for every drawable object, which <a class="term" data-term="mesh" data-forward href="glossary.html#mesh">mesh</a> and material it uses and where it is, plus the lights and the camera. It works out visibility, throwing away objects outside the camera's view or hidden behind others. It organises the survivors into <a class="term" data-term="render-pass" data-forward href="glossary.html#render-pass">render passes</a>, such as shadows, the main pass and post-processing. Finally it turns each pass into commands for the <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a>, mostly <a class="term" data-term="draw-call" data-forward href="glossary.html#draw-call">draw calls</a>, and hands them to the layer below.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="The renderer in four stages from left to right. Scene: a list of 20,000 objects, each a mesh, a material and a position, plus lights and a camera. Visibility: a camera's view wedge keeps the objects inside it and drops those outside or hidden behind a wall, leaving 3,000. Render passes: seven passes from shadow maps to UI, about 4,000 draws in total. RHI calls: a list of commands such as set pipeline, set vertex buffer and draw indexed, recorded for the GPU.">
+                    <defs>
+                      <marker id="ir-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="30">1 SCENE</text>
+                    <text class="t-caps" x="240" y="30">2 VISIBILITY</text>
+                    <text class="t-caps" x="460" y="30">3 RENDER PASSES</text>
+                    <text class="t-caps" x="680" y="30">4 RHI CALLS</text>
+
+                    <rect class="f-surface s-strong" x="20" y="42" width="192" height="210" rx="6"/>
+                    <rect class="f-sunken s-line" x="32" y="56" width="168" height="22" rx="3"/>
+                    <text class="t-small" x="40" y="71">mesh · material · position</text>
+                    <rect class="f-sunken s-line" x="32" y="84" width="168" height="22" rx="3"/>
+                    <text class="t-small" x="40" y="99">mesh · material · position</text>
+                    <rect class="f-sunken s-line" x="32" y="112" width="168" height="22" rx="3"/>
+                    <text class="t-small" x="40" y="127">mesh · material · position</text>
+                    <text class="t-small t-muted mid" x="116" y="148">⋮</text>
+                    <rect class="f-lit-soft s-line" x="32" y="158" width="80" height="22" rx="3"/>
+                    <text class="t-small" x="40" y="173">lights</text>
+                    <rect class="f-sunken s-line" x="120" y="158" width="80" height="22" rx="3"/>
+                    <text class="t-small" x="128" y="173">camera</text>
+                    <text class="t-head" x="32" y="222">20,000 objects</text>
+                    <text class="t-small t-muted" x="32" y="240">kept in step with the game</text>
+
+                    <line class="s-ink w15" x1="214" y1="147" x2="236" y2="147" marker-end="url(#ir-arr)"/>
+
+                    <rect class="f-surface s-strong" x="240" y="42" width="192" height="210" rx="6"/>
+                    <polygon class="f-acc-soft" points="262,120 420,64 420,176"/>
+                    <line class="s-acc" x1="262" y1="120" x2="420" y2="64"/>
+                    <line class="s-acc" x1="262" y1="120" x2="420" y2="176"/>
+                    <circle class="f-ink" cx="262" cy="120" r="4"/>
+                    <rect class="f-strong" x="372" y="108" width="6" height="32"/>
+                    <circle class="f-acc" cx="330" cy="110" r="4.5"/>
+                    <circle class="f-acc" cx="360" cy="130" r="4.5"/>
+                    <circle class="f-acc" cx="380" cy="92" r="4.5"/>
+                    <circle class="f-acc" cx="400" cy="152" r="4.5"/>
+                    <circle class="f-acc" cx="350" cy="140" r="4.5"/>
+                    <circle class="f-surface s-muted" cx="398" cy="124" r="4.5"/>
+                    <circle class="f-surface s-muted" cx="300" cy="74" r="4.5"/>
+                    <circle class="f-surface s-muted" cx="330" cy="168" r="4.5"/>
+                    <circle class="f-surface s-muted" cx="410" cy="190" r="4.5"/>
+                    <circle class="f-surface s-muted" cx="250" cy="168" r="4.5"/>
+                    <text class="t-head t-acc" x="252" y="222">3,000 visible</text>
+                    <text class="t-small t-muted" x="252" y="240">outside the view or hidden: dropped</text>
+
+                    <line class="s-ink w15" x1="434" y1="147" x2="456" y2="147" marker-end="url(#ir-arr)"/>
+
+                    <rect class="f-surface s-strong" x="460" y="42" width="192" height="210" rx="6"/>
+                    <rect class="f-acc-soft s-acc" x="472" y="54" width="168" height="18" rx="3"/>
+                    <text class="t-small" x="480" y="67">shadow maps</text>
+                    <rect class="f-acc-soft s-acc" x="472" y="76" width="168" height="18" rx="3"/>
+                    <text class="t-small" x="480" y="89">depth</text>
+                    <rect class="f-acc-soft s-acc" x="472" y="98" width="168" height="18" rx="3"/>
+                    <text class="t-small" x="480" y="111">opaque surfaces</text>
+                    <rect class="f-acc-soft s-acc" x="472" y="120" width="168" height="18" rx="3"/>
+                    <text class="t-small" x="480" y="133">lighting</text>
+                    <rect class="f-acc-soft s-acc" x="472" y="142" width="168" height="18" rx="3"/>
+                    <text class="t-small" x="480" y="155">transparent surfaces</text>
+                    <rect class="f-acc-soft s-acc" x="472" y="164" width="168" height="18" rx="3"/>
+                    <text class="t-small" x="480" y="177">post-processing</text>
+                    <rect class="f-acc-soft s-acc" x="472" y="186" width="168" height="18" rx="3"/>
+                    <text class="t-small" x="480" y="199">UI</text>
+                    <text class="t-head" x="472" y="222">7 passes</text>
+                    <text class="t-small t-muted" x="472" y="240">about 4,000 draws in all</text>
+
+                    <line class="s-ink w15" x1="654" y1="147" x2="676" y2="147" marker-end="url(#ir-arr)"/>
+
+                    <rect class="f-surface s-strong" x="680" y="42" width="200" height="210" rx="6"/>
+                    <text class="t-mono t-small" x="692" y="66">SetPipeline(opaque)</text>
+                    <text class="t-mono t-small" x="692" y="84">SetVertexBuffer(rock)</text>
+                    <text class="t-mono t-small" x="692" y="102">SetIndexBuffer(rock)</text>
+                    <text class="t-mono t-small t-acc" x="692" y="120">DrawIndexed(5400)</text>
+                    <text class="t-mono t-small" x="692" y="138">SetVertexBuffer(tree)</text>
+                    <text class="t-mono t-small" x="692" y="156">SetIndexBuffer(tree)</text>
+                    <text class="t-mono t-small t-acc" x="692" y="174">DrawIndexed(12000)</text>
+                    <text class="t-mono t-small t-muted" x="692" y="192">…</text>
+                    <text class="t-head" x="692" y="222">commands</text>
+                    <text class="t-small t-muted" x="692" y="240">recorded, then handed to the GPU</text>
+
+                    <text class="t-small t-muted" x="20" y="284">Counts are typical of a mid-sized level, for scale. Every step runs again each frame, because the camera and the objects keep moving.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The renderer narrows a whole world down to a list of GPU commands.</b> The scene holds everything, visibility keeps what the camera can see, passes decide how each surviving object is drawn, and the RHI calls are the result. Most of the parts of this book from 4 onwards live in one of these four boxes.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real renderers have more stages than four: choosing a level of detail per object, sorting draws, uploading per-frame data, and often a frame graph that schedules the passes automatically. The four boxes are the shape they all share.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="rhi"><span class="step-num">4</span> The RHI and the platform layer</h3>
+              <p>A PC game may run on DirectX 12 or Vulkan, a Mac or iPhone build uses Metal, and each console has its own graphics API. These APIs do the same jobs with different names, rules and quirks. <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a> explains what they are. Writing the renderer once for each would multiply the work.</p>
+              <p>So engines put an adapter in between. The <dfn class="term" data-term="rhi">RHI</dfn>, Unreal's name for its render hardware interface, gives the renderer one set of commands: create a buffer, set up a pipeline, draw, submit. Each platform has a backend that translates those commands into its own API. Godot calls the same layer RenderingDevice. Unity does not expose its layer by name, but you see it in Player settings, where each platform has a list of graphics APIs to choose from.</p>
+              <p>The platform layer is the same idea for everything else: one interface for windows, controllers, files, clocks and threads, with a backend per operating system. Together these two adapters are why one project can build for Windows, consoles and phones.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="The renderer, written once, calls the RHI, which offers one set of commands. Below it four backends translate those commands: Direct3D 12 for Windows and Xbox, Vulkan for Windows, Linux and Android, Metal for macOS and iOS, and console APIs. Each backend then talks to the GPU through the vendor's driver.">
+                    <defs>
+                      <marker id="rhi-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="rhi-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-surface s-strong" x="250" y="16" width="400" height="48" rx="6"/>
+                    <text class="t-strong" x="266" y="36">Renderer, written once</text>
+                    <text class="t-mono t-small t-muted" x="266" y="54">rhi.Draw(mesh, material)</text>
+                    <line class="s-ink w15" x1="450" y1="64" x2="450" y2="92" marker-end="url(#rhi-arr)"/>
+
+                    <rect class="f-acc-soft s-acc w15" x="150" y="94" width="600" height="48" rx="6"/>
+                    <text class="t-strong t-acc" x="166" y="114">RHI: one set of commands</text>
+                    <text class="t-small" x="166" y="132">create buffer · create pipeline · set state · draw · submit · present</text>
+
+                    <line class="s-acc w15" x1="250" y1="142" x2="140" y2="180" marker-end="url(#rhi-arr-a)"/>
+                    <line class="s-acc w15" x1="380" y1="142" x2="360" y2="180" marker-end="url(#rhi-arr-a)"/>
+                    <line class="s-acc w15" x1="520" y1="142" x2="580" y2="180" marker-end="url(#rhi-arr-a)"/>
+                    <line class="s-acc w15" x1="650" y1="142" x2="790" y2="180" marker-end="url(#rhi-arr-a)"/>
+
+                    <rect class="f-surface s-strong" x="40" y="184" width="200" height="52" rx="6"/>
+                    <text class="t-strong" x="54" y="205">Direct3D 12 backend</text>
+                    <text class="t-small t-muted" x="54" y="224">Windows, Xbox</text>
+                    <rect class="f-surface s-strong" x="260" y="184" width="200" height="52" rx="6"/>
+                    <text class="t-strong" x="274" y="205">Vulkan backend</text>
+                    <text class="t-small t-muted" x="274" y="224">Windows, Linux, Android</text>
+                    <rect class="f-surface s-strong" x="480" y="184" width="200" height="52" rx="6"/>
+                    <text class="t-strong" x="494" y="205">Metal backend</text>
+                    <text class="t-small t-muted" x="494" y="224">macOS, iOS</text>
+                    <rect class="f-surface s-strong dash" x="700" y="184" width="180" height="52" rx="6"/>
+                    <text class="t-strong" x="714" y="205">Console backends</text>
+                    <text class="t-small t-muted" x="714" y="224">each console's own API</text>
+
+                    <path class="s-muted" d="M140,236 V250 M360,236 V250 M580,236 V250 M790,236 V250 M140,250 H790"/>
+                    <text class="t-small t-muted mid" x="465" y="272">each API reaches the GPU through the vendor's driver</text>
+                  </svg>
+                </div>
+                <figcaption><b>One interface above, one backend per graphics API below.</b> The renderer never calls DirectX 12, Vulkan or Metal directly. A bug that appears on only one platform usually lives in a backend or a driver, and code that skips the RHI to call an API directly is code that only works on one platform.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="plugins"><span class="step-num">5</span> Modules and plugins</h3>
+              <p>Engines are built from modules: separately compiled units such as the renderer, the audio engine or the UI system, each with a list of the modules it depends on. A build includes only the modules it needs, which is how editor modules stay out of the game.</p>
+              <p>A <dfn class="term" data-term="plugin">plugin</dfn> uses the same mechanism to add a feature without touching the engine's own code. Audio middleware, online services, platform SDKs and a studio's in-house tools usually arrive as plugins. A plugin often has a runtime part that ships with the game and an editor part that adds tools and settings. Turning a plugin off removes it cleanly, and upgrading the engine leaves it alone unless the interfaces it uses have changed.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="In the middle, an engine made of nine module tiles: core, platform, RHI, renderer, physics, animation, audio, assets and UI. Four plugins connect to its sides. Audio middleware and online services each have a runtime module that ships and an editor module that stays. Studio tools have only an editor module. A dialogue system has both.">
+                    <rect class="f-sunken s-strong" x="320" y="30" width="260" height="190" rx="8"/>
+                    <text class="t-caps" x="336" y="52">ENGINE · BUILT FROM MODULES</text>
+                    <rect class="f-surface s-strong" x="336" y="66" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="372" y="87">core</text>
+                    <rect class="f-surface s-strong" x="416" y="66" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="452" y="87">platform</text>
+                    <rect class="f-acc-soft s-acc" x="496" y="66" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="532" y="87">RHI</text>
+                    <rect class="f-acc-soft s-acc" x="336" y="108" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="372" y="129">renderer</text>
+                    <rect class="f-surface s-strong" x="416" y="108" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="452" y="129">physics</text>
+                    <rect class="f-surface s-strong" x="496" y="108" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="532" y="129">animation</text>
+                    <rect class="f-surface s-strong" x="336" y="150" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="372" y="171">audio</text>
+                    <rect class="f-surface s-strong" x="416" y="150" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="452" y="171">assets</text>
+                    <rect class="f-surface s-strong" x="496" y="150" width="72" height="34" rx="4"/>
+                    <text class="t-small mid" x="532" y="171">UI</text>
+                    <text class="t-small t-muted" x="336" y="208">each tile is a module with its own code</text>
+
+                    <!-- Left plugins -->
+                    <rect class="f-surface s-strong" x="30" y="30" width="220" height="82" rx="6"/>
+                    <text class="t-strong" x="42" y="48">Audio middleware</text>
+                    <rect class="f-acc-soft s-acc" x="42" y="56" width="196" height="22" rx="3"/>
+                    <text class="t-small" x="50" y="71">runtime module: ships</text>
+                    <rect class="f-surface s-strong dash" x="42" y="82" width="196" height="22" rx="3"/>
+                    <text class="t-small" x="50" y="97">editor module: stays</text>
+                    <rect class="f-surface s-strong" x="30" y="148" width="220" height="82" rx="6"/>
+                    <text class="t-strong" x="42" y="166">Online services</text>
+                    <rect class="f-acc-soft s-acc" x="42" y="174" width="196" height="22" rx="3"/>
+                    <text class="t-small" x="50" y="189">runtime module: ships</text>
+                    <rect class="f-surface s-strong dash" x="42" y="200" width="196" height="22" rx="3"/>
+                    <text class="t-small" x="50" y="215">editor module: stays</text>
+                    <line class="s-strong w15" x1="250" y1="71" x2="314" y2="71"/>
+                    <circle class="f-surface s-strong w15" cx="320" cy="71" r="6"/>
+                    <line class="s-strong w15" x1="250" y1="189" x2="314" y2="189"/>
+                    <circle class="f-surface s-strong w15" cx="320" cy="189" r="6"/>
+
+                    <!-- Right plugins -->
+                    <rect class="f-surface s-strong" x="650" y="30" width="220" height="82" rx="6"/>
+                    <text class="t-strong" x="662" y="48">Studio tools</text>
+                    <rect class="s-line dash" x="662" y="56" width="196" height="22" rx="3"/>
+                    <text class="t-small t-muted" x="670" y="71">no runtime part</text>
+                    <rect class="f-surface s-strong dash" x="662" y="82" width="196" height="22" rx="3"/>
+                    <text class="t-small" x="670" y="97">editor module: validators, importers</text>
+                    <rect class="f-surface s-strong" x="650" y="148" width="220" height="82" rx="6"/>
+                    <text class="t-strong" x="662" y="166">Dialogue system</text>
+                    <rect class="f-acc-soft s-acc" x="662" y="174" width="196" height="22" rx="3"/>
+                    <text class="t-small" x="670" y="189">runtime module: ships</text>
+                    <rect class="f-surface s-strong dash" x="662" y="200" width="196" height="22" rx="3"/>
+                    <text class="t-small" x="670" y="215">editor module: a graph editor</text>
+                    <line class="s-strong w15" x1="586" y1="71" x2="650" y2="71"/>
+                    <circle class="f-surface s-strong w15" cx="580" cy="71" r="6"/>
+                    <line class="s-strong w15" x1="586" y1="189" x2="650" y2="189"/>
+                    <circle class="f-surface s-strong w15" cx="580" cy="189" r="6"/>
+
+                    <text class="t-small t-muted mid" x="450" y="250">A plugin plugs into the engine's public interfaces. Switch it off and it is gone; the engine's own code is untouched.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Plugins extend an engine without editing it.</b> Each one carries its own runtime and editor parts, so the same split between shipped and not shipped holds. Middleware such as FMOD or Wwise for audio arrives this way, and so should most of a studio's own additions.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="change-risk"><span class="step-num">6</span> Where change is cheap and where it is risky</h3>
+              <p>The higher a change sits in the stack, the less it can break. A gameplay script affects one feature. An editor tool affects how the team works, but never ships. A change to the renderer's internals runs every frame for every player; a change to the RHI or platform layer runs on every platform, in every game built on your copy of the engine.</p>
+              <p>This is also the map for AI-written code. Gameplay scripts, editor tools, import scripts and material shaders are well-bounded tasks an AI can do and a reviewer can check by playing the game. Threading, memory management, the RHI and the platform layer fail in ways that only show up under load, on one platform or once a week, and need an engine programmer to lead.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 320" role="img" aria-label="Seven layers from top to bottom: gameplay scripts, editor tools and importers, material shaders and post effects, gameplay framework extensions, engine system internals, threading and memory, and the RHI and platform layer. The top two are marked hand it off, the next two review the output, the bottom three specialist leads. An arrow on the right shows the blast radius of a mistake growing from one feature at the top to every frame on every platform at the bottom.">
+                    <defs>
+                      <marker id="cr-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="40" y="22">WHAT IS BEING CHANGED</text>
+                    <text class="t-caps" x="560" y="22">AI WORK</text>
+
+                    <rect class="f-acc-soft s-acc" x="40" y="34" width="480" height="30" rx="4"/>
+                    <text class="t-strong" x="54" y="54">Gameplay scripts and Blueprints</text>
+                    <text class="t-strong t-acc" x="560" y="54">hand it off</text>
+                    <rect class="f-acc-soft s-acc" x="40" y="70" width="480" height="30" rx="4"/>
+                    <text class="t-strong" x="54" y="90">Editor tools, import and validation scripts</text>
+                    <text class="t-strong t-acc" x="560" y="90">hand it off</text>
+                    <rect class="f-surface s-acc dash" x="40" y="106" width="480" height="30" rx="4"/>
+                    <text class="t-strong" x="54" y="126">Material shaders and post effects</text>
+                    <text class="t-strong" x="560" y="126">review the output</text>
+                    <rect class="f-surface s-acc dash" x="40" y="142" width="480" height="30" rx="4"/>
+                    <text class="t-strong" x="54" y="162">Gameplay framework extensions: new components</text>
+                    <text class="t-strong" x="560" y="162">review the output</text>
+                    <rect class="f-sunken s-strong" x="40" y="178" width="480" height="30" rx="4"/>
+                    <text class="t-strong" x="54" y="198">Engine system internals: renderer, physics, animation</text>
+                    <text class="t-strong" x="560" y="198">specialist leads</text>
+                    <rect class="f-sunken s-strong" x="40" y="214" width="480" height="30" rx="4"/>
+                    <text class="t-strong" x="54" y="234">Threading, memory and the job system</text>
+                    <text class="t-strong" x="560" y="234">specialist leads</text>
+                    <rect class="f-sunken s-strong" x="40" y="250" width="480" height="30" rx="4"/>
+                    <text class="t-strong" x="54" y="270">RHI and platform layer</text>
+                    <text class="t-strong" x="560" y="270">specialist leads</text>
+
+                    <line class="s-ink w2" x1="740" y1="40" x2="740" y2="272" marker-end="url(#cr-arr)"/>
+                    <text class="t-caps" x="756" y="22">BLAST RADIUS</text>
+                    <text class="t-small" x="756" y="50">one feature,</text>
+                    <text class="t-small" x="756" y="64">one level</text>
+                    <text class="t-small" x="756" y="252">every frame,</text>
+                    <text class="t-small" x="756" y="266">every platform</text>
+
+                    <text class="t-small t-muted" x="40" y="306">Shaders sit in the middle: a material shader is content, but a change to the engine's own lighting shaders is engine work.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The deeper the layer, the bigger the blast radius.</b> Hand off work at the top, review work in the middle, and keep an engine programmer in charge at the bottom, whoever or whatever writes the code. The engine's own source is the riskiest place of all, because every later engine upgrade has to be merged with your changes.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>The big cost decision is how much of the engine you own. There are three broad options. You can use an off-the-shelf engine as it comes, take a licensed engine's source and change it, or build your own. Each moves cost from licence fees and limits into people and time.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="A comparison of three options on five rows, scored with up to five dots. Use as is: control 2, time before content work scales 1, cost of each upgrade 1, engine programmers needed 1, work per new platform 1. Modify the source: control 4, time 2, upgrade cost 4, engine programmers 3, new platform 2. Build your own: control 5, time 5, upgrade cost not applicable because you are the upstream, engine programmers 5, new platform 5.">
+                  <text class="t-head mid" x="440" y="30">Use as is</text>
+                  <text class="t-small t-muted mid" x="440" y="46">off-the-shelf engine</text>
+                  <text class="t-head mid" x="620" y="30">Modify the source</text>
+                  <text class="t-small t-muted mid" x="620" y="46">licensed engine, your changes</text>
+                  <text class="t-head mid" x="800" y="30">Build your own</text>
+                  <text class="t-small t-muted mid" x="800" y="46">custom engine</text>
+                  <line class="s-line" x1="20" y1="62" x2="880" y2="62"/>
+
+                  <text class="t-strong" x="20" y="92">Control over rendering</text>
+                  <text class="t-strong" x="20" y="128">Time before content work scales</text>
+                  <text class="t-strong" x="20" y="164">Cost of each engine upgrade</text>
+                  <text class="t-strong" x="20" y="200">Engine programmers needed</text>
+                  <text class="t-strong" x="20" y="236">Work for each new platform</text>
+
+                  <!-- dots: five per cell, 18 px apart, centred on the column -->
+                  <g>
+                    <circle class="f-acc" cx="404" cy="88" r="6"/><circle class="f-acc" cx="422" cy="88" r="6"/><circle class="s-strong" cx="440" cy="88" r="6"/><circle class="s-strong" cx="458" cy="88" r="6"/><circle class="s-strong" cx="476" cy="88" r="6"/>
+                    <circle class="f-acc" cx="584" cy="88" r="6"/><circle class="f-acc" cx="602" cy="88" r="6"/><circle class="f-acc" cx="620" cy="88" r="6"/><circle class="f-acc" cx="638" cy="88" r="6"/><circle class="s-strong" cx="656" cy="88" r="6"/>
+                    <circle class="f-acc" cx="764" cy="88" r="6"/><circle class="f-acc" cx="782" cy="88" r="6"/><circle class="f-acc" cx="800" cy="88" r="6"/><circle class="f-acc" cx="818" cy="88" r="6"/><circle class="f-acc" cx="836" cy="88" r="6"/>
+                  </g>
+                  <g>
+                    <circle class="f-acc" cx="404" cy="124" r="6"/><circle class="s-strong" cx="422" cy="124" r="6"/><circle class="s-strong" cx="440" cy="124" r="6"/><circle class="s-strong" cx="458" cy="124" r="6"/><circle class="s-strong" cx="476" cy="124" r="6"/>
+                    <circle class="f-acc" cx="584" cy="124" r="6"/><circle class="f-acc" cx="602" cy="124" r="6"/><circle class="s-strong" cx="620" cy="124" r="6"/><circle class="s-strong" cx="638" cy="124" r="6"/><circle class="s-strong" cx="656" cy="124" r="6"/>
+                    <circle class="f-acc" cx="764" cy="124" r="6"/><circle class="f-acc" cx="782" cy="124" r="6"/><circle class="f-acc" cx="800" cy="124" r="6"/><circle class="f-acc" cx="818" cy="124" r="6"/><circle class="f-acc" cx="836" cy="124" r="6"/>
+                  </g>
+                  <g>
+                    <circle class="f-acc" cx="404" cy="160" r="6"/><circle class="s-strong" cx="422" cy="160" r="6"/><circle class="s-strong" cx="440" cy="160" r="6"/><circle class="s-strong" cx="458" cy="160" r="6"/><circle class="s-strong" cx="476" cy="160" r="6"/>
+                    <circle class="f-acc" cx="584" cy="160" r="6"/><circle class="f-acc" cx="602" cy="160" r="6"/><circle class="f-acc" cx="620" cy="160" r="6"/><circle class="f-acc" cx="638" cy="160" r="6"/><circle class="s-strong" cx="656" cy="160" r="6"/>
+                  </g>
+                  <text class="t-small t-muted mid" x="800" y="164">no upstream: you are it</text>
+                  <g>
+                    <circle class="f-acc" cx="404" cy="196" r="6"/><circle class="s-strong" cx="422" cy="196" r="6"/><circle class="s-strong" cx="440" cy="196" r="6"/><circle class="s-strong" cx="458" cy="196" r="6"/><circle class="s-strong" cx="476" cy="196" r="6"/>
+                    <circle class="f-acc" cx="584" cy="196" r="6"/><circle class="f-acc" cx="602" cy="196" r="6"/><circle class="f-acc" cx="620" cy="196" r="6"/><circle class="s-strong" cx="638" cy="196" r="6"/><circle class="s-strong" cx="656" cy="196" r="6"/>
+                    <circle class="f-acc" cx="764" cy="196" r="6"/><circle class="f-acc" cx="782" cy="196" r="6"/><circle class="f-acc" cx="800" cy="196" r="6"/><circle class="f-acc" cx="818" cy="196" r="6"/><circle class="f-acc" cx="836" cy="196" r="6"/>
+                  </g>
+                  <g>
+                    <circle class="f-acc" cx="404" cy="232" r="6"/><circle class="s-strong" cx="422" cy="232" r="6"/><circle class="s-strong" cx="440" cy="232" r="6"/><circle class="s-strong" cx="458" cy="232" r="6"/><circle class="s-strong" cx="476" cy="232" r="6"/>
+                    <circle class="f-acc" cx="584" cy="232" r="6"/><circle class="f-acc" cx="602" cy="232" r="6"/><circle class="s-strong" cx="620" cy="232" r="6"/><circle class="s-strong" cx="638" cy="232" r="6"/><circle class="s-strong" cx="656" cy="232" r="6"/>
+                    <circle class="f-acc" cx="764" cy="232" r="6"/><circle class="f-acc" cx="782" cy="232" r="6"/><circle class="f-acc" cx="800" cy="232" r="6"/><circle class="f-acc" cx="818" cy="232" r="6"/><circle class="f-acc" cx="836" cy="232" r="6"/>
+                  </g>
+                  <line class="s-line" x1="20" y1="252" x2="880" y2="252"/>
+                  <text class="t-small t-muted" x="20" y="276">A rough relative scale: five dots is the most. Real costs depend on the team, the game and the engine.</text>
+                </svg>
+              </div>
+              <figcaption><b>Owning more of the engine buys control with people and time.</b> Modifying a licensed engine is the middle path, and its hidden cost is the upgrade: every change you made has to be carried into every new engine release. A custom engine has no such merge, but every feature, tool and platform port is yours to build.</figcaption>
+            </figure>
+            <p>Here is how the upgrade cost adds up. Say your team has changed 50 files in the engine's renderer and you take two engine releases a year. If merging and retesting those changes takes one engine programmer three weeks per release, that is six weeks a year spent standing still. Move half of those changes into a plugin that uses the engine's public interfaces and that time roughly halves, because the plugin only breaks when those interfaces change.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Option</th><th scope="col">You get</th><th scope="col">You pay with</th><th scope="col">Typical fit</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Use as is</th><td>A working editor, renderer and platform support on day one.</td><td>Licence terms; living with the engine's choices and limits.</td><td>Most teams, and almost every small team.</td></tr>
+                  <tr><th scope="row">Modify the source</th><td>Fixes and features exactly where you need them.</td><td>Engine programmers, and a merge every time you upgrade.</td><td>Large teams with a specific technical need.</td></tr>
+                  <tr><th scope="row">Build your own</th><td>Complete control and no licence fee.</td><td>Years of engine and tools work before content can scale, and every platform port.</td><td>Studios that reuse one engine across many games.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Engine changes</strong><span>Each modified engine file is a possible conflict at every upgrade. Keep a list of them, with the reason for each.</span></li>
+              <li><strong>Platforms</strong><span>Each new platform needs a platform-layer backend, an RHI backend, testing and certification.</span></li>
+              <li><strong>Third-party plugins</strong><span>Every plugin must be updated for each engine release, by you or by its vendor, before you can upgrade.</span></li>
+              <li><strong>In-house tools</strong><span>Editor tools are code too. They need owners, and they break when the editor's interfaces change.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The licence question</p>
+              <p>Engine licences differ in what they charge and what source you get. Unreal gives you the full C++ source and takes a royalty on a game's revenue once it passes US$1 million. Unity's engine source needs an Enterprise plan, and only its Source Code Adapt option lets you ship a modified engine. Godot is MIT-licensed: free, with full source, as long as you include its licence text. Read the current terms before deciding; they change.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Engine-structure problems rarely look like graphics bugs. They show up as builds that differ from the editor, platforms that disagree and upgrades that stall.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two screens side by side. The editor screen shows a crate. The build screen shows only a dashed empty outline where the crate should be.">
+                    <rect class="f-surface s-strong" x="12" y="18" width="102" height="94" rx="4"/>
+                    <text class="t-small t-muted" x="20" y="34">editor</text>
+                    <rect class="f-solid s-strong" x="42" y="54" width="42" height="42"/>
+                    <path class="s-strong" d="M42,54 L84,96 M84,54 L42,96"/>
+                    <rect class="f-surface s-strong" x="126" y="18" width="102" height="94" rx="4"/>
+                    <text class="t-small t-muted" x="134" y="34">build</text>
+                    <rect class="s-pix dash" x="156" y="54" width="42" height="42"/>
+                    <text class="t-strong t-pix mid" x="177" y="81">?</text>
+                  </svg>
+                </div>
+                <h4>Works in the editor, broken in the build</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Code or content that only exists in the editor: editor-only code called from game code, or an asset loaded by name that the cook never included.</dd></div>
+                  <div><dt>Ask for</dt><dd>A packaged build tested automatically on every change, and a search for game code that references editor-only modules or loads assets by path.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="The same sphere on two screens. On the DirectX 12 screen it is shaded normally. On the Vulkan screen it is cut by jagged rose-coloured streaks.">
+                    <rect class="f-surface s-strong" x="12" y="18" width="102" height="94" rx="4"/>
+                    <text class="t-small t-muted" x="20" y="34">D3D12</text>
+                    <circle class="f-solid s-strong" cx="63" cy="72" r="26"/>
+                    <circle class="f-surface" cx="54" cy="63" r="8"/>
+                    <rect class="f-surface s-strong" x="126" y="18" width="102" height="94" rx="4"/>
+                    <text class="t-small t-muted" x="134" y="34">Vulkan</text>
+                    <circle class="f-solid s-strong" cx="177" cy="72" r="26"/>
+                    <polygon class="f-pix-soft s-pix" points="150,60 206,52 200,62 156,70"/>
+                    <polygon class="f-pix-soft s-pix" points="154,80 204,74 202,86 152,92"/>
+                  </svg>
+                </div>
+                <h4>Fine on one platform, wrong on another</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A difference between RHI backends or drivers, or code that bypassed the RHI and relies on one graphics API's behaviour.</dd></div>
+                  <div><dt>Ask for</dt><dd>Captures from both platforms of the same frame, a check for platform-specific code paths, and every target graphics API in automated tests.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A plug labelled plugin version 5.8 that does not fit a socket labelled engine 5.9, with a rose cross between them.">
+                    <rect class="f-surface s-strong" x="24" y="44" width="80" height="44" rx="4"/>
+                    <text class="t-small mid" x="64" y="64">plugin</text>
+                    <text class="t-small t-muted mid" x="64" y="78">built for 5.8</text>
+                    <rect class="f-strong" x="104" y="54" width="18" height="8"/>
+                    <rect class="f-strong" x="104" y="72" width="18" height="8"/>
+                    <rect class="f-sunken s-strong" x="148" y="34" width="70" height="64" rx="4"/>
+                    <rect class="f-surface s-strong" x="148" y="52" width="10" height="30"/>
+                    <text class="t-small mid" x="188" y="62">engine</text>
+                    <text class="t-small t-muted mid" x="188" y="76">5.9</text>
+                    <path class="s-pix w3 round" d="M128,56 L142,76 M142,56 L128,76"/>
+                  </svg>
+                </div>
+                <h4>An engine upgrade stalls the project</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Local changes to engine source conflict with the new release, or a plugin has not been updated for it.</dd></div>
+                  <div><dt>Ask for</dt><dd>A list of every engine modification and plugin with its version, and the upgrade done on a branch with automated tests before anyone else moves.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A character standing on the ground with a dashed rose copy of it shifted to one side, its feet sliding across the floor.">
+                    <line class="s-strong w2" x1="20" y1="110" x2="220" y2="110"/>
+                    <circle class="f-solid s-strong" cx="100" cy="34" r="10"/>
+                    <path class="s-ink w3 round" d="M100,44 L100,78 M100,54 L84,68 M100,54 L116,68 M100,78 L90,110 M100,78 L110,110"/>
+                    <circle class="s-pix dash" cx="140" cy="34" r="10"/>
+                    <path class="s-pix w2 dash round" d="M140,44 L140,78 M140,54 L124,68 M140,54 L156,68 M140,78 L130,110 M140,78 L150,110"/>
+                    <path class="s-pix w15" d="M112,118 H150"/>
+                  </svg>
+                </div>
+                <h4>Systems out of step</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Two systems write the same object in the wrong order, for example animation posing a character after physics has moved it, so feet slide or ragdolls pop.</dd></div>
+                  <div><dt>Ask for</dt><dd>The order in which each system updates that object every frame, and which system owns its position.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A bar showing a build's size, where the game itself takes a small part and unused plugins and test content take a much larger rose part.">
+                    <text class="t-small t-muted" x="16" y="34">build size</text>
+                    <rect class="f-acc-soft s-acc" x="16" y="44" width="70" height="30"/>
+                    <rect class="f-pix-soft s-pix" x="86" y="44" width="138" height="30"/>
+                    <text class="t-small" x="22" y="63">game</text>
+                    <text class="t-small" x="94" y="63">unused plugins, test maps</text>
+                    <text class="t-small t-muted" x="16" y="98">download and install time grow</text>
+                  </svg>
+                </div>
+                <h4>A bloated build</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Plugins and modules left enabled that the game does not use, or test content referenced from something that ships, so the cook pulls it in.</dd></div>
+                  <div><dt>Ask for</dt><dd>A size report per module and per asset folder for the packaged build, and a review of every enabled plugin.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>For performance problems, the layer map is also the first step of profiling. Every engine's profiler groups time by system, so the question becomes "which box is slow?" before anyone opens the code. <a class="xref" data-ch="2.2">2.2 The game loop and threads</a> shows how those boxes share each frame.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines have the same layers. They differ in what they call them, which languages you use at the top, and how much of the bottom you can see.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Scripting</th>
+                    <td>C++ and Blueprints, a visual scripting system.</td>
+                    <td>C#.</td>
+                    <td>GDScript or C#. Native code through GDExtension.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Renderer</th>
+                    <td>One built-in renderer, configured in Project Settings, Rendering.</td>
+                    <td>URP or HDRP, both Scriptable Render Pipelines. The older Built-In Render Pipeline is deprecated.</td>
+                    <td>Forward+, Mobile or Compatibility, chosen with <code>rendering/renderer/rendering_method</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Graphics API layer</th>
+                    <td>The RHI. Project Settings, Platforms, Windows: <strong>Default RHI</strong> (Default, DirectX 11, DirectX 12, Vulkan) and <strong>Targeted RHIs</strong>.</td>
+                    <td>Player settings, Other Settings, Rendering: <strong>Auto Graphics API</strong>, or turn it off and order the <strong>Graphics APIs</strong> list yourself.</td>
+                    <td>RenderingDevice, over Vulkan, Direct3D 12 and Metal. The Compatibility renderer uses OpenGL. New projects use Direct3D 12 on Windows since 4.6.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Physics</th>
+                    <td>Chaos.</td>
+                    <td>Built-in 3D physics is an integration of NVIDIA PhysX.</td>
+                    <td>GodotPhysics3D or Jolt Physics. Jolt is the default for projects created in 4.6 or later.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Keeping editor code out</th>
+                    <td>Each code module is typed <strong>Runtime</strong> or <strong>Editor</strong> in its descriptor; Editor modules are not part of a packaged game.</td>
+                    <td>Scripts in a folder named <code>Editor</code>, or in an Editor-only assembly definition, are not in Player builds.</td>
+                    <td>Games export with an export template, an engine build without the editor and debugger tools.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Extensions</th>
+                    <td>Plugins (<code>.uplugin</code>) that bundle modules and content.</td>
+                    <td>Packages, managed with the Package Manager.</td>
+                    <td>Editor plugins in the <code>addons/</code> folder; GDExtension for native libraries.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Engine source</th>
+                    <td>Full C++ source on GitHub once your GitHub account is linked to your Epic Games account.</td>
+                    <td>C# reference source on GitHub, read only. C++ source through Unity Enterprise: <strong>Source Code Access</strong> to read and debug, <strong>Adapt</strong> to ship changes.</td>
+                    <td>Full source, MIT licence.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about engine work say which layer the change belongs in, and which layers it must not touch. Without that, an AI will often reach for the engine's internals because that is where the most direct fix is. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding a gameplay feature</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.9, Blueprint and C++ project, shipping on PC and PlayStation 5.
+Feature: a grenade that damages objects within 5 m, knocks back physics bodies, plays a sound and spawns a smoke effect.
+
+Constraints:
+- Implement it in game code and Blueprints only. Do not modify engine source.
+- Use existing engine systems through their public interfaces: physics, audio, Niagara for effects.
+- Keep any editor-only helpers in an Editor module.
+
+Deliver: the classes or Blueprints you add, which engine systems each one calls, and how we test it in a packaged build, not only in the editor.</pre>
+              <ul class="prompt-why">
+                <li>Naming the layer and forbidding engine changes keeps the fix where it is cheap.</li>
+                <li>Listing the systems it calls gives the reviewer a map to check against.</li>
+                <li>Asking for a packaged-build test catches editor-only dependencies.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Decision</span><span class="use-when">Use when someone proposes changing the engine</span></div>
+              <pre class="prompt-body">We use Unity 6.6 with URP on PC and Android. A programmer proposes editing the engine package to change how shadows are culled, to fix a performance problem in our forest levels.
+
+1. Which layers and which modules or packages would this change touch?
+2. Can the same result be reached without editing the engine: a project setting, a custom render pass, a renderer feature, or a change to our content?
+3. If we do edit it, what will each Unity upgrade cost us, and how would we carry the change forward?
+4. What could break on Android that would not show up on PC?</pre>
+              <ul class="prompt-why">
+                <li>Asking for alternatives first often finds a plugin-level or content-level fix.</li>
+                <li>Upgrade cost is the hidden price of engine changes; make it explicit.</li>
+                <li>Low layers affect every platform, so ask about the one you are not testing.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing engine-level work</h3>
+            <ol class="review-list">
+              <li>Which layer does this change live in, and does it reach into a lower one?<span class="why">The deepest layer touched sets the risk and who must review it.</span></li>
+              <li>Does any of this modify the engine's own source? How will we carry it through upgrades?<span class="why">Every engine change is a merge on every future upgrade.</span></li>
+              <li>What part of this runs in the shipped game, and what only in the editor?<span class="why">Editor-only code called from game code works in the editor and fails in the build.</span></li>
+              <li>Does it call a graphics API or an operating system function directly, instead of going through the RHI or platform layer?<span class="why">Direct calls work on one platform and break or fail to compile on the others.</span></li>
+              <li>Has it been tested on every platform and graphics API we ship?<span class="why">Bugs in low layers often appear on one backend only.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A tool that checks level names when an artist saves a map works perfectly. The game build fails because it cannot find one of the tool's classes. What went wrong?</p>
+                <details><summary>Show answer</summary><p>Game code references code that lives in the editor half of the engine. Editor code is stripped from builds. The tool belongs in an editor module or Editor folder, and nothing in the game should depend on it.</p></details>
+              </li>
+              <li>
+                <p class="q">Your game renders correctly with DirectX 12 but shows corrupted shadows with Vulkan. Which layer do you suspect first?</p>
+                <details><summary>Show answer</summary><p>The RHI backend for Vulkan, or the driver beneath it, or code that bypassed the RHI and assumed DirectX behaviour. The renderer above the RHI is the same code on both, so a difference between them points below it.</p></details>
+              </li>
+              <li>
+                <p class="q">A programmer wants to fix a performance problem by editing the engine's renderer source. Name two questions you ask before agreeing.</p>
+                <details><summary>Show answer</summary><p>Can it be done without changing the engine, through a setting, a plugin, a custom pass or content? And what will it cost to carry this change through every engine upgrade, and who owns that? Also useful: which platforms does it affect, and how will we test them?</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#game-engine">game engine</a></li>
+              <li><a class="chip" href="glossary.html#runtime">runtime</a></li>
+              <li><a class="chip" href="glossary.html#editor">editor</a></li>
+              <li><a class="chip" href="glossary.html#renderer">renderer</a></li>
+              <li><a class="chip" href="glossary.html#scripting-layer">scripting layer</a></li>
+              <li><a class="chip" href="glossary.html#physics-engine">physics engine</a></li>
+              <li><a class="chip" href="glossary.html#animation-system">animation system</a></li>
+              <li><a class="chip" href="glossary.html#audio-engine">audio engine</a></li>
+              <li><a class="chip" href="glossary.html#asset-system">asset system</a></li>
+              <li><a class="chip" href="glossary.html#platform-layer">platform layer</a></li>
+              <li><a class="chip" href="glossary.html#rhi">RHI</a></li>
+              <li><a class="chip" href="glossary.html#plugin">plugin</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="2.2"></a> follows these systems through one frame: which thread runs them, how the CPU and GPU overlap, and where input latency comes from.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-modules">Unreal Engine modules</a>, Epic Games. Modules as the building block of the engine, and Runtime and Editor module types.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/windows-settings-in-the-unreal-engine-project-settings">Windows settings</a>, Unreal Engine documentation. Default RHI and Targeted RHIs.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/downloading-source-code-in-unreal-engine">Downloading source code</a>, Unreal Engine documentation. How to get the engine source on GitHub.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/platform-specific/cross-platform-features/graphics-apis/configure">Configure graphics APIs</a>, Unity 6.6 Manual. Auto Graphics API and the per-platform API list.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/get-started/project-configuration/special-folders">Reserved folder name reference</a>, Unity 6.6 Manual. Editor folders and what stays out of Player builds.</li>
+              <li><a href="https://unity.com/products/source-code">Unity Source Code</a>, Unity. Source Code Access and Adapt.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/physics-section/physics-overview">Built-in 3D physics</a>, Unity 6.6 Manual.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/engine_details/architecture/internal_rendering_architecture.html">Internal rendering architecture</a>, Godot 4.7 documentation. RenderingDevice, its drivers and the three renderers.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/tutorials/export/exporting_projects.html">Exporting projects</a> and <a href="https://docs.godotengine.org/en/4.7/about/complying_with_licenses.html">Complying with licenses</a>, Godot 4.7 documentation.</li>
+              <li><a href="https://www.pcgamer.com/unreal-engine-games-no-longer-owe-royalties-on-their-first-dollar1m-in-revenue">Unreal Engine games no longer owe royalties on their first $1M in revenue</a>, PC Gamer, May 2020.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>
