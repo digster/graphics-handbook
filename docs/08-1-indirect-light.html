@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>8.1 Direct and indirect light · Graphics Handbook</title>
+  <meta name="description" content="Direct and indirect light: bounces, colour bleeding, radiance and irradiance, the rendering equation in pictures, diffuse and specular global illumination, what an ambient term misses, and a map of the GI techniques in Part 8.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="8.1">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <h1><span class="ch-num">8.1</span> Direct and indirect light</h1>
+            <p class="lead">Light does not stop at the first surface it hits. It bounces, again and again, losing some energy and picking up colour each time, and those bounces light most of what you see indoors. This chapter shows what bounced light is, why it is hard to compute, and how each technique in the rest of Part 8 approximates it.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="7.1">7.1 Lights</a>, <a class="xref" data-ch="7.2">7.2 Shading models</a>, <a class="xref" data-ch="6.5">6.5 PBR materials</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.2">8.2 Baked lighting</a>, <a class="xref" data-ch="8.3">8.3 Ambient occlusion</a>, <a class="xref" data-ch="8.5">8.5 Real-time GI</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Bounce room</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="The same room in cross-section four times, lit by sunlight through a window on the left. With no bounces only the sunlit patch of floor is bright; everything else is black. After one bounce the ceiling and walls are dimly lit. After two, the dark corner and the crate's far side start to fill in and the red wall begins to tint the floor and ceiling near it. With many bounces the room is evenly lit, with 2.32 times the light of the direct sun alone.">
+<defs><filter id="pic-blur" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="3"/></filter>
+<clipPath id="pic-clip-0"><rect x="18" y="50" width="192" height="96"/></clipPath>
+<clipPath id="pic-clip-1"><rect x="240" y="50" width="192" height="96"/></clipPath>
+<clipPath id="pic-clip-2"><rect x="462" y="50" width="192" height="96"/></clipPath>
+<clipPath id="pic-clip-3"><rect x="684" y="50" width="192" height="96"/></clipPath>
+</defs>
+<text class="t-head" x="14" y="24">No bounces</text>
+<rect class="f-buf-lo" x="11" y="43" width="206" height="110"/>
+<g clip-path="url(#pic-clip-0)"><g filter="url(#pic-blur)"></g><polygon class="f-lit" fill-opacity="0.22" points="18,98 18,62 163.5,146 101.1,146"/></g>
+<rect class="f-buf-lo" x="30" y="122" width="24" height="24"/>
+<path class="f-surface" fill-opacity="1.00" d="M13,92h5.3v6.3h-5.3zM13,86h5.3v6.3h-5.3zM13,80h5.3v6.3h-5.3zM13,74h5.3v6.3h-5.3zM13,68h5.3v6.3h-5.3zM13,62h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.35" d="M96,146h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.75" d="M102,146h6.3v5.3h-6.3zM108,146h6.3v5.3h-6.3zM114,146h6.3v5.3h-6.3zM120,146h6.3v5.3h-6.3zM126,146h6.3v5.3h-6.3zM132,146h6.3v5.3h-6.3zM138,146h6.3v5.3h-6.3zM144,146h6.3v5.3h-6.3zM150,146h6.3v5.3h-6.3zM156,146h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.45" d="M162,146h6.3v5.3h-6.3z"/>
+<rect class="s-strong" x="11" y="43" width="206" height="110"/>
+<line class="s-lit w15" x1="2" y1="57.2" x2="14" y2="64.1"/>
+<text class="t-small" x="14" y="172">total light: <tspan class="t-strong">1.00×</tspan> direct</text>
+<text class="t-small t-muted" x="14" y="188">the sunbeam only</text>
+<text class="t-head" x="236" y="24">1 bounce</text>
+<rect class="f-buf-lo" x="233" y="43" width="206" height="110"/>
+<g clip-path="url(#pic-clip-1)"><g filter="url(#pic-blur)"><path class="f-buf-hi" fill-opacity="0.10" d="M276,134h12.5v12.5h-12.5zM420,134h12.5v12.5h-12.5zM252,110h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.15" d="M288,134h12.5v12.5h-12.5zM408,134h12.5v12.5h-12.5zM240,98h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.20" d="M300,134h12.5v12.5h-12.5zM396,134h12.5v12.5h-12.5zM276,122h12.5v12.5h-12.5zM288,122h12.5v12.5h-12.5zM408,122h12.5v12.5h-12.5zM420,122h12.5v12.5h-12.5zM264,110h12.5v12.5h-12.5zM276,110h12.5v12.5h-12.5zM420,110h12.5v12.5h-12.5zM252,98h12.5v12.5h-12.5zM264,98h12.5v12.5h-12.5zM240,86h12.5v12.5h-12.5zM252,86h12.5v12.5h-12.5zM264,86h12.5v12.5h-12.5zM240,74h12.5v12.5h-12.5zM252,74h12.5v12.5h-12.5zM264,74h12.5v12.5h-12.5zM240,62h12.5v12.5h-12.5zM252,62h12.5v12.5h-12.5zM264,62h12.5v12.5h-12.5zM240,50h12.5v12.5h-12.5zM252,50h12.5v12.5h-12.5zM264,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.30" d="M312,134h12.5v12.5h-12.5zM384,134h12.5v12.5h-12.5zM300,110h12.5v12.5h-12.5zM396,110h12.5v12.5h-12.5zM300,98h12.5v12.5h-12.5zM312,98h12.5v12.5h-12.5zM384,98h12.5v12.5h-12.5zM396,98h12.5v12.5h-12.5zM300,86h12.5v12.5h-12.5zM312,86h12.5v12.5h-12.5zM324,86h12.5v12.5h-12.5zM372,86h12.5v12.5h-12.5zM384,86h12.5v12.5h-12.5zM396,86h12.5v12.5h-12.5zM312,74h12.5v12.5h-12.5zM324,74h12.5v12.5h-12.5zM336,74h12.5v12.5h-12.5zM348,74h12.5v12.5h-12.5zM360,74h12.5v12.5h-12.5zM372,74h12.5v12.5h-12.5zM384,74h12.5v12.5h-12.5zM312,62h12.5v12.5h-12.5zM324,62h12.5v12.5h-12.5zM336,62h12.5v12.5h-12.5zM348,62h12.5v12.5h-12.5zM360,62h12.5v12.5h-12.5zM372,62h12.5v12.5h-12.5zM384,62h12.5v12.5h-12.5zM336,50h12.5v12.5h-12.5zM348,50h12.5v12.5h-12.5zM360,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.45" d="M324,134h12.5v12.5h-12.5zM336,122h12.5v12.5h-12.5zM348,122h12.5v12.5h-12.5zM360,122h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.50" d="M336,134h12.5v12.5h-12.5zM348,134h12.5v12.5h-12.5zM360,134h12.5v12.5h-12.5zM372,134h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.25" d="M300,122h12.5v12.5h-12.5zM396,122h12.5v12.5h-12.5zM288,110h12.5v12.5h-12.5zM408,110h12.5v12.5h-12.5zM276,98h12.5v12.5h-12.5zM288,98h12.5v12.5h-12.5zM408,98h12.5v12.5h-12.5zM420,98h12.5v12.5h-12.5zM276,86h12.5v12.5h-12.5zM288,86h12.5v12.5h-12.5zM408,86h12.5v12.5h-12.5zM420,86h12.5v12.5h-12.5zM276,74h12.5v12.5h-12.5zM288,74h12.5v12.5h-12.5zM300,74h12.5v12.5h-12.5zM396,74h12.5v12.5h-12.5zM408,74h12.5v12.5h-12.5zM420,74h12.5v12.5h-12.5zM276,62h12.5v12.5h-12.5zM288,62h12.5v12.5h-12.5zM300,62h12.5v12.5h-12.5zM396,62h12.5v12.5h-12.5zM408,62h12.5v12.5h-12.5zM420,62h12.5v12.5h-12.5zM276,50h12.5v12.5h-12.5zM288,50h12.5v12.5h-12.5zM300,50h12.5v12.5h-12.5zM312,50h12.5v12.5h-12.5zM324,50h12.5v12.5h-12.5zM372,50h12.5v12.5h-12.5zM384,50h12.5v12.5h-12.5zM396,50h12.5v12.5h-12.5zM408,50h12.5v12.5h-12.5zM420,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.35" d="M312,122h12.5v12.5h-12.5zM384,122h12.5v12.5h-12.5zM312,110h12.5v12.5h-12.5zM324,110h12.5v12.5h-12.5zM384,110h12.5v12.5h-12.5zM324,98h12.5v12.5h-12.5zM336,98h12.5v12.5h-12.5zM348,98h12.5v12.5h-12.5zM360,98h12.5v12.5h-12.5zM372,98h12.5v12.5h-12.5zM336,86h12.5v12.5h-12.5zM348,86h12.5v12.5h-12.5zM360,86h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.40" d="M324,122h12.5v12.5h-12.5zM372,122h12.5v12.5h-12.5zM336,110h12.5v12.5h-12.5zM348,110h12.5v12.5h-12.5zM360,110h12.5v12.5h-12.5zM372,110h12.5v12.5h-12.5z"/></g><polygon class="f-lit" fill-opacity="0.22" points="240,98 240,62 385.5,146 323.1,146"/></g>
+<rect class="f-buf-lo" x="252" y="122" width="24" height="24"/>
+<path class="f-surface" fill-opacity="1.00" d="M235,92h5.3v6.3h-5.3zM235,86h5.3v6.3h-5.3zM235,80h5.3v6.3h-5.3zM235,74h5.3v6.3h-5.3zM235,68h5.3v6.3h-5.3zM235,62h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.35" d="M318,146h6.3v5.3h-6.3zM270,45h6.3v5.3h-6.3zM276,45h6.3v5.3h-6.3zM282,45h6.3v5.3h-6.3zM288,45h6.3v5.3h-6.3zM420,45h6.3v5.3h-6.3zM426,45h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.75" d="M324,146h6.3v5.3h-6.3zM330,146h6.3v5.3h-6.3zM336,146h6.3v5.3h-6.3zM342,146h6.3v5.3h-6.3zM348,146h6.3v5.3h-6.3zM354,146h6.3v5.3h-6.3zM360,146h6.3v5.3h-6.3zM366,146h6.3v5.3h-6.3zM372,146h6.3v5.3h-6.3zM378,146h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.45" d="M384,146h6.3v5.3h-6.3zM318,45h6.3v5.3h-6.3zM324,45h6.3v5.3h-6.3zM330,45h6.3v5.3h-6.3zM336,45h6.3v5.3h-6.3zM342,45h6.3v5.3h-6.3zM348,45h6.3v5.3h-6.3zM354,45h6.3v5.3h-6.3zM360,45h6.3v5.3h-6.3zM366,45h6.3v5.3h-6.3zM372,45h6.3v5.3h-6.3zM378,45h6.3v5.3h-6.3zM384,45h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.25" d="M240,45h6.3v5.3h-6.3zM235,104h5.3v6.3h-5.3zM235,98h5.3v6.3h-5.3zM271,122h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.30" d="M246,45h6.3v5.3h-6.3zM252,45h6.3v5.3h-6.3zM258,45h6.3v5.3h-6.3zM264,45h6.3v5.3h-6.3zM235,56h5.3v6.3h-5.3zM235,50h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.40" d="M294,45h6.3v5.3h-6.3zM300,45h6.3v5.3h-6.3zM306,45h6.3v5.3h-6.3zM312,45h6.3v5.3h-6.3zM390,45h6.3v5.3h-6.3zM396,45h6.3v5.3h-6.3zM402,45h6.3v5.3h-6.3zM408,45h6.3v5.3h-6.3zM414,45h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.10" d="M235,110h5.3v6.3h-5.3zM432,116h5.3v6.3h-5.3zM432,110h5.3v6.3h-5.3zM432,104h5.3v6.3h-5.3zM432,98h5.3v6.3h-5.3zM432,92h5.3v6.3h-5.3zM432,86h5.3v6.3h-5.3zM432,80h5.3v6.3h-5.3zM432,74h5.3v6.3h-5.3zM432,68h5.3v6.3h-5.3zM432,62h5.3v6.3h-5.3zM432,56h5.3v6.3h-5.3zM271,140h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.05" d="M432,134h5.3v6.3h-5.3zM432,128h5.3v6.3h-5.3zM432,122h5.3v6.3h-5.3zM432,50h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.15" d="M271,134h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.20" d="M271,128h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.15" d="M432,140h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.25" d="M432,134h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.30" d="M432,128h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.35" d="M432,122h5.3v6.3h-5.3zM432,116h5.3v6.3h-5.3zM432,110h5.3v6.3h-5.3zM432,74h5.3v6.3h-5.3zM432,68h5.3v6.3h-5.3zM432,62h5.3v6.3h-5.3zM432,56h5.3v6.3h-5.3zM432,50h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.40" d="M432,104h5.3v6.3h-5.3zM432,98h5.3v6.3h-5.3zM432,92h5.3v6.3h-5.3zM432,86h5.3v6.3h-5.3zM432,80h5.3v6.3h-5.3z"/>
+<rect class="s-strong" x="233" y="43" width="206" height="110"/>
+<line class="s-lit w15" x1="224" y1="57.2" x2="236" y2="64.1"/>
+<text class="t-small" x="236" y="172">total light: <tspan class="t-strong">1.64×</tspan> direct</text>
+<text class="t-small t-muted" x="236" y="188">this bounce added 64%</text>
+<text class="t-head" x="458" y="24">2 bounces</text>
+<rect class="f-buf-lo" x="455" y="43" width="206" height="110"/>
+<g clip-path="url(#pic-clip-2)"><g filter="url(#pic-blur)"><path class="f-buf-hi" fill-opacity="0.10" d="M462,134h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.20" d="M498,134h12.5v12.5h-12.5zM642,134h12.5v12.5h-12.5zM462,110h12.5v12.5h-12.5zM474,110h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.25" d="M510,134h12.5v12.5h-12.5zM522,134h12.5v12.5h-12.5zM618,134h12.5v12.5h-12.5zM630,134h12.5v12.5h-12.5zM498,122h12.5v12.5h-12.5zM642,122h12.5v12.5h-12.5zM486,110h12.5v12.5h-12.5zM462,98h12.5v12.5h-12.5zM474,98h12.5v12.5h-12.5zM462,86h12.5v12.5h-12.5zM474,86h12.5v12.5h-12.5zM462,74h12.5v12.5h-12.5zM474,74h12.5v12.5h-12.5zM462,62h12.5v12.5h-12.5zM462,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.35" d="M534,134h12.5v12.5h-12.5zM606,134h12.5v12.5h-12.5zM522,122h12.5v12.5h-12.5zM618,122h12.5v12.5h-12.5zM522,110h12.5v12.5h-12.5zM618,110h12.5v12.5h-12.5zM522,98h12.5v12.5h-12.5zM618,98h12.5v12.5h-12.5zM630,98h12.5v12.5h-12.5zM510,86h12.5v12.5h-12.5zM522,86h12.5v12.5h-12.5zM534,86h12.5v12.5h-12.5zM618,86h12.5v12.5h-12.5zM630,86h12.5v12.5h-12.5zM510,74h12.5v12.5h-12.5zM522,74h12.5v12.5h-12.5zM534,74h12.5v12.5h-12.5zM606,74h12.5v12.5h-12.5zM618,74h12.5v12.5h-12.5zM630,74h12.5v12.5h-12.5zM510,62h12.5v12.5h-12.5zM522,62h12.5v12.5h-12.5zM534,62h12.5v12.5h-12.5zM606,62h12.5v12.5h-12.5zM618,62h12.5v12.5h-12.5zM630,62h12.5v12.5h-12.5zM510,50h12.5v12.5h-12.5zM522,50h12.5v12.5h-12.5zM534,50h12.5v12.5h-12.5zM606,50h12.5v12.5h-12.5zM618,50h12.5v12.5h-12.5zM630,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.50" d="M546,134h12.5v12.5h-12.5zM594,134h12.5v12.5h-12.5zM558,122h12.5v12.5h-12.5zM570,122h12.5v12.5h-12.5zM582,122h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.55" d="M558,134h12.5v12.5h-12.5zM570,134h12.5v12.5h-12.5zM582,134h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.15" d="M462,122h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.30" d="M510,122h12.5v12.5h-12.5zM630,122h12.5v12.5h-12.5zM498,110h12.5v12.5h-12.5zM510,110h12.5v12.5h-12.5zM630,110h12.5v12.5h-12.5zM642,110h12.5v12.5h-12.5zM486,98h12.5v12.5h-12.5zM498,98h12.5v12.5h-12.5zM510,98h12.5v12.5h-12.5zM642,98h12.5v12.5h-12.5zM486,86h12.5v12.5h-12.5zM498,86h12.5v12.5h-12.5zM642,86h12.5v12.5h-12.5zM486,74h12.5v12.5h-12.5zM498,74h12.5v12.5h-12.5zM642,74h12.5v12.5h-12.5zM474,62h12.5v12.5h-12.5zM486,62h12.5v12.5h-12.5zM498,62h12.5v12.5h-12.5zM642,62h12.5v12.5h-12.5zM474,50h12.5v12.5h-12.5zM486,50h12.5v12.5h-12.5zM498,50h12.5v12.5h-12.5zM642,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.40" d="M534,122h12.5v12.5h-12.5zM606,122h12.5v12.5h-12.5zM534,110h12.5v12.5h-12.5zM546,110h12.5v12.5h-12.5zM594,110h12.5v12.5h-12.5zM606,110h12.5v12.5h-12.5zM534,98h12.5v12.5h-12.5zM546,98h12.5v12.5h-12.5zM558,98h12.5v12.5h-12.5zM582,98h12.5v12.5h-12.5zM594,98h12.5v12.5h-12.5zM606,98h12.5v12.5h-12.5zM546,86h12.5v12.5h-12.5zM558,86h12.5v12.5h-12.5zM570,86h12.5v12.5h-12.5zM582,86h12.5v12.5h-12.5zM594,86h12.5v12.5h-12.5zM606,86h12.5v12.5h-12.5zM546,74h12.5v12.5h-12.5zM558,74h12.5v12.5h-12.5zM570,74h12.5v12.5h-12.5zM582,74h12.5v12.5h-12.5zM594,74h12.5v12.5h-12.5zM546,62h12.5v12.5h-12.5zM558,62h12.5v12.5h-12.5zM570,62h12.5v12.5h-12.5zM582,62h12.5v12.5h-12.5zM594,62h12.5v12.5h-12.5zM546,50h12.5v12.5h-12.5zM558,50h12.5v12.5h-12.5zM570,50h12.5v12.5h-12.5zM582,50h12.5v12.5h-12.5zM594,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.45" d="M546,122h12.5v12.5h-12.5zM594,122h12.5v12.5h-12.5zM558,110h12.5v12.5h-12.5zM570,110h12.5v12.5h-12.5zM582,110h12.5v12.5h-12.5zM570,98h12.5v12.5h-12.5z"/><path class="f-pix" fill-opacity="0.05" d="M618,134h12.5v12.5h-12.5zM630,134h12.5v12.5h-12.5zM642,134h12.5v12.5h-12.5zM618,122h12.5v12.5h-12.5zM630,122h12.5v12.5h-12.5zM642,122h12.5v12.5h-12.5zM618,110h12.5v12.5h-12.5zM630,110h12.5v12.5h-12.5zM606,98h12.5v12.5h-12.5zM618,98h12.5v12.5h-12.5zM630,98h12.5v12.5h-12.5zM606,86h12.5v12.5h-12.5zM618,86h12.5v12.5h-12.5zM630,86h12.5v12.5h-12.5zM606,74h12.5v12.5h-12.5zM618,74h12.5v12.5h-12.5zM630,74h12.5v12.5h-12.5zM606,62h12.5v12.5h-12.5zM618,62h12.5v12.5h-12.5zM630,62h12.5v12.5h-12.5zM642,62h12.5v12.5h-12.5zM618,50h12.5v12.5h-12.5zM630,50h12.5v12.5h-12.5zM642,50h12.5v12.5h-12.5z"/><path class="f-pix" fill-opacity="0.10" d="M642,110h12.5v12.5h-12.5zM642,98h12.5v12.5h-12.5zM642,86h12.5v12.5h-12.5zM642,74h12.5v12.5h-12.5z"/></g><polygon class="f-lit" fill-opacity="0.22" points="462,98 462,62 607.5,146 545.1,146"/></g>
+<rect class="f-buf-lo" x="474" y="122" width="24" height="24"/>
+<path class="f-surface" fill-opacity="1.00" d="M457,92h5.3v6.3h-5.3zM457,86h5.3v6.3h-5.3zM457,80h5.3v6.3h-5.3zM457,74h5.3v6.3h-5.3zM457,68h5.3v6.3h-5.3zM457,62h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.10" d="M462,146h6.3v5.3h-6.3zM468,146h6.3v5.3h-6.3zM457,140h5.3v6.3h-5.3zM457,134h5.3v6.3h-5.3zM654,128h5.3v6.3h-5.3zM654,122h5.3v6.3h-5.3zM654,116h5.3v6.3h-5.3zM654,110h5.3v6.3h-5.3zM654,104h5.3v6.3h-5.3zM654,98h5.3v6.3h-5.3zM654,92h5.3v6.3h-5.3zM654,86h5.3v6.3h-5.3zM654,80h5.3v6.3h-5.3zM654,74h5.3v6.3h-5.3zM654,68h5.3v6.3h-5.3zM654,62h5.3v6.3h-5.3zM654,56h5.3v6.3h-5.3zM654,50h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.25" d="M498,146h6.3v5.3h-6.3zM504,146h6.3v5.3h-6.3zM510,146h6.3v5.3h-6.3zM516,146h6.3v5.3h-6.3zM522,146h6.3v5.3h-6.3zM528,146h6.3v5.3h-6.3zM534,146h6.3v5.3h-6.3zM612,146h6.3v5.3h-6.3zM618,146h6.3v5.3h-6.3zM624,146h6.3v5.3h-6.3zM630,146h6.3v5.3h-6.3zM636,146h6.3v5.3h-6.3zM642,146h6.3v5.3h-6.3zM457,116h5.3v6.3h-5.3zM457,110h5.3v6.3h-5.3zM480,122h6.3v5.3h-6.3zM486,122h6.3v5.3h-6.3zM492,122h6.3v5.3h-6.3zM493,134h5.3v6.3h-5.3zM493,128h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.40" d="M540,146h6.3v5.3h-6.3zM510,45h6.3v5.3h-6.3zM516,45h6.3v5.3h-6.3zM522,45h6.3v5.3h-6.3zM528,45h6.3v5.3h-6.3zM624,45h6.3v5.3h-6.3zM630,45h6.3v5.3h-6.3zM636,45h6.3v5.3h-6.3zM642,45h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.80" d="M546,146h6.3v5.3h-6.3zM552,146h6.3v5.3h-6.3zM558,146h6.3v5.3h-6.3zM564,146h6.3v5.3h-6.3zM570,146h6.3v5.3h-6.3zM576,146h6.3v5.3h-6.3zM582,146h6.3v5.3h-6.3zM588,146h6.3v5.3h-6.3zM594,146h6.3v5.3h-6.3zM600,146h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.50" d="M606,146h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.20" d="M648,146h6.3v5.3h-6.3zM457,128h5.3v6.3h-5.3zM457,122h5.3v6.3h-5.3zM474,122h6.3v5.3h-6.3zM493,140h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.30" d="M462,45h6.3v5.3h-6.3zM468,45h6.3v5.3h-6.3zM474,45h6.3v5.3h-6.3zM480,45h6.3v5.3h-6.3zM457,104h5.3v6.3h-5.3zM493,122h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.35" d="M486,45h6.3v5.3h-6.3zM492,45h6.3v5.3h-6.3zM498,45h6.3v5.3h-6.3zM504,45h6.3v5.3h-6.3zM648,45h6.3v5.3h-6.3zM457,98h5.3v6.3h-5.3zM457,56h5.3v6.3h-5.3zM457,50h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.45" d="M534,45h6.3v5.3h-6.3zM540,45h6.3v5.3h-6.3zM546,45h6.3v5.3h-6.3zM552,45h6.3v5.3h-6.3zM558,45h6.3v5.3h-6.3zM564,45h6.3v5.3h-6.3zM570,45h6.3v5.3h-6.3zM576,45h6.3v5.3h-6.3zM582,45h6.3v5.3h-6.3zM588,45h6.3v5.3h-6.3zM594,45h6.3v5.3h-6.3zM600,45h6.3v5.3h-6.3zM606,45h6.3v5.3h-6.3zM612,45h6.3v5.3h-6.3zM618,45h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.05" d="M654,140h5.3v6.3h-5.3zM654,134h5.3v6.3h-5.3zM474,140h5.3v6.3h-5.3zM474,134h5.3v6.3h-5.3zM474,128h5.3v6.3h-5.3zM474,122h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.05" d="M612,146h6.3v5.3h-6.3zM618,146h6.3v5.3h-6.3zM624,146h6.3v5.3h-6.3zM630,146h6.3v5.3h-6.3zM636,146h6.3v5.3h-6.3zM642,146h6.3v5.3h-6.3zM612,45h6.3v5.3h-6.3zM618,45h6.3v5.3h-6.3zM624,45h6.3v5.3h-6.3zM630,45h6.3v5.3h-6.3zM636,45h6.3v5.3h-6.3zM642,45h6.3v5.3h-6.3zM648,45h6.3v5.3h-6.3zM457,116h5.3v6.3h-5.3zM457,110h5.3v6.3h-5.3zM457,104h5.3v6.3h-5.3zM457,98h5.3v6.3h-5.3zM457,56h5.3v6.3h-5.3zM457,50h5.3v6.3h-5.3zM493,140h5.3v6.3h-5.3zM493,134h5.3v6.3h-5.3zM493,128h5.3v6.3h-5.3zM493,122h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.30" d="M654,140h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.35" d="M654,134h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.40" d="M654,128h5.3v6.3h-5.3zM654,122h5.3v6.3h-5.3zM654,50h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.45" d="M654,116h5.3v6.3h-5.3zM654,110h5.3v6.3h-5.3zM654,104h5.3v6.3h-5.3zM654,98h5.3v6.3h-5.3zM654,92h5.3v6.3h-5.3zM654,86h5.3v6.3h-5.3zM654,80h5.3v6.3h-5.3zM654,74h5.3v6.3h-5.3zM654,68h5.3v6.3h-5.3zM654,62h5.3v6.3h-5.3zM654,56h5.3v6.3h-5.3z"/>
+<rect class="s-strong" x="455" y="43" width="206" height="110"/>
+<line class="s-lit w15" x1="446" y1="57.2" x2="458" y2="64.1"/>
+<text class="t-small" x="458" y="172">total light: <tspan class="t-strong">1.93×</tspan> direct</text>
+<text class="t-small t-muted" x="458" y="188">this bounce added 29%</text>
+<text class="t-head" x="680" y="24">Many bounces</text>
+<rect class="f-buf-lo" x="677" y="43" width="206" height="110"/>
+<g clip-path="url(#pic-clip-3)"><g filter="url(#pic-blur)"><path class="f-buf-hi" fill-opacity="0.20" d="M684,134h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.30" d="M720,134h12.5v12.5h-12.5zM852,134h12.5v12.5h-12.5zM864,134h12.5v12.5h-12.5zM864,122h12.5v12.5h-12.5zM684,110h12.5v12.5h-12.5zM696,110h12.5v12.5h-12.5zM684,86h12.5v12.5h-12.5zM684,74h12.5v12.5h-12.5zM684,62h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.35" d="M732,134h12.5v12.5h-12.5zM744,134h12.5v12.5h-12.5zM840,134h12.5v12.5h-12.5zM720,122h12.5v12.5h-12.5zM732,122h12.5v12.5h-12.5zM852,122h12.5v12.5h-12.5zM708,110h12.5v12.5h-12.5zM720,110h12.5v12.5h-12.5zM864,110h12.5v12.5h-12.5zM684,98h12.5v12.5h-12.5zM696,98h12.5v12.5h-12.5zM708,98h12.5v12.5h-12.5zM720,98h12.5v12.5h-12.5zM864,98h12.5v12.5h-12.5zM696,86h12.5v12.5h-12.5zM708,86h12.5v12.5h-12.5zM720,86h12.5v12.5h-12.5zM864,86h12.5v12.5h-12.5zM696,74h12.5v12.5h-12.5zM708,74h12.5v12.5h-12.5zM720,74h12.5v12.5h-12.5zM864,74h12.5v12.5h-12.5zM696,62h12.5v12.5h-12.5zM708,62h12.5v12.5h-12.5zM864,62h12.5v12.5h-12.5zM684,50h12.5v12.5h-12.5zM696,50h12.5v12.5h-12.5zM708,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.40" d="M756,134h12.5v12.5h-12.5zM744,122h12.5v12.5h-12.5zM840,122h12.5v12.5h-12.5zM732,110h12.5v12.5h-12.5zM744,110h12.5v12.5h-12.5zM840,110h12.5v12.5h-12.5zM852,110h12.5v12.5h-12.5zM732,98h12.5v12.5h-12.5zM744,98h12.5v12.5h-12.5zM840,98h12.5v12.5h-12.5zM852,98h12.5v12.5h-12.5zM732,86h12.5v12.5h-12.5zM744,86h12.5v12.5h-12.5zM840,86h12.5v12.5h-12.5zM852,86h12.5v12.5h-12.5zM732,74h12.5v12.5h-12.5zM744,74h12.5v12.5h-12.5zM840,74h12.5v12.5h-12.5zM852,74h12.5v12.5h-12.5zM720,62h12.5v12.5h-12.5zM732,62h12.5v12.5h-12.5zM744,62h12.5v12.5h-12.5zM840,62h12.5v12.5h-12.5zM852,62h12.5v12.5h-12.5zM720,50h12.5v12.5h-12.5zM732,50h12.5v12.5h-12.5zM744,50h12.5v12.5h-12.5zM840,50h12.5v12.5h-12.5zM852,50h12.5v12.5h-12.5zM864,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.55" d="M768,134h12.5v12.5h-12.5zM816,134h12.5v12.5h-12.5zM780,122h12.5v12.5h-12.5zM792,122h12.5v12.5h-12.5zM804,122h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.60" d="M780,134h12.5v12.5h-12.5zM792,134h12.5v12.5h-12.5zM804,134h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.45" d="M828,134h12.5v12.5h-12.5zM756,122h12.5v12.5h-12.5zM828,122h12.5v12.5h-12.5zM756,110h12.5v12.5h-12.5zM828,110h12.5v12.5h-12.5zM756,98h12.5v12.5h-12.5zM768,98h12.5v12.5h-12.5zM780,98h12.5v12.5h-12.5zM816,98h12.5v12.5h-12.5zM828,98h12.5v12.5h-12.5zM756,86h12.5v12.5h-12.5zM768,86h12.5v12.5h-12.5zM780,86h12.5v12.5h-12.5zM792,86h12.5v12.5h-12.5zM804,86h12.5v12.5h-12.5zM816,86h12.5v12.5h-12.5zM828,86h12.5v12.5h-12.5zM756,74h12.5v12.5h-12.5zM768,74h12.5v12.5h-12.5zM780,74h12.5v12.5h-12.5zM792,74h12.5v12.5h-12.5zM804,74h12.5v12.5h-12.5zM816,74h12.5v12.5h-12.5zM828,74h12.5v12.5h-12.5zM756,62h12.5v12.5h-12.5zM768,62h12.5v12.5h-12.5zM780,62h12.5v12.5h-12.5zM792,62h12.5v12.5h-12.5zM804,62h12.5v12.5h-12.5zM816,62h12.5v12.5h-12.5zM828,62h12.5v12.5h-12.5zM756,50h12.5v12.5h-12.5zM768,50h12.5v12.5h-12.5zM780,50h12.5v12.5h-12.5zM792,50h12.5v12.5h-12.5zM804,50h12.5v12.5h-12.5zM816,50h12.5v12.5h-12.5zM828,50h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.25" d="M684,122h12.5v12.5h-12.5z"/><path class="f-buf-hi" fill-opacity="0.50" d="M768,122h12.5v12.5h-12.5zM816,122h12.5v12.5h-12.5zM768,110h12.5v12.5h-12.5zM780,110h12.5v12.5h-12.5zM792,110h12.5v12.5h-12.5zM804,110h12.5v12.5h-12.5zM816,110h12.5v12.5h-12.5zM792,98h12.5v12.5h-12.5zM804,98h12.5v12.5h-12.5z"/><path class="f-pix" fill-opacity="0.05" d="M684,134h12.5v12.5h-12.5zM756,134h12.5v12.5h-12.5zM768,134h12.5v12.5h-12.5zM780,134h12.5v12.5h-12.5zM792,134h12.5v12.5h-12.5zM804,134h12.5v12.5h-12.5zM816,134h12.5v12.5h-12.5zM684,122h12.5v12.5h-12.5zM756,122h12.5v12.5h-12.5zM768,122h12.5v12.5h-12.5zM780,122h12.5v12.5h-12.5zM792,122h12.5v12.5h-12.5zM804,122h12.5v12.5h-12.5zM756,110h12.5v12.5h-12.5zM768,110h12.5v12.5h-12.5zM780,110h12.5v12.5h-12.5zM792,110h12.5v12.5h-12.5zM804,110h12.5v12.5h-12.5zM744,98h12.5v12.5h-12.5zM756,98h12.5v12.5h-12.5zM768,98h12.5v12.5h-12.5zM780,98h12.5v12.5h-12.5zM684,86h12.5v12.5h-12.5zM732,86h12.5v12.5h-12.5zM744,86h12.5v12.5h-12.5zM756,86h12.5v12.5h-12.5zM768,86h12.5v12.5h-12.5zM684,74h12.5v12.5h-12.5zM696,74h12.5v12.5h-12.5zM708,74h12.5v12.5h-12.5zM720,74h12.5v12.5h-12.5zM732,74h12.5v12.5h-12.5zM744,74h12.5v12.5h-12.5zM756,74h12.5v12.5h-12.5zM684,62h12.5v12.5h-12.5zM696,62h12.5v12.5h-12.5zM708,62h12.5v12.5h-12.5zM720,62h12.5v12.5h-12.5zM732,62h12.5v12.5h-12.5zM744,62h12.5v12.5h-12.5zM756,62h12.5v12.5h-12.5zM696,50h12.5v12.5h-12.5zM708,50h12.5v12.5h-12.5zM720,50h12.5v12.5h-12.5zM732,50h12.5v12.5h-12.5zM744,50h12.5v12.5h-12.5zM756,50h12.5v12.5h-12.5zM768,50h12.5v12.5h-12.5z"/><path class="f-pix" fill-opacity="0.10" d="M720,134h12.5v12.5h-12.5zM732,134h12.5v12.5h-12.5zM744,134h12.5v12.5h-12.5zM828,134h12.5v12.5h-12.5zM720,122h12.5v12.5h-12.5zM732,122h12.5v12.5h-12.5zM744,122h12.5v12.5h-12.5zM816,122h12.5v12.5h-12.5zM828,122h12.5v12.5h-12.5zM840,122h12.5v12.5h-12.5zM684,110h12.5v12.5h-12.5zM696,110h12.5v12.5h-12.5zM708,110h12.5v12.5h-12.5zM720,110h12.5v12.5h-12.5zM732,110h12.5v12.5h-12.5zM744,110h12.5v12.5h-12.5zM816,110h12.5v12.5h-12.5zM828,110h12.5v12.5h-12.5zM684,98h12.5v12.5h-12.5zM696,98h12.5v12.5h-12.5zM708,98h12.5v12.5h-12.5zM720,98h12.5v12.5h-12.5zM732,98h12.5v12.5h-12.5zM792,98h12.5v12.5h-12.5zM804,98h12.5v12.5h-12.5zM816,98h12.5v12.5h-12.5zM828,98h12.5v12.5h-12.5zM696,86h12.5v12.5h-12.5zM708,86h12.5v12.5h-12.5zM720,86h12.5v12.5h-12.5zM780,86h12.5v12.5h-12.5zM792,86h12.5v12.5h-12.5zM804,86h12.5v12.5h-12.5zM816,86h12.5v12.5h-12.5zM828,86h12.5v12.5h-12.5zM768,74h12.5v12.5h-12.5zM780,74h12.5v12.5h-12.5zM792,74h12.5v12.5h-12.5zM804,74h12.5v12.5h-12.5zM816,74h12.5v12.5h-12.5zM828,74h12.5v12.5h-12.5zM768,62h12.5v12.5h-12.5zM780,62h12.5v12.5h-12.5zM792,62h12.5v12.5h-12.5zM804,62h12.5v12.5h-12.5zM816,62h12.5v12.5h-12.5zM828,62h12.5v12.5h-12.5zM684,50h12.5v12.5h-12.5zM780,50h12.5v12.5h-12.5zM792,50h12.5v12.5h-12.5zM804,50h12.5v12.5h-12.5zM816,50h12.5v12.5h-12.5zM828,50h12.5v12.5h-12.5zM840,50h12.5v12.5h-12.5z"/><path class="f-pix" fill-opacity="0.15" d="M840,134h12.5v12.5h-12.5zM852,134h12.5v12.5h-12.5zM864,134h12.5v12.5h-12.5zM852,122h12.5v12.5h-12.5zM840,110h12.5v12.5h-12.5zM852,110h12.5v12.5h-12.5zM840,98h12.5v12.5h-12.5zM852,98h12.5v12.5h-12.5zM840,86h12.5v12.5h-12.5zM852,86h12.5v12.5h-12.5zM840,74h12.5v12.5h-12.5zM852,74h12.5v12.5h-12.5zM840,62h12.5v12.5h-12.5zM852,62h12.5v12.5h-12.5zM852,50h12.5v12.5h-12.5zM864,50h12.5v12.5h-12.5z"/><path class="f-pix" fill-opacity="0.20" d="M864,122h12.5v12.5h-12.5zM864,110h12.5v12.5h-12.5zM864,98h12.5v12.5h-12.5zM864,86h12.5v12.5h-12.5zM864,74h12.5v12.5h-12.5zM864,62h12.5v12.5h-12.5z"/></g><polygon class="f-lit" fill-opacity="0.22" points="684,98 684,62 829.5,146 767.1,146"/></g>
+<rect class="f-buf-lo" x="696" y="122" width="24" height="24"/>
+<path class="f-surface" fill-opacity="1.00" d="M679,92h5.3v6.3h-5.3zM679,86h5.3v6.3h-5.3zM679,80h5.3v6.3h-5.3zM679,74h5.3v6.3h-5.3zM679,68h5.3v6.3h-5.3zM679,62h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.20" d="M684,146h6.3v5.3h-6.3zM679,140h5.3v6.3h-5.3zM679,134h5.3v6.3h-5.3zM696,128h5.3v6.3h-5.3zM696,122h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.15" d="M690,146h6.3v5.3h-6.3zM876,116h5.3v6.3h-5.3zM876,110h5.3v6.3h-5.3zM876,104h5.3v6.3h-5.3zM876,98h5.3v6.3h-5.3zM876,92h5.3v6.3h-5.3zM876,86h5.3v6.3h-5.3zM876,80h5.3v6.3h-5.3zM876,74h5.3v6.3h-5.3zM876,68h5.3v6.3h-5.3zM876,62h5.3v6.3h-5.3zM876,56h5.3v6.3h-5.3zM696,140h5.3v6.3h-5.3zM696,134h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.30" d="M720,146h6.3v5.3h-6.3zM726,146h6.3v5.3h-6.3zM732,146h6.3v5.3h-6.3zM738,146h6.3v5.3h-6.3zM744,146h6.3v5.3h-6.3zM750,146h6.3v5.3h-6.3zM756,146h6.3v5.3h-6.3zM834,146h6.3v5.3h-6.3zM840,146h6.3v5.3h-6.3zM846,146h6.3v5.3h-6.3zM852,146h6.3v5.3h-6.3zM858,146h6.3v5.3h-6.3zM679,122h5.3v6.3h-5.3zM679,116h5.3v6.3h-5.3zM696,122h6.3v5.3h-6.3zM702,122h6.3v5.3h-6.3zM708,122h6.3v5.3h-6.3zM714,122h6.3v5.3h-6.3zM715,134h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.45" d="M762,146h6.3v5.3h-6.3zM726,45h6.3v5.3h-6.3zM732,45h6.3v5.3h-6.3zM738,45h6.3v5.3h-6.3zM744,45h6.3v5.3h-6.3zM852,45h6.3v5.3h-6.3zM858,45h6.3v5.3h-6.3zM864,45h6.3v5.3h-6.3zM870,45h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.80" d="M768,146h6.3v5.3h-6.3zM774,146h6.3v5.3h-6.3zM780,146h6.3v5.3h-6.3zM786,146h6.3v5.3h-6.3zM792,146h6.3v5.3h-6.3zM798,146h6.3v5.3h-6.3zM804,146h6.3v5.3h-6.3zM810,146h6.3v5.3h-6.3zM816,146h6.3v5.3h-6.3zM822,146h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.55" d="M828,146h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.25" d="M864,146h6.3v5.3h-6.3zM870,146h6.3v5.3h-6.3zM679,128h5.3v6.3h-5.3zM715,140h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.40" d="M684,45h6.3v5.3h-6.3zM690,45h6.3v5.3h-6.3zM696,45h6.3v5.3h-6.3zM702,45h6.3v5.3h-6.3zM708,45h6.3v5.3h-6.3zM714,45h6.3v5.3h-6.3zM720,45h6.3v5.3h-6.3zM679,104h5.3v6.3h-5.3zM679,98h5.3v6.3h-5.3zM679,56h5.3v6.3h-5.3zM679,50h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.50" d="M750,45h6.3v5.3h-6.3zM756,45h6.3v5.3h-6.3zM762,45h6.3v5.3h-6.3zM768,45h6.3v5.3h-6.3zM774,45h6.3v5.3h-6.3zM780,45h6.3v5.3h-6.3zM786,45h6.3v5.3h-6.3zM792,45h6.3v5.3h-6.3zM798,45h6.3v5.3h-6.3zM804,45h6.3v5.3h-6.3zM810,45h6.3v5.3h-6.3zM816,45h6.3v5.3h-6.3zM822,45h6.3v5.3h-6.3zM828,45h6.3v5.3h-6.3zM834,45h6.3v5.3h-6.3zM840,45h6.3v5.3h-6.3zM846,45h6.3v5.3h-6.3z"/><path class="f-buf-hi" fill-opacity="0.35" d="M679,110h5.3v6.3h-5.3zM715,128h5.3v6.3h-5.3zM715,122h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.05" d="M876,140h5.3v6.3h-5.3z"/><path class="f-buf-hi" fill-opacity="0.10" d="M876,134h5.3v6.3h-5.3zM876,128h5.3v6.3h-5.3zM876,122h5.3v6.3h-5.3zM876,50h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.05" d="M684,146h6.3v5.3h-6.3zM690,146h6.3v5.3h-6.3zM762,146h6.3v5.3h-6.3zM828,146h6.3v5.3h-6.3zM684,45h6.3v5.3h-6.3zM690,45h6.3v5.3h-6.3zM696,45h6.3v5.3h-6.3zM702,45h6.3v5.3h-6.3zM708,45h6.3v5.3h-6.3zM714,45h6.3v5.3h-6.3zM720,45h6.3v5.3h-6.3zM726,45h6.3v5.3h-6.3zM732,45h6.3v5.3h-6.3zM738,45h6.3v5.3h-6.3zM744,45h6.3v5.3h-6.3zM750,45h6.3v5.3h-6.3zM756,45h6.3v5.3h-6.3zM762,45h6.3v5.3h-6.3zM768,45h6.3v5.3h-6.3zM774,45h6.3v5.3h-6.3zM780,45h6.3v5.3h-6.3zM786,45h6.3v5.3h-6.3zM792,45h6.3v5.3h-6.3zM798,45h6.3v5.3h-6.3zM804,45h6.3v5.3h-6.3zM679,140h5.3v6.3h-5.3zM679,134h5.3v6.3h-5.3zM679,128h5.3v6.3h-5.3zM696,140h5.3v6.3h-5.3zM696,134h5.3v6.3h-5.3zM696,128h5.3v6.3h-5.3zM696,122h5.3v6.3h-5.3zM696,122h6.3v5.3h-6.3zM702,122h6.3v5.3h-6.3zM708,122h6.3v5.3h-6.3zM714,122h6.3v5.3h-6.3z"/><path class="f-pix" fill-opacity="0.10" d="M720,146h6.3v5.3h-6.3zM726,146h6.3v5.3h-6.3zM732,146h6.3v5.3h-6.3zM738,146h6.3v5.3h-6.3zM744,146h6.3v5.3h-6.3zM750,146h6.3v5.3h-6.3zM756,146h6.3v5.3h-6.3zM810,45h6.3v5.3h-6.3zM816,45h6.3v5.3h-6.3zM822,45h6.3v5.3h-6.3zM828,45h6.3v5.3h-6.3zM834,45h6.3v5.3h-6.3zM840,45h6.3v5.3h-6.3zM846,45h6.3v5.3h-6.3zM679,122h5.3v6.3h-5.3zM679,104h5.3v6.3h-5.3zM679,98h5.3v6.3h-5.3zM679,56h5.3v6.3h-5.3zM679,50h5.3v6.3h-5.3zM715,140h5.3v6.3h-5.3zM715,134h5.3v6.3h-5.3zM715,128h5.3v6.3h-5.3zM715,122h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.15" d="M834,146h6.3v5.3h-6.3zM840,146h6.3v5.3h-6.3zM846,146h6.3v5.3h-6.3zM852,146h6.3v5.3h-6.3zM858,146h6.3v5.3h-6.3zM864,146h6.3v5.3h-6.3zM870,146h6.3v5.3h-6.3zM852,45h6.3v5.3h-6.3zM858,45h6.3v5.3h-6.3zM864,45h6.3v5.3h-6.3zM870,45h6.3v5.3h-6.3zM679,116h5.3v6.3h-5.3zM679,110h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.45" d="M876,140h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.50" d="M876,134h5.3v6.3h-5.3zM876,128h5.3v6.3h-5.3zM876,122h5.3v6.3h-5.3z"/><path class="f-pix" fill-opacity="0.55" d="M876,116h5.3v6.3h-5.3zM876,110h5.3v6.3h-5.3zM876,104h5.3v6.3h-5.3zM876,98h5.3v6.3h-5.3zM876,92h5.3v6.3h-5.3zM876,86h5.3v6.3h-5.3zM876,80h5.3v6.3h-5.3zM876,74h5.3v6.3h-5.3zM876,68h5.3v6.3h-5.3zM876,62h5.3v6.3h-5.3zM876,56h5.3v6.3h-5.3zM876,50h5.3v6.3h-5.3z"/>
+<rect class="s-strong" x="677" y="43" width="206" height="110"/>
+<line class="s-lit w15" x1="668" y1="57.2" x2="680" y2="64.1"/>
+<text class="t-small" x="680" y="172">total light: <tspan class="t-strong">2.32×</tspan> direct</text>
+<text class="t-small t-muted" x="680" y="188">27 bounces summed</text>
+<text class="t-small t-muted" x="14" y="226">Computed with radiosity on 25 cm patches. Window at left, sun 30° up (amber); white walls and ceiling, grey floor and crate, red right wall.</text>
+</svg>
+              </div>
+              <figcaption><b>One patch of sunlight lights the whole room, one bounce at a time.</b> With direct light alone, only the sunlit floor is bright. The first bounce adds 64% of the direct light, the second 29%, and each later one less again; summed, the room holds about 2.3 times the light the sun put in directly. The red wall shows its colour from the first bounce and passes it to the floor and ceiling beside it from the second. Inside the room, the shading shows how brightly bounced light alone would light a small grey ball at each spot; the sunbeam is drawn in amber.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p><dfn class="term" data-term="direct-light">Direct light</dfn> travels straight from a light to a surface: the sun on the floor, a lamp on a desk. Everything Part 7 computed, from shading to shadow maps, was direct light. <dfn class="term" data-term="indirect-light">Indirect light</dfn> reaches a surface after bouncing off at least one other surface first. The underside of a table, the ceiling of a sunlit room and the side of a building facing away from the sun are lit almost entirely by it.</p>
+            <p>Lighting that includes those bounces is called <dfn class="term" data-term="global-illumination">global illumination</dfn>, GI: global because the light at any point depends on every other surface in the scene, not just on the lights. That dependence is what makes it expensive. To light one point you need the light leaving every surface it can see, and that light in turn depends on every surface those can see.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>Close the curtains on a sunny day, leaving one gap. A bright stripe lands on the floor, and yet you can see the whole room: the stripe acts like a dim lamp, lighting the ceiling and walls, which light everything else a little more. Paint the walls black and the room goes dark, though the stripe is just as bright.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>With direct light alone, anything the lights cannot see is pitch black. Games used to hide that with a flat <a class="term" data-term="ambient-term" href="glossary.html#ambient-term">ambient term</a>, the same extra light everywhere, which makes interiors flat and shapes hard to read.</p>
+                <p>Global illumination puts the missing light back where it really goes, with its direction and its colour.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Bounced light is the biggest single step from a game look to a believable one, and choosing how to get it is one of the largest technical decisions on a project. Baking it costs build time and forbids moving lights; computing it every frame costs milliseconds and hardware; every method has its own artefacts, from leaking light to lag. Unreal Engine 5 projects start with Lumen switched on, Unity starts from baking, and Godot offers several options. The acronyms in Part 8 all name different trade-offs on the one problem this chapter describes.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow light from the sun through a room, bounce by bounce, then look at the vocabulary and the one equation every GI technique tries to solve.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="paths"><span class="step-num">1</span> Paths of light</h3>
+              <p>Think of light as travelling along paths from a light to your eye. A direct path has one corner: the light hits a surface and goes to the eye. Indirect paths have more corners, one per bounce. A pixel's colour is the sum of the light arriving along every path that ends at it, and there are infinitely many.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="A room in cross-section with a window on the left and a camera on the right. Sunlight enters and hits the floor. Three paths reach the camera: a direct path from the sun to the floor to the camera; a one-bounce path from the sun to the floor, up to the ceiling and to the camera; and a two-bounce path from the sun to the floor, to the red right wall, to the side of a crate and to the camera, arriving red.">
+                    <defs>
+                      <marker id="path-l" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="path-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="path-p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-sunken" x="40" y="30" width="480" height="240"/>
+                    <path class="s-strong w3" d="M40,30 H520 V270 H40 V180 M40,90 V30"/>
+                    <rect class="f-pix-soft s-pix" x="520" y="30" width="10" height="240"/>
+                    <rect class="f-surface s-strong" x="130" y="210" width="60" height="60"/>
+                    <text class="t-small t-muted mid" x="160" y="244">crate</text>
+                    <text class="t-small t-muted" x="4" y="200">window</text>
+                    <!-- Sun rays into the window -->
+                    <line class="s-lit w15" x1="-0" y1="75" x2="38" y2="89" marker-end="url(#path-l)"/>
+                    <line class="s-lit w15" x1="0" y1="110" x2="38" y2="124" marker-end="url(#path-l)"/>
+                    <line class="s-lit w15" x1="0" y1="150" x2="38" y2="164" marker-end="url(#path-l)"/>
+                    <!-- Direct path: sun to floor A to camera -->
+                    <line class="s-lit w2" x1="40" y1="120" x2="452" y2="269" marker-end="url(#path-l)"/>
+                    <line class="s-lit w2" x1="454" y1="268" x2="474" y2="180" marker-end="url(#path-l)"/>
+                    <!-- One bounce: sun to floor B, to ceiling C, to camera -->
+                    <line class="s-lit w15" x1="40" y1="100" x2="404" y2="269" stroke-opacity="0.6"/>
+                    <line class="s-acc w2" x1="404" y1="268" x2="282" y2="33" marker-end="url(#path-a)"/>
+                    <line class="s-acc w2" x1="284" y1="32" x2="470" y2="170" marker-end="url(#path-a)"/>
+                    <!-- Two bounces: sun to floor D, to red wall E, to crate side, to camera -->
+                    <line class="s-lit w15" x1="40" y1="140" x2="372" y2="269" stroke-opacity="0.6"/>
+                    <line class="s-acc w2" x1="372" y1="268" x2="517" y2="128" marker-end="url(#path-a)"/>
+                    <line class="s-pix w2" x1="518" y1="130" x2="193" y2="234" marker-end="url(#path-p)"/>
+                    <line class="s-pix w2" x1="191" y1="236" x2="466" y2="178" marker-end="url(#path-p)"/>
+                    <circle class="f-ink" cx="480" cy="172" r="6"/>
+                    <text class="t-small" x="452" y="162">camera</text>
+
+                    <text class="t-caps" x="570" y="44">THREE OF THE PATHS INTO ONE CAMERA</text>
+                    <line class="s-lit w2" x1="570" y1="74" x2="600" y2="74"/>
+                    <text class="t-head" x="610" y="78">Direct</text>
+                    <text class="t-small" x="610" y="96">sun, floor, camera: one corner</text>
+                    <line class="s-acc w2" x1="570" y1="128" x2="600" y2="128"/>
+                    <text class="t-head" x="610" y="132">One bounce</text>
+                    <text class="t-small" x="610" y="150">sun, floor, ceiling, camera</text>
+                    <line class="s-pix w2" x1="570" y1="182" x2="600" y2="182"/>
+                    <text class="t-head" x="610" y="186">Two bounces</text>
+                    <text class="t-small" x="610" y="204">sun, floor, red wall, crate, camera:</text>
+                    <text class="t-small" x="610" y="220">after the red wall the light is red</text>
+                    <text class="t-small t-muted" x="570" y="258">Amber: light straight from the sun.</text>
+                    <text class="t-small t-muted" x="570" y="274">Blue and rose: light that has bounced.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Every extra corner is a bounce.</b> The camera sees the sunlit floor by direct light, the ceiling by light that bounced once, and the crate's side by light that bounced twice, the second time off the red wall. A renderer that handles only direct light gets the first path and leaves the ceiling and the crate black.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="bounce"><span class="step-num">2</span> A bounce: every lit surface becomes a light</h3>
+              <p>A <dfn class="term" data-term="bounce">bounce</dfn> is one reflection along a light path. When light hits a matte surface, the surface sends part of it back out in all directions (<a class="term" data-term="diffuse" href="glossary.html#diffuse">diffuse reflection</a>, 7.2). How much it sends back is its <a class="term" data-term="albedo" href="glossary.html#albedo">albedo</a>: a white wall about 80%, grey stone about half, black paint a few percent. So after one bounce, every lit surface is a weak, wide light for everything that can see it.</p>
+              <p>The room below is solved bounce by bounce. Start at 0, where only the sunbeam lights anything, then add bounces and watch the room fill.</p>
+              <figure>
+                <div class="demo" data-demo="bounce-room">
+                  <p class="demo-hint">The bounce room needs JavaScript. Without it: with direct light only, everything outside the sunbeam is black; the first bounce adds 64% of the direct light, the second 29%, the third 18%; with all bounces the room holds about 2.3 times the direct light, or 2.9 times with a white right wall.</p>
+                </div>
+                <figcaption><b>Bounce room.</b> A cross-section of a room lit only by the sun through a window. Walls, floor, ceiling and crate are cut into 25 cm patches, and each bounce passes every patch's light to every patch that can see it. The bars show how much each bounce adds; the readout says how much of its final light the crate's shaded side has received so far.</figcaption>
+              </figure>
+              <ul>
+                <li>Step from 0 to 1. The ceiling lights up from the floor, but the crate's left side stays black: it faces the window wall, away from the sunlit floor, so it can only receive light that has already bounced once.</li>
+                <li>Step to 2 and 4 and watch the dark corner fill in, and the red wall's colour spread onto the floor and ceiling beside it.</li>
+                <li>Untick Painted red. A white wall reflects more, so every bounce adds more, and the total rises from about 2.3 to 2.9 times the direct light.</li>
+              </ul>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="each-bounce"><span class="step-num">3</span> Why each bounce adds less</h3>
+              <p>Every bounce loses light twice: the surface absorbs what its albedo does not reflect, and some of what it reflects escapes, here through the window. In this room each bounce after the first carries about half to two thirds of the one before: 64%, then 29%, 18%, 9% of the direct light. The sum of that shrinking series is finite, which is why many bounces settle on a fixed brightness: about 2.3 times the direct light here, after 27 bounces were added up.</p>
+              <p>The method the demo uses is <dfn class="term" data-term="radiosity">radiosity</dfn>: cut every surface into patches, work out once how much of each patch's light reaches each other patch, then pass light around until it settles. Cindy Goral and colleagues at Cornell brought it to computer graphics in 1984, adapting methods from heat transfer, and showed the effect a coloured wall has on its neighbours. Radiosity only handles matte surfaces, but its ideas live on in baking tools and in Unity's Enlighten, which precomputes which patches can see each other and then updates their light at run time over several frames.</p>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The demo is a 2D slice, so light only travels in the plane of the picture, and every surface is perfectly matte. A real room leaks light in and out in three dimensions and has shiny surfaces too. The shape of the result, a big first bounce and quickly shrinking later ones, is the same.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="colour-bleeding"><span class="step-num">4</span> Colour bleeding</h3>
+              <p>A surface reflects each colour channel by its own albedo. A red wall reflects most red light and little green or blue, so the light leaving it is red, and anything it lights picks up a red tint. That is <dfn class="term" data-term="colour-bleeding">colour bleeding</dfn>: one surface's colour spreading onto its neighbours through bounced light. It is why a white shirt looks green on a lawn and why a room's walls set the mood of everything in it.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Bar charts of red, green and blue light. White sunlight has 1.0 of each. The red wall's albedo is 0.75 red, 0.12 green and 0.08 blue, so the light it reflects is 0.75, 0.12 and 0.08. When that reaches the white ceiling, with albedo 0.8 in each channel, the ceiling reflects 0.60, 0.10 and 0.06: still strongly red.">
+                    <text class="t-caps" x="20" y="22">ONE CHANNEL AT A TIME · R, G, B</text>
+                    <line class="s-strong" x1="30" y1="190" x2="150" y2="190"/>
+                    <rect class="f-pix" x="40" y="70" width="28" height="120"/>
+                    <rect class="f-geo" x="76" y="70" width="28" height="120"/>
+                    <rect class="f-acc" x="112" y="70" width="28" height="120"/>
+                    <text class="t-head" x="30" y="56">Sunlight</text>
+                    <text class="t-mono t-small mid" x="54" y="206">1.0</text><text class="t-mono t-small mid" x="90" y="206">1.0</text><text class="t-mono t-small mid" x="126" y="206">1.0</text>
+                    <text class="t-head mid" x="190" y="136">×</text>
+
+                    <line class="s-strong" x1="230" y1="190" x2="350" y2="190"/>
+                    <rect class="f-pix-soft s-pix" x="240" y="100" width="28" height="90"/>
+                    <rect class="f-geo-soft s-geo" x="276" y="175.6" width="28" height="14.4"/>
+                    <rect class="f-acc-soft s-acc" x="312" y="180.4" width="28" height="9.6"/>
+                    <text class="t-head" x="230" y="56">Red wall's albedo</text>
+                    <text class="t-mono t-small mid" x="254" y="206">0.75</text><text class="t-mono t-small mid" x="290" y="206">0.12</text><text class="t-mono t-small mid" x="326" y="206">0.08</text>
+                    <text class="t-head mid" x="390" y="136">=</text>
+
+                    <line class="s-strong" x1="430" y1="190" x2="550" y2="190"/>
+                    <rect class="f-pix" x="440" y="100" width="28" height="90"/>
+                    <rect class="f-geo" x="476" y="175.6" width="28" height="14.4"/>
+                    <rect class="f-acc" x="512" y="180.4" width="28" height="9.6"/>
+                    <text class="t-head" x="430" y="56">Light leaving the wall</text>
+                    <text class="t-mono t-small mid" x="454" y="206">0.75</text><text class="t-mono t-small mid" x="490" y="206">0.12</text><text class="t-mono t-small mid" x="526" y="206">0.08</text>
+                    <text class="t-small t-muted mid" x="590" y="130">× white</text>
+                    <text class="t-small t-muted mid" x="590" y="144">ceiling 0.8</text>
+
+                    <line class="s-strong" x1="640" y1="190" x2="760" y2="190"/>
+                    <rect class="f-pix" x="650" y="118" width="28" height="72"/>
+                    <rect class="f-geo" x="686" y="178.5" width="28" height="11.5"/>
+                    <rect class="f-acc" x="722" y="182.3" width="28" height="7.7"/>
+                    <text class="t-head" x="640" y="56">Light leaving the ceiling</text>
+                    <text class="t-mono t-small mid" x="664" y="206">0.60</text><text class="t-mono t-small mid" x="700" y="206">0.10</text><text class="t-mono t-small mid" x="736" y="206">0.06</text>
+                    <text class="t-small" x="430" y="236">A white ceiling only dims the light: it stays red.</text>
+                    <text class="t-small t-muted" x="30" y="236">Bars drawn to scale: 1.0 = 120 px.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Colour is a multiplication, channel by channel.</b> Light leaving a surface is the light arriving times the surface's albedo in each of red, green and blue. White light off a red wall is red; red light off a white ceiling stays red. In the bounce room the ceiling beside the red wall is mostly lit by the white walls and the grey floor, so it ends up pink rather than red. The albedos are the ones the demo uses.</figcaption>
+              </figure>
+              <p>Colour bleeding is a test of a GI system and a check on the art. Too little and a red-walled room looks pasted together; too much, from albedos brighter than real materials (6.5's <a class="term" data-term="albedo-range" href="glossary.html#albedo-range">plausible albedo range</a>) or from multipliers turned above 1, and whole rooms turn the colour of one wall.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="radiance"><span class="step-num">5</span> Radiance and irradiance, in plain words</h3>
+              <p>Two words appear in every GI paper, engine document and AI answer. <dfn class="term" data-term="radiance">Radiance</dfn> is the light travelling along one direction: what a single camera pixel or your eye measures when it looks at a point. Its everyday counterpart is luminance, measured in <a class="term" data-term="nit" href="glossary.html#nit">nits</a> (3.2). <dfn class="term" data-term="irradiance">Irradiance</dfn> is all the light arriving at a point on a surface from every direction above it, each direction weighted by how squarely it strikes: the counterpart of illuminance, measured in <a class="term" data-term="lux" href="glossary.html#lux">lux</a> (7.1). Irradiance decides how bright a matte surface is; radiance is what reaches the camera.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: radiance, a single narrow beam of light leaving a point on a wall and travelling to a camera pixel. Right: irradiance, many arrows of light arriving at one point on a floor from all directions above it, the ones from overhead drawn thicker because they strike more squarely.">
+                    <defs>
+                      <marker id="rad-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="rad-l" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">RADIANCE · ONE DIRECTION</text>
+                    <rect class="f-solid s-strong" x="40" y="50" width="20" height="150"/>
+                    <polygon class="f-acc" fill-opacity="0.18" points="60,122 330,112 330,138"/>
+                    <line class="s-acc w2" x1="62" y1="125" x2="324" y2="125" marker-end="url(#rad-a)"/>
+                    <circle class="f-acc" cx="60" cy="125" r="4"/>
+                    <rect class="f-surface s-strong" x="334" y="100" width="38" height="50" rx="4"/>
+                    <rect class="f-acc-soft s-acc" x="344" y="118" width="8" height="8"/>
+                    <text class="t-small mid" x="353" y="168">camera</text>
+                    <text class="t-small" x="80" y="176">The light leaving one point in one direction:</text>
+                    <text class="t-small" x="80" y="192">what each pixel of a camera records.</text>
+                    <text class="t-small t-muted" x="80" y="214">Like luminance, measured in nits.</text>
+
+                    <line class="s-line" x1="450" y1="40" x2="450" y2="230"/>
+
+                    <text class="t-caps" x="480" y="22">IRRADIANCE · EVERY DIRECTION, ADDED UP</text>
+                    <rect class="f-solid" x="500" y="170" width="340" height="14"/>
+                    <line class="s-strong" x1="500" y1="170" x2="840" y2="170"/>
+                    <path class="f-lit" fill-opacity="0.12" d="M560,170 A110,110 0 0 1 780,170 Z"/>
+                    <line class="s-lit w3" x1="670" y1="64" x2="670" y2="164" marker-end="url(#rad-l)"/>
+                    <line class="s-lit" stroke-width="2.6" x1="615" y1="75" x2="666" y2="164" marker-end="url(#rad-l)"/>
+                    <line class="s-lit" stroke-width="2.6" x1="725" y1="75" x2="674" y2="164" marker-end="url(#rad-l)"/>
+                    <line class="s-lit w15" x1="576" y1="116" x2="664" y2="166" marker-end="url(#rad-l)"/>
+                    <line class="s-lit w15" x1="764" y1="116" x2="676" y2="166" marker-end="url(#rad-l)"/>
+                    <line class="s-lit" stroke-width="0.9" x1="563" y1="150" x2="662" y2="168" marker-end="url(#rad-l)"/>
+                    <line class="s-lit" stroke-width="0.9" x1="777" y1="150" x2="678" y2="168" marker-end="url(#rad-l)"/>
+                    <circle class="f-ink" cx="670" cy="170" r="4"/>
+                    <text class="t-small" x="500" y="204">All the light arriving at one point, weighted by angle:</text>
+                    <text class="t-small" x="500" y="220">what decides how bright a matte surface is.</text>
+                    <text class="t-small t-muted" x="500" y="240">Like illuminance, measured in lux.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One arrow, or all of them added up.</b> Radiance belongs to a direction; irradiance belongs to a point on a surface. Arrows from overhead are drawn thicker because light striking squarely delivers more per square metre, the same cosine weighting as <a class="term" data-term="n-dot-l" href="glossary.html#n-dot-l">N·L</a> in 7.2.</figcaption>
+              </figure>
+              <p>The difference matters when you read about GI techniques. Lightmaps and most light probes store irradiance, or something close to it, which is enough for matte surfaces; reflections (<a class="xref" data-ch="7.6">7.6</a>) need radiance from particular directions, which costs far more to store.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="rendering-equation"><span class="step-num">6</span> The rendering equation, in pictures</h3>
+              <p>In 1986 James Kajiya presented an equation that, as his abstract puts it, generalises a variety of known rendering algorithms. The <dfn class="term" data-term="rendering-equation">rendering equation</dfn> says that the light leaving a point towards your eye is the light the point emits, plus the sum over every direction above it of the light arriving from that direction, times how much the material sends it towards your eye (its <a class="term" data-term="brdf" href="glossary.html#brdf">BRDF</a>, 6.5), times how squarely it arrives.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="A point P on a floor, with an outgoing arrow to the eye. Around P, a half-sphere of incoming arrows, each labelled with three factors: the light arriving from that direction, the material's response, and the angle. One incoming arrow is traced back to a point Q on a wall, which has its own half-sphere of incoming light: the same equation again, which is why the equation is recursive.">
+                    <defs>
+                      <marker id="re-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="re-l" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">LIGHT LEAVING P = WHAT P EMITS + ALL LIGHT ARRIVING × MATERIAL × ANGLE</text>
+                    <rect class="f-solid" x="40" y="220" width="480" height="14"/>
+                    <line class="s-strong" x1="40" y1="220" x2="520" y2="220"/>
+                    <path class="f-lit" fill-opacity="0.1" d="M170,220 A120,120 0 0 1 410,220 Z"/>
+                    <line class="s-lit w2" x1="290" y1="104" x2="290" y2="214" marker-end="url(#re-l)"/>
+                    <line class="s-lit w2" x1="210" y1="132" x2="285" y2="215" marker-end="url(#re-l)"/>
+                    <line class="s-lit w15" x1="182" y1="182" x2="283" y2="218" marker-end="url(#re-l)"/>
+                    <line class="s-lit w2" x1="372" y1="134" x2="295" y2="215" marker-end="url(#re-l)"/>
+                    <line class="s-acc w2" x1="292" y1="218" x2="470" y2="96" marker-end="url(#re-a)"/>
+                    <circle class="f-ink" cx="290" cy="220" r="4.5"/>
+                    <text class="t-strong" x="296" y="242">P</text>
+                    <circle class="f-surface s-strong" cx="478" cy="88" r="10"/>
+                    <circle class="f-ink" cx="481" cy="88" r="3.5"/>
+                    <text class="t-small t-acc t-strong" x="400" y="80">to the eye</text>
+                    <rect class="f-surface s-strong" x="40" y="40" width="200" height="66" rx="6"/>
+                    <text class="t-small t-strong" x="52" y="60">for each incoming arrow:</text>
+                    <text class="t-small" x="52" y="78">light arriving from there</text>
+                    <text class="t-small" x="52" y="94">× material response × angle</text>
+                    <path class="s-muted dash" d="M240,73 Q250,110 250,128"/>
+
+                    <rect class="f-solid s-strong" x="40" y="150" width="14" height="70"/>
+                    <circle class="f-pix" cx="54" cy="166" r="4"/>
+                    <text class="t-strong t-pix" x="62" y="160">Q</text>
+                    <path class="s-pix w15 dash" d="M58,170 L182,182"/>
+                    <path class="f-pix" fill-opacity="0.1" d="M54,126 A40,40 0 0 1 54,206 Z"/>
+
+                    <text class="t-head" x="580" y="70">Why it is hard</text>
+                    <text class="t-small" x="580" y="92">The light arriving at P from Q is the</text>
+                    <text class="t-small" x="580" y="108">light leaving Q, which is given by the</text>
+                    <text class="t-small" x="580" y="124">same equation at Q, and so on.</text>
+                    <text class="t-small" x="580" y="152">Every pixel depends on every surface,</text>
+                    <text class="t-small" x="580" y="168">through infinitely many directions</text>
+                    <text class="t-small" x="580" y="184">and bounces.</text>
+                    <text class="t-small t-muted" x="580" y="216">Each technique in Part 8 cuts it down:</text>
+                    <text class="t-small t-muted" x="580" y="232">fewer bounces, fewer directions,</text>
+                    <text class="t-small t-muted" x="580" y="248">a simpler scene, or the work done</text>
+                    <text class="t-small t-muted" x="580" y="264">ahead of time.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One point's light depends on everyone else's.</b> Direct lighting is the special case where the only incoming light that counts comes straight from the lights. Global illumination is the full sum, in which every incoming arrow is itself the outgoing light of some other point, Q here, given by the same equation.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The rendering equation as most texts write it</summary>
+                <div class="fold-body">
+                  <p class="formula">L<sub>o</sub>(x, ω<sub>o</sub>) = L<sub>e</sub>(x, ω<sub>o</sub>) + ∫<sub>Ω</sub> f<sub>r</sub>(x, ω<sub>i</sub>, ω<sub>o</sub>) · L<sub>i</sub>(x, ω<sub>i</sub>) · (n · ω<sub>i</sub>) dω<sub>i</sub></p>
+                  <p><code>L<sub>o</sub></code> is the radiance leaving point <code>x</code> in direction <code>ω<sub>o</sub></code>, towards the eye. <code>L<sub>e</sub></code> is what <code>x</code> emits. The integral adds up, over the half-sphere <code>Ω</code> of incoming directions <code>ω<sub>i</sub></code>, the incoming radiance <code>L<sub>i</sub></code> times the BRDF <code>f<sub>r</sub></code> times the cosine <code>n · ω<sub>i</sub></code>. The catch is that <code>L<sub>i</sub>(x, ω<sub>i</sub>)</code> is the <code>L<sub>o</sub></code> of whatever surface lies in direction <code>ω<sub>i</sub></code>, so the unknown appears on both sides. Kajiya's 1986 paper wrote it in a different but equivalent form, as transport between pairs of surface points; this direction form is the one most textbooks and engine documents use today. The ambient occlusion integral in 8.3 is this equation with the incoming light reduced to a yes-or-no test for open sky in each direction.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="diffuse-specular"><span class="step-num">7</span> Diffuse GI and specular GI</h3>
+              <p>Bounced light reaches the eye in two ways, matching the two halves of a material (7.2). <dfn class="term" data-term="diffuse-gi">Diffuse GI</dfn> is bounced light that a matte surface scatters evenly: it does not change as the camera moves, and it varies smoothly across a room, which is why it can be baked into textures or stored in a grid of probes (<a class="xref" data-ch="8.2">8.2</a>). <dfn class="term" data-term="specular-gi">Specular GI</dfn> is bounced light seen in reflections: a shiny floor showing the red wall. It changes with every move of the camera and has sharp detail, which is why it needs the reflection techniques of <a class="xref" data-ch="7.6">7.6</a>.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: a matte floor beside a red wall picks up a soft pink glow that looks the same from two eye positions. Right: a shiny floor beside the same wall shows a sharp reflection of the wall whose position on the floor changes between the two eye positions.">
+                    <text class="t-caps" x="20" y="22">DIFFUSE GI · THE SAME FROM ANYWHERE</text>
+                    <text class="t-caps" x="470" y="22">SPECULAR GI · MOVES WITH THE VIEWER</text>
+                    <rect class="f-sunken" x="30" y="40" width="390" height="160"/>
+                    <rect class="f-pix-soft s-pix" x="400" y="40" width="20" height="160"/>
+                    <rect class="f-solid" x="30" y="200" width="390" height="16"/>
+                    <rect class="f-pix" fill-opacity="0.22" x="250" y="200" width="150" height="16"/>
+                    <rect class="f-pix" fill-opacity="0.12" x="160" y="200" width="90" height="16"/>
+                    <circle class="f-ink" cx="70" cy="110" r="5"/>
+                    <circle class="f-ink" cx="170" cy="80" r="5"/>
+                    <path class="s-muted" d="M70,110 L320,206 M170,80 L320,206"/>
+                    <text class="t-small" x="40" y="236">A soft pink glow on the floor; both eyes see the same.</text>
+
+                    <rect class="f-sunken" x="480" y="40" width="390" height="160"/>
+                    <rect class="f-pix-soft s-pix" x="850" y="40" width="20" height="160"/>
+                    <rect class="f-solid" x="480" y="200" width="370" height="16"/>
+                    <rect class="f-acc-soft s-acc" x="560" y="200" width="290" height="5"/>
+                    <circle class="f-ink" cx="520" cy="110" r="5"/>
+                    <circle class="f-ink" cx="620" cy="80" r="5"/>
+                    <path class="s-acc w15" d="M520,110 L746,202 L850,160"/>
+                    <path class="s-acc w15 dash" d="M620,80 L784,202 L850,153"/>
+                    <rect class="f-pix" x="738" y="200" width="16" height="5"/>
+                    <rect class="f-pix" x="776" y="200" width="16" height="5"/>
+                    <text class="t-small" x="490" y="236">A sharp reflection of the wall, in a different place for each eye.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Diffuse GI is stored; specular GI is looked up per view.</b> Most of the light in a room is diffuse GI, which changes slowly across surfaces and not at all with the camera. Specular GI is what reflections are made of. Engines often use different systems for the two: Lumen, for example, solves both but with separate passes, and baked lighting stores only the diffuse part.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ambient"><span class="step-num">8</span> What a flat ambient term misses</h3>
+              <p>Before GI was affordable, games added an <a class="term" data-term="ambient-term" href="glossary.html#ambient-term">ambient term</a>: one constant amount of light everywhere, standing in for all bounces. A <a class="term" data-term="sky-light" href="glossary.html#sky-light">sky light</a> (7.1) improves on it by giving the light a direction, more from above than below, but neither knows anything about the room. The chart below takes the real bounced light along the bounce room's floor and compares it with the flat average.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 268" role="img" aria-label="A chart along the room's floor from the window wall to the red wall. The real bounced light reaching the floor is lowest in the narrow gap between the window wall and the crate, about 4 times weaker than in the middle of the room, and dips again beside the red wall, whose light is mostly red. A flat ambient term is a single straight line at the average, too bright behind the crate and slightly too dark in the middle, with no direction and no colour.">
+<text class="t-caps" x="70" y="24">BOUNCED LIGHT REFLECTED BY THE FLOOR · FROM THE WINDOW WALL TO THE RED WALL</text>
+<rect class="f-sunken" x="70" y="50" width="520" height="170"/>
+<rect class="f-solid" x="102.5" y="50" width="65" height="170"/>
+<text class="t-small t-muted mid" x="200" y="66">crate</text>
+<rect class="f-lit-soft" x="281.3" y="50" width="195" height="170"/>
+<text class="t-small t-lit t-strong" x="287.3" y="66">sunlit floor</text>
+<path class="s-acc w3 round" d="M70,175.6L86.3,175.6L86.3,180.4L102.5,180.4M167.5,97.7L183.8,97.7L183.8,85.1L200,85.1L200,78.4L216.3,78.4L216.3,77.8L232.5,77.8L232.5,77L248.8,77L248.8,75.6L265,75.6L265,73.3L281.3,73.3L281.3,70.8L297.5,70.8L297.5,68.8L313.8,68.8L313.8,67.2L330,67.2L330,66.2L346.3,66.2L346.3,65.6L362.5,65.6L362.5,65.5L378.8,65.5L378.8,65.8L395,65.8L395,66.7L411.3,66.7L411.3,68L427.5,68L427.5,69.7L443.8,69.7L443.8,72L460,72L460,74.6L476.3,74.6L476.3,77.8L492.5,77.8L492.5,81.3L508.8,81.3L508.8,85.3L525,85.3L525,89.8L541.3,89.8L541.3,95L557.5,95L557.5,101.3L573.8,101.3L573.8,110.9L590,110.9"/>
+<line class="s-pix w2 dash" x1="70" y1="85.1" x2="590" y2="85.1"/>
+<rect class="s-strong" x="70" y="50" width="520" height="170"/>
+<text class="t-small t-muted" x="70" y="236">window wall, 0 m</text>
+<text class="t-small t-muted end" x="590" y="236">red wall, 8 m</text>
+<line class="s-acc w3" x1="620" y1="64" x2="646" y2="64"/><text class="t-small t-strong" x="654" y="68">real bounced light</text>
+<text class="t-small" x="654" y="84">changes across the room,</text>
+<text class="t-small" x="654" y="99">darkest behind the crate</text>
+<line class="s-pix w2 dash" x1="620" y1="128" x2="646" y2="128"/><text class="t-small t-strong" x="654" y="132">flat ambient term</text>
+<text class="t-small" x="654" y="148">the same everywhere,</text>
+<text class="t-small" x="654" y="163">set to the average</text>
+<text class="t-small t-muted" x="620" y="196">It also has no direction and no</text>
+<text class="t-small t-muted" x="620" y="211">colour: the red wall's tint is lost.</text>
+<text class="t-small t-muted" x="70" y="254">Computed from the bounce room: each step is one 25 cm floor patch, all bounces, direct sunlight left out.</text>
+</svg>
+                </div>
+                <figcaption><b>The same average, in all the wrong places.</b> Real bounced light on the floor is about four times weaker in the gap between the window wall and the crate than in the middle of the room, and dips again beside the red wall, whose light is mostly red. A flat term set to the average over-lights the gap, so nothing there looks enclosed, and it carries no direction and no colour from the red wall. <a class="term" data-term="ambient-occlusion" data-forward href="glossary.html#ambient-occlusion">Ambient occlusion</a> (8.3) exists to put the darkening back where surfaces meet.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="map"><span class="step-num">9</span> A map of the rest of Part 8</h3>
+              <p>Every GI technique makes the rendering equation affordable by giving something up. Some do the work ahead of time and cannot react to change. Some use only what is on screen. Some trace a simplified copy of the scene, at the risk of light leaking through walls that the simplified copy gets wrong. The map places the ones the following chapters cover.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="A map of global illumination techniques. Horizontally: from computed ahead of time on the left to computed every frame on the right. Vertically: from screen space at the bottom, using only what is on screen, to the whole scene at the top. Lightmaps and light probes, chapter 8.2, are top left. Ambient occlusion, 8.3, and screen-space GI, 8.4, are bottom right. Probe, voxel and distance-field GI and Lumen, 8.5, are upper right. Ray tracing, 8.6, and path tracing, 8.7, are top right.">
+                    <defs>
+                      <marker id="map-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-sunken" x="90" y="30" width="780" height="250" rx="8"/>
+                    <line class="s-muted" x1="90" y1="300" x2="866" y2="300" marker-end="url(#map-arr)"/>
+                    <text class="t-small t-muted" x="90" y="320">computed ahead of time</text>
+                    <text class="t-small t-muted end" x="870" y="320">computed every frame</text>
+                    <line class="s-muted" x1="70" y1="280" x2="70" y2="36" marker-end="url(#map-arr)"/>
+                    <text class="t-small t-muted end" x="62" y="48">whole</text>
+                    <text class="t-small t-muted end" x="62" y="62">scene</text>
+                    <text class="t-small t-muted end" x="62" y="262">on screen</text>
+                    <text class="t-small t-muted end" x="62" y="276">only</text>
+                    <line class="s-line dash" x1="400" y1="40" x2="400" y2="270"/>
+
+                    <a class="xref" data-ch="8.2"><rect class="f-lit-soft s-lit w15" x="110" y="52" width="200" height="58" rx="8"/><text class="t-head" x="124" y="76">Lightmaps, probes</text><text class="t-small" x="124" y="96">baked · 8.2</text></a>
+                    <a class="xref" data-ch="8.5"><rect class="f-acc-soft s-acc w15" x="430" y="110" width="200" height="58" rx="8"/><text class="t-head" x="444" y="134">Probes, voxels, SDF</text><text class="t-small" x="444" y="154">DDGI, VXGI, SDFGI · 8.5</text></a>
+                    <a class="xref" data-ch="8.5"><rect class="f-acc-soft s-acc w15" x="430" y="186" width="200" height="58" rx="8"/><text class="t-head" x="444" y="210">Lumen</text><text class="t-small" x="444" y="230">screen + simplified scene · 8.5</text></a>
+                    <a class="xref" data-ch="8.6"><rect class="f-geo-soft s-geo w15" x="652" y="52" width="200" height="58" rx="8"/><text class="t-head" x="666" y="76">Ray tracing</text><text class="t-small" x="666" y="96">real triangles · 8.6</text></a>
+                    <a class="xref" data-ch="8.7"><rect class="f-geo-soft s-geo w15" x="652" y="120" width="200" height="58" rx="8"/><text class="t-head" x="666" y="144">Path tracing</text><text class="t-small" x="666" y="164">every bounce, denoised · 8.7</text></a>
+                    <a class="xref" data-ch="8.4"><rect class="f-pix-soft s-pix w15" x="652" y="200" width="200" height="58" rx="8"/><text class="t-head" x="666" y="224">Screen-space GI</text><text class="t-small" x="666" y="244">SSGI, SSIL · 8.4</text></a>
+                    <a class="xref" data-ch="8.3"><rect class="f-pix-soft s-pix w15" x="110" y="200" width="250" height="58" rx="8"/><text class="t-head" x="124" y="224">Ambient occlusion</text><text class="t-small" x="124" y="244">SSAO to GTAO; can be baked too · 8.3</text></a>
+                    <text class="t-small t-muted" x="110" y="160">Baked: high quality, no moving lights</text>
+                    <text class="t-small t-muted" x="110" y="176">or objects in the bounce.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Every box gives something up.</b> Left: done ahead of time, so cheap and good, but blind to change. Bottom: limited to what the camera sees. Upper right: every frame against the whole scene, through simplified copies of it, or the real triangles at the top end. Real games mix them, for example baked lighting for static rooms with screen-space GI for detail and probes for moving characters. Each box links to its chapter.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>The rendering equation asks, for every pixel, for the light from every direction, each of which depends on every other surface. Brute force is hopeless in real time: a modest 64 rays per pixel for one bounce at 1080p is 2,073,600 × 64 ≈ 133 million rays a frame, before shading anything they hit or tracing a second bounce. Every practical technique pays somewhere else instead.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Approach</th><th scope="col">When the work happens</th><th scope="col">Runtime cost</th><th scope="col">Reacts to moving lights and objects</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Flat ambient or sky light</th><td>None</td><td>Almost nothing</td><td>Yes, but it is not bounced light</td></tr>
+                  <tr><th scope="row">Baked lightmaps and probes (8.2)</th><td>In the editor: minutes to hours per bake</td><td>A texture read or two</td><td>No; moving objects only receive it</td></tr>
+                  <tr><th scope="row">Precomputed visibility, live light (Enlighten)</th><td>Visibility in the editor, light at run time</td><td>Updated over several frames</td><td>Lights yes, geometry no</td></tr>
+                  <tr><th scope="row">Screen-space GI (8.4)</th><td>Every frame</td><td>A march per pixel</td><td>Yes, for what is on screen</td></tr>
+                  <tr><th scope="row">Lumen and other dynamic GI (8.5)</th><td>Every frame, spread over several</td><td>Epic's Lumen target: 4 ms at 60 fps, 8 ms at 30 fps, reflections and fog included</td><td>Yes, with lag and leaking risks</td></tr>
+                  <tr><th scope="row">Ray-traced and path-traced GI (8.6, 8.7)</th><td>Every frame</td><td>Rays per pixel plus denoising</td><td>Yes</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Bounces themselves have a price. In a bake, Unreal's Lightmass documentation says the first bounce takes the most time and contributes the most to quality, followed by the second, and later bounces add little time but little visible effect unless materials are very bright. Unity's lightmapper uses 2 bounces by default and says values up to 10 suit most scenes, with higher values for interiors. The bounce room shows why: the first two bounces add 93% of the direct light between them; all the rest together add another 39%.</p>
+            <h3>What makes the bill grow</h3>
+            <ul class="grows">
+              <li><strong>Bounces</strong><span>Each one is another pass over the scene's light; later ones matter more in bright, closed interiors.</span></li>
+              <li><strong>Things that change</strong><span>Moving lights, opening doors and time of day force real-time GI or several bakes.</span></li>
+              <li><strong>Scene size</strong><span>Bakes and GI data grow with the area covered; real-time methods need representations of everything in range.</span></li>
+              <li><strong>Directions per point</strong><span>Rays or probe resolution per pixel decide noise and detail.</span></li>
+              <li><strong>Resolution</strong><span>Per-pixel methods scale with screen pixels, which is why many run at reduced internal resolution.</span></li>
+              <li><strong>Specular GI</strong><span>Sharp reflections of bounced light need far more data than soft diffuse light.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>Epic's Lumen budget of 4 ms at 60 fps is a quarter of a 16.6 ms frame for global illumination, reflections and fog together. Baked GI costs almost nothing per frame but moves the bill into build times, memory and the rule that lights and walls stay where they were baked. Most projects decide this per level, not per game.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>GI bugs are about light being in the wrong amount, in the wrong place or at the wrong time.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A room where every surface, in light or shadow, has the same grey shade, so the boxes in it look flat.">
+                    <rect class="f-solid" x="10" y="10" width="220" height="110"/>
+                    <rect class="f-solid s-strong" x="50" y="64" width="44" height="44"/>
+                    <rect class="f-solid s-strong" x="130" y="50" width="56" height="58"/>
+                    <line class="s-strong" x1="10" y1="108" x2="230" y2="108"/>
+                    <text class="t-small t-muted" x="20" y="28">all one grey</text>
+                  </svg>
+                </div>
+                <h4>Flat, lifeless interiors</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Indirect light comes only from a flat ambient term or the sky, so every surface away from the lights gets the same amount, with no direction or colour.</dd></div>
+                  <div><dt>Ask for</dt><dd>A GI method for interiors, baked or real time, plus ambient occlusion, and before-and-after shots of the darkest rooms.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A sunlit patch on a floor with everything outside it pure black.">
+                    <rect class="f-shade" x="10" y="10" width="220" height="110"/>
+                    <polygon class="f-lit-soft" points="120,120 230,120 230,92 170,92"/>
+                    <text class="t-small t-on-acc" x="20" y="28">pure black</text>
+                  </svg>
+                </div>
+                <h4>Shadows and interiors that are pitch black</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No indirect light at all: GI disabled for the level or platform, a bake with zero bounces, or a light's indirect contribution set to 0.</dd></div>
+                  <div><dt>Ask for</dt><dd>The GI method per platform, the bounce count and each light's indirect intensity, and the fallback when GI is turned off on low settings.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dark room next to a sunny exterior, with a bright glow on the inside of the wall at its base where light has leaked through.">
+                    <rect class="f-lit-soft" x="10" y="10" width="100" height="110"/>
+                    <rect class="f-shade" fill-opacity="0.7" x="118" y="10" width="112" height="110"/>
+                    <rect class="f-solid s-strong" x="110" y="10" width="8" height="110"/>
+                    <ellipse class="f-lit" fill-opacity="0.55" cx="132" cy="110" rx="18" ry="12"/>
+                    <text class="t-small t-lit t-strong" x="156" y="100">leak</text>
+                  </svg>
+                </div>
+                <h4>Light leaking through walls</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The GI system's simplified scene, probes or voxels, is coarser than the wall, so light from outside is counted inside. Epic advises walls no thinner than 10 cm for Lumen. Chapter 8.5 covers light leaking in detail.</dd></div>
+                  <div><dt>Ask for</dt><dd>Wall thickness checks, probe placement that keeps samples on the right side of walls, and the method's leak-reduction settings.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A room whose floor, ceiling and other walls are all strongly tinted by one red wall.">
+                    <rect class="f-pix" fill-opacity="0.35" x="10" y="10" width="220" height="110"/>
+                    <rect class="f-pix" x="210" y="10" width="20" height="110"/>
+                    <rect class="f-pix" fill-opacity="0.5" x="10" y="104" width="200" height="16"/>
+                    <text class="t-small" x="20" y="30">everything is pink</text>
+                  </svg>
+                </div>
+                <h4>A whole room tinted by one wall</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Colour bleeding made too strong: albedo brighter or more saturated than real materials, or bounce multipliers above 1 (Unity's Albedo Boost is physically accurate at 1, and Indirect Intensity defaults to 1).</dd></div>
+                  <div><dt>Ask for</dt><dd>An albedo check against the plausible range, multipliers back at 1, and a comparison bake with neutral walls.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Three frames of the same room after a door opens: the doorway is bright at once but the room around it brightens only gradually.">
+                    <rect class="f-shade" fill-opacity="0.75" x="10" y="20" width="66" height="90"/>
+                    <rect class="f-shade" fill-opacity="0.55" x="87" y="20" width="66" height="90"/>
+                    <rect class="f-shade" fill-opacity="0.3" x="164" y="20" width="66" height="90"/>
+                    <rect class="f-lit-soft" x="30" y="50" width="16" height="60"/>
+                    <rect class="f-lit-soft" x="107" y="50" width="16" height="60"/>
+                    <rect class="f-lit-soft" x="184" y="50" width="16" height="60"/>
+                    <text class="t-small t-muted" x="12" y="124">frame 1</text><text class="t-small t-muted" x="89" y="124">10</text><text class="t-small t-muted" x="166" y="124">30</text>
+                  </svg>
+                </div>
+                <h4>Bounced light lags behind changes</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Real-time GI spreads its updates over several frames, or accumulates over time; Unity's documentation says Enlighten takes several frames to propagate changes.</dd></div>
+                  <div><dt>Ask for</dt><dd>How many frames a full update takes, how fast changes such as doors and switched lights are handled, and a recording at the target frame rate.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To diagnose, separate direct from indirect light. The courtyard's Direct light view shows the frame with no sky light and no bounces; most engines have a similar lighting-only or GI-only view, and switching the GI method off for a moment shows exactly what it contributes.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>The engines' starting points differ more for GI than for almost anything else. Chapters 8.2 to 8.7 go into each method; here is where bounced light comes from and which settings scale it.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6 URP</th><th scope="col">Unity 6 HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Starting point</th>
+                    <td>Lumen global illumination and reflections, on in new projects.</td>
+                    <td>Baked global illumination (lightmaps, Adaptive Probe Volumes) when you bake.</td>
+                    <td>Baked global illumination, with screen-space and ray-traced options.</td>
+                    <td>Ambient light from the environment; GI nodes added per scene.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Real-time GI</th>
+                    <td>Lumen: infinite diffuse bounces; budget 4 ms at 60 fps, 8 ms at 30 fps on consoles, at 1080p.</td>
+                    <td>Enlighten Realtime Global Illumination (precomputed; support ends after Unity 6). No screen-space GI.</td>
+                    <td>Screen Space Global Illumination override (Ray Marching, Ray Tracing, Mixed); ray-traced GI; Enlighten.</td>
+                    <td>SDFGI (Forward+ only), VoxelGI, and screen-space indirect lighting, SSIL (Forward+ only).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Baked bounces</th>
+                    <td>World Settings, Lightmass: Num Indirect Lighting Bounces.</td>
+                    <td colspan="2">Lighting Settings: Max Bounces, default 2, range 0 to 100; up to 10 suits most scenes.</td>
+                    <td>LightmapGI: Bounces, default 3; 0 bakes only direct, environment and emissive light.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Per light</th>
+                    <td>Indirect Lighting Intensity scales a light's indirect contribution.</td>
+                    <td colspan="2">Indirect Multiplier: below 1, bounced light gets dimmer with every bounce; above 1, brighter.</td>
+                    <td>Indirect Energy (default 1.0) for VoxelGI and SDFGI; Bake Mode Disabled, Static or Dynamic.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Strength and quality</th>
+                    <td>Lumen quality settings such as Final Gather Quality and Lumen Scene Lighting Quality; each step up costs GPU time.</td>
+                    <td colspan="2">Indirect Intensity, default 1 (0 to 5); Albedo Boost, default 1, which the manual calls physically accurate.</td>
+                    <td>LightmapGI Bounce Indirect Energy 1.0 (physically accurate); SDFGI Bounce Feedback 0.5, higher risks feedback loops.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names and defaults checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) for URP, HDRP 17.6, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Multipliers are not fixes</p>
+              <p>Every engine lets you scale bounced light up. Turning those values above 1 brightens a dark room, but it breaks the energy balance materials were authored for and over-saturates colour bleeding. Check albedo and light intensities first, and use a GI method that suits the space.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>GI briefs need what changes in the game (lights, time of day, geometry), the platforms and budget, the kinds of spaces, and whether bake times matter to the team. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when choosing a GI approach</span></div>
+              <pre class="prompt-body">Engine: Godot 4.7, Forward+ on PC, Mobile renderer on Android.
+Game: a small open town with a 20-minute day-night cycle, enterable houses with doors that open, and players can carry lanterns.
+
+1. List what must react in real time (sun, lanterns, doors) and what can be precomputed.
+2. Recommend a GI approach per platform from LightmapGI, VoxelGI, SDFGI, SSIL and environment ambient light, with reasons.
+3. For interiors, explain how bounced light from the sun through windows is handled, and what happens when a door opens.
+4. Estimate GPU cost on our min-spec PC and phone, bake time if any, and list the artefacts we should test for (leaks, lag, flat interiors) with a test route.</pre>
+              <ul class="prompt-why">
+                <li>Listing what changes is the deciding factor between baked and real-time GI.</li>
+                <li>Per-platform answers stop a desktop-only method being chosen for phones.</li>
+                <li>Naming artefacts up front makes the AI plan the tests, not just the setup.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when interiors are too dark or glow at the edges</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Lumen GI and reflections, software ray tracing. Interiors of the warehouse level are very dark away from windows, and there are bright smudges along the base of walls that face the sunlit yard. Walls are single planes; the sun's Indirect Lighting Intensity is 1.
+
+Find the cause of each problem. For the smudges, check wall thickness against Lumen's guidance and how the walls appear in Lumen's scene representation. For the darkness, compare the direct and indirect contributions and say whether the room is simply too enclosed for the light coming in. Propose fixes in order of cost, and give before-and-after screenshots from three fixed camera positions.</pre>
+              <ul class="prompt-why">
+                <li>Single-plane walls are a classic cause of leaking in a simplified scene.</li>
+                <li>Separating direct and indirect light shows whether GI is missing or just weak.</li>
+                <li>Asking for fixes in order of cost avoids jumping to multipliers.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing GI work</h3>
+            <ol class="review-list">
+              <li>What in this level changes at run time, and which GI method handles each change?<span class="why">Baked light cannot react to moving lights, opening doors or time of day.</span></li>
+              <li>Have any GI multipliers been set above 1?<span class="why">They hide problems and break colour and energy balance.</span></li>
+              <li>How many bounces does the bake or method use, and where does it matter?<span class="why">Closed bright interiors need more than open exteriors.</span></li>
+              <li>Where could light leak, and how thick are the walls?<span class="why">Thin walls and coarse GI representations leak light.</span></li>
+              <li>How long does a change take to show in the indirect light?<span class="why">Multi-frame updates show as lag after sudden changes.</span></li>
+              <li>What does the game look like with GI off on the lowest settings?<span class="why">The fallback decides how low-end players see every interior.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Sunlight through a window lights only a patch of the floor, yet the ceiling above is clearly lit. Where does the ceiling's light come from, and how many bounces is that?</p>
+                <details><summary>Show answer</summary><p>From the sunlit floor: light hits the floor, which reflects part of it upwards. That is indirect light after one bounce. Light that then bounces off the ceiling onto the walls has bounced twice.</p></details>
+              </li>
+              <li>
+                <p class="q">In the bounce room the first bounce adds 64% of the direct light and the second 29%. About how much will the third add, and why does the total stop growing?</p>
+                <details><summary>Show answer</summary><p>Roughly half to two thirds of the second: the demo computes 18%. Each bounce loses what surfaces absorb and what escapes through the window, so every bounce is a fraction of the one before, and the sum of such a shrinking series is finite, about 2.3 times the direct light here.</p></details>
+              </li>
+              <li>
+                <p class="q">A white statue beside a red curtain has a pink tinge on one side after a bake. Is this a bug?</p>
+                <details><summary>Show answer</summary><p>Not by itself: it is colour bleeding, light reflected off the curtain carrying its colour. It becomes a bug when it is far stronger than in real life, usually from albedos that are too bright or saturated, or from bounce multipliers set above 1.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#direct-light">direct light</a></li>
+              <li><a class="chip" href="glossary.html#indirect-light">indirect light</a></li>
+              <li><a class="chip" href="glossary.html#global-illumination">global illumination</a></li>
+              <li><a class="chip" href="glossary.html#bounce">bounce</a></li>
+              <li><a class="chip" href="glossary.html#radiosity">radiosity</a></li>
+              <li><a class="chip" href="glossary.html#colour-bleeding">colour bleeding</a></li>
+              <li><a class="chip" href="glossary.html#radiance">radiance</a></li>
+              <li><a class="chip" href="glossary.html#irradiance">irradiance</a></li>
+              <li><a class="chip" href="glossary.html#rendering-equation">rendering equation</a></li>
+              <li><a class="chip" href="glossary.html#diffuse-gi">diffuse GI</a></li>
+              <li><a class="chip" href="glossary.html#specular-gi">specular GI</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="8.2"></a> shows the oldest and still most common way to get bounced light into a game: computing it ahead of time into lightmaps and light probes.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://history.siggraph.org/?p=116033">The rendering equation</a>, James T. Kajiya, SIGGRAPH 1986, ACM SIGGRAPH History Archives.</li>
+              <li><a href="https://history.siggraph.org/?p=107463">Modeling the interaction of light between diffuse surfaces</a>, Cindy M. Goral, Kenneth E. Torrance, Donald P. Greenberg and Bennett Battaile, SIGGRAPH 1984, ACM SIGGRAPH History Archives. Radiosity and colour bleeding.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-global-illumination-and-reflections-in-unreal-engine?application_version=5.8">Lumen Global Illumination and Reflections</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-technical-details-in-unreal-engine?application_version=5.8">Lumen Technical Details</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-performance-guide-for-unreal-engine?application_version=5.8">Lumen Performance Guide</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/point-lights-in-unreal-engine?application_version=5.8">Point Lights</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/LightmassWorldInfoSettings?application_version=5.8">LightmassWorldInfoSettings</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/lightmapping/baking-before-runtime/lightmaps-reference">Baked Lighting Settings reference</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/lighting-overview/direct-and-indirect-lighting/lightmapping/realtime-gi-using-enlighten/enlighten">Realtime Global Illumination using Enlighten</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/lighting/light-component">Light component</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>, Unity 6.6 manual; <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Override-Screen-Space-GI.html">Screen Space Global Illumination</a>, HDRP 17.6.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/classes/class_lightmapgi.html">LightmapGI</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_light3d.html">Light3D</a> and <a href="https://docs.godotengine.org/en/4.7/classes/class_environment.html">Environment</a>, Godot 4.7 documentation.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/bounce-room.js"></script>
+</body>
+</html>

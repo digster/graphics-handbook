@@ -124,6 +124,12 @@ svg.dg .f-pix-soft { fill: var(--pix-soft); }
 svg.dg .f-shade { fill: var(--shade); }
 svg.dg .f-buf-hi { fill: var(--buffer-hi); }
 svg.dg .f-buf-lo { fill: var(--buffer-lo); }
+svg.dg .f-paint-red { fill: var(--paint-red); }
+svg.dg .f-paint-green { fill: var(--paint-green); }
+svg.dg .f-paint-candle { fill: var(--paint-candle); }
+svg.dg .f-paint-tungsten { fill: var(--paint-tungsten); }
+svg.dg .f-paint-daylight { fill: var(--paint-daylight); }
+svg.dg .f-paint-sky { fill: var(--paint-sky); }
 svg.dg .f-none { fill: none; }
 
 /* ---------- Strokes ---------- */

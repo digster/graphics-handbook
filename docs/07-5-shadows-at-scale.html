@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>7.5 Shadows at scale · Graphics Handbook</title>
+  <meta name="description" content="How games shadow whole worlds: cascaded shadow maps and their splits, shadow distance, seams, shadow atlases, caching, virtual shadow maps, contact shadows, distance-field and capsule shadows, ray-traced shadows, what each costs and how they break.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="7.5">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 7 · Lighting and shadows</p>
+            <h1><span class="ch-num">7.5</span> Shadows at scale</h1>
+            <p class="lead">One shadow map can cover a room. Stretched over a valley, each of its texels grows wider than a hand, and the shadows right in front of the player turn to blocks. This chapter shows how engines spend shadow texels where the camera needs them, with cascades, atlases and virtual shadow maps, and how they fill the gaps at the smallest and largest scales.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="7.4">7.4 Shadow maps</a>, <a class="xref" data-ch="6.3">6.3 Texture memory</a>, <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.2">8.2 Baked lighting</a>, <a class="xref" data-ch="8.6">8.6 Ray tracing</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 35 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Cascade splits</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 430" role="img" aria-label="A camera's view along flat ground to the horizon, painted in four tints for four shadow cascades. Cascade 1 covers the ground from the camera to 16 m and fills most of the picture; cascades 2, 3 and 4, out to 36 m, 77 m and 200 m, are ever thinner strips near the horizon. Below, the four shadow maps drawn as equal squares: each is 2048 by 2048 texels, but they cover squares 31 m, 71 m, 155 m and 400 m across, so their texels are 1.5, 3.5, 7.6 and 19.5 cm wide.">
+<defs><clipPath id="pic-clip"><rect x="20" y="40" width="860" height="190"/></clipPath></defs>
+<text class="t-caps" x="20" y="24">THE CAMERA'S VIEW · GROUND TINTED BY THE CASCADE THAT SHADOWS IT</text>
+<g clip-path="url(#pic-clip)">
+<rect class="f-sunken" x="20" y="40" width="860" height="190"/>
+<rect class="f-solid" x="20" y="112.5" width="860" height="117.5"/>
+<rect class="f-acc" fill-opacity="0.42" x="20" y="162.2" width="860" height="67.8"/>
+<path class="s-acc" stroke-opacity="0.55" stroke-width="0.8" d="M20,225.3H880M20,211.4H880M20,200.5H880M20,191.8H880M20,184.6H880M20,178.7H880M20,173.6H880M20,169.3H880M20,165.5H880M20,162.2H880M-687.6,230L-31.5,162.2M-624.4,230L-4.7,162.2M-561.2,230L22,162.2M-498,230L48.8,162.2M-434.8,230L75.5,162.2M-371.6,230L102.3,162.2M-308.4,230L129,162.2M-245.2,230L155.8,162.2M-182,230L182.5,162.2M-118.8,230L209.3,162.2M-55.6,230L236,162.2M7.6,230L262.8,162.2M70.8,230L289.5,162.2M134,230L316.3,162.2M197.2,230L343,162.2M260.4,230L369.8,162.2M323.6,230L396.5,162.2M386.8,230L423.3,162.2M450,230L450,162.2M513.2,230L476.7,162.2M576.4,230L503.5,162.2M639.6,230L530.2,162.2M702.8,230L557,162.2M766,230L583.7,162.2M829.2,230L610.5,162.2M892.4,230L637.2,162.2M955.6,230L664,162.2M1018.8,230L690.7,162.2M1082,230L717.5,162.2M1145.2,230L744.2,162.2M1208.4,230L771,162.2M1271.6,230L797.7,162.2M1334.8,230L824.5,162.2M1398,230L851.2,162.2M1461.2,230L878,162.2M1524.4,230L904.7,162.2M1587.6,230L931.5,162.2"/>
+<rect class="f-acc" fill-opacity="0.3" x="20" y="134.1" width="860" height="28.1"/>
+<path class="s-acc" stroke-opacity="0.55" stroke-width="0.8" d="M20,161.8H880M20,155.7H880M20,150.9H880M20,147.1H880M20,143.9H880M20,141.3H880M20,139.1H880M20,137.2H880M20,135.6H880M20,134.1H880M-659.4,162.2L-33.1,134.1M-597.7,162.2L-6.3,134.1M-536.1,162.2L20.5,134.1M-474.5,162.2L47.4,134.1M-412.9,162.2L74.2,134.1M-351.2,162.2L101.1,134.1M-289.6,162.2L127.9,134.1M-228,162.2L154.7,134.1M-166.3,162.2L181.6,134.1M-104.7,162.2L208.4,134.1M-43.1,162.2L235.3,134.1M18.6,162.2L262.1,134.1M80.2,162.2L289,134.1M141.8,162.2L315.8,134.1M203.5,162.2L342.6,134.1M265.1,162.2L369.5,134.1M326.7,162.2L396.3,134.1M388.4,162.2L423.2,134.1M450,162.2L450,134.1M511.6,162.2L476.8,134.1M573.3,162.2L503.7,134.1M634.9,162.2L530.5,134.1M696.5,162.2L557.4,134.1M758.2,162.2L584.2,134.1M819.8,162.2L611,134.1M881.4,162.2L637.9,134.1M943.1,162.2L664.7,134.1M1004.7,162.2L691.6,134.1M1066.3,162.2L718.4,134.1M1128,162.2L745.3,134.1M1189.6,162.2L772.1,134.1M1251.2,162.2L798.9,134.1M1312.9,162.2L825.8,134.1M1374.5,162.2L852.6,134.1M1436.1,162.2L879.5,134.1M1497.7,162.2L906.3,134.1M1559.4,162.2L933.1,134.1"/>
+<rect class="f-acc" fill-opacity="0.2" x="20" y="122.5" width="860" height="11.7"/>
+<path class="s-acc" stroke-opacity="0.55" stroke-width="0.8" d="M20,132.5H880M20,130.2H880M20,128.5H880M20,127H880M20,125.8H880M20,124.8H880M20,123.9H880M20,123.1H880M20,122.5H880M-597.2,134.1L-33.8,122.5M-539,134.1L-6.9,122.5M-480.9,134.1L19.9,122.5M-422.7,134.1L46.8,122.5M-364.5,134.1L73.7,122.5M-306.3,134.1L100.6,122.5M-248.1,134.1L127.5,122.5M-190,134.1L154.3,122.5M-131.8,134.1L181.2,122.5M-73.6,134.1L208.1,122.5M-15.4,134.1L235,122.5M42.7,134.1L261.8,122.5M100.9,134.1L288.7,122.5M159.1,134.1L315.6,122.5M217.3,134.1L342.5,122.5M275.5,134.1L369.4,122.5M333.6,134.1L396.2,122.5M391.8,134.1L423.1,122.5M450,134.1L450,122.5M508.2,134.1L476.9,122.5M566.4,134.1L503.8,122.5M624.5,134.1L530.6,122.5M682.7,134.1L557.5,122.5M740.9,134.1L584.4,122.5M799.1,134.1L611.3,122.5M857.3,134.1L638.2,122.5M915.4,134.1L665,122.5M973.6,134.1L691.9,122.5M1031.8,134.1L718.8,122.5M1090,134.1L745.7,122.5M1148.1,134.1L772.5,122.5M1206.3,134.1L799.4,122.5M1264.5,134.1L826.3,122.5M1322.7,134.1L853.2,122.5M1380.9,134.1L880.1,122.5M1439,134.1L906.9,122.5M1497.2,134.1L933.8,122.5"/>
+<rect class="f-acc" fill-opacity="0.12" x="20" y="116.3" width="860" height="6.1"/>
+<path class="s-acc" stroke-opacity="0.55" stroke-width="0.8" d="M20,121.3H880M20,120.2H880M20,119.4H880M20,118.7H880M20,118.1H880M20,117.6H880M20,117.2H880M20,116.9H880M20,116.6H880M-799.4,122.5L-34.2,116.3M-730,122.5L-7.3,116.3M-660.6,122.5L19.6,116.3M-591.2,122.5L46.5,116.3M-521.7,122.5L73.4,116.3M-452.3,122.5L100.3,116.3M-382.9,122.5L127.2,116.3M-313.5,122.5L154.1,116.3M-244.1,122.5L181,116.3M-174.7,122.5L207.9,116.3M-105.3,122.5L234.8,116.3M-35.9,122.5L261.7,116.3M33.5,122.5L288.6,116.3M102.9,122.5L315.5,116.3M172.4,122.5L342.4,116.3M241.8,122.5L369.3,116.3M311.2,122.5L396.2,116.3M380.6,122.5L423.1,116.3M450,122.5L450,116.3M519.4,122.5L476.9,116.3M588.8,122.5L503.8,116.3M658.2,122.5L530.7,116.3M727.6,122.5L557.6,116.3M797.1,122.5L584.5,116.3M866.5,122.5L611.4,116.3M935.9,122.5L638.3,116.3M1005.3,122.5L665.2,116.3M1074.7,122.5L692.1,116.3M1144.1,122.5L719,116.3M1213.5,122.5L745.9,116.3M1282.9,122.5L772.8,116.3M1352.3,122.5L799.7,116.3M1421.7,122.5L826.6,116.3M1491.2,122.5L853.5,116.3M1560.6,122.5L880.4,116.3M1630,122.5L907.3,116.3M1699.4,122.5L934.2,116.3"/>
+<line class="s-acc w15" x1="20" y1="162.2" x2="880" y2="162.2"/>
+<line class="s-acc w15" x1="20" y1="134.1" x2="880" y2="134.1"/>
+<line class="s-acc w15" x1="20" y1="122.5" x2="880" y2="122.5"/>
+<line class="s-acc w15" x1="20" y1="116.3" x2="880" y2="116.3"/>
+<line class="s-strong" x1="20" y1="112.5" x2="880" y2="112.5"/>
+</g>
+<rect class="s-strong" x="20" y="40" width="860" height="190"/>
+<text class="t-small t-muted" x="28" y="104.5">sky</text>
+<rect class="f-surface s-strong" x="806" y="180.10451071181666" width="66" height="20" rx="4"/>
+<text class="t-small t-strong" x="812" y="194.10451071181666">1 · 16 m</text>
+<line class="s-ink" x1="762" y1="148.2" x2="804" y2="146"/>
+<rect class="f-surface s-strong" x="806" y="134" width="66" height="20" rx="4"/>
+<text class="t-small t-strong" x="812" y="148">2 · 36 m</text>
+<line class="s-ink" x1="762" y1="128.3" x2="804" y2="114"/>
+<rect class="f-surface s-strong" x="806" y="102" width="66" height="20" rx="4"/>
+<text class="t-small t-strong" x="812" y="116">3 · 77 m</text>
+<line class="s-ink" x1="762" y1="119.4" x2="804" y2="88"/>
+<rect class="f-surface s-strong" x="806" y="76" width="66" height="20" rx="4"/>
+<text class="t-small t-strong" x="812" y="90">4 · 200 m</text>
+<text class="t-small t-muted end" x="722" y="106.3">beyond 200 m: no shadows</text>
+<text class="t-small t-muted" x="28" y="222">Each grid cell is 64 × 64 shadow texels. Near the camera it is under a metre; past 77 m it is 12.5 m.</text>
+<text class="t-caps" x="20" y="268">THE FOUR SHADOW MAPS · SAME SIZE IN MEMORY, VERY DIFFERENT AREAS</text>
+<rect class="f-acc" fill-opacity="0.42" x="20" y="284" width="96" height="96"/>
+<path class="s-acc" stroke-opacity="0.45" stroke-width="0.8" d="M32,284V380M20,296H116M44,284V380M20,308H116M56,284V380M20,320H116M68,284V380M20,332H116M80,284V380M20,344H116M92,284V380M20,356H116M104,284V380M20,368H116"/>
+<rect class="s-acc w15" x="20" y="284" width="96" height="96"/>
+<text class="t-head" x="126" y="300">Cascade 1</text>
+<text class="t-small" x="126" y="318">1.0 m to 16 m</text>
+<text class="t-small" x="126" y="334">covers 31 m square</text>
+<text class="t-small t-acc t-strong" x="126" y="350">texel 1.5 cm</text>
+<rect class="f-acc" fill-opacity="0.3" x="240" y="284" width="96" height="96"/>
+<path class="s-acc" stroke-opacity="0.45" stroke-width="0.8" d="M252,284V380M240,296H336M264,284V380M240,308H336M276,284V380M240,320H336M288,284V380M240,332H336M300,284V380M240,344H336M312,284V380M240,356H336M324,284V380M240,368H336"/>
+<rect class="s-acc w15" x="240" y="284" width="96" height="96"/>
+<text class="t-head" x="346" y="300">Cascade 2</text>
+<text class="t-small" x="346" y="318">16 m to 36 m</text>
+<text class="t-small" x="346" y="334">covers 71 m square</text>
+<text class="t-small t-acc t-strong" x="346" y="350">texel 3.5 cm</text>
+<rect class="f-acc" fill-opacity="0.2" x="460" y="284" width="96" height="96"/>
+<path class="s-acc" stroke-opacity="0.45" stroke-width="0.8" d="M472,284V380M460,296H556M484,284V380M460,308H556M496,284V380M460,320H556M508,284V380M460,332H556M520,284V380M460,344H556M532,284V380M460,356H556M544,284V380M460,368H556"/>
+<rect class="s-acc w15" x="460" y="284" width="96" height="96"/>
+<text class="t-head" x="566" y="300">Cascade 3</text>
+<text class="t-small" x="566" y="318">36 m to 77 m</text>
+<text class="t-small" x="566" y="334">covers 155 m square</text>
+<text class="t-small t-acc t-strong" x="566" y="350">texel 7.6 cm</text>
+<rect class="f-acc" fill-opacity="0.12" x="680" y="284" width="96" height="96"/>
+<path class="s-acc" stroke-opacity="0.45" stroke-width="0.8" d="M692,284V380M680,296H776M704,284V380M680,308H776M716,284V380M680,320H776M728,284V380M680,332H776M740,284V380M680,344H776M752,284V380M680,356H776M764,284V380M680,368H776"/>
+<rect class="s-acc w15" x="680" y="284" width="96" height="96"/>
+<text class="t-head" x="786" y="300">Cascade 4</text>
+<text class="t-small" x="786" y="318">77 m to 200 m</text>
+<text class="t-small" x="786" y="334">covers 400 m square</text>
+<text class="t-small t-acc t-strong" x="786" y="350">texel 19.5 cm</text>
+<text class="t-small t-muted" x="20" y="406">Every map is 2048 × 2048 texels. Splits: practical scheme, blend 0.75, over a 200 m shadow distance; 90° field of view; maps fitted around each slice's enclosing circle.</text>
+</svg>
+              </div>
+              <figcaption><b>Four maps of the same size, spread over four very different areas.</b> The ground near the camera fills most of the screen, so it gets a map of its own with 1.5 cm texels. Each cascade further out covers a bigger square with the same 2048 × 2048 texels, so its texels are coarser, but it is further away and fills far fewer pixels. On screen the grid cells stay roughly the same size; in the world they grow from under a metre to 12.5 m. Computed for the settings named under the maps.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>The sun lights everything the player can see, from the boots on their feet to the mountains on the horizon. A <a class="term" data-term="shadow-map" href="glossary.html#shadow-map">shadow map</a> has a fixed number of <a class="term" data-term="texel" href="glossary.html#texel">texels</a>, so the more ground it covers, the coarser each texel gets. The camera has the opposite need: something 2 m away fills a big part of the screen and needs fine detail, while something 200 m away is a few pixels and needs very little.</p>
+            <p>Every technique in this chapter answers the same question: how do you put shadow texels where the screen needs them? Split the view into a few maps by distance. Pack many small maps into one big texture. Keep maps that did not change. Or cut a huge virtual map into pages and only fill the ones the camera can see. At the extremes, two cheaper tricks take over: a short trace through the depth buffer for the last few centimetres, and a trace through a simplified copy of the world for the far distance.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>Planning a road trip, you use a street map for your own neighbourhood, a regional map for the next hundred kilometres and a country map for the rest. Each map is the same size of paper, but each covers a much larger area than the one before.</p>
+                <p>Nobody prints the whole country at street-map detail. It would fill a warehouse, and you would only ever look at the page you are on.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>To give a 400 m wide view the 2 mm shadow texels the screen needs right in front of the camera, one map would need 200,000 × 200,000 texels: 80 GB at 16 bits each.</p>
+                <p>Four 2048 × 2048 cascades take 32 MB and put almost the same detail where the player is looking.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>The sun's shadow is often the most expensive single shadow in a frame, because it covers everything in view and redraws the scene once per cascade. Its settings, the cascade count, the shadow distance and the splits, sit in every quality preset and decide familiar complaints: blurry shadows at the player's feet, a visible line on the ground that moves with the camera, shadows that pop in a few metres ahead. Unreal Engine 5 projects use virtual shadow maps by default, which changes the budget again and works best with Nanite geometry. Knowing which approach your game uses tells you which numbers to ask for.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Start with why one map fails, then follow the fixes in roughly the order engines adopted them: cascades, atlases, caching and virtual shadow maps, and the specialist techniques that cover the very small, the very far and the moving.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="one-map"><span class="step-num">1</span> Why one map cannot cover a big view</h3>
+              <p>A <a class="term" data-term="directional-light" href="glossary.html#directional-light">directional light's</a> shadow map is an <a class="term" data-term="orthographic-projection" href="glossary.html#orthographic-projection">orthographic</a> picture: every texel covers the same patch of ground. The camera's picture is a perspective one: each screen pixel covers a patch that grows with distance. A pixel 2 m away is about 2 mm wide on a 1080p screen with a 90° field of view; a pixel 200 m away is about 21 cm wide.</p>
+              <p>So a single map is always wrong somewhere. Fit it to the whole view and near the camera dozens of pixels share one texel, which shows as blocky, stair-stepped edges. This mismatch is called <dfn class="term" data-term="perspective-aliasing">perspective aliasing</dfn>. Unity's manual describes it as shadow map pixels close to the camera that look enlarged and chunky compared to those farther away.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 312" role="img" aria-label="A camera's view wedge seen from above, with one shadow map laid over it as a grid of 12 by 6 texels, and 12 screen pixels drawn as thin rays fanning out from the camera. At the far edge one pixel is as wide as one texel. At one sixth of the distance, six pixels fit across a single texel.">
+<defs><marker id="one-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<rect class="f-sunken" x="204" y="40" width="492" height="246"/>
+<rect class="f-acc-soft" x="450" y="245" width="41" height="41"/>
+<rect class="f-acc-soft" x="491" y="40" width="41" height="41"/>
+<path class="s-acc" stroke-opacity="0.7" d="M204,40V286M245,40V286M286,40V286M327,40V286M368,40V286M409,40V286M450,40V286M491,40V286M532,40V286M573,40V286M614,40V286M655,40V286M696,40V286M204,40H696M204,81H696M204,122H696M204,163H696M204,204H696M204,245H696M204,286H696"/>
+<path class="s-pix" stroke-width="0.9" d="M450,286L204,40M450,286L245,40M450,286L286,40M450,286L327,40M450,286L368,40M450,286L409,40M450,286L450,40M450,286L491,40M450,286L532,40M450,286L573,40M450,286L614,40M450,286L655,40M450,286L696,40"/>
+<circle class="f-ink" cx="450" cy="286" r="4.5"/>
+<text class="t-small mid" x="450" y="304">camera</text>
+<text class="t-caps" x="20" y="24">ONE SHADOW MAP OVER THE WHOLE VIEW</text>
+<text class="t-small t-acc t-strong" x="20" y="58">blue grid: shadow texels,</text>
+<text class="t-small t-acc" x="20" y="74">all the same size</text>
+<text class="t-small t-pix t-strong" x="20" y="100">rose lines: screen pixels,</text>
+<text class="t-small t-pix" x="20" y="116">wider with every metre</text>
+<line class="s-ink" x1="511.5" y1="48" x2="742" y2="58" marker-end="url(#one-arr)"/>
+<text class="t-small t-strong" x="748" y="54">far edge:</text>
+<text class="t-small" x="748" y="70">1 pixel ≈ 1 texel</text>
+<line class="s-ink" x1="491" y1="265.5" x2="742" y2="265.5" marker-end="url(#one-arr)"/>
+<text class="t-small t-strong" x="748" y="261.5">near: 6 pixels</text>
+<text class="t-small" x="748" y="277.5">share one texel</text>
+<text class="t-small t-muted" x="20" y="276">12 pixels across, 12 × 6 texels.</text>
+<text class="t-small t-muted" x="20" y="292">Real numbers: 1,920 pixels, 2,048 texels.</text>
+</svg>
+                </div>
+                <figcaption><b>Texels are all the same size; pixels are not.</b> The map has the right detail only at the far edge, where one pixel is one texel wide. At one sixth of the distance, six pixels share each texel. With a real 2048 map over a 200 m view, a texel is 19.5 cm wide and covers about 94 screen pixels across at 2 m.</figcaption>
+              </figure>
+              <p>Raising the resolution helps slowly and costs fast: memory grows with the square of the size, so halving the texel size quadruples it. What the screen needs grows with distance, so the fix has to as well.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cascades"><span class="step-num">2</span> Cascades: one map per distance range</h3>
+              <p><dfn class="term" data-term="cascaded-shadow-maps">Cascaded shadow maps</dfn>, CSM, cut the camera's <a class="term" data-term="frustum" href="glossary.html#frustum">view frustum</a> into a few slices by distance and give each slice its own shadow map. Microsoft's article on the technique lists the steps every frame: partition the frustum, fit an orthographic projection around each slice, render a shadow map for each, then, while lighting each pixel, pick the map that matches its distance. The distance where one slice ends and the next begins is a <dfn class="term" data-term="cascade-split">cascade split</dfn>.</p>
+              <p>Because every cascade has the same number of texels but the near ones cover far less ground, detail ends up roughly where the screen needs it. The price is one <a class="term" data-term="shadow-pass" href="glossary.html#shadow-pass">shadow pass</a> per cascade: four cascades draw the shadow casters up to four times.</p>
+              <p>Try it below. The camera stands at the left of the overview, looking right along flat ground with the sun overhead. The chart shows each cascade's texel size against distance, beside the size of one screen pixel.</p>
+              <figure>
+                <div class="demo" data-demo="cascade-splits">
+                  <p class="demo-hint">The cascade splits demo needs JavaScript. Without it: with four 2048 × 2048 cascades over 200 m and splits at 16, 36 and 77 m, texels are 1.5, 3.5, 7.6 and 19.5 cm; one map over the same distance has 19.5 cm texels everywhere.</p>
+                </div>
+                <figcaption><b>Cascade splits.</b> Every number is computed: splits by the practical split scheme, each cascade's map fitted as a square around the circle that encloses its slice, and texel size as that square's width divided by the resolution. The rose line is one screen pixel at 1920 × 1080 with a 90° horizontal field of view. Where a cascade's step sits above it, a texel is bigger than a pixel.</figcaption>
+              </figure>
+              <ul>
+                <li>Pick One map. The step sits far above the rose line near the camera: that is perspective aliasing.</li>
+                <li>Pick Even splits, then Log splits, and watch the first cascade shrink from 51 m to under 4 m.</li>
+                <li>Halve the shadow distance and every texel halves with it.</li>
+                <li>Change the map size and note the memory in the readout: it grows four times for each doubling.</li>
+              </ul>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="splits"><span class="step-num">3</span> Where the splits go</h3>
+              <p>Zhang, Sun and Nyman compared three ways to place the splits in GPU Gems 3. Even splits divide the distance into equal lengths, which leaves the first cascade far too long. Logarithmic splits make each cascade reach the same multiple further than the last, which they describe as the optimal spread of perspective aliasing, but the first cascades get so short that few objects fit in them. Their practical split scheme blends the two with a weight, usually written λ, and they use 0.5 as the default.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Where four cascade splits fall over a 200 m shadow distance under four schemes. Even splits put boundaries at 51, 101 and 150 m. Logarithmic splits put them at 3.8, 14 and 53 m. A 0.5 blend gives 27, 57 and 102 m, and a 0.75 blend 16, 36 and 77 m. The texel size of each cascade is printed in its segment.">
+<text class="t-caps" x="20" y="22">FOUR CASCADES OVER 200 M · 2048 × 2048 EACH · TEXEL SIZE IN EACH SEGMENT</text>
+<text class="t-head" x="20" y="65">Even</text>
+<rect class="f-acc s-acc" fill-opacity="0.42" x="153.6" y="44" width="179.1" height="30"/>
+<text class="t-small mid" x="243.2" y="63">5.0 cm</text>
+<text class="t-mono t-small t-muted mid" x="332.7" y="87">51</text>
+<rect class="f-acc s-acc" fill-opacity="0.3" x="332.7" y="44" width="179.1" height="30"/>
+<text class="t-small mid" x="422.3" y="63">9.8 cm</text>
+<text class="t-mono t-small t-muted mid" x="511.8" y="87">101</text>
+<rect class="f-acc s-acc" fill-opacity="0.2" x="511.8" y="44" width="179.1" height="30"/>
+<text class="t-small mid" x="601.3" y="63">14.7 cm</text>
+<text class="t-mono t-small t-muted mid" x="690.9" y="87">150</text>
+<rect class="f-acc s-acc" fill-opacity="0.12" x="690.9" y="44" width="179.1" height="30"/>
+<text class="t-small mid" x="780.5" y="63">19.5 cm</text>
+<text class="t-head" x="20" y="115">Logarithmic</text>
+<rect class="f-acc s-acc" fill-opacity="0.42" x="153.6" y="94" width="9.9" height="30"/>
+<text class="t-mono t-small t-muted mid" x="163.5" y="137">3.8</text>
+<rect class="f-acc s-acc" fill-opacity="0.3" x="163.5" y="94" width="37.4" height="30"/>
+<text class="t-small mid" x="182.2" y="113">1.4</text>
+<text class="t-mono t-small t-muted mid" x="200.9" y="137">14</text>
+<rect class="f-acc s-acc" fill-opacity="0.2" x="200.9" y="94" width="140.5" height="30"/>
+<text class="t-small mid" x="271.2" y="113">5.2 cm</text>
+<text class="t-mono t-small t-muted mid" x="341.5" y="137">53</text>
+<rect class="f-acc s-acc" fill-opacity="0.12" x="341.5" y="94" width="528.5" height="30"/>
+<text class="t-small mid" x="605.7" y="113">19.5 cm</text>
+<text class="t-small t-muted" x="208.9" y="113"></text>
+<text class="t-head" x="20" y="165">Blend 0.5</text>
+<rect class="f-acc s-acc" fill-opacity="0.42" x="153.6" y="144" width="94.5" height="30"/>
+<text class="t-small mid" x="200.9" y="163">2.7 cm</text>
+<text class="t-mono t-small t-muted mid" x="248.1" y="187">27</text>
+<rect class="f-acc s-acc" fill-opacity="0.3" x="248.1" y="144" width="108.2" height="30"/>
+<text class="t-small mid" x="302.2" y="163">5.6 cm</text>
+<text class="t-mono t-small t-muted mid" x="356.4" y="187">57</text>
+<rect class="f-acc s-acc" fill-opacity="0.2" x="356.4" y="144" width="159.8" height="30"/>
+<text class="t-small mid" x="436.3" y="163">9.9 cm</text>
+<text class="t-mono t-small t-muted mid" x="516.2" y="187">102</text>
+<rect class="f-acc s-acc" fill-opacity="0.12" x="516.2" y="144" width="353.8" height="30"/>
+<text class="t-small mid" x="693.1" y="163">19.5 cm</text>
+<text class="t-head" x="20" y="215">Blend 0.75</text>
+<rect class="f-acc s-acc" fill-opacity="0.42" x="153.6" y="194" width="52.2" height="30"/>
+<text class="t-small mid" x="179.7" y="213">1.5</text>
+<text class="t-mono t-small t-muted mid" x="205.8" y="237">16</text>
+<rect class="f-acc s-acc" fill-opacity="0.3" x="205.8" y="194" width="72.8" height="30"/>
+<text class="t-small mid" x="242.2" y="213">3.5 cm</text>
+<text class="t-mono t-small t-muted mid" x="278.6" y="237">36</text>
+<rect class="f-acc s-acc" fill-opacity="0.2" x="278.6" y="194" width="150.2" height="30"/>
+<text class="t-small mid" x="353.7" y="213">7.6 cm</text>
+<text class="t-mono t-small t-muted mid" x="428.8" y="237">77</text>
+<rect class="f-acc s-acc" fill-opacity="0.12" x="428.8" y="194" width="441.2" height="30"/>
+<text class="t-small mid" x="649.4" y="213">19.5 cm</text>
+<text class="t-small t-muted" x="150" y="250">0 m</text>
+<text class="t-small t-muted end" x="870" y="250">200 m · split distances in metres under each row; logarithmic texels 0.37 and 1.4 cm in the first two</text>
+</svg>
+                </div>
+                <figcaption><b>The same four maps, spent four ways.</b> Even splits give a 51 m first cascade with 5 cm texels. Logarithmic splits give 0.37 cm texels, but only out to 3.8 m, which a third-person character standing a few metres ahead has already left. Blends land in between. Computed with the formula in the fold below, starting at 1 m.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The practical split scheme</summary>
+                <div class="fold-body">
+                  <p>For <code>m</code> cascades between a near distance <code>n</code> and the shadow distance <code>f</code>, split <code>i</code> (from 1 to m) is:</p>
+                  <p class="formula">log<sub>i</sub> = n × (f / n)<sup>i / m</sup>&nbsp;&nbsp;&nbsp; even<sub>i</sub> = n + (f − n) × i / m</p>
+                  <p class="formula">split<sub>i</sub> = λ × log<sub>i</sub> + (1 − λ) × even<sub>i</sub></p>
+                  <p>With a 90° field of view, the smallest circle around a slice is centred on its far edge with the far distance as its radius, so a stable map for the slice is a square 2 × split<sub>i</sub> across, and its texel size is 2 × split<sub>i</sub> ÷ resolution. A screen pixel at distance <code>z</code> is 2<code>z</code> ÷ 1920 wide.</p>
+                </div>
+              </details>
+              <p>Engines expose the same choice differently. Unreal's Distribution Exponent pulls cascades towards the camera as it grows. Unity sets Split 1 to 3 directly, in percent of the shadow distance or in metres. Godot's DirectionalLight3D uses fractions of its Max Distance, 0.1, 0.2 and 0.5 by default, so 10 m, 20 m and 50 m of the default 100 m.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="distance"><span class="step-num">4</span> Shadow distance: where shadows stop</h3>
+              <p>The <dfn class="term" data-term="shadow-distance">shadow distance</dfn> is how far from the camera real-time shadows reach. It is the far end of the last cascade, and it is the single most powerful setting here, because every split is a share of it. Halving it halves every texel. Unity's URP documentation uses the example of reducing Max Distance from 40 to 10 so a 1024 map looks better near the camera than a 2048 map did.</p>
+              <p>Past the shadow distance there are no dynamic shadows, so engines fade them out over a border rather than cutting them: URP's Last Border, HDRP's Border 4, Godot's Fade Start (80% of Max Distance by default) and Unreal's Distance Fadeout Fraction. What fills the distance beyond depends on the game: nothing, <a class="term" data-term="baked-lighting" data-forward href="glossary.html#baked-lighting">baked shadows</a>, a few extra far cascades for large objects only (Unreal's Far Shadow Cascade Count), or distance-field shadows (step 10).</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="seams"><span class="step-num">5</span> Seams between cascades</h3>
+              <p>Where one cascade hands over to the next, the texel size jumps. Shadow edges change from fine steps to coarse ones at a fixed distance from the camera, and filtering (<a class="term" data-term="pcf" href="glossary.html#pcf">PCF</a>, 7.4) softens each side by a different amount, so the boundary can show as a line that slides across the ground as the player walks.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="Two views of one straight shadow edge on the ground crossing from cascade 1 into cascade 2, where texels are more than twice as large. Left, with no blending, the edge's steps jump in size at the boundary and the boundary shows as a line. Right, a blend band past the boundary mixes both cascades' answers, so the change is spread over a strip.">
+<text class="t-caps" x="30" y="24">NO BLEND · THE BOUNDARY SHOWS</text>
+<text class="t-caps" x="470" y="24">BLEND BAND · BOTH CASCADES MIXED</text>
+<rect class="f-lit-soft" x="30" y="40" width="400" height="150"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="40" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="42" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="44" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="46" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="48" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="50" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="52" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="398" y="54" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="56" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="58" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="60" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="62" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="64" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="66" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="68" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="350" y="70" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="72" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="74" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="76" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="78" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="80" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="82" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="84" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="286" y="86" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="230" y="88" width="200" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="230" y="90" width="200" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="230" y="92" width="200" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="228" y="94" width="202" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="228" y="96" width="202" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="228" y="98" width="202" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="204" y="100" width="226" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="204" y="102" width="226" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="204" y="104" width="226" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="186" y="106" width="244" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="186" y="108" width="244" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="186" y="110" width="244" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="162" y="112" width="268" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="162" y="114" width="268" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="162" y="116" width="268" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="138" y="118" width="292" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="138" y="120" width="292" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="138" y="122" width="292" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="120" y="124" width="310" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="120" y="126" width="310" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="120" y="128" width="310" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="96" y="130" width="334" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="96" y="132" width="334" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="96" y="134" width="334" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="78" y="136" width="352" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="78" y="138" width="352" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="78" y="140" width="352" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="54" y="142" width="376" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="54" y="144" width="376" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="54" y="146" width="376" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="36" y="148" width="394" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="36" y="150" width="394" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="36" y="152" width="394" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="154" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="156" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="158" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="160" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="162" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="164" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="166" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="168" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="170" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="172" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="174" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="176" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="178" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="180" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="182" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="184" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="186" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="30" y="188" width="400" height="2.4"/>
+<line class="s-ink dash" x1="230" y1="40" x2="230" y2="190"/>
+<rect class="s-strong" x="30" y="40" width="400" height="150"/>
+<text class="t-small mid" x="130" y="206">cascade 1: 3-pixel texels</text>
+<text class="t-small mid" x="330" y="206">cascade 2: 8-pixel texels</text>
+<rect class="f-lit-soft" x="470" y="40" width="400" height="150"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="40" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="42" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="44" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="46" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="48" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="50" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="52" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="838" y="54" width="32" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="790" y="56" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="790" y="58" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="790" y="60" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="790" y="62" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="790" y="64" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="790" y="66" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="790" y="68" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.19" x="752" y="70" width="6" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="790" y="70" width="80" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="726" y="72" width="6" height="2.4"/><rect class="f-shade" fill-opacity="0.56" x="732" y="72" width="20" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="752" y="72" width="118" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="726" y="74" width="6" height="2.4"/><rect class="f-shade" fill-opacity="0.56" x="732" y="74" width="20" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="752" y="74" width="118" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="726" y="76" width="2" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="728" y="76" width="142" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="726" y="78" width="2" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="728" y="78" width="142" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="726" y="80" width="2" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="728" y="80" width="142" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="710" y="82" width="16" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="726" y="82" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="710" y="84" width="16" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="726" y="84" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.38" x="710" y="86" width="16" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="726" y="86" width="144" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.19" x="682" y="88" width="4" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="686" y="88" width="184" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.19" x="682" y="90" width="4" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="686" y="90" width="184" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.19" x="682" y="92" width="4" height="2.4"/><rect class="f-shade" fill-opacity="0.75" x="686" y="92" width="184" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="668" y="94" width="202" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="668" y="96" width="202" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="668" y="98" width="202" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="644" y="100" width="226" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="644" y="102" width="226" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="644" y="104" width="226" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="626" y="106" width="244" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="626" y="108" width="244" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="626" y="110" width="244" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="602" y="112" width="268" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="602" y="114" width="268" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="602" y="116" width="268" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="578" y="118" width="292" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="578" y="120" width="292" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="578" y="122" width="292" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="560" y="124" width="310" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="560" y="126" width="310" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="560" y="128" width="310" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="536" y="130" width="334" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="536" y="132" width="334" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="536" y="134" width="334" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="518" y="136" width="352" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="518" y="138" width="352" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="518" y="140" width="352" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="494" y="142" width="376" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="494" y="144" width="376" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="494" y="146" width="376" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="476" y="148" width="394" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="476" y="150" width="394" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="476" y="152" width="394" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="154" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="156" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="158" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="160" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="162" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="164" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="166" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="168" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="170" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="172" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="174" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="176" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="178" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="180" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="182" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="184" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="186" width="400" height="2.4"/>
+<rect class="f-shade" fill-opacity="0.75" x="470" y="188" width="400" height="2.4"/>
+<line class="s-ink dash" x1="670" y1="40" x2="670" y2="190"/>
+<rect class="s-acc w15" x="670" y="40" width="100" height="150"/>
+<rect class="s-strong" x="470" y="40" width="400" height="150"/>
+<text class="t-small mid" x="570" y="206">cascade 1: 3-pixel texels</text>
+<text class="t-small mid" x="770" y="206">cascade 2: 8-pixel texels</text>
+<text class="t-small t-acc" x="674" y="52">band</text>
+<text class="t-small t-muted" x="30" y="226">Computed: each screen pixel tests the texel of each cascade that contains it. In the band the two answers are averaged by position.</text>
+</svg>
+                </div>
+                <figcaption><b>A blend band hides the jump.</b> In the band, the shader runs the shadow test in both cascades and mixes the answers by position, as Microsoft's cascaded shadow maps sample does. It costs a second lookup for pixels inside the band only. Unreal calls the band's size Transition Fraction, HDRP Border 1 to 3, and Godot turns it on with Blend Splits.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="stable"><span class="step-num">6</span> Keeping cascades still</h3>
+              <p>A cascade's map is re-fitted to its slice every frame. If its size changes when the camera turns, every texel changes size and shadow edges crawl, the shimmering from 7.4's gallery. Two habits stop it. Fit the map around the circle (in 3D, the sphere) that encloses the slice, whose size does not depend on where the camera points. Then move the map only in whole-texel steps as the camera moves, so texel boundaries stay put in the world.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="One cascade's slice of the view, from 1 to 15.5 m, drawn at two camera headings, 0° and 35°. Left: the box fitted tightly around the slice is 14.5 × 31 m at 0° and 21.3 × 25.4 m at 35°, so its texels change size and shape as the camera turns. Right: a square around the slice's enclosing circle is 31 m across at both headings.">
+<text class="t-caps" x="20" y="24">TIGHT FIT · CHANGES AS THE CAMERA TURNS</text>
+<text class="t-caps" x="470" y="24">FIT AROUND A CIRCLE · ALWAYS THE SAME SIZE</text>
+<polygon class="f-acc s-acc" fill-opacity="0.18" points="95.2,172.8 170.6,97.4 170.6,258.6 95.2,183.2"/>
+<rect class="s-ink w15" x="95.2" y="97.4" width="75.4" height="161.2"/>
+<polygon class="s-acc dash"  points="91.3,170.8 109.8,65.7 202.3,197.8 97.2,179.3"/>
+<rect class="s-pix w15 dash" x="91.3" y="65.7" width="111" height="132"/>
+<circle class="f-ink" cx="90" cy="178" r="3.5"/>
+<polygon class="f-acc s-acc" fill-opacity="0.18" points="565.2,172.8 640.6,97.4 640.6,258.6 565.2,183.2"/>
+<circle class="s-muted" cx="640.6" cy="178" r="80.6"/>
+<rect class="s-ink w15" x="560" y="97.4" width="161.2" height="161.2"/>
+<polygon class="s-acc dash"  points="561.3,170.8 579.8,65.7 672.3,197.8 567.2,179.3"/>
+<circle class="s-muted dash" cx="626" cy="131.8" r="80.6"/>
+<rect class="s-pix w15 dash" x="545.4" y="51.2" width="161.2" height="161.2"/>
+<circle class="f-ink" cx="560" cy="178" r="3.5"/>
+<text class="t-small" x="20" y="322">Solid, heading 0°: 14.5 × 31 m. Dashed, heading 35°: 21.3 × 25.4 m.</text>
+<text class="t-small" x="470" y="322">31 m square at every heading, moved in whole texels.</text>
+</svg>
+                </div>
+                <figcaption><b>A stable fit wastes texels to stay the same size.</b> The tight box is 14.5 × 31 m at one heading and 21.3 × 25.4 m after the camera turns 35°, so its texels change size and shape with it. The square around the enclosing circle is 31 m at every heading. Much of it covers ground outside the slice, which is the price of stability. Microsoft's article describes the same trade: padding each cascade's projection removes the artifacts that appear when the camera moves.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="atlas"><span class="step-num">7</span> Shadow atlases for many lights</h3>
+              <p><a class="term" data-term="point-light" href="glossary.html#point-light">Point</a> and <a class="term" data-term="spot-light" href="glossary.html#spot-light">spot lights</a> cast shadows too, and a scene may have dozens. Giving each its own texture wastes memory and means switching textures while lighting. A <dfn class="term" data-term="shadow-atlas">shadow atlas</dfn> packs many lights' shadow maps into one large texture, like a <a class="term" data-term="texture-atlas" href="glossary.html#texture-atlas">texture atlas</a> packs many images, and the shader reads each light's region by its offset and scale.</p>
+<figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 380" role="img" aria-label="A 4096 by 4096 shadow atlas, drawn as a square split into four quadrants. Two quadrants hold 4 slots of 1024 texels, one holds 16 slots of 512 and one holds 64 slots of 256: 88 slots in all. Some slots are filled by lights. On the right, lights near the camera or large on screen get the big slots; distant lights get the small ones.">
+<text class="t-caps" x="40" y="24">ONE 4096 × 4096 ATLAS · GODOT'S DEFAULT LAYOUT</text>
+<rect class="f-sunken" x="40" y="44" width="300" height="300"/>
+<rect class="f-acc" fill-opacity="0.55" x="40" y="44" width="75" height="75"/>
+<rect class="f-acc" fill-opacity="0.55" x="115" y="44" width="75" height="75"/>
+<path class="s-acc" stroke-opacity="0.6" d="M115,44V194M40,119H190"/>
+<rect class="f-acc" fill-opacity="0.42" x="190" y="44" width="75" height="75"/>
+<path class="s-acc" stroke-opacity="0.6" d="M265,44V194M190,119H340"/>
+<rect class="f-acc" fill-opacity="0.3" x="40" y="194" width="37.5" height="37.5"/>
+<rect class="f-acc" fill-opacity="0.3" x="77.5" y="194" width="37.5" height="37.5"/>
+<rect class="f-acc" fill-opacity="0.3" x="115" y="194" width="37.5" height="37.5"/>
+<rect class="f-acc" fill-opacity="0.3" x="77.5" y="231.5" width="37.5" height="37.5"/>
+<path class="s-acc" stroke-opacity="0.6" d="M77.5,194V344M40,231.5H190M115,194V344M40,269H190M152.5,194V344M40,306.5H190"/>
+<rect class="f-acc" fill-opacity="0.2" x="190" y="194" width="18.8" height="18.8"/>
+<rect class="f-acc" fill-opacity="0.2" x="208.8" y="194" width="18.8" height="18.8"/>
+<rect class="f-acc" fill-opacity="0.2" x="227.5" y="194" width="18.8" height="18.8"/>
+<rect class="f-acc" fill-opacity="0.2" x="246.3" y="194" width="18.8" height="18.8"/>
+<rect class="f-acc" fill-opacity="0.2" x="190" y="212.8" width="18.8" height="18.8"/>
+<rect class="f-acc" fill-opacity="0.2" x="208.8" y="212.8" width="18.8" height="18.8"/>
+<rect class="f-acc" fill-opacity="0.2" x="227.5" y="212.8" width="18.8" height="18.8"/>
+<path class="s-acc" stroke-opacity="0.6" d="M208.8,194V344M190,212.8H340M227.5,194V344M190,231.5H340M246.3,194V344M190,250.3H340M265,194V344M190,269H340M283.8,194V344M190,287.8H340M302.5,194V344M190,306.5H340M321.3,194V344M190,325.3H340"/>
+<path class="s-acc w2" d="M190,44V344M40,194H340"/>
+<rect class="s-acc w2" x="40" y="44" width="300" height="300"/>
+<rect class="f-surface" x="69" y="174" width="92" height="16" rx="3"/><text class="t-small t-strong mid" x="115" y="186">4 slots · 1024</text>
+<rect class="f-surface" x="219" y="174" width="92" height="16" rx="3"/><text class="t-small t-strong mid" x="265" y="186">4 slots · 1024</text>
+<rect class="f-surface" x="69" y="324" width="92" height="16" rx="3"/><text class="t-small t-strong mid" x="115" y="336">16 slots · 512</text>
+<rect class="f-surface" x="219" y="324" width="92" height="16" rx="3"/><text class="t-small t-strong mid" x="265" y="336">64 slots · 256</text>
+<text class="t-caps" x="400" y="24">WHO GETS WHICH SLOT</text>
+<rect class="f-acc" fill-opacity="0.55" x="400" y="60" width="44" height="44"/>
+<rect class="s-acc" x="400" y="60" width="44" height="44"/>
+<text class="t-head" x="460" y="74">Lantern beside the player</text>
+<text class="t-small t-muted" x="460" y="90">large on screen · 1024 slot</text>
+<rect class="f-acc" fill-opacity="0.3" x="400" y="122" width="30" height="30"/>
+<rect class="s-acc" x="400" y="122" width="30" height="30"/>
+<text class="t-head" x="460" y="136">Street lamps 20 to 40 m away</text>
+<text class="t-small t-muted" x="460" y="152">medium · 512 slot</text>
+<rect class="f-acc" fill-opacity="0.2" x="400" y="184" width="20" height="20"/>
+<rect class="s-acc" x="400" y="184" width="20" height="20"/>
+<text class="t-head" x="460" y="198">Torches across the square</text>
+<text class="t-small t-muted" x="460" y="214">small on screen · 256 slot</text>
+<text class="t-small" x="400" y="262">When a light moves further away and needs a smaller slot,</text>
+<text class="t-small" x="400" y="278">its shadow is re-rendered into one. 4 + 4 + 16 + 64 = 88 shadowed</text>
+<text class="t-small" x="400" y="294">lights can be in view at once; beyond that, some lose their shadows.</text>
+<text class="t-small t-muted" x="400" y="326">HDRP keeps separate atlases for punctual lights, area lights</text>
+<text class="t-small t-muted" x="400" y="342">and cascades; URP packs its additional lights into one atlas.</text>
+</svg>
+                </div>
+                <figcaption><b>One texture, many lights, sized by need.</b> Godot's omni and spot lights share a 4096 × 4096 atlas split into quadrants of 4, 4, 16 and 64 slots, so up to 88 shadowed lights can be in view, and the documentation recommends keeping the size at 4096 or dropping to 2048 for low-end GPUs. Lights larger on screen get the bigger slots. Atlas size is a direct memory cost: 4096 × 4096 at 16 bits is 32 MB.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="caching"><span class="step-num">8</span> Caching: do not redraw what did not move</h3>
+              <p>Most shadow casters never move, and many lights never move either. <dfn class="term" data-term="shadow-caching">Shadow caching</dfn> keeps a shadow map from earlier frames and re-renders it only when something that affects it changes. Godot does this for every omni and spot light: each frame it checks whether the light needs a different atlas slot or whether any object affecting the map changed, and if neither happened, the map is left untouched. HDRP lets you choose per light: Every Frame, On Enable or On Demand. It can also cache only the static casters and render the dynamic ones on top every frame, at the cost of a copy from the cached map into the dynamic one and memory in both atlases.</p>
+              <p>Caching saves the whole shadow pass when it works. When it does not, the cost lands all at once: moving the light, or a caster that changes shape every frame, forces a full redraw.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="virtual"><span class="step-num">9</span> Virtual shadow maps: pages where pixels need them</h3>
+              <p><dfn class="term" data-term="virtual-shadow-maps">Virtual shadow maps</dfn> apply <a class="term" data-term="virtual-texturing" href="glossary.html#virtual-texturing">virtual texturing</a> (6.3) to shadows. In Unreal Engine 5, where they are the default for new projects, every shadow map has a virtual resolution of 16,384 × 16,384 texels, cut into pages of 128 × 128. After the depth pass, the engine works out which pages the on-screen pixels will actually sample, and only those pages are given memory and rendered, into a fixed pool of physical pages.</p>
+              <p>For the sun, Unreal uses a <dfn class="term" data-term="clipmap">clipmap</dfn>: a stack of levels centred on the camera, each its own 16K virtual map covering twice the radius of the one inside it. By default, levels 6 to 22 are used, from about 64 cm around the camera to about 40 km. Each pixel uses the level whose texel size suits its distance, so the cascades are effectively 17 deep with no splits to tune.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 360" role="img" aria-label="Left: clipmap levels of a virtual shadow map seen from above, nested squares around the camera, each covering twice the distance of the one inside it. The part of the camera's view wedge that falls in each ring uses that level. Right: one level's virtual map as a grid of pages. Only the pages under the visible ring of the wedge are allocated; most are cached from earlier frames, and the few around a moving character are rendered again this frame. Pages with nothing visible are never allocated.">
+<defs><marker id="vsm-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<text class="t-caps" x="20" y="24">CLIPMAP LEVELS AROUND THE CAMERA, FROM ABOVE</text>
+<rect class="f-sunken" x="40" y="46" width="300" height="300"/>
+<polygon class="f-acc" fill-opacity="0.13" points="190,196 334,52 334,340"/>
+<polygon class="f-acc" fill-opacity="0.22" points="190,196 262,124 262,268"/>
+<polygon class="f-acc" fill-opacity="0.32" points="190,196 226,160 226,232"/>
+<polygon class="f-acc" fill-opacity="0.45" points="190,196 208,178 208,214"/>
+<rect class="s-acc " x="172" y="178" width="36" height="36"/>
+<rect class="s-acc " x="154" y="160" width="72" height="72"/>
+<rect class="s-acc w2" x="118" y="124" width="144" height="144"/>
+<rect class="s-acc " x="46" y="52" width="288" height="288"/>
+<path class="s-ink" d="M190,196L340,46M190,196L340,346"/>
+<circle class="f-ink" cx="190" cy="196" r="4"/>
+<text class="t-small t-muted" x="46" y="338">each square: one level, a full 16K × 16K virtual map</text>
+<text class="t-small" x="46" y="64">each level reaches twice as far</text>
+<text class="t-small" x="46" y="79">with texels twice as wide</text>
+<text class="t-small t-acc t-strong" x="120" y="118">level n</text>
+<text class="t-caps" x="470" y="24">LEVEL n AS PAGES · ALLOCATED ONLY WHERE NEEDED</text>
+<path class="s-muted dash" d="M262,124L470,44M262,268L470,332"/>
+<rect class="f-surface" x="470" y="44" width="288" height="288"/>
+<rect class="f-acc-soft" x="704" y="80" width="18" height="18"/><rect class="f-acc-soft" x="722" y="80" width="18" height="18"/><rect class="f-acc-soft" x="686" y="98" width="18" height="18"/><rect class="f-acc-soft" x="704" y="98" width="18" height="18"/><rect class="f-acc-soft" x="722" y="98" width="18" height="18"/><rect class="f-acc-soft" x="668" y="116" width="18" height="18"/><rect class="f-acc-soft" x="686" y="116" width="18" height="18"/><rect class="f-acc-soft" x="704" y="116" width="18" height="18"/><rect class="f-acc-soft" x="722" y="116" width="18" height="18"/><rect class="f-acc-soft" x="740" y="116" width="18" height="18"/><rect class="f-acc-soft" x="650" y="134" width="18" height="18"/><rect class="f-acc-soft" x="668" y="134" width="18" height="18"/><rect class="f-acc-soft" x="686" y="134" width="18" height="18"/><rect class="f-acc-soft" x="704" y="134" width="18" height="18"/><rect class="f-acc-soft" x="722" y="134" width="18" height="18"/><rect class="f-acc-soft" x="740" y="134" width="18" height="18"/><rect class="f-acc-soft" x="668" y="152" width="18" height="18"/><rect class="f-acc-soft" x="686" y="152" width="18" height="18"/><rect class="f-acc-soft" x="704" y="152" width="18" height="18"/><rect class="f-acc-soft" x="722" y="152" width="18" height="18"/><rect class="f-acc-soft" x="740" y="152" width="18" height="18"/><rect class="f-acc-soft" x="668" y="170" width="18" height="18"/><rect class="f-acc-soft" x="686" y="170" width="18" height="18"/><rect class="f-acc-soft" x="704" y="170" width="18" height="18"/><rect class="f-acc-soft" x="722" y="170" width="18" height="18"/><rect class="f-acc-soft" x="740" y="170" width="18" height="18"/><rect class="f-acc-soft" x="668" y="188" width="18" height="18"/><rect class="f-acc" x="686" y="188" width="18" height="18"/><rect class="f-acc" x="704" y="188" width="18" height="18"/><rect class="f-acc" x="722" y="188" width="18" height="18"/><rect class="f-acc-soft" x="740" y="188" width="18" height="18"/><rect class="f-acc-soft" x="668" y="206" width="18" height="18"/><rect class="f-acc" x="686" y="206" width="18" height="18"/><rect class="f-acc" x="704" y="206" width="18" height="18"/><rect class="f-acc" x="722" y="206" width="18" height="18"/><rect class="f-acc-soft" x="740" y="206" width="18" height="18"/><rect class="f-acc-soft" x="650" y="224" width="18" height="18"/><rect class="f-acc-soft" x="668" y="224" width="18" height="18"/><rect class="f-acc-soft" x="686" y="224" width="18" height="18"/><rect class="f-acc" x="704" y="224" width="18" height="18"/><rect class="f-acc" x="722" y="224" width="18" height="18"/><rect class="f-acc-soft" x="740" y="224" width="18" height="18"/><rect class="f-acc-soft" x="668" y="242" width="18" height="18"/><rect class="f-acc-soft" x="686" y="242" width="18" height="18"/><rect class="f-acc-soft" x="704" y="242" width="18" height="18"/><rect class="f-acc-soft" x="722" y="242" width="18" height="18"/><rect class="f-acc-soft" x="740" y="242" width="18" height="18"/><rect class="f-acc-soft" x="686" y="260" width="18" height="18"/><rect class="f-acc-soft" x="704" y="260" width="18" height="18"/><rect class="f-acc-soft" x="722" y="260" width="18" height="18"/><rect class="f-acc-soft" x="704" y="278" width="18" height="18"/><rect class="f-acc-soft" x="722" y="278" width="18" height="18"/>
+<path class="s-line" d="M470,44V332M470,44H758M488,44V332M470,62H758M506,44V332M470,80H758M524,44V332M470,98H758M542,44V332M470,116H758M560,44V332M470,134H758M578,44V332M470,152H758M596,44V332M470,170H758M614,44V332M470,188H758M632,44V332M470,206H758M650,44V332M470,224H758M668,44V332M470,242H758M686,44V332M470,260H758M704,44V332M470,278H758M722,44V332M470,296H758M740,44V332M470,314H758M758,44V332M470,332H758"/>
+<path class="s-ink" d="M614,188L758,44M614,188L758,332"/>
+<circle class="f-ink" cx="614" cy="188" r="4"/>
+<circle class="f-surface s-ink w15" cx="720.6" cy="211" r="5"/>
+<rect class="s-strong" x="470" y="44" width="288" height="288"/>
+<rect class="f-acc-soft s-strong" x="772" y="50" width="14" height="14"/><text class="t-small" x="792" y="61">cached</text>
+<text class="t-small t-muted" x="792" y="75">kept from</text><text class="t-small t-muted" x="792" y="88">last frame</text>
+<rect class="f-acc s-strong" x="772" y="104" width="14" height="14"/><text class="t-small" x="792" y="115">redrawn</text>
+<text class="t-small t-muted" x="792" y="129">a caster</text><text class="t-small t-muted" x="792" y="142">moved here</text>
+<rect class="f-surface s-strong" x="772" y="158" width="14" height="14"/><text class="t-small" x="792" y="169">never</text>
+<text class="t-small t-muted" x="792" y="183">allocated</text>
+<text class="t-small" x="772" y="220">52 of 256</text><text class="t-small" x="772" y="234">cells in use,</text><text class="t-small" x="772" y="248">8 redrawn</text>
+<text class="t-small t-muted" x="470" y="350">Sketch: each cell is a block of pages. A real level is 128 × 128 pages.</text>
+</svg>
+                </div>
+                <figcaption><b>A huge map, mostly empty.</b> Pages are allocated only under visible pixels, and most of those are kept from the previous frame. Unreal stores static and dynamic casters in separate cached copies, so a character walking past redraws only the pages it overlaps. A whole 16K level held in memory would take 512 MB even at 16 bits per texel; the page pool holds only what this frame needs.</figcaption>
+              </figure>
+              <p>Three things decide what virtual shadow maps cost. The number of pages drawn each frame: moving the light invalidates every cached page, and anything that deforms in the shader, such as World Position Offset on foliage, skinned characters or Pixel Depth Offset, invalidates its pages every frame. The geometry drawn into those pages: Epic's documentation says the system is designed for <a class="term" data-term="nanite" href="glossary.html#nanite">Nanite</a> and that non-Nanite geometry is much more expensive to render into it. And the size of the physical page pool, set by <code>r.Shadow.Virtual.MaxPhysicalPages</code>, which can overflow. Soft edges come from Shadow Map Ray Tracing, a few rays per pixel through the map itself, 8 at the Epic scalability level, softened by the light's Source Angle or Source Radius.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="contact"><span class="step-num">10</span> Contact shadows: the last few centimetres</h3>
+              <p>Even a fine cascade has texels of a centimetre or more, and <a class="term" data-term="shadow-bias" href="glossary.html#shadow-bias">bias</a> pushes the shadow a little away from where objects touch the ground. <dfn class="term" data-term="contact-shadows">Contact shadows</dfn> fill that gap in <a class="term" data-term="screen-space" href="glossary.html#screen-space">screen space</a>. For each pixel, the shader steps a short way towards the light through the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a>, the same kind of <a class="term" data-term="ray-marching" data-forward href="glossary.html#ray-marching">ray marching</a> chapter 8.4 explores. If a step lands behind a stored surface, something on screen blocks the light, and the pixel is shadowed.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Left: a side view of a 4 cm book on the floor in sunlight at 30°. Its true shadow is 6.9 cm long. The shadow map, with 1.5 cm texels and bias, stores a stepped shadow that stops 2.7 cm short of the book, leaving a lit gap at the contact. Right: the same book, with pixel P in that gap. A ray from P towards the sun is marched in small steps. The first three steps are in front of what the depth buffer stores; the fourth lands behind the book's face, which the camera sees first, so P is in shadow.">
+                    <defs>
+                      <marker id="con-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">SHADOW MAP · THE CONTACT IS LOST</text>
+                    <text class="t-caps" x="470" y="24">CONTACT SHADOW · MARCH TOWARDS THE LIGHT</text>
+
+                    <rect class="f-solid" x="20" y="220" width="410" height="22"/>
+                    <line class="s-strong" x1="20" y1="220" x2="430" y2="220"/>
+                    <rect class="f-surface s-strong" x="250" y="172" width="120" height="48"/>
+                    <text class="t-small t-muted mid" x="310" y="200">book, 4 cm</text>
+                    <line class="s-lit w15" x1="420" y1="73" x2="252" y2="170" marker-end="url(#con-arr)"/>
+                    <line class="s-lit dash" x1="250" y1="172" x2="167" y2="220"/>
+                    <text class="t-small t-lit t-strong" x="352" y="80">sun, 30° up</text>
+                    <rect class="f-shade" fill-opacity="0.18" x="167" y="220" width="83" height="22"/>
+                    <rect class="f-shade" fill-opacity="0.6" x="164" y="220" width="54" height="10"/>
+                    <path class="s-ink" d="M164,232 V238 M182,232 V238 M200,232 V238 M218,232 V238"/>
+                    <path class="s-muted" d="M167,252 V258 H250 V252"/>
+                    <text class="t-small mid" x="208" y="272">true shadow, 6.9 cm</text>
+                    <path class="s-pix w15" d="M218,206 H250"/>
+                    <path class="s-pix" d="M218,201 V211 M250,201 V211"/>
+                    <text class="t-small t-pix t-strong mid" x="234" y="196">gap</text>
+                    <text class="t-small" x="20" y="60">Stored shadow: three 1.5 cm texels,</text>
+                    <text class="t-small" x="20" y="76">ending 2.7 cm before the book</text>
+                    <text class="t-small" x="20" y="92">because bias moved it away.</text>
+
+                    <rect class="f-solid" x="470" y="220" width="410" height="22"/>
+                    <line class="s-strong" x1="470" y1="220" x2="880" y2="220"/>
+                    <rect class="f-surface s-strong" x="700" y="172" width="120" height="48"/>
+                    <text class="t-small t-muted mid" x="760" y="200">book</text>
+                    <circle class="f-ink" cx="478" cy="120" r="4"/>
+                    <text class="t-small" x="488" y="112">camera</text>
+                    <line class="s-muted" x1="478" y1="120" x2="700" y2="199.7"/>
+                    <line class="s-muted dash" x1="700" y1="199.7" x2="703.3" y2="200.8"/>
+                    <line class="s-muted" x1="478" y1="120" x2="700" y2="207.5"/>
+                    <circle class="f-pix" cx="700" cy="199.7" r="3"/>
+                    <path class="s-acc w15" d="M670,220 L736,182"/>
+                    <circle class="f-acc" cx="678.3" cy="215.2" r="3"/>
+                    <circle class="f-acc" cx="686.6" cy="210.4" r="3"/>
+                    <circle class="f-acc" cx="694.9" cy="205.6" r="3"/>
+                    <circle class="f-surface s-pix w2" cx="703.3" cy="200.8" r="4.5"/>
+                    <circle class="f-ink" cx="670" cy="220" r="4"/>
+                    <text class="t-strong mid" x="664" y="258">P</text>
+                    <line class="s-lit w15" x1="860" y1="73" x2="790" y2="113" marker-end="url(#con-arr)"/>
+                    <text class="t-small t-lit t-strong" x="806" y="70">sun</text>
+                    <path class="s-muted" d="M736,174 L742,170 M670,212 L664,216"/>
+                    <text class="t-small t-acc" x="742" y="164">ray length: a setting</text>
+                    <text class="t-small" x="470" y="58">Steps 1 to 3 are in front of what</text>
+                    <text class="t-small" x="470" y="74">the camera sees. Step 4 is behind</text>
+                    <text class="t-small" x="470" y="90">the book's face, so P is shadowed.</text>
+                    <text class="t-small t-muted" x="470" y="282">The march only knows what is on screen, and assumes a thickness behind each surface.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A tiny trace in screen space restores the contact.</b> Unreal marches the depth buffer from each pixel towards the light over the light's Contact Shadow Length, where 1 means the whole screen. The number of samples stays constant, so longer rays are noisier. HDRP's Contact Shadows override marches up to 24 lights; its documentation gives a cost of roughly 0.5 to 1.3 ms on a base PlayStation 4 at 1080p. Sony's Bend Studio shipped the technique for sunlight in Days Gone.</figcaption>
+              </figure>
+              <p>Because contact shadows only see the depth buffer, they inherit every screen-space blind spot: nothing off screen casts, nothing hidden behind another surface casts, and a thin pole looks as solid as a wall. They are a finishing layer on top of shadow maps, short and cheap, never a replacement. Epic's documentation adds that with virtual shadow maps they are usually not needed for sharp contact detail.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="distance-field"><span class="step-num">11</span> Distance-field shadows: soft shadows far away</h3>
+              <p>Beyond the last cascade, a different representation of the world can take over. A <dfn class="term" data-term="signed-distance-field">signed distance field</dfn> stores, for points in a volume around a mesh, the distance to its nearest surface: positive outside, negative inside. A ray can then jump forward by that distance at every step without ever passing through anything, which makes tracing towards the sun cheap. <dfn class="term" data-term="distance-field-shadows">Distance-field shadows</dfn> trace that ray for every shaded pixel against the scene's mesh distance fields.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="A tree drawn as a circle on a trunk, and three points on the ground, each tracing a ray towards a low sun. Circles along the middle ray show each step: the distance field says how far the nearest surface is, so the ray can jump that far safely. The ray from A hits the canopy, so A is in shadow. The ray from B passes 10 units from the canopy after a long way, so B is partly lit, 36%. The ray from C passes far from everything, so C is fully lit.">
+<defs><marker id="dfs-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<text class="t-caps" x="20" y="24">TRACING A DISTANCE FIELD TOWARDS THE SUN</text>
+<rect class="f-solid" x="20" y="250" width="860" height="28"/>
+<line class="s-strong" x1="20" y1="250" x2="880" y2="250"/>
+<circle class="s-acc" stroke-opacity="0.35" cx="520" cy="120" r="75"/>
+<circle class="s-acc" stroke-opacity="0.35" cx="520" cy="120" r="90"/>
+<circle class="s-acc" stroke-opacity="0.35" cx="520" cy="120" r="105"/>
+<circle class="f-surface s-strong" cx="520" cy="120" r="60"/>
+<rect class="f-surface s-strong" x="510" y="160" width="20" height="90"/>
+<text class="t-small t-muted mid" x="520" y="124">tree</text>
+<line class="s-ink w15" x1="336.1" y1="250" x2="470.9" y2="154.5"/>
+<line class="s-ink w15" x1="101.6" y1="250" x2="476.5" y2="-13.7"/>
+<line class="s-ink w15" x1="214.1" y1="250" x2="578.4" y2="-6.2"/>
+<circle class="f-acc" cx="214.1" cy="248.9" r="2.2"/>
+<circle class="s-acc" cx="436.9" cy="92.9" r="27.4"/>
+<circle class="f-acc" cx="436.9" cy="92.9" r="2.2"/>
+<circle class="s-acc" cx="459.3" cy="77.2" r="14.3"/>
+<circle class="f-acc" cx="459.3" cy="77.2" r="2.2"/>
+<circle class="s-acc" cx="471" cy="69" r="10.7"/>
+<circle class="f-acc" cx="471" cy="69" r="2.2"/>
+<circle class="s-acc" cx="479.8" cy="62.8" r="9.9"/>
+<circle class="f-acc" cx="479.8" cy="62.8" r="2.2"/>
+<circle class="s-acc" cx="487.9" cy="57.2" r="10.6"/>
+<circle class="f-acc" cx="487.9" cy="57.2" r="2.2"/>
+<circle class="f-acc" cx="496.6" cy="51.1" r="2.2"/>
+<circle class="f-acc" cx="507" cy="43.8" r="2.2"/>
+<circle class="f-acc" cx="521.2" cy="33.8" r="2.2"/>
+<circle class="f-acc" cx="542.7" cy="18.8" r="2.2"/>
+<circle class="f-acc" cx="578.4" cy="-6.2" r="2.2"/>
+<circle class="f-pix" cx="479.8" cy="62.8" r="3.5"/>
+<text class="t-small t-pix t-strong end" x="471.8" y="54.8">closest pass</text>
+<circle class="f-ink" cx="470.9" cy="154.5" r="3.5"/>
+<circle class="f-ink" cx="336.1" cy="250" r="4"/>
+<text class="t-strong mid" x="336.1" y="268">A</text>
+<text class="t-small mid" x="336.1" y="282">shadow</text>
+<circle class="f-ink" cx="214.1" cy="250" r="4"/>
+<text class="t-strong mid" x="214.1" y="268">B</text>
+<text class="t-small mid" x="214.1" y="282">36% lit</text>
+<circle class="f-ink" cx="101.6" cy="250" r="4"/>
+<text class="t-strong mid" x="101.6" y="268">C</text>
+<text class="t-small mid" x="101.6" y="282">lit</text>
+<line class="s-lit w2" x1="790" y1="120" x2="839.1" y2="85.6" marker-end="url(#dfs-arr)"/>
+<text class="t-small t-lit t-strong" x="724" y="140">towards the sun</text>
+<text class="t-small" x="620" y="210">Rings: points the same distance</text>
+<text class="t-small" x="620" y="224">from the tree. Each step jumps</text>
+<text class="t-small" x="620" y="238">exactly that far, never through it.</text>
+</svg>
+                </div>
+                <figcaption><b>How close the ray came gives a soft edge for free.</b> The nearest distance met along the way, compared with how far the ray had travelled, works like a cone: Epic describes using the closest distance to an occluding object to approximate a cone trace for about the cost of the ray trace. Computed for this drawing with a softness factor of 12, a common way to write it. B's ray passes 10 units from the canopy after 326 units of travel.</figcaption>
+              </figure>
+              <p>In Unreal, Distance Field Shadows is on by default for new directional lights and covers the range from the end of the cascades out to the Distance Field Shadow Distance; Epic's example shows trees shadowing up to 1.2 km away. It needs Generate Mesh Distance Fields in the project settings. The fields are built offline, so only rigid meshes cast: no skeletal meshes, and World Position Offset is not reflected. The shadows are computed at half resolution, which can make their edges jagged.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="capsule-rt"><span class="step-num">12</span> Capsule shadows and ray-traced shadows</h3>
+              <p>Characters move and deform, so they cannot have a baked distance field. <dfn class="term" data-term="capsule-shadows">Capsule shadows</dfn>, an Unreal feature, stand a character in for a set of capsules attached to its bones, taken from a physics asset, and cast soft shadows from those. Their main use is in areas lit by baked or bounced light, where a shadow map has no single direction to work from: Capsule Indirect Shadow casts a soft, directional shadow there, from Lightmass's volume lighting samples. Capsule Direct Shadow, the version for direct light, is not rendered for lights that use virtual shadow maps.</p>
+              <p>At the top end, <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a> (<a class="xref" data-ch="8.6">8.6</a>) answers the shadow question directly: for each pixel, trace a ray to the light against the real triangles. There is no texel size, no cascade and no bias to tune, and an area light's soft shadow falls out of tracing several rays towards different points of it. The costs are dedicated hardware, an acceleration structure for the whole scene, and <a class="term" data-term="noise" data-forward href="glossary.html#noise">noise</a> that needs <a class="term" data-term="denoising" data-forward href="glossary.html#denoising">denoising</a> when only a few rays per pixel are affordable. In HDRP, ray-traced shadows replace the cascade shadow map for a directional light, with a Sample Count per light whose cost grows linearly.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Every approach pays in some mix of shadow-pass draws, memory and per-pixel work. The table compares them for the sun.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Approach</th><th scope="col">Renders per frame</th><th scope="col">Memory</th><th scope="col">Per-pixel work</th><th scope="col">Reach</th><th scope="col">Weak spot</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">One shadow map</th><td>Casters once</td><td>8 MB at 2048², 16-bit</td><td>One test, plus filter taps</td><td>A room, a courtyard</td><td>Blocky near the camera</td></tr>
+                  <tr><th scope="row">Cascades (4)</th><td>Casters in each cascade's box, up to 4 times</td><td>32 MB at 4 × 2048², 16-bit</td><td>Pick a cascade, one test; two in blend bands</td><td>The shadow distance, often 50 to 200 m</td><td>Seams, crawling, draws in the far cascade</td></tr>
+                  <tr><th scope="row">Cached maps</th><td>Only lights or casters that changed</td><td>Extra cached copies</td><td>Unchanged</td><td>As the maps they cache</td><td>Spikes when the light moves</td></tr>
+                  <tr><th scope="row">Virtual shadow maps</th><td>Only invalidated pages</td><td>A fixed physical page pool</td><td>Several rays through the map for soft edges</td><td>About 40 km in 17 levels</td><td>Deforming geometry, non-Nanite meshes, pool overflow</td></tr>
+                  <tr><th scope="row">Contact shadows</th><td>None</td><td>None extra</td><td>A short march through depth, per light</td><td>Centimetres to a few metres</td><td>Screen-space blind spots</td></tr>
+                  <tr><th scope="row">Distance-field shadows</th><td>None (fields built offline)</td><td>The mesh distance fields</td><td>A trace per pixel, at half resolution</td><td>Beyond the cascades, kilometres</td><td>Rigid meshes only</td></tr>
+                  <tr><th scope="row">Ray-traced shadows</th><td>None, but the acceleration structure is updated</td><td>The acceleration structure</td><td>Rays per pixel per light, plus denoising</td><td>Anything in the structure</td><td>Hardware, noise</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Two worked numbers. Memory: four 2048 × 2048 cascades at 16 bits are 4 × 8 MB = 32 MB; four 4096 cascades are 128 MB. Draws: the last cascade of a 200 m shadow distance covers a 400 m square, so every tree, rock and building inside it is drawn again into that map, even the ones behind the camera, because they can cast shadows into view.</p>
+            <h3>What makes the bill grow</h3>
+            <ul class="grows">
+              <li><strong>Shadow distance</strong><span>The far cascade's area grows with the square of it, and so do the casters it draws.</span></li>
+              <li><strong>Cascade count</strong><span>Each cascade is another shadow pass over its casters.</span></li>
+              <li><strong>Resolution</strong><span>Memory grows four times for each doubling of the map size.</span></li>
+              <li><strong>Moving things</strong><span>Caches and virtual pages only save work for casters that stay still and do not deform.</span></li>
+              <li><strong>Shadowed lights</strong><span>Every point and spot light with shadows needs atlas space and its own passes, six for a point light.</span></li>
+              <li><strong>Rays per pixel</strong><span>Soft virtual shadows, contact shadows and ray-traced shadows all scale with screen resolution and samples.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>The cheapest saving is usually the shadow distance. Players rarely notice a dynamic shadow ending at 80 m instead of 200 m if something else, baked shadows, distance-field shadows or fog, covers the far range, and the far cascade's draws shrink by more than six times.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Large-scale shadow bugs tend to show at fixed distances from the camera, which is the clue that separates them from the bias and acne problems of 7.4.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A shadow edge on the ground that changes from fine steps to coarse steps at a vertical line.">
+                    <rect class="f-lit-soft" x="10" y="10" width="220" height="110"/>
+                    <polygon class="f-shade" fill-opacity="0.5" points="10,120 10,96 22,96 22,92 34,92 34,88 46,88 46,84 58,84 58,80 70,80 70,76 82,76 82,72 94,72 94,68 106,68 106,64 120,64 120,56 148,56 148,44 176,44 176,32 204,32 204,20 230,20 230,120"/>
+                    <line class="s-pix w2" x1="120" y1="10" x2="120" y2="120"/>
+                    <text class="t-small t-pix t-strong" x="126" y="114">seam</text>
+                  </svg>
+                </div>
+                <h4>A line on the ground that follows the camera</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A cascade boundary with no blend band, or one too narrow, so shadow detail and softness jump at a fixed distance.</dd></div>
+                  <div><dt>Ask for</dt><dd>The blend or border setting per cascade, split distances moved away from where players look most, and a capture with cascades colour-coded.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Three near trees with shadows, a dashed line, and three far trees with no shadows beyond it.">
+                    <rect class="f-lit-soft" x="10" y="60" width="220" height="60"/>
+                    <ellipse class="f-shade" fill-opacity="0.45" cx="44" cy="110" rx="22" ry="6"/>
+                    <ellipse class="f-shade" fill-opacity="0.45" cx="92" cy="100" rx="16" ry="5"/>
+                    <circle class="f-surface s-strong" cx="36" cy="80" r="14"/><rect class="f-surface s-strong" x="34" y="94" width="4" height="16"/>
+                    <circle class="f-surface s-strong" cx="86" cy="76" r="10"/><rect class="f-surface s-strong" x="84" y="86" width="4" height="14"/>
+                    <line class="s-pix w15 dash" x1="120" y1="60" x2="120" y2="120"/>
+                    <circle class="f-surface s-strong" cx="150" cy="70" r="7"/><rect class="f-surface s-strong" x="149" y="77" width="3" height="9"/>
+                    <circle class="f-surface s-strong" cx="186" cy="68" r="6"/><rect class="f-surface s-strong" x="185" y="74" width="2" height="8"/>
+                    <circle class="f-surface s-strong" cx="214" cy="66" r="5"/><rect class="f-surface s-strong" x="213" y="71" width="2" height="7"/>
+                    <text class="t-small t-pix" x="126" y="114">no shadows</text>
+                  </svg>
+                </div>
+                <h4>Shadows pop in a few steps ahead</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The shadow distance ends where the player can clearly see, with a short or missing fade, and nothing covers the range beyond it.</dd></div>
+                  <div><dt>Ask for</dt><dd>The shadow distance and fade per quality level, and a plan for the far range: distance-field shadows, baked shadows, far cascades for large objects, or fog.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A character standing near the camera whose shadow is a few large blocks.">
+                    <rect class="f-lit-soft" x="10" y="80" width="220" height="40"/>
+                    <polygon class="f-shade" fill-opacity="0.5" points="96,112 96,100 120,100 120,92 156,92 156,100 180,100 180,112"/>
+                    <rect class="f-surface s-strong" x="80" y="20" width="22" height="88" rx="11"/>
+                    <circle class="f-surface s-strong" cx="91" cy="14" r="9"/>
+                  </svg>
+                </div>
+                <h4>Blocky shadows at the player's feet</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The first cascade is too long, from even splits or a long shadow distance, so its texels are many screen pixels wide.</dd></div>
+                  <div><dt>Ask for</dt><dd>Texels per metre where the character stands, a first split that ends just past the character, and a shorter shadow distance before a higher resolution.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A long shadow of a tall tower across the ground that stops at a straight edge.">
+                    <rect class="f-lit-soft" x="10" y="40" width="220" height="80"/>
+                    <polygon class="f-shade" fill-opacity="0.5" points="20,110 120,56 140,64 52,120 20,120"/>
+                    <line class="s-pix w2" x1="120" y1="56" x2="140" y2="64"/>
+                    <text class="t-small t-pix" x="146" y="60">cut off</text>
+                    <text class="t-small t-muted" x="20" y="30">tower behind the camera</text>
+                  </svg>
+                </div>
+                <h4>Shadows of tall objects cut off or missing</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Casters outside the cascade's box, towards the light or behind the camera, are culled from the shadow pass, so their shadows end at a straight line or vanish.</dd></div>
+                  <div><dt>Ask for</dt><dd>How casters outside each cascade are kept (Godot's Pancake Size fixes missing shadows from large objects; URP's Conservative Enclosing Sphere stops culling at cascade corners), and a test with tall objects just out of view.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A large shadow on the ground with several square holes in it where pages are missing.">
+                    <rect class="f-lit-soft" x="10" y="10" width="220" height="110"/>
+                    <rect class="f-shade" fill-opacity="0.5" x="30" y="30" width="180" height="76"/>
+                    <rect class="f-lit-soft" x="66" y="48" width="18" height="18"/>
+                    <rect class="f-lit-soft" x="138" y="30" width="18" height="18"/>
+                    <rect class="f-lit-soft" x="156" y="66" width="18" height="18"/>
+                    <path class="s-pix" d="M66,48 h18 v18 h-18 Z M138,30 h18 v18 h-18 Z M156,66 h18 v18 h-18 Z"/>
+                  </svg>
+                </div>
+                <h4>Square holes or flicker in virtual shadows</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The physical page pool overflowed, or too many pages are invalidated every frame by moving lights, foliage with World Position Offset or deforming meshes.</dd></div>
+                  <div><dt>Ask for</dt><dd>Virtual shadow map page statistics, the pool size, per-object Shadow Cache Invalidation Behavior for swaying foliage, and fewer shadow-casting local lights.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A glass pane standing on the floor, set not to cast shadows, with a dark contact streak under it anyway.">
+                    <rect class="f-lit-soft" x="10" y="90" width="220" height="30"/>
+                    <rect class="f-acc-soft s-acc" x="100" y="20" width="10" height="72"/>
+                    <polygon class="f-shade" fill-opacity="0.55" points="84,92 100,92 100,98 78,98"/>
+                    <text class="t-small t-muted" x="120" y="40">Cast Shadows: Off</text>
+                  </svg>
+                </div>
+                <h4>Contact shadows from things that should not cast</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Contact shadows read the depth buffer, so anything that writes depth casts them, even with shadow casting switched off. HDRP documents this.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which materials write depth, a material that does not for glass, effects and helpers, and a shorter contact length.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To diagnose, colour the cascades. URP's Rendering Debugger has a Shadow Cascades view, and a frame capture in RenderDoc or PIX shows one shadow pass per cascade with its draw count. For virtual shadow maps, Unreal's visualisation modes and page statistics show cached and invalidated pages; turn them off before profiling, as they add a small cost.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All four handle the sun with cascades or something that replaces them, but the defaults differ more than for any other shadow setting.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6 URP</th><th scope="col">Unity 6 HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Default for the sun</th>
+                    <td>Virtual Shadow Maps in new projects. Classic cascades when the project's Shadow Map Method is Shadow Maps.</td>
+                    <td>Cascaded shadow maps for the main light.</td>
+                    <td>Cascaded shadow maps; four cascades by default.</td>
+                    <td>DirectionalLight3D Mode: PSSM 4 Splits by default; also PSSM 2 Splits and Orthogonal.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Cascades and splits</th>
+                    <td>Num Dynamic Shadow Cascades and Distribution Exponent on the light (classic shadow maps only).</td>
+                    <td>URP Asset, Shadows: Cascade Count 1 to 4, Split 1 to 3, Working Unit percent or metric.</td>
+                    <td>Shadows Volume override: Cascade Count, Split 1 to 3, Working Unit Metric or Percent.</td>
+                    <td>Split 1, 2, 3 as fractions of Max Distance: 0.1, 0.2, 0.5.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Shadow distance and fade</th>
+                    <td>Dynamic Shadow Distance MovableLight or StationaryLight; Transition Fraction between cascades; Distance Fadeout Fraction at the end.</td>
+                    <td>Max Distance, always in metres; Last Border fades out before it. No blending between cascades.</td>
+                    <td>Max Distance; Border 1 to 3 blend between cascades, Border 4 fades the last.</td>
+                    <td>Max Distance 100 m; Fade Start 0.8; Blend Splits off by default.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Far range</th>
+                    <td>Far Shadow Cascade Count and Far Shadow Distance for objects marked Far Shadow; Distance Field Shadows, on by default for new directional lights.</td>
+                    <td>Baked shadows (8.2).</td>
+                    <td>Baked shadows (8.2).</td>
+                    <td>Baked lighting with LightmapGI (8.2).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Atlases and caching</th>
+                    <td>Virtual shadow maps cache pages, with separate static and dynamic copies; Shadow Cache Invalidation Behavior per primitive.</td>
+                    <td>Additional lights share a Shadow Atlas with resolution tiers.</td>
+                    <td>Atlases for punctual lights, area lights and cascades; cached atlases; Update Mode Every Frame, On Enable or On Demand; mixed cached shadows.</td>
+                    <td>Omni and spot shadows in a 4096 atlas of 4 + 4 + 16 + 64 slots, re-rendered only when something affecting them changes.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Contact shadows</th>
+                    <td>Contact Shadow Length per light, 0 (off) by default; optionally in world units.</td>
+                    <td>Not available.</td>
+                    <td>Contact Shadows Volume override plus a per-light switch; up to 24 lights.</td>
+                    <td>Not in 4.7. The 4.8 beta adds screen-space contact shadows for directional lights.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Characters and ray tracing</th>
+                    <td>Capsule Direct and Capsule Indirect Shadow on skinned meshes with a Shadow Physics Asset. Cast Ray Traced Shadows per light: Disabled, Use Project Setting, Enabled.</td>
+                    <td>No ray-traced shadows.</td>
+                    <td>Ray-Traced Shadows for directional, point, spot and rectangle lights, with Sample Count and Denoise.</td>
+                    <td>No ray-traced shadows.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names and defaults checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) for URP, HDRP 17.6, and Godot 4.7, with the Godot 4.8 dev 6 release notes for its contact shadows, in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Virtual shadow maps change the rules</p>
+              <p>In Unreal, per-light Shadow Bias and Shadow Slope Bias do not affect virtual shadow maps, cascade settings only apply with classic shadow maps, and Capsule Direct Shadow is not rendered with them. Epic's documentation calls virtual shadow maps a likely poor fit for projects that do not use Nanite. Check which method a project uses before tuning anything in this chapter.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Large-scale shadow briefs need the technique in use, the camera's typical distance to what matters, the shadow distance and cascade numbers, and the platform budget. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when setting up sun shadows for an open level</span></div>
+              <pre class="prompt-body">Engine: Unity 6.6, URP, Forward+. Third-person camera, character usually 4 m from the camera, view distance 600 m. Target: PS5 at 60 fps, 1.5 ms for the main light's shadows.
+Current settings: Max Distance 300 m, 4 cascades, splits 6.7% / 20% / 46.7%, Shadow Resolution 4096.
+
+1. For these settings, compute each cascade's range and texel size, and texels per metre at 4 m and at 300 m.
+2. Propose a shadow distance, cascade count, splits and resolution that keep texels under 1.5 cm at the character and fit the budget.
+3. Say what covers shadows beyond the shadow distance, and how the fade is set.
+4. Give a capture plan: a RenderDoc capture with the draw count per cascade, and the Rendering Debugger's Shadow Cascades view at three spots in the level.</pre>
+              <ul class="prompt-why">
+                <li>The character's distance tells the AI where detail matters most.</li>
+                <li>Asking for computed texel sizes keeps the answer in measurable numbers.</li>
+                <li>Naming the far-range plan stops a fix that just raises the shadow distance.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when shadow cost spikes with virtual shadow maps</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Virtual Shadow Maps, Lumen. In the forest level the shadow depth pass jumps from 1.8 ms to 5.5 ms when the wind is on, and some shadows show square holes when many trees are in view. Trees are Nanite with World Position Offset for wind; the sun moves slowly with a day-night cycle.
+
+Find the cause. Report virtual shadow map page statistics with wind on and off: pages drawn, cached static and dynamic pages, invalidated pages, and whether the physical page pool overflows. Explain what invalidates pages here, and compare fixes: Shadow Cache Invalidation Behavior on the trees, limiting WPO to near distances, how often the sun is allowed to move, and the pool size. Give the cost of each on our PS5 target.</pre>
+              <ul class="prompt-why">
+                <li>Wind on against off isolates World Position Offset as the suspect.</li>
+                <li>Page statistics turn a vague cost into countable causes.</li>
+                <li>A moving sun is named because it invalidates every cached page.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing large-scale shadow work</h3>
+            <ol class="review-list">
+              <li>Which technique does the sun use: cascades, virtual shadow maps or ray tracing?<span class="why">Every other setting depends on it, and some do nothing under the others.</span></li>
+              <li>What is the texel size where the player usually looks, and where does the first cascade end?<span class="why">Blurry shadows at the feet usually mean a long first cascade.</span></li>
+              <li>What happens past the shadow distance?<span class="why">Without fade or a far-range technique, shadows pop in visibly.</span></li>
+              <li>How many casters does each cascade draw, and do small objects need to cast in the far cascades?<span class="why">The far cascade covers the largest area and often draws the most.</span></li>
+              <li>Which lights and casters re-render every frame, and why?<span class="why">Caching and virtual pages only save work for things that stay still.</span></li>
+              <li>Are contact shadows on for every light, and what writes depth that should not cast?<span class="why">They cost per light per pixel and catch unintended casters.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A single 2048 × 2048 sun shadow map is fitted around a 90° view out to 200 m. How wide is a texel, and why does that look bad at the player's feet but fine on distant hills?</p>
+                <details><summary>Show answer</summary><p>The map must cover a 400 m square, so a texel is 400 m ÷ 2048 ≈ 19.5 cm. At 2 m a screen pixel is about 2 mm wide, so one texel spans dozens of pixels and edges turn to blocks. At 200 m a pixel is about 21 cm, close to one texel. That mismatch is perspective aliasing.</p></details>
+              </li>
+              <li>
+                <p class="q">Your four cascades use even splits over 200 m. What happens to shadows near the camera if you switch to logarithmic splits, and what new problem appears?</p>
+                <details><summary>Show answer</summary><p>The first cascade shrinks from about 51 m to under 4 m, so its texels drop from about 5 cm to under half a centimetre and near shadows sharpen. But the first cascade now ends before a third-person character a few metres away, so the character falls into a coarser cascade. A blend of the two schemes, the practical split scheme, is the usual compromise.</p></details>
+              </li>
+              <li>
+                <p class="q">A forest with swaying trees makes Unreal's virtual shadow maps expensive, though the same forest standing still is cheap. Why?</p>
+                <details><summary>Show answer</summary><p>Virtual shadow maps keep pages from earlier frames and redraw only invalidated ones. World Position Offset moves the trees' vertices in the shader, which invalidates their pages every frame, so most of the forest's pages are redrawn every frame instead of being reused.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#perspective-aliasing">perspective aliasing</a></li>
+              <li><a class="chip" href="glossary.html#cascaded-shadow-maps">cascaded shadow maps</a></li>
+              <li><a class="chip" href="glossary.html#cascade-split">cascade split</a></li>
+              <li><a class="chip" href="glossary.html#shadow-distance">shadow distance</a></li>
+              <li><a class="chip" href="glossary.html#shadow-atlas">shadow atlas</a></li>
+              <li><a class="chip" href="glossary.html#shadow-caching">shadow caching</a></li>
+              <li><a class="chip" href="glossary.html#virtual-shadow-maps">virtual shadow maps</a></li>
+              <li><a class="chip" href="glossary.html#clipmap">clipmap</a></li>
+              <li><a class="chip" href="glossary.html#contact-shadows">contact shadows</a></li>
+              <li><a class="chip" href="glossary.html#signed-distance-field">signed distance field</a></li>
+              <li><a class="chip" href="glossary.html#distance-field-shadows">distance-field shadows</a></li>
+              <li><a class="chip" href="glossary.html#capsule-shadows">capsule shadows</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="7.6"></a> turns from what blocks light to what surfaces reflect: environment maps, reflection probes, screen-space and planar reflections.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://developer.nvidia.com/gpugems/gpugems3/part-ii-light-and-shadows/chapter-10-parallel-split-shadow-maps-programmable-gpus">Parallel-Split Shadow Maps on Programmable GPUs</a>, Fan Zhang, Hanqiu Sun and Oskari Nyman, GPU Gems 3, chapter 10, NVIDIA. Logarithmic, uniform and practical split schemes.</li>
+              <li><a href="https://learn.microsoft.com/en-us/windows/win32/dxtecharts/cascaded-shadow-maps">Cascaded Shadow Maps</a>, Microsoft, DirectX technical article. Partitioning, fit to scene and fit to cascade, cascade selection, blending and filtering.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/virtual-shadow-maps-in-unreal-engine?application_version=5.8">Virtual Shadow Maps</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/directional-lights-in-unreal-engine?application_version=5.8">Directional Lights</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/contact-shadows-in-unreal-engine?application_version=5.8">Contact Shadows</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/distance-field-soft-shadows-in-unreal-engine?application_version=5.8">Distance Field Soft Shadows</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/mesh-distance-fields-in-unreal-engine?application_version=5.8">Mesh Distance Fields</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/capsule-shadows-overview-in-unreal-engine?application_version=5.8">Capsule Shadows</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/lighting-overview/shadows/shadow-realtime/shadow-cascades/implementation-details">Implementation details of shadow cascades</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/universal-render-pipeline/urp-reference/universalrp-asset">Universal Render Pipeline asset reference</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>, Unity 6.6 manual.</li>
+              <li><a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Shadows-in-HDRP.html">Shadows in HDRP</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-shadows-volume-override.html">Shadows volume override reference</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Override-Contact-Shadows.html">Contact Shadows</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Ray-Traced-Shadows.html">Ray-traced shadows</a>, HDRP 17.6.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/classes/class_directionallight3d.html">DirectionalLight3D</a> and <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/lights_and_shadows.html">3D lights and shadows</a>, Godot 4.7 documentation; <a href="https://godotengine.org/article/dev-snapshot-godot-4-8-dev-6/">Dev snapshot: Godot 4.8 dev 6</a>, Godot Engine.</li>
+              <li><a href="https://www.bendstudio.com/blog/inside-bend-screen-space-shadows/">Inside Bend: Screen Space Shadows</a>, Bend Studio. The screen-space sun shadows of Days Gone, with a SIGGRAPH 2023 talk and sample code.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/cascade-splits.js"></script>
+</body>
+</html>

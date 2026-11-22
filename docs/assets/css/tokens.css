@@ -102,6 +102,16 @@
   --buffer-hi: #F1F2F6;
   --buffer-lo: #15171F;
 
+  /* Real-world colours shown as content (a red wall, candlelight against
+     daylight). Same in both themes, like the buffer colours, and never
+     used for UI or for the semantic hues above. */
+  --paint-red: #B0362E;
+  --paint-green: #4F8A3C;
+  --paint-candle: #FF9329;
+  --paint-tungsten: #FFC58F;
+  --paint-daylight: #FFF6ED;
+  --paint-sky: #9DBEFF;
+
   --shadow-1: 0 1px 2px rgba(21, 24, 51, 0.06), 0 2px 8px rgba(21, 24, 51, 0.05);
   --shadow-2: 0 2px 6px rgba(21, 24, 51, 0.08), 0 12px 32px rgba(21, 24, 51, 0.12);
 

@@ -98,14 +98,14 @@
         { num: "7.2", slug: "shading-models", title: "Shading models", terms: "diffuse, specular, Lambert, Blinn-Phong, Cook-Torrance, N·L", core: false, status: "published" },
         { num: "7.3", slug: "render-paths", title: "Forward, deferred and clustered", terms: "forward, deferred, G-buffer, multiple render targets, tiled and clustered (Forward+), visibility buffer", core: true, status: "published" },
         { num: "7.4", slug: "shadow-maps", title: "Shadow maps", terms: "light-space depth, shadow bias, acne, peter-panning, PCF, PCSS", core: true, status: "published" },
-        { num: "7.5", slug: "shadows-at-scale", title: "Shadows at scale", terms: "cascades (CSM), shadow atlas, virtual shadow maps, contact shadows, distance-field shadows, ray-traced shadows", core: false, status: "planned" },
-        { num: "7.6", slug: "reflections-ibl", title: "Reflections and image-based lighting", terms: "environment map, reflection probe, box projection, irradiance, SSR, planar reflection", core: false, status: "planned" }
+        { num: "7.5", slug: "shadows-at-scale", title: "Shadows at scale", terms: "cascades (CSM), shadow atlas, virtual shadow maps, contact shadows, distance-field shadows, ray-traced shadows", core: false, status: "published" },
+        { num: "7.6", slug: "reflections-ibl", title: "Reflections and image-based lighting", terms: "environment map, reflection probe, box projection, irradiance, SSR, planar reflection", core: false, status: "published" }
       ]
     },
     {
       n: 8, title: "Global illumination and ambient occlusion", blurb: "Bounced light and contact darkening: the home of most graphics acronyms.",
       chapters: [
-        { num: "8.1", slug: "indirect-light", title: "Direct and indirect light", terms: "bounce, colour bleeding, the rendering equation in pictures, diffuse and specular GI", core: true, status: "planned" },
+        { num: "8.1", slug: "indirect-light", title: "Direct and indirect light", terms: "bounce, colour bleeding, the rendering equation in pictures, diffuse and specular GI", core: true, status: "published" },
         { num: "8.2", slug: "baked-lighting", title: "Baked lighting", terms: "lightmap, lightmap UVs, light probes, spherical harmonics, irradiance volume; static, stationary, movable", core: false, status: "planned" },
         { num: "8.3", slug: "ambient-occlusion", title: "Ambient occlusion: SSAO to GTAO", terms: "AO, SSAO, HBAO, GTAO, horizon angle, bent normal, multi-bounce, specular occlusion, RTAO", core: true, status: "published" },
         { num: "8.4", slug: "screen-space", title: "Screen-space tricks and their blind spots", terms: "ray marching, Hi-Z tracing, SSR, SSGI, thickness, off-screen misses, fallbacks", core: true, status: "planned" },

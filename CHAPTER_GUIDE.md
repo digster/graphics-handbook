@@ -89,6 +89,11 @@ typical chapter has 8 to 12 figures, including the symptom thumbnails.
   offsets). Check every number in a figure against the prose.
 - Pictures of GPU buffers (depth images, AO textures) use `f-buf-hi`,
   `f-buf-lo`, `stop-buf-lo`, which stay the same in both themes.
+- Real-world colours shown as content (a red wall, candlelight, daylight,
+  blue sky) use `f-paint-red`, `f-paint-green`, `f-paint-candle`,
+  `f-paint-tungsten`, `f-paint-daylight`, `f-paint-sky` (and the matching
+  `--paint-*` tokens in canvas demos). Never borrow the semantic hues for
+  them.
 - Soft shading and blur: SVG filters (`feGaussianBlur`, `feTurbulence`) are
   fine; see the ambient occlusion chapter for examples.
 

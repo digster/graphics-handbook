@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>7.6 Reflections and image-based lighting · Graphics Handbook</title>
+  <meta name="description" content="How games fake reflections: environment maps and image-based lighting, reflection probes, prefiltering and the split-sum approximation, box projection, screen-space and planar reflections, ray-traced reflections, fallbacks, costs and failures.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="7.6">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 7 · Lighting and shadows</p>
+            <h1><span class="ch-num">7.6</span> Reflections and image-based lighting</h1>
+            <p class="lead">A shiny surface shows what is around it. Working out exactly what it should show means tracing rays through the scene, so real-time renderers cheat: they photograph the surroundings in advance, reuse the picture already on screen, or draw the scene a second time. Each cheat sees some things and misses others, and the same photographs also light every surface softly.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="6.5">6.5 PBR materials</a>, <a class="xref" data-ch="6.2">6.2 Filtering and mipmaps</a>, <a class="xref" data-ch="6.1">6.1 Textures and UVs</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.1">8.1 Direct and indirect light</a>, <a class="xref" data-ch="8.4">8.4 Screen-space tricks</a>, <a class="xref" data-ch="8.6">8.6 Ray tracing</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Lantern Courtyard reflections view</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="Five side views of the same courtyard: a camera on the left, a puddle on the ground, a crate on the ground beyond it, and a lantern on the back wall above the top edge of the screen. Two reflected rays leave the puddle; the true answers are the lantern and the crate. A reflection probe looks up the same directions from its own position and shows neither. A box-projected probe gets the lantern, which sits on the box's wall, but not the crate inside the box. SSR finds the crate on screen but cannot see the lantern, which is off screen. Planar and ray-traced reflections get both, at the cost of a second render or ray tracing hardware.">
+<defs><marker id="lead-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<g>
+<rect class="f-sunken" x="4" y="34" width="172" height="164" rx="4"/>
+<text class="t-head" x="8" y="22">Reflection probe</text>
+<rect class="f-solid" x="4" y="152" width="172" height="12"/>
+<rect class="f-solid s-strong" x="162" y="66.5" width="9" height="85.5"/>
+<rect class="f-surface s-strong" x="124" y="136.8" width="15.2" height="15.2"/>
+<rect class="f-lit s-ink" x="156.2" y="83.6" width="8" height="7.6"/>
+<rect class="f-acc-soft s-acc" x="51.8" y="150" width="53.2" height="4"/>
+<line class="s-muted dash" x1="17.6" y1="121.6" x2="162" y2="96.9"/>
+<circle class="f-ink" cx="17.6" cy="121.6" r="3"/>
+<line class="s-muted" x1="17.6" y1="121.6" x2="63.8" y2="152"/>
+<line class="s-acc dot-dash" x1="63.8" y1="152" x2="162" y2="87.4"/>
+<line class="s-acc w15" x1="95.5" y1="123.5" x2="162" y2="79.8"/>
+<circle class="f-surface s-pix w2" cx="162" cy="79.8" r="3.5"/>
+<line class="s-muted" x1="17.6" y1="121.6" x2="102.7" y2="152"/>
+<line class="s-acc dot-dash" x1="102.7" y1="152" x2="124" y2="144.4"/>
+<line class="s-acc w15" x1="95.5" y1="123.5" x2="162" y2="99.8"/>
+<circle class="f-surface s-pix w2" cx="162" cy="99.8" r="3.5"/>
+<circle class="f-acc" cx="95.5" cy="123.5" r="4"/>
+<circle class="f-surface s-pix w2" cx="12" cy="216" r="4"/><text class="t-small" x="22" y="220">lantern: wrong</text>
+<circle class="f-surface s-pix w2" cx="12" cy="234" r="4"/><text class="t-small" x="22" y="238">crate: wrong</text>
+<text class="t-small t-muted" x="8" y="262">one cubemap from a fixed point</text>
+<text class="t-small t-muted" x="8" y="278">static unless re-captured</text>
+<text class="t-small t-strong" x="8" y="294">cost: one lookup</text>
+</g>
+<g>
+<rect class="f-sunken" x="183" y="34" width="172" height="164" rx="4"/>
+<text class="t-head" x="187" y="22">Box-projected probe</text>
+<rect class="f-solid" x="183" y="152" width="172" height="12"/>
+<rect class="f-solid s-strong" x="341" y="66.5" width="9" height="85.5"/>
+<rect class="f-surface s-strong" x="303" y="136.8" width="15.2" height="15.2"/>
+<rect class="f-lit s-ink" x="335.2" y="83.6" width="8" height="7.6"/>
+<rect class="f-acc-soft s-acc" x="230.8" y="150" width="53.2" height="4"/>
+<line class="s-muted dash" x1="196.6" y1="121.6" x2="341" y2="96.9"/>
+<circle class="f-ink" cx="196.6" cy="121.6" r="3"/>
+<line class="s-muted" x1="196.6" y1="121.6" x2="242.8" y2="152"/>
+<line class="s-acc dot-dash" x1="242.8" y1="152" x2="341" y2="87.4"/>
+<circle class="f-surface s-acc" cx="341" cy="87.4" r="2.5"/>
+<line class="s-acc w15" x1="274.5" y1="123.5" x2="341" y2="87.4"/>
+<circle class="f-geo" cx="341" cy="87.4" r="3.5"/>
+<line class="s-muted" x1="196.6" y1="121.6" x2="281.7" y2="152"/>
+<line class="s-acc dot-dash" x1="281.7" y1="152" x2="303" y2="144.4"/>
+<circle class="f-surface s-acc" cx="341" cy="130.8" r="2.5"/>
+<line class="s-acc w15" x1="274.5" y1="123.5" x2="341" y2="130.8"/>
+<circle class="f-surface s-pix w2" cx="341" cy="130.8" r="3.5"/>
+<circle class="f-acc" cx="274.5" cy="123.5" r="4"/>
+<circle class="f-geo" cx="191" cy="216" r="4"/><text class="t-small" x="201" y="220">lantern: right</text>
+<circle class="f-surface s-pix w2" cx="191" cy="234" r="4"/><text class="t-small" x="201" y="238">crate: wrong</text>
+<text class="t-small t-muted" x="187" y="262">the same cubemap, ray hits a box</text>
+<text class="t-small t-muted" x="187" y="278">static unless re-captured</text>
+<text class="t-small t-strong" x="187" y="294">cost: a box test + lookup</text>
+</g>
+<g>
+<rect class="f-sunken" x="362" y="34" width="172" height="164" rx="4"/>
+<text class="t-head" x="366" y="22">Screen-space (SSR)</text>
+<rect class="f-solid" x="362" y="152" width="172" height="12"/>
+<rect class="f-solid s-strong" x="520" y="66.5" width="9" height="85.5"/>
+<rect class="f-surface s-strong" x="482" y="136.8" width="15.2" height="15.2"/>
+<rect class="f-lit s-ink" x="514.2" y="83.6" width="8" height="7.6"/>
+<rect class="f-acc-soft s-acc" x="409.8" y="150" width="53.2" height="4"/>
+<line class="s-muted dash" x1="375.6" y1="121.6" x2="520" y2="96.9"/>
+<circle class="f-ink" cx="375.6" cy="121.6" r="3"/>
+<line class="s-muted" x1="375.6" y1="121.6" x2="421.8" y2="152"/>
+<line class="s-acc w15" x1="421.8" y1="152" x2="459.9" y2="126.9"/>
+<line class="s-acc dot-dash" x1="459.9" y1="126.9" x2="520" y2="87.4"/>
+<circle class="f-surface s-pix w2" cx="459.9" cy="126.9" r="3.5"/>
+<line class="s-muted" x1="375.6" y1="121.6" x2="460.7" y2="152"/>
+<line class="s-acc w15" x1="460.7" y1="152" x2="482" y2="144.4"/>
+<circle class="f-geo" cx="482" cy="144.4" r="3.5"/>
+<circle class="f-surface s-pix w2" cx="370" cy="216" r="4"/><text class="t-small" x="380" y="220">lantern: missed</text>
+<circle class="f-geo" cx="370" cy="234" r="4"/><text class="t-small" x="380" y="238">crate: right</text>
+<text class="t-small t-muted" x="366" y="262">marches the depth buffer</text>
+<text class="t-small t-muted" x="366" y="278">live, but on-screen only</text>
+<text class="t-small t-strong" x="366" y="294">cost: a march per pixel</text>
+</g>
+<g>
+<rect class="f-sunken" x="541" y="34" width="172" height="164" rx="4"/>
+<text class="t-head" x="545" y="22">Planar reflection</text>
+<rect class="f-solid" x="541" y="152" width="172" height="12"/>
+<rect class="f-solid s-strong" x="699" y="66.5" width="9" height="85.5"/>
+<rect class="f-surface s-strong" x="661" y="136.8" width="15.2" height="15.2"/>
+<rect class="f-lit s-ink" x="693.2" y="83.6" width="8" height="7.6"/>
+<rect class="f-acc-soft s-acc" x="588.8" y="150" width="53.2" height="4"/>
+<line class="s-muted dash" x1="554.6" y1="121.6" x2="699" y2="96.9"/>
+<circle class="f-ink" cx="554.6" cy="121.6" r="3"/>
+<line class="s-muted dash" x1="554.6" y1="182.4" x2="600.8" y2="152"/>
+<line class="s-muted dash" x1="554.6" y1="182.4" x2="639.7" y2="152"/>
+<circle class="f-surface s-ink w15" cx="554.6" cy="182.4" r="3.5"/>
+<text class="t-small t-muted" x="562.6" y="186.4">mirrored camera</text>
+<line class="s-muted" x1="554.6" y1="121.6" x2="600.8" y2="152"/>
+<line class="s-acc w15" x1="600.8" y1="152" x2="699" y2="87.4"/>
+<circle class="f-geo" cx="699" cy="87.4" r="3.5"/>
+<line class="s-muted" x1="554.6" y1="121.6" x2="639.7" y2="152"/>
+<line class="s-acc w15" x1="639.7" y1="152" x2="661" y2="144.4"/>
+<circle class="f-geo" cx="661" cy="144.4" r="3.5"/>
+<circle class="f-geo" cx="549" cy="216" r="4"/><text class="t-small" x="559" y="220">lantern: right</text>
+<circle class="f-geo" cx="549" cy="234" r="4"/><text class="t-small" x="559" y="238">crate: right</text>
+<text class="t-small t-muted" x="545" y="262">renders a mirrored camera</text>
+<text class="t-small t-muted" x="545" y="278">live, flat surfaces only</text>
+<text class="t-small t-strong" x="545" y="294">cost: a second scene render</text>
+</g>
+<g>
+<rect class="f-sunken" x="720" y="34" width="172" height="164" rx="4"/>
+<text class="t-head" x="724" y="22">Ray-traced</text>
+<rect class="f-solid" x="720" y="152" width="172" height="12"/>
+<rect class="f-solid s-strong" x="878" y="66.5" width="9" height="85.5"/>
+<rect class="f-surface s-strong" x="840" y="136.8" width="15.2" height="15.2"/>
+<rect class="f-lit s-ink" x="872.2" y="83.6" width="8" height="7.6"/>
+<rect class="f-acc-soft s-acc" x="767.8" y="150" width="53.2" height="4"/>
+<line class="s-muted dash" x1="733.6" y1="121.6" x2="878" y2="96.9"/>
+<circle class="f-ink" cx="733.6" cy="121.6" r="3"/>
+<line class="s-muted" x1="733.6" y1="121.6" x2="779.8" y2="152"/>
+<line class="s-acc w15" x1="779.8" y1="152" x2="878" y2="87.4"/>
+<circle class="f-geo" cx="878" cy="87.4" r="3.5"/>
+<line class="s-muted" x1="733.6" y1="121.6" x2="818.7" y2="152"/>
+<line class="s-acc w15" x1="818.7" y1="152" x2="840" y2="144.4"/>
+<circle class="f-geo" cx="840" cy="144.4" r="3.5"/>
+<circle class="f-geo" cx="728" cy="216" r="4"/><text class="t-small" x="738" y="220">lantern: right</text>
+<circle class="f-geo" cx="728" cy="234" r="4"/><text class="t-small" x="738" y="238">crate: right</text>
+<text class="t-small t-muted" x="724" y="262">rays against real geometry</text>
+<text class="t-small t-muted" x="724" y="278">live, sees everything</text>
+<text class="t-small t-strong" x="724" y="294">cost: RT hardware + denoise</text>
+</g>
+<text class="t-small t-muted" x="4" y="330">Dashed: the top edge of the screen. Blue dot: where the probe was captured. Dotted: the true reflected ray. Green: right; rose ring: wrong or missed.</text>
+</svg>
+              </div>
+              <figcaption><b>Five ways to fill a puddle, and what each one gets right.</b> The same two reflected rays leave the puddle in every panel; the true answers are the lantern on the back wall, above the top of the screen, and the crate on the ground. A probe answers from where it was captured. Box projection fixes things on the box's walls. Screen-space reflections only know what is on screen. Planar and ray-traced reflections get both, for a price. Every hit is computed from the drawn geometry.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Look at a puddle and you see the sky and the buildings in it. Each point of the puddle shows whatever you would hit if your line of sight bounced off the water there. For a renderer, that means following a new ray from every reflective pixel into the scene and finding what it hits: the expensive question <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a> answers directly.</p>
+            <p>Real-time engines mostly answer it with pictures. Some are taken ahead of time from fixed points in the level and looked up by direction. One is the frame the camera has just drawn, searched through its depth. One is a second rendering of the scene from a mirrored camera. Since <a class="term" data-term="pbr" href="glossary.html#pbr">physically based materials</a> (6.5) give every surface some <a class="term" data-term="specular" href="glossary.html#specular">specular</a> reflection, these pictures matter everywhere, not just on mirrors. Blurred, the same pictures also supply the soft light arriving from all around, which is what image-based lighting means.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A car advert needs the street reflected in the paintwork. The crew can film the real street around the car, which is exact and expensive. They can paste in a panoramic photo taken from the middle of the street, which looks right from roughly where it was taken. Or they can reuse footage the main camera already shot, which only contains what that camera happened to see.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Every reflective pixel needs the colour of whatever its reflected ray hits, in any direction, every frame. Tracing those rays against the whole scene costs dedicated hardware.</p>
+                <p>Captured pictures turn it into one or two texture lookups per pixel, and the screen-space search reuses work the frame has already done.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Reflections carry the look of wet streets, cars, glass, water and metal, and their faults are easy to spot: reflections that vanish at the edge of the screen, interiors that glow with reflected sky, reflections that slide as the camera moves. Probes need placing and rebuilding, which is level-design time; planar reflections can double the cost of a frame; ray-traced reflections need hardware many players lack. Choosing the mix per platform is as much a production decision as a rendering one.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Start with what a reflection needs, then the captured pictures and how they are prepared, then the screen-space and rendered alternatives, and finally how engines chain them together.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="what-reflects"><span class="step-num">1</span> What a reflection needs</h3>
+              <p>For a perfect mirror, the reflected direction is the view direction bounced about the surface's <a class="term" data-term="normal" href="glossary.html#normal">normal</a>, like a ball off a wall. Real materials have <a class="term" data-term="roughness" href="glossary.html#roughness">roughness</a>: their microscopic facets point slightly different ways, so a pixel gathers light from a cone of directions around the mirror direction, and the reflection blurs. The <a class="term" data-term="fresnel" href="glossary.html#fresnel">Fresnel effect</a> decides how strong the reflection is: water reflects about 2% looking straight down and almost everything at a grazing angle, which is why a puddle seen from far away is a mirror.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="Three surfaces with the same view ray arriving from the upper left. On a smooth surface the reflection gathers light from a narrow cone around the mirror direction; on a medium-rough surface the cone is wider; on a rough surface it is very wide, so the reflection is a blur of a large part of the surroundings.">
+                    <defs>
+                      <marker id="lob-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="lob-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">SAME VIEW RAY, THREE ROUGHNESSES</text>
+                    <g>
+                      <rect class="f-solid" x="30" y="170" width="250" height="14"/>
+                      <line class="s-strong" x1="30" y1="170" x2="280" y2="170"/>
+                      <line class="s-ink w15" x1="60" y1="70" x2="153" y2="167" marker-end="url(#lob-arr)"/>
+                      <line class="s-muted dash" x1="155" y1="170" x2="155" y2="80"/>
+                      <polygon class="f-acc" fill-opacity="0.3" points="155,170 247,62 263,79"/>
+                      <line class="s-acc w2" x1="155" y1="170" x2="253" y2="72" marker-end="url(#lob-arr-a)"/>
+                      <text class="t-head mid" x="155" y="208">Smooth</text>
+                      <text class="t-small t-muted mid" x="155" y="222">a narrow cone: a sharp image</text>
+                    </g>
+                    <g>
+                      <rect class="f-solid" x="325" y="170" width="250" height="14"/>
+                      <line class="s-strong" x1="325" y1="170" x2="575" y2="170"/>
+                      <line class="s-ink w15" x1="355" y1="70" x2="448" y2="167" marker-end="url(#lob-arr)"/>
+                      <line class="s-muted dash" x1="450" y1="170" x2="450" y2="80"/>
+                      <polygon class="f-acc" fill-opacity="0.3" points="450,170 516,48 568,108"/>
+                      <line class="s-acc w2" x1="450" y1="170" x2="548" y2="72" marker-end="url(#lob-arr-a)"/>
+                      <text class="t-head mid" x="450" y="208">Medium</text>
+                      <text class="t-small t-muted mid" x="450" y="222">a wider cone: a blurred image</text>
+                    </g>
+                    <g>
+                      <rect class="f-solid" x="620" y="170" width="250" height="14"/>
+                      <line class="s-strong" x1="620" y1="170" x2="870" y2="170"/>
+                      <line class="s-ink w15" x1="650" y1="70" x2="743" y2="167" marker-end="url(#lob-arr)"/>
+                      <line class="s-muted dash" x1="745" y1="170" x2="745" y2="80"/>
+                      <polygon class="f-acc" fill-opacity="0.3" points="745,170 744,42 870,150"/>
+                      <line class="s-acc w2" x1="745" y1="170" x2="843" y2="72" marker-end="url(#lob-arr-a)"/>
+                      <text class="t-head mid" x="745" y="208">Rough</text>
+                      <text class="t-small t-muted mid" x="745" y="222">a wide cone: a soft glow</text>
+                    </g>
+                    <text class="t-small" x="62" y="62">view ray</text>
+                    <text class="t-small t-acc" x="200" y="56">light it gathers</text>
+                    <text class="t-small t-muted" x="160" y="92">normal</text>
+                  </svg>
+                </div>
+                <figcaption><b>Roughness widens what a pixel reflects.</b> The black arrow is the view ray, the blue arrow the mirror direction, and the shaded cone the range of directions whose light reaches the eye. Every method in this chapter has to answer the same thing: how much light arrives from that cone. The cone widths are drawn for illustration.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="environment-maps"><span class="step-num">2</span> Environment maps: the surroundings as a picture</h3>
+              <p>An <dfn class="term" data-term="environment-map">environment map</dfn> is a picture of the light arriving at one point from every direction, stored so it can be read by direction. Almost always it is a <a class="term" data-term="cubemap" href="glossary.html#cubemap">cubemap</a> (6.1): six square images, each taken by a 90° camera pointing along one axis. To find the reflection, the shader takes the reflected direction and reads the cubemap there. It is one texture read, and it does not care where on the object the pixel is.</p>
+              <p>That is exactly right for things infinitely far away, such as the sky, whose direction does not change as you walk. It is wrong for nearby things, whose direction depends on where you stand: the further a pixel is from where the map was captured, the more its reflections of nearby walls and objects slide out of place.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Left: a room seen from above with a capture point in the middle and four 90-degree camera views around it; the up and down views are not visible from above. Right: the six faces of the cubemap unfolded in a cross, labelled plus and minus X, Y and Z, with a reflected direction pointing into the plus X face at one texel.">
+                    <defs>
+                      <marker id="cub-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">CAPTURE · SIX 90° VIEWS FROM ONE POINT</text>
+                    <rect class="f-sunken s-strong w2" x="40" y="44" width="300" height="220"/>
+                    <polygon class="f-acc" fill-opacity="0.16" points="190,154 300,44 340,44 340,264 300,264"/>
+                    <polygon class="f-geo" fill-opacity="0.14" points="190,154 80,44 40,44 40,264 80,264"/>
+                    <polygon class="f-lit" fill-opacity="0.14" points="190,154 80,44 300,44"/>
+                    <polygon class="f-pix" fill-opacity="0.12" points="190,154 80,264 300,264"/>
+                    <path class="s-muted dash" d="M190,154 L80,44 M190,154 L300,44 M190,154 L80,264 M190,154 L300,264"/>
+                    <circle class="f-acc" cx="190" cy="154" r="6"/>
+                    <text class="t-small t-strong" x="200" y="150">capture point</text>
+                    <text class="t-small mid" x="310" y="158">+X</text>
+                    <text class="t-small mid" x="68" y="158">−X</text>
+                    <text class="t-small mid" x="190" y="68">+Z</text>
+                    <text class="t-small mid" x="190" y="252">−Z</text>
+                    <text class="t-small t-muted" x="44" y="282">+Y looks up and −Y down, out of this view.</text>
+
+                    <text class="t-caps" x="430" y="24">THE SIX FACES, UNFOLDED</text>
+                    <rect class="f-surface s-strong" x="540" y="44" width="70" height="70"/>
+                    <rect class="f-geo-soft s-strong" x="470" y="114" width="70" height="70"/>
+                    <rect class="f-lit-soft s-strong" x="540" y="114" width="70" height="70"/>
+                    <rect class="f-acc-soft s-strong" x="610" y="114" width="70" height="70"/>
+                    <rect class="f-pix-soft s-strong" x="680" y="114" width="70" height="70"/>
+                    <rect class="f-surface s-strong" x="540" y="184" width="70" height="70"/>
+                    <text class="t-small mid" x="575" y="83">+Y up</text>
+                    <text class="t-small mid" x="505" y="153">−X</text>
+                    <text class="t-small mid" x="575" y="153">+Z</text>
+                    <text class="t-small mid" x="645" y="153">+X</text>
+                    <text class="t-small mid" x="715" y="153">−Z</text>
+                    <text class="t-small mid" x="575" y="223">−Y down</text>
+                    <rect class="f-acc" x="656" y="128" width="9" height="9"/>
+                    <line class="s-acc w15" x1="800" y1="70" x2="668" y2="128" marker-end="url(#cub-arr)"/>
+                    <text class="t-small t-acc t-strong" x="770" y="62">reflected direction</text>
+                    <text class="t-small" x="430" y="276">Read by direction, not by position: one texture fetch.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One point, every direction.</b> Each face is an ordinary square render from the capture point. Reading the cubemap needs only a direction, which is why the same map works for every pixel, and also why it is only exact for things far enough away that their direction does not change across the object. Face colours here only tell the faces apart.</figcaption>
+              </figure>
+              <p>The same picture can do more than reflect. <dfn class="term" data-term="image-based-lighting">Image-based lighting</dfn>, IBL, uses it as a light source: every texel is light arriving from its direction, so a sky or an HDR photograph of a real place lights objects with all its colours and brightness at once. A material's specular part reads the environment along its reflection cone; its <a class="term" data-term="diffuse" href="glossary.html#diffuse">diffuse</a> part needs the light from a whole half-sphere. Making both cheap is step 4.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="probes"><span class="step-num">3</span> Reflection probes: captures placed in the level</h3>
+              <p>A <dfn class="term" data-term="reflection-probe">reflection probe</dfn>, which Unreal calls a reflection capture, is an environment map captured at a chosen point inside the level and applied to the surfaces within its area of influence. Artists place them in rooms, corridors and courtyards, so each area reflects its own surroundings instead of the sky.</p>
+              <ul>
+                <li><strong>Baked or real-time.</strong> Most probes are captured in the editor and never change. Real-time probes re-render all six faces while the game runs: Unity can spread that over 9 or 14 frames, and Godot's default Once mode captures when the probe moves and builds its blurred levels over the following six frames. Godot recommends at most one probe that updates every frame per scene.</li>
+                <li><strong>Overlap and blending.</strong> Where probes overlap, engines blend them by influence and priority. In Unreal, smaller captures override larger ones; Unity uses an Importance value; Godot blends up to four at one spot.</li>
+                <li><strong>Resolution.</strong> Unreal captures every probe at one shared resolution, 128 by default, set in the project settings, with at most 341 captures enabled at once.</li>
+              </ul>
+              <p>A probe is still captured at one point. It shows the room as seen from that point, so reflections near the probe look right and reflections far from it slide, and anything that moves after the capture is not in it at all.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="prefilter"><span class="step-num">4</span> Rough surfaces: prefiltering and the split sum</h3>
+              <p>A rough surface needs the average of the environment over a wide cone. Averaging hundreds of texels per pixel would be far too slow, so engines do it ahead of time. A <dfn class="term" data-term="prefiltered-environment-map">prefiltered environment map</dfn> stores blurred copies of the environment in the cubemap's <a class="term" data-term="mipmap" href="glossary.html#mipmap">mip levels</a>, one blur per roughness: the sharp map in mip 0, ever wider cones in the smaller mips. At runtime the shader picks a mip from the pixel's roughness and reads once.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 280" role="img" aria-label="A cubemap face's mip chain drawn to scale from 128 by 128 down to 4 by 4 texels, each smaller mip blurred more. Roughness picks the mip: smooth surfaces read mip 0, rough surfaces read the small, blurry mips. On the right, the irradiance map: the cosine-weighted average of a whole half-sphere for each direction, small enough to store in very few texels or numbers.">
+                    <defs>
+                      <filter id="pf-b1" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.5"/></filter>
+                      <filter id="pf-b2" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3"/></filter>
+                      <filter id="pf-b3" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="5"/></filter>
+                      <clipPath id="pf-c0"><rect x="30" y="48" width="128" height="128"/></clipPath>
+                      <clipPath id="pf-c1"><rect x="178" y="112" width="64" height="64"/></clipPath>
+                      <clipPath id="pf-c2"><rect x="262" y="144" width="32" height="32"/></clipPath>
+                    </defs>
+                    <text class="t-caps" x="30" y="24">SPECULAR · ONE FACE'S MIP CHAIN, TO SCALE</text>
+                    <rect class="f-sunken" x="30" y="48" width="128" height="128"/>
+                    <g clip-path="url(#pf-c0)">
+                      <rect class="f-lit" x="104" y="64" width="22" height="22"/>
+                      <rect class="f-geo-soft" x="30" y="132" width="128" height="44"/>
+                      <rect class="f-solid" x="44" y="96" width="30" height="40"/>
+                    </g>
+                    <rect class="s-strong" x="30" y="48" width="128" height="128"/>
+                    <rect class="f-sunken" x="178" y="112" width="64" height="64"/>
+                    <g clip-path="url(#pf-c1)" filter="url(#pf-b1)">
+                      <rect class="f-lit" x="215" y="120" width="11" height="11"/>
+                      <rect class="f-geo-soft" x="178" y="154" width="64" height="22"/>
+                      <rect class="f-solid" x="185" y="136" width="15" height="20"/>
+                    </g>
+                    <rect class="s-strong" x="178" y="112" width="64" height="64"/>
+                    <rect class="f-sunken" x="262" y="144" width="32" height="32"/>
+                    <g clip-path="url(#pf-c2)" filter="url(#pf-b2)">
+                      <rect class="f-lit" x="280" y="148" width="7" height="7"/>
+                      <rect class="f-geo-soft" x="262" y="165" width="32" height="11"/>
+                    </g>
+                    <rect class="s-strong" x="262" y="144" width="32" height="32"/>
+                    <rect class="f-lit-soft s-strong" x="314" y="160" width="16" height="16"/>
+                    <rect class="f-lit-soft s-strong" x="350" y="168" width="8" height="8"/>
+                    <rect class="f-lit-soft s-strong" x="378" y="172" width="4" height="4"/>
+                    <text class="t-mono t-small mid" x="94" y="194">mip 0 · 128²</text>
+                    <text class="t-mono t-small mid" x="210" y="194">1 · 64²</text>
+                    <text class="t-mono t-small mid" x="278" y="194">2 · 32²</text>
+                    <text class="t-mono t-small mid" x="322" y="194">3</text>
+                    <text class="t-mono t-small mid" x="354" y="194">4</text>
+                    <text class="t-mono t-small mid" x="380" y="194">5</text>
+                    <line class="s-acc w2" x1="40" y1="222" x2="380" y2="222"/>
+                    <path class="s-acc w2" d="M40,216 V228 M380,216 V228"/>
+                    <text class="t-small t-acc t-strong" x="40" y="244">roughness 0</text>
+                    <text class="t-small t-acc t-strong end" x="380" y="244">roughness 1</text>
+                    <text class="t-small t-muted" x="40" y="266">Each engine has its own curve from roughness to mip.</text>
+
+                    <line class="s-line" x1="450" y1="44" x2="450" y2="250"/>
+                    <text class="t-caps" x="480" y="24">DIFFUSE · THE IRRADIANCE MAP</text>
+                    <rect class="f-solid" x="490" y="196" width="180" height="10"/>
+                    <path class="f-acc" fill-opacity="0.18" d="M500,196 A80,80 0 0 1 660,196 Z"/>
+                    <path class="s-acc w15" d="M580,196 L580,124 M580,196 L524,140 M580,196 L636,140 M580,196 L503,175 M580,196 L657,175"/>
+                    <circle class="f-ink" cx="580" cy="196" r="4"/>
+                    <text class="t-small mid" x="580" y="226">all of the half-sphere, weighted by angle</text>
+                    <rect class="f-lit-soft s-strong" x="720" y="120" width="22" height="22" filter="url(#pf-b3)"/>
+                    <rect class="s-strong" x="720" y="120" width="22" height="22"/>
+                    <text class="t-small" x="752" y="128">so blurred that a</text>
+                    <text class="t-small" x="752" y="143">tiny map, or nine</text>
+                    <text class="t-small" x="752" y="158">numbers per colour</text>
+                    <text class="t-small" x="752" y="173">channel, holds it</text>
+                  </svg>
+                </div>
+                <figcaption><b>Blur once, ahead of time, then read once per pixel.</b> Each smaller mip stores the environment averaged over a wider cone, so a rough material reads a small, blurry mip and a smooth one the sharp mip 0. Unreal's documentation notes that sharp and rough reflections cost about the same to render because of this. The diffuse version, on the right, averages a whole half-sphere and keeps almost no detail.</figcaption>
+              </figure>
+              <p>Prefiltering hides a problem: the right blur also depends on the viewing angle and on the material's <a class="term" data-term="brdf" href="glossary.html#brdf">BRDF</a>, which one map cannot store for every case. Brian Karis's 2013 notes for Unreal Engine 4 describe the <dfn class="term" data-term="split-sum">split-sum approximation</dfn> most engines now use. It splits the reflection into two parts that can each be precomputed: the prefiltered environment map, and a small 2D table, indexed by roughness and viewing angle, that gives a scale and a bias for the material's base reflectance, <a class="term" data-term="f0" href="glossary.html#f0">F0</a>. Multiply the two and the result is close to the full calculation. The material sphere in <a class="xref" data-ch="6.5">6.5</a> uses exactly this for its ambient light.</p>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The split sum in one line</summary>
+                <div class="fold-body">
+                  <p>The specular light from an environment is an integral over directions <code>l</code> of incoming light <code>L(l)</code> times the BRDF <code>f</code> and the cosine term. Karis approximates the sampled version by splitting it into two averages:</p>
+                  <p class="formula">(1/N) Σ L(l)·f(l,v)·cos θ / p(l,v) ≈ [ (1/N) Σ L(l) ] × [ (1/N) Σ f(l,v)·cos θ / p(l,v) ]</p>
+                  <p>The first bracket is the prefiltered environment map, computed per roughness with the assumption that the view, normal and reflection directions are equal (<code>n = v = r</code>). The second depends only on roughness and the viewing angle once F0 is factored out, so it becomes a 2D lookup table of a scale and a bias: <code>specular = prefiltered(R, roughness) × (F0 × A + B)</code>. The approximation is exact for a constant environment; Karis notes that the <code>n = v = r</code> assumption is the larger source of error, and it loses the long, stretched reflections seen at grazing angles.</p>
+                </div>
+              </details>
+              <p>Diffuse light needs the same treatment taken to the limit. An <dfn class="term" data-term="irradiance-map">irradiance map</dfn> stores, for each direction a surface could face, the total light arriving over its whole half-sphere, weighted by angle: the environment's <a class="term" data-term="irradiance" data-forward href="glossary.html#irradiance">irradiance</a>, a term chapter 8.1 explains. It is so blurred that a cubemap of a few texels, or nine numbers per colour channel called spherical harmonics (8.2), can hold it.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="box-projection"><span class="step-num">5</span> Box projection: fixing parallax indoors</h3>
+              <p>Inside a room, a probe's slide is obvious: a window reflected on the floor seems to follow you around. <dfn class="term" data-term="box-projection">Box projection</dfn>, also called a parallax-corrected cubemap, fixes it for the room itself. The probe is given a simple shape, usually a box matching the room's walls. For each pixel, the shader first intersects the reflected ray with that box, then reads the cubemap in the direction from the probe to the hit point. Sébastien Lagarde and Antoine Zanuttini presented the technique at SIGGRAPH 2012.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="A room seen from above with a reflection probe captured at C and a shiny floor point P near the right wall. P's reflected ray hits the far wall at H. A plain probe looks up the same direction from C instead, and finds the wall at a different point, H prime, 5 m away. Box projection intersects P's ray with the room's box first, then looks up the direction from C to H, which shows the right spot.">
+<defs><marker id="box-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="box-arr-p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+<text class="t-caps" x="40" y="24">A ROOM FROM ABOVE · THE PROXY BOX IS THE ROOM</text>
+<rect class="f-sunken s-strong w2" x="40" y="48" width="420" height="252"/>
+<line class="s-pix w15 dash" x1="174.4" y1="174" x2="243.7" y2="48" marker-end="url(#box-arr-p)"/>
+<line class="s-acc w2" x1="342.4" y1="249.6" x2="453.3" y2="48" marker-end="url(#box-arr)"/>
+<line class="s-geo w15" x1="174.4" y1="174" x2="453.3" y2="48"/>
+<circle class="f-acc" cx="174.4" cy="174" r="6"/><text class="t-strong" x="152.4" y="179">C</text>
+<circle class="f-ink" cx="342.4" cy="249.6" r="5"/><text class="t-strong" x="352.4" y="265.6">P</text>
+<circle class="f-geo" cx="453.3" cy="48" r="5"/><text class="t-strong t-geo" x="447.3" y="38">H</text>
+<circle class="f-surface s-pix w2" cx="243.7" cy="48" r="5"/><text class="t-strong t-pix" x="237.7" y="38">H′</text>
+<text class="t-small t-muted" x="48.4" y="287.4">room 10 × 6 m · probe captured at C</text>
+<text class="t-head" x="490" y="64">The true reflection</text>
+<text class="t-small" x="490" y="82">P's reflected ray (blue) hits the wall at H.</text>
+<text class="t-head t-pix" x="490" y="116">Plain probe</text>
+<text class="t-small" x="490" y="134">Looks up the same direction as if from C,</text>
+<text class="t-small" x="490" y="150">so it shows H′, 5 m from the right spot.</text>
+<text class="t-head t-geo" x="490" y="184">Box projection</text>
+<text class="t-small" x="490" y="202">1. Intersect P's ray with the box: H.</text>
+<text class="t-small" x="490" y="218">2. Look up the direction from C to H (green).</text>
+<text class="t-small" x="490" y="234">The cubemap stored exactly that spot.</text>
+<text class="t-small t-muted" x="490" y="268">Right for anything on the box's walls;</text>
+<text class="t-small t-muted" x="490" y="284">still wrong for furniture inside the room.</text>
+</svg>
+                </div>
+                <figcaption><b>Intersect first, then look up.</b> Without correction, the probe answers as if every pixel stood at C. With the room as a box, the shader finds where P's ray really meets the walls and reads that spot from the cubemap. Computed for the drawing: the plain lookup lands 5 m along the wall from the right spot. Objects inside the room, which are not on the box, are still misplaced.</figcaption>
+              </figure>
+              <p>Box projection costs a ray-box test per pixel and works best in rectangular rooms; Godot's documentation notes it works less well in irregular ones. Unity calls it Box Projection on the probe, and in URP it must also be enabled in the URP Asset. Unreal offers Box Reflection Captures for corridors and rectangular rooms, and HDRP gives each probe a separate Proxy Volume shape: Box, Sphere or Infinite.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ssr"><span class="step-num">6</span> Screen-space reflections</h3>
+              <p><dfn class="term" data-term="ssr">Screen-space reflections</dfn>, SSR, reuse the frame being drawn. For each reflective pixel, the shader steps along the reflected ray, projects each step onto the screen and compares its depth with the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a>. The first step that lands behind a stored surface is a hit, and the reflection takes that pixel's colour from the lit image. It is <a class="term" data-term="ray-marching" data-forward href="glossary.html#ray-marching">ray marching</a> through what the camera saw, and it reflects anything on screen, including things that move.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="A side view of screen-space reflections. A camera on the left sees a wet floor, a banner hanging in the air, a crate beyond it and a back wall; the top edge of the screen is marked. Three reflected rays leave the floor and are marched in steps. Ray 1 lands behind the crate's front face: a real hit. Ray 2 climbs past the top edge of the screen before hitting anything, so there is no data and the reflection must come from a fallback. Ray 3 passes under the banner, but its next step lies behind the banner as the camera sees it; the depth buffer cannot tell how thick the banner is, so the march reports the banner, though the ray really goes on to the wall.">
+<text class="t-caps" x="24" y="22">SCREEN-SPACE REFLECTIONS · MARCHING THE DEPTH BUFFER</text>
+<rect class="f-solid" x="24" y="262" width="819.2" height="14"/>
+<rect class="f-acc-soft s-acc" x="177.6" y="260" width="358.4" height="4"/>
+<text class="t-small t-acc" x="184" y="274">wet floor</text>
+<rect class="f-surface s-strong" x="612.8" y="57.2" width="9.6" height="89.6"/>
+<line class="s-strong" x1="617.6" y1="34" x2="617.6" y2="57.2"/>
+<text class="t-small t-muted end" x="606.8" y="134">banner</text>
+<rect class="f-surface s-strong" x="702.4" y="198" width="64" height="64"/>
+<text class="t-small t-muted mid" x="734.4" y="246.8">crate</text>
+<rect class="f-solid s-strong" x="830.4" y="34" width="12.8" height="228"/>
+<polygon class="f-pix-soft" points="622.4,57.2 830.4,20.4 830.4,142.2 622.4,146.8"/>
+<text class="t-small t-pix" x="638.4" y="34">hidden behind the banner:</text>
+<text class="t-small t-pix" x="638.4" y="48">empty or solid?</text>
+<line class="s-muted dash" x1="43.2" y1="159.6" x2="830.4" y2="57.2"/>
+<text class="t-small t-muted" x="318.4" y="115.8">top edge of the screen</text>
+<circle class="f-ink" cx="43.2" cy="159.6" r="4.5"/><text class="t-small" x="39.2" y="149.6">camera</text>
+<line class="s-muted" x1="43.2" y1="159.6" x2="522.6" y2="262"/>
+<line class="s-acc w15" x1="522.6" y1="262" x2="729.1" y2="217.9"/>
+<circle class="f-acc" cx="557" cy="254.6" r="2.6"/><circle class="f-acc" cx="591.4" cy="247.3" r="2.6"/><circle class="f-acc" cx="625.8" cy="239.9" r="2.6"/><circle class="f-acc" cx="660.3" cy="232.6" r="2.6"/><circle class="f-acc" cx="694.7" cy="225.2" r="2.6"/><circle class="f-geo" cx="729.1" cy="217.9" r="5"/>
+<text class="t-small t-strong" x="702.4" y="274">1 · real hit: the crate</text>
+<line class="s-muted" x1="43.2" y1="159.6" x2="216" y2="262"/>
+<line class="s-acc w15" x1="216" y1="262" x2="513.3" y2="85.8"/>
+<circle class="f-acc" cx="249" cy="242.4" r="2.6"/><circle class="f-acc" cx="282.1" cy="222.8" r="2.6"/><circle class="f-acc" cx="315.1" cy="203.3" r="2.6"/><circle class="f-acc" cx="348.1" cy="183.7" r="2.6"/><circle class="f-acc" cx="381.2" cy="164.1" r="2.6"/><circle class="f-acc" cx="414.2" cy="144.5" r="2.6"/><circle class="f-acc" cx="447.2" cy="125" r="2.6"/><circle class="f-acc" cx="480.3" cy="105.4" r="2.6"/><circle class="f-surface s-pix w2" cx="513.3" cy="85.8" r="5"/>
+<text class="t-small t-strong" x="523.3" y="77.8">2 · off screen: no data</text>
+<line class="s-muted" x1="43.2" y1="159.6" x2="344" y2="262"/>
+<line class="s-acc w15" x1="344" y1="262" x2="707.5" y2="138.3"/>
+<line class="s-geo dot-dash" x1="707.5" y1="138.3" x2="830.4" y2="96.4"/>
+<circle class="f-geo" cx="830.4" cy="96.4" r="4"/>
+<text class="t-small t-geo end" x="822.4" y="88.4">really the wall</text>
+<circle class="f-acc" cx="380.4" cy="249.6" r="2.6"/><circle class="f-acc" cx="416.7" cy="237.3" r="2.6"/><circle class="f-acc" cx="453.1" cy="224.9" r="2.6"/><circle class="f-acc" cx="489.4" cy="212.5" r="2.6"/><circle class="f-acc" cx="525.8" cy="200.1" r="2.6"/><circle class="f-acc" cx="562.1" cy="187.8" r="2.6"/><circle class="f-acc" cx="598.5" cy="175.4" r="2.6"/><circle class="f-acc" cx="634.8" cy="163" r="2.6"/><circle class="f-acc" cx="671.2" cy="150.6" r="2.6"/><circle class="f-surface s-pix w2" cx="707.5" cy="138.3" r="5"/>
+<text class="t-small t-strong" x="701.5" y="124.3">3 · reports the banner</text>
+</svg>
+                </div>
+                <figcaption><b>The depth buffer is a picture, not a scene.</b> Ray 1 finds a real surface. Ray 2 leaves the screen, where there is no data at all. Ray 3 steps into the space hidden behind the banner; the depth buffer records only the banner's front, so the march cannot know the space behind it is empty and reports a hit. Engines guess a thickness behind each surface; HDRP exposes it as Object Thickness. Computed from the drawn geometry.</figcaption>
+              </figure>
+              <p>The Lantern Courtyard's puddle uses SSR. Its shader takes 40 steps along each reflected ray, out to 16 m, with steps that grow with distance, then refines a hit with five halving steps. Hits fade out near the screen edges, and rays that miss or leave the screen take the sky's colour instead.</p>
+              <figure>
+                <div class="demo" data-demo="courtyard" data-view="ssr" data-views="final,ssr">
+                  <p class="demo-hint">The Lantern Courtyard needs WebGL 2. Its reflections view shows only what screen-space reflections add: the puddle reflecting the arch and the foot of its red banner, which are on screen, with the sky's colour where rays leave the top of the frame.</p>
+                </div>
+                <figcaption><b>The courtyard's puddle, reflections only.</b> This view shows what SSR contributes on its own. The puddle picks up a pillar of the arch and the foot of the red banner because they are on screen; where reflected rays climb out of the top of the frame, it shows the sky's deep blue instead. Switch to Final to see the reflections mixed into the frame by the Fresnel effect.</figcaption>
+              </figure>
+              <p>Production SSR adds three things. A depth pyramid, the same <a class="term" data-term="hi-z" href="glossary.html#hi-z">Hi-Z</a> chain occlusion culling uses (4.4), lets the march skip empty space in big jumps. Rough surfaces read a blurred copy of the colour: HDRP's SSR reads a colour buffer with a blurred mip chain from the previous frame. And many implementations jitter rays and accumulate them over frames, which reduces <a class="term" data-term="noise" data-forward href="glossary.html#noise">noise</a> at the risk of <a class="term" data-term="ghosting" data-forward href="glossary.html#ghosting">ghosting</a>. McGuire and Mara's 2014 paper gives a production-proven tracer that ran ripply water reflections in 2 ms at 1080p on a 2012 laptop GPU. Chapter <a class="xref" data-ch="8.4">8.4</a> takes SSR's blind spots further.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="planar"><span class="step-num">7</span> Planar reflections: render it twice</h3>
+              <p>For a flat mirror, water surface or polished floor, the exact reflection is the scene seen from a camera mirrored below the plane. <dfn class="term" data-term="planar-reflection">Planar reflections</dfn> render exactly that view into a texture, clipped at the plane so nothing below it draws, and the reflective surface reads it at each pixel's screen position. Everything is right: off-screen objects, moving ones, correct parallax. The catch is that the scene is drawn a second time.</p>
+              <p>Epic's documentation is blunt: budget about half your frame time for a planar reflection, because the level renders again. Their examples measured about 23 ms extra in the Kite demo and about 1.67 ms in a mobile-oriented map; scene complexity, not screen resolution, drives the cost. Planar reflections only suit surfaces that are close to flat, one plane per render, and are usually limited to one or two visible at a time.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ray-traced"><span class="step-num">8</span> Ray-traced reflections</h3>
+              <p>Hardware <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a> (<a class="xref" data-ch="8.6">8.6</a>) answers the reflection question directly by tracing each reflected ray against the scene's real geometry, on screen or not. What it hits still has to be lit, which is costly, so systems simplify there. Unreal's <a class="term" data-term="lumen" data-forward href="glossary.html#lumen">Lumen</a>, on by default in new Unreal Engine 5 projects, traces against the screen first and falls back to tracing a simplified scene when that fails; its hit lighting comes from a cached representation of the surfaces by default, with full hit lighting as a more expensive option. Lumen uses dedicated reflection rays only below a roughness threshold, Max Roughness To Trace. HDRP's ray-traced reflections fall back to reflection probes and the sky when a ray misses, by default both.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="fallbacks"><span class="step-num">9</span> Fallbacks: what to show when a method has no answer</h3>
+              <p>No single cheap method covers every pixel, so engines chain them. A <dfn class="term" data-term="reflection-fallback">reflection fallback</dfn> order decides which method answers a pixel when the more accurate one has nothing. HDRP documents its order as a reflection hierarchy: screen space first, then any reflection probe whose influence covers the pixel, then the sky, and finally black. Frostbite's 2014 course notes describe the same layering of four kinds: distant probes for the sky, local probes, SSR and planar reflections, mixed so that SSR fades into the local probes where it fails.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 246" role="img" aria-label="A chain of four boxes from left to right: screen-space reflection, reflection probe, sky, black. Each arrow is labelled with when the next one takes over: if the ray leaves the screen or finds nothing, if no probe covers the pixel, if there is no sky. Above the boxes, accuracy falls from left to right; below them, availability rises.">
+                    <defs>
+                      <marker id="fb-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">ONE PIXEL'S REFLECTION · TRY EACH IN TURN</text>
+                    <rect class="f-pix-soft s-pix w15" x="30" y="76" width="180" height="78" rx="8"/>
+                    <text class="t-head" x="46" y="102">Screen space</text>
+                    <text class="t-small" x="46" y="122">march the depth buffer;</text>
+                    <text class="t-small" x="46" y="138">fade near screen edges</text>
+                    <rect class="f-acc-soft s-acc w15" x="270" y="76" width="180" height="78" rx="8"/>
+                    <text class="t-head" x="286" y="102">Reflection probe</text>
+                    <text class="t-small" x="286" y="122">box-projected, blended</text>
+                    <text class="t-small" x="286" y="138">with its neighbours</text>
+                    <rect class="f-lit-soft s-lit w15" x="510" y="76" width="160" height="78" rx="8"/>
+                    <text class="t-head" x="526" y="102">Sky</text>
+                    <text class="t-small" x="526" y="122">the distant environment,</text>
+                    <text class="t-small" x="526" y="138">infinitely far away</text>
+                    <rect class="f-surface s-strong" x="730" y="76" width="140" height="78" rx="8"/>
+                    <text class="t-head" x="746" y="102">Black</text>
+                    <text class="t-small" x="746" y="122">nothing else answered</text>
+                    <line class="s-ink w15" x1="212" y1="115" x2="266" y2="115" marker-end="url(#fb-arr)"/>
+                    <line class="s-ink w15" x1="452" y1="115" x2="506" y2="115" marker-end="url(#fb-arr)"/>
+                    <line class="s-ink w15" x1="672" y1="115" x2="726" y2="115" marker-end="url(#fb-arr)"/>
+                    <text class="t-small t-muted mid" x="240" y="174">ray left the</text>
+                    <text class="t-small t-muted mid" x="240" y="188">screen or missed</text>
+                    <text class="t-small t-muted mid" x="480" y="174">no probe</text>
+                    <text class="t-small t-muted mid" x="480" y="188">covers it</text>
+                    <text class="t-small t-muted mid" x="700" y="174">no sky</text>
+                    <path class="s-muted" d="M30,56 H870"/>
+                    <text class="t-small t-muted" x="30" y="50">more accurate, sees moving things</text>
+                    <text class="t-small t-muted end" x="870" y="50">always available, never local</text>
+                    <text class="t-small" x="30" y="222">HDRP's documented order. Unreal and Godot mix SSR with probes the same way; interiors set probes to ignore the sky (Godot's Interior option)</text>
+                    <text class="t-small" x="30" y="238">so a missing reflection indoors does not fill with bright daylight.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The chain decides what a miss looks like.</b> Each step is cheaper and less local than the one before. A missing probe indoors means the sky answers, which is why badly covered interiors glow with reflected daylight. Engines blend at each hand-over, fading SSR near the screen edges and blending probes over a distance, so the switch is not a hard line.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Reflections spend in very different places: memory and editor time for probes, per-pixel work for SSR, whole extra renders for planar reflections and real-time probes.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Method</th><th scope="col">When it updates</th><th scope="col">Memory</th><th scope="col">Per-frame cost</th><th scope="col">Main limit</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Sky environment map</th><td>When the sky changes</td><td>One cubemap</td><td>A lookup per pixel</td><td>Not local at all</td></tr>
+                  <tr><th scope="row">Baked probes</th><td>In the editor</td><td>About 1 MB per 128 probe (see below)</td><td>A lookup or two per pixel, plus blending</td><td>Static; parallax away from the capture point</td></tr>
+                  <tr><th scope="row">Real-time probes</th><td>Every frame or on demand</td><td>As baked</td><td>Six scene renders per update, plus prefiltering</td><td>Cost; usually one or two per scene</td></tr>
+                  <tr><th scope="row">Box projection</th><td>As the probe</td><td>None extra</td><td>A ray-box test per pixel</td><td>Only right for the box's walls</td></tr>
+                  <tr><th scope="row">SSR</th><td>Every frame</td><td>A colour copy with mips</td><td>A march per reflective pixel: tens of steps</td><td>On-screen only; thickness guesses</td></tr>
+                  <tr><th scope="row">Planar</th><td>Every frame</td><td>A screen-sized texture</td><td>The scene drawn again</td><td>Flat surfaces, one plane each</td></tr>
+                  <tr><th scope="row">Ray-traced</th><td>Every frame</td><td>The acceleration structure</td><td>Rays per pixel, hit lighting, denoising</td><td>Hardware; noise on rough surfaces</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Worked numbers. A 128 × 128 cubemap has 6 × 128 × 128 = 98,304 texels in its top mip, and about a third more with the mip chain: 131,072. At 8 bytes per texel, four half-floats for <a class="term" data-term="hdr-rendering" href="glossary.html#hdr-rendering">HDR</a> colour, that is 1 MB per probe; at 256 it is 4 MB. A real-time probe re-renders the scene six times per update, which is why Unity time-slices it across frames. Lumen's reflections share one budget with its global illumination, translucency and fog: Epic targets 4 ms for all of them at 60 fps and 8 ms at 30 fps, at 1080p on consoles.</p>
+            <h3>What makes the bill grow</h3>
+            <ul class="grows">
+              <li><strong>Reflective pixels</strong><span>SSR and ray-traced reflections cost per pixel; a screen full of wet street costs far more than a few puddles.</span></li>
+              <li><strong>Roughness range</strong><span>Rough surfaces need wider cones: more rays, more blur, more accumulation, or a fall back to probes.</span></li>
+              <li><strong>Real-time updates</strong><span>Every real-time probe update and every planar reflection renders the scene again.</span></li>
+              <li><strong>Probe count and resolution</strong><span>Memory grows with the square of the resolution, and every probe needs placing, building and checking.</span></li>
+              <li><strong>Steps per ray</strong><span>More SSR steps reach further and miss less, linearly more expensive.</span></li>
+              <li><strong>Hit lighting</strong><span>Lighting what a ray-traced reflection hits can cost more than the trace itself.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>Most games combine cheap methods: baked, box-projected probes everywhere, SSR on top for contact and moving things, planar reflections only for a hero mirror or a lake, and ray tracing as a high-end option. The probes are also people-time: someone has to place, size and rebuild them whenever the level changes.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Reflection bugs are easy to see and usually point at one method in the chain.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wide puddle reflecting a row of posts, but the reflections fade out towards the bottom and the edges of the picture.">
+                    <rect class="f-sunken" x="10" y="10" width="220" height="110"/>
+                    <rect class="f-solid" x="10" y="64" width="220" height="56"/>
+                    <path class="s-strong w3" d="M50,24 V64 M100,24 V64 M150,24 V64 M200,24 V64"/>
+                    <ellipse class="f-acc-soft s-acc" cx="120" cy="92" rx="100" ry="22"/>
+                    <path class="s-strong w3" d="M100,70 V96 M150,70 V96" stroke-opacity="0.8"/>
+                    <path class="s-strong w3" d="M50,70 V80 M200,70 V78" stroke-opacity="0.35"/>
+                    <text class="t-small t-pix" x="20" y="116">fades at the edges</text>
+                  </svg>
+                </div>
+                <h4>Reflections fade at the screen edges</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>SSR has no data for rays that leave the screen, so it fades them out, and the fallback behind it is missing, too coarse or does not match.</dd></div>
+                  <div><dt>Ask for</dt><dd>A probe placed and box-fitted for the area, so the fallback matches, and a check of the screen-edge fade setting.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A shiny floor reflecting a window, with the reflection shifted well to one side of where the window is.">
+                    <rect class="f-sunken" x="10" y="10" width="220" height="60"/>
+                    <rect class="f-lit-soft s-lit" x="90" y="20" width="40" height="36"/>
+                    <rect class="f-solid" x="10" y="70" width="220" height="50"/>
+                    <rect class="f-lit-soft s-lit dash" x="90" y="76" width="40" height="30"/>
+                    <rect class="f-lit-soft s-pix" x="150" y="76" width="40" height="30"/>
+                    <line class="s-pix w15" x1="132" y1="91" x2="148" y2="91"/>
+                    <text class="t-small t-pix" x="152" y="118">slides</text>
+                  </svg>
+                </div>
+                <h4>Reflections in the wrong place that slide</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A probe without parallax correction, or a box that does not match the room, so reflections of nearby walls answer from the capture point.</dd></div>
+                  <div><dt>Ask for</dt><dd>Box projection with the box fitted to the walls, the capture point moved to where players stand, or a smaller probe for that area.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dark interior where a metal pipe and the floor shine with a bright sky-blue reflection.">
+                    <rect class="f-shade" fill-opacity="0.75" x="10" y="10" width="220" height="110"/>
+                    <rect class="f-acc s-acc" x="30" y="44" width="180" height="16" rx="8"/>
+                    <rect class="f-acc" fill-opacity="0.45" x="10" y="96" width="220" height="24"/>
+                    <text class="t-small t-on-acc" x="40" y="56">sky in a cellar</text>
+                  </svg>
+                </div>
+                <h4>Interiors glow with reflected sky</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No probe covers the area, so the fallback chain reaches the sky, or the probe captured the sky through an opening.</dd></div>
+                  <div><dt>Ask for</dt><dd>Interior probes covering every enclosed space, set to ignore the sky (Godot's Interior option), and a review pass with the reflection view in each room.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A long floor whose reflections change abruptly along a straight line where two probes meet.">
+                    <rect class="f-solid" x="10" y="10" width="220" height="110"/>
+                    <rect class="f-acc-soft" x="10" y="10" width="110" height="110"/>
+                    <rect class="f-lit-soft" x="120" y="10" width="110" height="110"/>
+                    <line class="s-pix w2" x1="120" y1="10" x2="120" y2="120"/>
+                    <text class="t-small t-pix" x="126" y="114">probe edge</text>
+                  </svg>
+                </div>
+                <h4>Seams or popping between probes</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Probes meet with no blend distance, or with very different captures, so the reflection switches at a line or changes as the player crosses it.</dd></div>
+                  <div><dt>Ask for</dt><dd>Blend distances and priorities for overlapping probes, captures taken at matching lighting, and a walk-through recorded on video.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A mirror-like floor reflecting a closed door although the door above it is now open.">
+                    <rect class="f-sunken" x="10" y="10" width="220" height="64"/>
+                    <rect class="f-surface s-strong" x="96" y="18" width="48" height="56"/>
+                    <rect class="f-lit-soft" x="100" y="22" width="40" height="52"/>
+                    <rect class="f-solid" x="10" y="74" width="220" height="46"/>
+                    <rect class="f-surface s-pix" x="96" y="78" width="48" height="36"/>
+                    <text class="t-small t-pix" x="152" y="100">door still shut</text>
+                  </svg>
+                </div>
+                <h4>Reflections show an old version of the scene</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Baked probes captured before a change: a door now open, a time of day that moved on, a lamp switched off.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which probes need real-time or on-demand updates, a rebuild step in the content pipeline, and SSR on the surfaces where it matters most.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To diagnose, look at one method at a time, as the courtyard's reflections view does above: switch SSR off, then the probes, and see which link of the chain the bad reflection comes from. A frame capture shows whether a planar reflection or a real-time probe is rendering the scene again.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Every engine offers probes and a sky; screen-space, planar and ray-traced reflections vary more than most features.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6 URP</th><th scope="col">Unity 6 HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Default</th>
+                    <td>Lumen Reflections, on with Lumen in new projects; they replace SSR.</td>
+                    <td>Reflection probes and the skybox.</td>
+                    <td>SSR, then reflection probes, then the sky (the reflection hierarchy).</td>
+                    <td>The environment's sky; ReflectionProbe nodes and SSR are added per scene.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Screen space</th>
+                    <td>Reflection Method: Screen Space. Post Process Volume: Intensity, Quality (default 50), Max Roughness (default 0.6).</td>
+                    <td>Not in Unity 6.6. Unity has previewed SSR for URP and aims to ship it in Unity 6.7.</td>
+                    <td>Screen Space Reflection override: Tracing (Ray Marching, Ray Tracing, Mixed), Algorithm (Approximation or PBR Accumulation), Minimum Smoothness, Screen Edge Fade Distance, Object Thickness, Max Ray Steps.</td>
+                    <td>Environment, SSR: Max Steps 64, Fade In 0.15, Fade Out 2.0, Depth Tolerance 0.5. Forward+ only.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Probes</th>
+                    <td>Sphere and Box Reflection Captures; one shared Reflection Capture Resolution, default 128; up to 341 enabled (100 on mobile). Not used when Lumen GI is on.</td>
+                    <td colspan="1">Reflection Probe: Type Baked, Custom or Realtime; Refresh Mode On Awake, Every Frame or Via Scripting; Time Slicing.</td>
+                    <td>Reflection Probe (cubemap) with Influence Volume and Proxy Volume.</td>
+                    <td>ReflectionProbe: Update Mode Once (default) or Always; Interior; Ambient Mode; size 20 × 20 × 20 m by default.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Parallax and blending</th>
+                    <td>Box captures with Box Transition Distance; smaller captures override larger ones.</td>
+                    <td>Box Projection per probe, also enabled in the URP Asset. Probe Blending: the sky and one local probe, or two probes.</td>
+                    <td>Proxy Volume Box, Sphere or Infinite; no blending limit, planar probes included.</td>
+                    <td>Box Projection (off by default); up to 4 probes blend at a spot; Blend Distance 1 m.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Planar</th>
+                    <td>Planar Reflection actor; needs Support global clip plane for Planar Reflections. Not composited with Lumen GI and Reflections on.</td>
+                    <td>Not available.</td>
+                    <td>Planar Reflection Probe; Realtime Mode Every Frame, On Enable or On Demand; Rough Reflections switch.</td>
+                    <td>No built-in node; add-ons in the Asset Library provide them.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Ray traced</th>
+                    <td>Lumen with hardware ray tracing; Hit Lighting for Reflections as the high-quality option; Max Roughness To Trace.</td>
+                    <td>Not available.</td>
+                    <td>Ray-traced reflections; Ray Miss fallback Reflection probes, Sky, Both (default) or Nothing.</td>
+                    <td>Not available.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names and defaults checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) for URP, HDRP 17.6, and Godot 4.7, plus Unity's URP screen-space reflections preview announcement, in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Lumen replaces the classic chain</p>
+              <p>In Unreal, Lumen Reflections replace SSR, reflection captures stop contributing when Lumen global illumination is on, and planar reflections are not composited with Lumen GI and Reflections enabled. Advice written for Unreal Engine 4's capture-and-SSR setup often does not apply to a default Unreal Engine 5 project.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Reflection briefs need the engine and pipeline, which methods are in the chain, where the reflective surfaces are and how rough, and the budget. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when planning reflections for a level</span></div>
+              <pre class="prompt-body">Engine: Unity 6.6, HDRP, Deferred. Target: PS5 at 60 fps, 2 ms for reflections.
+Level: a rainy market street at night, wet cobbles (smoothness 0.6 to 0.9), shop windows, a few deep puddles, and three interiors visible through doorways.
+
+1. Propose the reflection chain: which areas get SSR, which get reflection probes (baked or real-time), and whether any surface justifies a Planar Reflection Probe.
+2. For each probe, give its position, Influence and Proxy Volume sizes, and whether it should exclude the sky.
+3. Estimate the GPU cost of each part and the probe memory.
+4. List the views and test route we use to check for sky leaking into interiors, edge fading and probe seams.</pre>
+              <ul class="prompt-why">
+                <li>Smoothness ranges decide where SSR helps and where probes take over.</li>
+                <li>Asking for Proxy Volume sizes forces box projection to be thought through.</li>
+                <li>A test route turns a vague impression into checks someone can repeat.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when puddle reflections disappear</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Lumen on with hardware ray tracing off. In the courtyard the puddles reflect the lanterns well when the camera looks level, but when the player looks down at the puddles the lantern reflections vanish and the puddles show a dull grey.
+
+Find the cause. Explain which part of Lumen's reflection tracing is answering in each case, why the lanterns drop out when they leave the screen, and what the grey comes from. Compare fixes: Lumen Scene settings, emissive lantern meshes in the Lumen Scene, hardware ray tracing, and a planar reflection for the largest puddle. Give the cost of each on PS5 and before-and-after screenshots from the same camera positions.</pre>
+              <ul class="prompt-why">
+                <li>Looking down pushes the lanterns off screen: the classic screen-space miss.</li>
+                <li>Asking what the grey comes from points at the fallback in the chain.</li>
+                <li>Fixed camera positions make the comparison fair.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing reflection work</h3>
+            <ol class="review-list">
+              <li>What is the full fallback order for a reflective pixel here?<span class="why">Every visible failure is one link in that chain answering badly.</span></li>
+              <li>Which probes are box-projected, and do their boxes match the walls?<span class="why">An unfitted box makes reflections slide.</span></li>
+              <li>Which interiors could see the sky through the fallback?<span class="why">Missing interior probes make dark rooms glow.</span></li>
+              <li>What renders the scene more than once: real-time probes, planar reflections?<span class="why">Each is a whole extra scene render.</span></li>
+              <li>How are rough surfaces handled: blur, accumulation or probes?<span class="why">Temporal accumulation brings ghosting; probes bring parallax errors.</span></li>
+              <li>When are baked probes rebuilt, and who owns that?<span class="why">Stale probes are a content-pipeline problem that no shader change fixes.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A puddle reflects a street lamp well until the camera tilts down, then the lamp's reflection disappears. Which method was reflecting the lamp, and why did it stop?</p>
+                <details><summary>Show answer</summary><p>Screen-space reflections. Tilting down pushes the lamp off the top of the screen, so the depth buffer and the lit image no longer contain it, and the pixel falls back to a probe or the sky.</p></details>
+              </li>
+              <li>
+                <p class="q">In a long corridor, the reflection of a bright doorway on the floor seems to slide along with the player. What would you ask for?</p>
+                <details><summary>Show answer</summary><p>Box projection on the corridor's probe, with its box fitted to the corridor walls, so the shader intersects each reflected ray with the walls before reading the cubemap. If it is already on, check that the box matches the walls.</p></details>
+              </li>
+              <li>
+                <p class="q">Why can a rough metal ball and a polished one read the same reflection probe for about the same cost?</p>
+                <details><summary>Show answer</summary><p>The probe is prefiltered: blurred versions for increasing roughness are stored in its mip levels ahead of time. Each pixel reads once from the mip its roughness selects, and the split-sum table supplies the rest of the specular response.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#environment-map">environment map</a></li>
+              <li><a class="chip" href="glossary.html#image-based-lighting">image-based lighting</a></li>
+              <li><a class="chip" href="glossary.html#reflection-probe">reflection probe</a></li>
+              <li><a class="chip" href="glossary.html#prefiltered-environment-map">prefiltered environment map</a></li>
+              <li><a class="chip" href="glossary.html#split-sum">split-sum approximation</a></li>
+              <li><a class="chip" href="glossary.html#irradiance-map">irradiance map</a></li>
+              <li><a class="chip" href="glossary.html#box-projection">box projection</a></li>
+              <li><a class="chip" href="glossary.html#ssr">SSR</a></li>
+              <li><a class="chip" href="glossary.html#planar-reflection">planar reflection</a></li>
+              <li><a class="chip" href="glossary.html#reflection-fallback">reflection fallback</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="8.1"></a> follows light after its first bounce: why rooms are never pitch black, where colour bleeding comes from, and the equation behind every global illumination technique.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf">Real Shading in Unreal Engine 4</a>, Brian Karis, Epic Games, SIGGRAPH 2013 course notes. Image-based lighting, the split-sum approximation and the environment BRDF table.</li>
+              <li><a href="https://seblagarde.wordpress.com/wp-content/uploads/2015/07/course_notes_moving_frostbite_to_pbr_v32.pdf">Moving Frostbite to Physically Based Rendering 3.0</a>, Sébastien Lagarde and Charles de Rousiers, SIGGRAPH 2014 course notes. Distant and local light probes, SSR, planar reflections and how they are combined.</li>
+              <li><a href="https://seblagarde.wordpress.com/2012/09/29/image-based-lighting-approaches-and-parallax-corrected-cubemap/">Image-based Lighting approaches and parallax-corrected cubemap</a>, Sébastien Lagarde, after his SIGGRAPH 2012 talk with Antoine Zanuttini.</li>
+              <li><a href="https://jcgt.org/published/0003/04/04/">Efficient GPU Screen-Space Ray Tracing</a>, Morgan McGuire and Michael Mara, Journal of Computer Graphics Techniques, 2014.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/reflections-captures-in-unreal-engine?application_version=5.8">Reflection Captures</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/screen-space-reflections-in-unreal-engine?application_version=5.8">Screen Space Reflections</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/planar-reflections-in-unreal-engine?application_version=5.8">Planar Reflections</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-global-illumination-and-reflections-in-unreal-engine?application_version=5.8">Lumen Global Illumination and Reflections</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-technical-details-in-unreal-engine?application_version=5.8">Lumen Technical Details</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-performance-guide-for-unreal-engine?application_version=5.8">Lumen Performance Guide</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/lighting-overview/reflections/class-reflection-probe">Reflection Probe component reference</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/universal-render-pipeline/urp-reference/universalrp-asset">URP asset reference</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>, Unity 6.6 manual; <a href="https://discussions.unity.com/t/preview-of-screen-space-reflections-for-urp/1721494">Preview of Screen Space Reflections for URP</a>, Unity Discussions.</li>
+              <li><a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/how-hdrp-calculates-color-for-reflection-and-refraction.html">How HDRP calculates color for reflection and refraction</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-screen-space-reflection.html">Screen space reflection reference</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Planar-Reflection-Probe.html">Planar Reflection Probe</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Reflection-Proxy-Volume.html">Reflection Proxy Volume</a>, HDRP 17.6.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/tutorials/3d/reflection_probes.html">Reflection probes</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_reflectionprobe.html">ReflectionProbe</a> and <a href="https://docs.godotengine.org/en/4.7/classes/class_environment.html">Environment</a>, Godot 4.7 documentation.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/courtyard-gl.js"></script>
+  <script src="assets/demos/courtyard-shaders.js"></script>
+  <script src="assets/demos/courtyard.js"></script>
+</body>
+</html>
