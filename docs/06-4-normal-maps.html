@@ -958,7 +958,7 @@
             <div class="step">
               <h3 class="step-title" id="displacement"><span class="step-num">7</span> Displacement, tessellation and silhouettes</h3>
               <p>All of the above happen inside the pixel shader on a flat triangle, so none of them can change the outline of an object. That outline, the silhouette, is where fake detail is caught out: a normal-mapped rock is a perfect circle against the sky, and a brick wall seen along its length has a ruler-straight top.</p>
-              <p><dfn class="term" data-term="displacement-mapping">Displacement mapping</dfn> moves real vertices along their normals by the height map, so the geometry itself becomes bumpy. It needs enough vertices to carry the detail. <dfn class="term" data-term="tessellation">Tessellation</dfn> creates them on the GPU at draw time, splitting triangles more finely where the camera is close; Unreal's Nanite Tessellation does this for <a class="term" data-term="nanite" href="glossary.html#nanite">Nanite</a> meshes with a displacement map.</p>
+              <p><dfn class="term" data-term="displacement-mapping">Displacement mapping</dfn> moves real vertices along their normals by the height map, so the geometry itself becomes bumpy. It needs enough vertices to carry the detail. <a class="term" data-term="tessellation" href="glossary.html#tessellation">Tessellation</a> creates them on the GPU at draw time, splitting triangles more finely where the camera is close; Unreal's Nanite Tessellation does this for <a class="term" data-term="nanite" href="glossary.html#nanite">Nanite</a> meshes with a displacement map.</p>
               <figure>
                 <div class="fig-frame">
                 <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Two spheres with the same rocky lighting. The normal-mapped one has a perfectly round outline; the displaced one has a bumpy outline. Right: a brick wall seen almost edge-on; with a normal map its top edge is a straight line, while real bricks would step in and out.">
@@ -1400,7 +1400,6 @@ For each option: describe what it will and will not show (parallax, cobbles hidi
               <li><a class="chip" href="glossary.html#parallax-mapping">parallax mapping</a></li>
               <li><a class="chip" href="glossary.html#pom">parallax occlusion mapping</a></li>
               <li><a class="chip" href="glossary.html#displacement-mapping">displacement mapping</a></li>
-              <li><a class="chip" href="glossary.html#tessellation">tessellation</a></li>
               <li><a class="chip" href="glossary.html#detail-normal-map">detail normal map</a></li>
             </ul>
             <div class="next-card">

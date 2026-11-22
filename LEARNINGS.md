@@ -23,6 +23,9 @@ related area.
   class.** `diagrams.css` sets `fill: none` only for elements with an `s-*`
   class token and no `f-*` token, matched on class-token boundaries so names
   such as `is-wide` are not caught.
+- **`<use>` clones ignore the diagram classes** and render black, because
+  the class rules match the original element's place in the tree, not the
+  clone's. Draw repeated shapes inline.
 - **Text classes on a `<g>` do nothing.** `svg.dg text` sets font, size
   and fill on every `<text>` directly, so `<g class="t-small t-muted">`
   does not reach its children. Put `t-*` classes on each `<text>`.
