@@ -64,8 +64,8 @@
       chapters: [
         { num: "4.1", slug: "meshes", title: "Meshes", terms: "vertex, triangle, normal, tangent, UV, winding order, topology", core: true, status: "published" },
         { num: "4.2", slug: "vertex-buffers", title: "Vertex buffers and index buffers", terms: "vertex attribute, layout, stride, interleaving, index buffer, 16 and 32-bit indices, static and dynamic buffers", core: true, status: "published" },
-        { num: "4.3", slug: "draw-calls", title: "Draw calls, batching and instancing", terms: "draw call, pipeline state, material sorting, static and dynamic batching, GPU instancing, indirect draws", core: true, status: "planned" },
-        { num: "4.4", slug: "culling", title: "Culling", terms: "frustum, backface and occlusion culling, bounding volumes, Hi-Z, PVS", core: true, status: "planned" },
+        { num: "4.3", slug: "draw-calls", title: "Draw calls, batching and instancing", terms: "draw call, pipeline state, material sorting, static and dynamic batching, GPU instancing, indirect draws", core: true, status: "published" },
+        { num: "4.4", slug: "culling", title: "Culling", terms: "frustum, backface and occlusion culling, bounding volumes, Hi-Z, PVS", core: true, status: "published" },
         { num: "4.5", slug: "level-of-detail", title: "Level of detail", terms: "LOD, popping, HLOD, impostor, meshlet, cluster, Nanite, tessellation", core: true, status: "planned" },
         { num: "4.6", slug: "moving-geometry", title: "Moving geometry", terms: "skeleton, skin weights, skinning, blend shapes, vertex animation textures", core: false, status: "planned" }
       ]

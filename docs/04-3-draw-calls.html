@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>4.3 Draw calls, batching and instancing · Graphics Handbook</title>
+  <meta name="description" content="What a draw call is and what it costs the CPU; render state and sorting; static and dynamic batching, merged meshes and the SRP Batcher; GPU instancing; indirect and GPU-driven drawing; draw call budgets per platform and how it all breaks.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="4.3">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 4 · Geometry</p>
+            <h1><span class="ch-num">4.3</span> Draw calls, batching and instancing</h1>
+            <p class="lead">Everything the GPU draws starts as a request from the CPU, and every request costs CPU time to prepare. A scene made of thousands of small objects can use up the CPU's whole frame on requests while the GPU waits. Batching and instancing get the same picture drawn with fewer, cheaper requests.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="4.2">4.2 Vertex buffers and index buffers</a>, <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="4.4">4.4 Culling</a>, <a class="xref" data-ch="5.6">5.6 Shaders in practice</a>, <a class="xref" data-ch="11.3">11.3 Where CPU time goes</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Forest draws</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 306" role="img" aria-label="A forest of 1,000 trees drawn four ways, with CPU time drawn to scale against a 16.7 millisecond frame. One draw per tree in scene order: 1,000 draw calls and 735 material changes, 16.0 milliseconds, nearly the whole frame. One draw per tree sorted by material: 1,000 draws, 5.1 milliseconds. Merged by material: 4 draws, 0.08 milliseconds. One instanced draw: 1 draw, 0.04 milliseconds. The GPU draws 2 million triangles in every case.">
+<text class="t-caps" x="20" y="24">ONE FRAME OF A 1,000-TREE FOREST, DRAWN FOUR WAYS</text>
+<text class="t-caps end" x="880" y="24">ILLUSTRATIVE COST MODEL</text>
+<text class="t-small t-muted" x="20" y="52">How the trees are drawn</text>
+<text class="t-small t-muted end" x="305" y="52">Draw calls</text>
+<text class="t-small t-muted" x="330" y="52">CPU time to record the commands</text>
+<text class="t-small t-muted" x="800" y="52">GPU work</text>
+<line class="s-pix dash" x1="697.4" y1="62" x2="697.4" y2="262"/>
+<text class="t-small t-pix end" x="691.4" y="74">60 fps frame: 16.7 ms</text>
+<text class="t-head" x="20" y="98">One draw per tree</text>
+<text class="t-small t-muted" x="20" y="114">in scene order · 735 material changes</text>
+<text class="t-head end" x="305" y="105">1,000</text>
+<rect class="f-acc" x="330" y="90" width="110" height="22"/>
+<rect class="f-acc-soft s-acc" x="440" y="90" width="242.55" height="22"/>
+<text class="t-mono t-strong t-acc end" x="674.55" y="105">16.0 ms</text>
+<rect class="f-solid s-strong" x="800" y="90" width="64" height="22"/>
+<text class="t-small mid" x="832" y="104">2 M tris</text>
+<text class="t-head" x="20" y="144">One draw per tree, sorted</text>
+<text class="t-small t-muted" x="20" y="160">by material first · 4 material changes</text>
+<text class="t-head end" x="305" y="151">1,000</text>
+<rect class="f-acc" x="330" y="136" width="110" height="22"/>
+<rect class="f-acc-soft s-acc" x="440" y="136" width="1.32" height="22"/>
+<text class="t-mono t-strong" x="449.32" y="151">5.1 ms</text>
+<rect class="f-solid s-strong" x="800" y="136" width="64" height="22"/>
+<text class="t-small mid" x="832" y="150">2 M tris</text>
+<text class="t-head" x="20" y="190">Merged by material</text>
+<text class="t-small t-muted" x="20" y="206">4 big meshes, one per material</text>
+<text class="t-head end" x="305" y="197">4</text>
+<rect class="f-acc" x="330" y="182" width="1.2" height="22"/>
+<rect class="f-acc-soft s-acc" x="331.2" y="182" width="1.32" height="22"/>
+<text class="t-mono t-strong" x="340.52" y="197">0.08 ms</text>
+<rect class="f-solid s-strong" x="800" y="182" width="64" height="22"/>
+<text class="t-small mid" x="832" y="196">2 M tris</text>
+<text class="t-head" x="20" y="236">One instanced draw</text>
+<text class="t-small t-muted" x="20" y="252">tints moved into per-instance data</text>
+<text class="t-head end" x="305" y="243">1</text>
+<rect class="f-acc" x="330" y="228" width="1.2" height="22"/>
+<rect class="f-acc-soft s-acc" x="331.2" y="228" width="1.2" height="22"/>
+<rect class="f-geo" x="332.4" y="228" width="1.2" height="22"/>
+<text class="t-mono t-strong" x="341.6" y="243">0.04 ms</text>
+<rect class="f-solid s-strong" x="800" y="228" width="64" height="22"/>
+<text class="t-small mid" x="832" y="242">2 M tris</text>
+<line class="s-strong" x1="330" y1="262" x2="770" y2="262"/>
+<line class="s-strong" x1="330" y1="262" x2="330" y2="267"/><text class="t-mono t-muted t-small mid" x="330" y="280">0 ms</text>
+<line class="s-strong" x1="440" y1="262" x2="440" y2="267"/><text class="t-mono t-muted t-small mid" x="440" y="280">5 ms</text>
+<line class="s-strong" x1="550" y1="262" x2="550" y2="267"/><text class="t-mono t-muted t-small mid" x="550" y="280">10 ms</text>
+<line class="s-strong" x1="660" y1="262" x2="660" y2="267"/><text class="t-mono t-muted t-small mid" x="660" y="280">15 ms</text>
+<line class="s-strong" x1="770" y1="262" x2="770" y2="267"/><text class="t-mono t-muted t-small mid" x="770" y="280">20 ms</text>
+<rect class="f-acc" x="20" y="288" width="12" height="10"/><text class="t-small" x="38" y="297">recording draw calls</text>
+<rect class="f-acc-soft s-acc" x="170" y="288" width="12" height="10"/><text class="t-small" x="188" y="297">changing material</text>
+<rect class="f-geo" x="306" y="288" width="12" height="10"/><text class="t-small" x="324" y="297">writing instance data</text>
+<text class="t-small t-muted end" x="880" y="297">Same trees, same triangles: the GPU's share does not change.</text>
+
+                </svg>
+              </div>
+              <figcaption><b>Same forest, same triangles, very different CPU bills.</b> Each draw call costs the CPU time to prepare, and each change of material between draws costs more. Drawn one tree at a time in scene order, 1,000 trees take 16.0 ms of CPU time in this chapter's cost model, almost a whole 60 fps frame. Sorted, merged or instanced, the same forest takes between 5.1 ms and 0.04 ms. The GPU draws 2 million triangles in all four.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> never goes looking for work. The <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a> tells it what to draw, one object at a time: this mesh, with this material, at this position. Each of those requests is a <dfn class="term" data-term="draw-call">draw call</dfn>. Before each one, the CPU sets up everything the draw needs, and the engine, the <a class="term" data-term="graphics-api" href="glossary.html#graphics-api">graphics API</a> and the <a class="term" data-term="driver" href="glossary.html#driver">driver</a> each spend a little time checking and recording it.</p>
+            <p>A few hundred draw calls cost almost nothing. Tens of thousands do. A forest, a city or a crowd built from separate objects can spend the CPU's whole frame on this paperwork while the GPU has little to do. Engines answer with two families of fixes. Batching groups or merges objects so there are fewer requests and less set-up between them. Instancing draws many copies of one mesh with a single request.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A print shop charges a set-up fee for every job and a small fee for every copy. Ordering 1,000 business cards as 1,000 separate jobs means 1,000 set-up fees, even though the printing is the same. Changing paper stock between jobs costs extra, because the printer has to unload one paper and load another.</p>
+                <p>Batching is grouping your orders by paper stock. Instancing is one job that says "print this card 1,000 times, with these 1,000 names".</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without batching and instancing, a scene's object count would set the frame rate far more than its detail does. Artists would have to choose between dressing a scene with props and keeping the game smooth.</p>
+                <p>With them, a thousand trees can cost little more CPU time than one.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Draw calls are the most common CPU bottleneck in rendering, and content decisions set them: how many objects a level has, how many unique materials, how scenes are built. They show up as CPU time on the <a class="term" data-term="render-thread" href="glossary.html#render-thread">render thread</a>, so a game can run slowly on a powerful graphics card. A draw call budget per platform belongs in the art and level-design guidelines, next to the triangle and texture budgets.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow the CPU as it turns a scene into commands for the GPU, then the tricks that make those commands fewer and cheaper. There are seven steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="draw-contents"><span class="step-num">1</span> What one draw call carries</h3>
+              <p>The draw itself is tiny: draw this many indices from this <a class="term" data-term="index-buffer" href="glossary.html#index-buffer">index buffer</a>, starting here. Everything else is set-up the GPU needs in place first. The <dfn class="term" data-term="render-state">render state</dfn> covers which <a class="term" data-term="shader" data-forward href="glossary.html#shader">shaders</a> run, how vertices are laid out, how colours blend, whether depth is tested and which faces are skipped. Around it sit the buffers, the <a class="term" data-term="texture" data-forward href="glossary.html#texture">textures</a> and the constants: small blocks of numbers such as the object's <a class="term" data-term="model-matrix" href="glossary.html#model-matrix">model matrix</a> and the material's tint.</p>
+              <p>The CPU records all of this as commands in a <a class="term" data-term="command-buffer" href="glossary.html#command-buffer">command buffer</a>. If the next object uses the same material and mesh, only its matrix needs to change. If it uses a different material, most of the set-up starts again. Modern APIs bundle most of the render state into one pre-built object, a pipeline state object, which <a class="xref" data-ch="5.6">5.6 Shaders in practice</a> covers.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="Left: one draw call opened up into five layers: pipeline state, geometry, resources, constants and the draw itself, which is one small command. Right: the command list for two crates and a lantern. The first crate needs a pipeline, textures, buffers and constants before its draw. The second crate only changes its matrix. The lantern changes the pipeline, textures and buffers again.">
+                    <text class="t-caps" x="20" y="24">ONE DRAW CALL, OPENED UP</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="38" width="400" height="46" rx="6"/>
+                    <text class="t-strong" x="36" y="58">Pipeline state</text>
+                    <text class="t-small" x="36" y="75">shaders, vertex layout, blending, depth test, face culling</text>
+                    <rect class="f-geo-soft s-geo" x="20" y="92" width="400" height="46" rx="6"/>
+                    <text class="t-strong" x="36" y="112">Geometry</text>
+                    <text class="t-small" x="36" y="129">vertex buffer and index buffer, from chapter 4.2</text>
+                    <rect class="f-surface s-strong" x="20" y="146" width="400" height="46" rx="6"/>
+                    <text class="t-strong" x="36" y="166">Resources</text>
+                    <text class="t-small" x="36" y="183">textures, and the samplers that read them</text>
+                    <rect class="f-surface s-strong" x="20" y="200" width="400" height="46" rx="6"/>
+                    <text class="t-strong" x="36" y="220">Constants</text>
+                    <text class="t-small" x="36" y="237">per object: model matrix · per material: tint, roughness</text>
+                    <rect class="f-acc s-acc" x="20" y="254" width="400" height="46" rx="6"/>
+                    <text class="t-strong t-on-acc" x="36" y="274">The draw</text>
+                    <text class="t-small t-on-acc" x="36" y="291">draw 36 indices, starting at index 0, 1 instance</text>
+                    <text class="t-small t-muted" x="20" y="320">The top four are set-up. The draw itself is one small command.</text>
+
+                    <text class="t-caps" x="470" y="24">COMMAND LIST: TWO CRATES, THEN A LANTERN</text>
+                    <rect class="f-acc-soft" x="470" y="34" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="48">set pipeline</text><text class="t-small" x="620" y="48">wood shader</text>
+                    <rect class="f-acc-soft" x="470" y="56" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="70">bind textures</text><text class="t-small" x="620" y="70">wood albedo, wood normal</text>
+                    <rect class="f-geo-soft" x="470" y="78" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="92">set buffers</text><text class="t-small" x="620" y="92">crate mesh</text>
+                    <rect class="f-surface s-line" x="470" y="100" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="114">set constants</text><text class="t-small" x="620" y="114">crate 1 matrix</text>
+                    <rect class="f-acc" x="470" y="122" width="410" height="20"/>
+                    <text class="t-mono t-small t-on-acc" x="480" y="136">draw</text><text class="t-small t-on-acc" x="620" y="136">36 indices</text>
+                    <rect class="f-surface s-line" x="470" y="144" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="158">set constants</text><text class="t-small" x="620" y="158">crate 2 matrix</text>
+                    <rect class="f-acc" x="470" y="166" width="410" height="20"/>
+                    <text class="t-mono t-small t-on-acc" x="480" y="180">draw</text><text class="t-small t-on-acc" x="620" y="180">36 indices</text>
+                    <rect class="f-acc-soft" x="470" y="188" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="202">set pipeline</text><text class="t-small" x="620" y="202">iron shader</text>
+                    <rect class="f-acc-soft" x="470" y="210" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="224">bind textures</text><text class="t-small" x="620" y="224">iron albedo, iron normal</text>
+                    <rect class="f-geo-soft" x="470" y="232" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="246">set buffers</text><text class="t-small" x="620" y="246">lantern mesh</text>
+                    <rect class="f-surface s-line" x="470" y="254" width="410" height="20"/>
+                    <text class="t-mono t-small" x="480" y="268">set constants</text><text class="t-small" x="620" y="268">lantern matrix</text>
+                    <rect class="f-acc" x="470" y="276" width="410" height="20"/>
+                    <text class="t-mono t-small t-on-acc" x="480" y="290">draw</text><text class="t-small t-on-acc" x="620" y="290">1,200 indices</text>
+                    <text class="t-small t-muted" x="470" y="320">Crate 2 reuses everything except its matrix. A new material sets most of it again.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A draw call is mostly set-up.</b> The command that draws is small; the state, buffers, textures and constants around it are what the CPU spends its time on. Consecutive draws that share a material and mesh share that set-up, which is why the order of draws matters.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cpu-gpu-cost"><span class="step-num">2</span> Where the cost lands: CPU, then GPU</h3>
+              <p>Recording a draw costs CPU time on the render thread: the engine gathers the object's data, the graphics API checks it, the driver turns it into the GPU's own commands. Explicit APIs such as <a class="term" data-term="directx-12" href="glossary.html#directx-12">DirectX 12</a> and <a class="term" data-term="vulkan" href="glossary.html#vulkan">Vulkan</a> cut the driver's share and let several threads record at once, but the engine's own work per object remains. Triangles and pixels, the GPU's real work, barely affect this cost. A 12-triangle crate costs the CPU about as much to submit as a 50,000-triangle statue.</p>
+              <p>The GPU has a small cost per draw too: switching state can leave parts of it idle for a moment, and a draw of a few dozen triangles cannot keep thousands of cores busy. But the usual failure is on the CPU side. When the CPU takes longer to record the frame than the GPU takes to draw it, the GPU sits idle between commands and the frame rate is set by the CPU.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 336" role="img" aria-label="Two timelines drawn to scale from 0 to 20 milliseconds. Top: 3,000 draw calls take the CPU 15.9 milliseconds to record; the GPU has 6 milliseconds of work but receives it in small pieces and spends most of the frame idle; the frame ends at 16.3 milliseconds. Bottom: the same scene as 300 draw calls takes the CPU 2.4 milliseconds; the GPU does its 6 milliseconds of work back to back and the frame ends at 6.4 milliseconds.">
+<defs><pattern id="cg-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="s-line" x1="0" y1="0" x2="0" y2="6" stroke-width="2"/></pattern><pattern id="cg-ticks" width="4" height="20" patternUnits="userSpaceOnUse"><rect class="f-acc" x="0" y="0" width="3" height="20"/></pattern></defs>
+<text class="t-head" x="20" y="28">3,000 draw calls</text>
+<text class="t-small t-muted" x="20" y="44">60 materials, sorted</text>
+<text class="t-small end" x="160" y="68">CPU: 15.9 ms</text>
+<text class="t-small end" x="160" y="98">GPU: 6.0 ms of work</text>
+<rect class="f-sunken" x="170" y="54" width="680" height="20"/><rect class="f-acc-soft" x="170" y="54" width="540.6" height="20"/><rect x="170" y="54" width="540.6" height="20" fill="url(#cg-ticks)" opacity="0.9"/>
+<rect class="f-sunken" x="170" y="84" width="680" height="20"/><rect x="170" y="84" width="554.2" height="20" fill="url(#cg-hatch)"/><rect class="f-geo" x="188.7" y="84" width="12.75" height="20"/><rect class="f-geo" x="222.02" y="84" width="12.75" height="20"/><rect class="f-geo" x="255.34" y="84" width="12.75" height="20"/><rect class="f-geo" x="288.66" y="84" width="12.75" height="20"/><rect class="f-geo" x="321.98" y="84" width="12.75" height="20"/><rect class="f-geo" x="355.3" y="84" width="12.75" height="20"/><rect class="f-geo" x="388.62" y="84" width="12.75" height="20"/><rect class="f-geo" x="421.94" y="84" width="12.75" height="20"/><rect class="f-geo" x="455.26" y="84" width="12.75" height="20"/><rect class="f-geo" x="488.58" y="84" width="12.75" height="20"/><rect class="f-geo" x="521.9" y="84" width="12.75" height="20"/><rect class="f-geo" x="555.22" y="84" width="12.75" height="20"/><rect class="f-geo" x="588.54" y="84" width="12.75" height="20"/><rect class="f-geo" x="621.86" y="84" width="12.75" height="20"/><rect class="f-geo" x="655.18" y="84" width="12.75" height="20"/><rect class="f-geo" x="688.5" y="84" width="12.75" height="20"/>
+<line class="s-ink w2" x1="724.2" y1="48" x2="724.2" y2="110"/>
+<text class="t-strong" x="730.2" y="98">frame ends 16.3 ms</text>
+<text class="t-small" x="170" y="122">The GPU needs 6 ms of work but spends most of the frame waiting for commands. Hatching marks idle time. CPU-bound.</text>
+<text class="t-head" x="20" y="164">300 draw calls, same scene</text>
+<text class="t-small t-muted" x="20" y="180">the repeated props instanced</text>
+<text class="t-small end" x="160" y="204">CPU: 2.4 ms</text>
+<text class="t-small end" x="160" y="234">GPU: 6.0 ms of work</text>
+<rect class="f-sunken" x="170" y="190" width="680" height="20"/><rect class="f-acc-soft" x="170" y="190" width="81.6" height="20"/><rect x="170" y="190" width="81.6" height="20" fill="url(#cg-ticks)" opacity="0.5"/>
+<rect class="f-sunken" x="170" y="220" width="680" height="20"/><rect x="170" y="220" width="217.6" height="20" fill="url(#cg-hatch)"/><rect class="f-geo" x="183.6" y="220" width="204" height="20"/>
+<line class="s-ink w2" x1="387.6" y1="184" x2="387.6" y2="246"/>
+<text class="t-strong" x="393.6" y="234">frame ends 6.4 ms</text>
+<text class="t-small" x="170" y="258">Same GPU work, now back to back. The frame takes as long as the GPU needs. GPU-bound.</text>
+<line class="s-strong" x1="170" y1="286" x2="850" y2="286"/>
+<line class="s-strong" x1="170" y1="286" x2="170" y2="291"/><text class="t-mono t-muted t-small mid" x="170" y="304">0 ms</text>
+<line class="s-strong" x1="340" y1="286" x2="340" y2="291"/><text class="t-mono t-muted t-small mid" x="340" y="304">5 ms</text>
+<line class="s-strong" x1="510" y1="286" x2="510" y2="291"/><text class="t-mono t-muted t-small mid" x="510" y="304">10 ms</text>
+<line class="s-strong" x1="680" y1="286" x2="680" y2="291"/><text class="t-mono t-muted t-small mid" x="680" y="304">15 ms</text>
+<line class="s-strong" x1="850" y1="286" x2="850" y2="291"/><text class="t-mono t-muted t-small mid" x="850" y="304">20 ms</text>
+<rect class="f-geo" x="170" y="314" width="12" height="10"/><text class="t-small" x="188" y="323">GPU drawing</text><rect x="290" y="314" width="12" height="10" fill="url(#cg-hatch)" class="s-line"/><text class="t-small" x="308" y="323">GPU idle, waiting</text>
+
+                  </svg>
+                </div>
+                <figcaption><b>Fewer draws save CPU time, and the GPU stops waiting.</b> The GPU's work is identical in both rows: the same triangles and pixels. In the top row the CPU cannot record commands fast enough to keep the GPU busy. In the bottom row the CPU finishes early and the frame takes as long as the GPU needs. Cutting draws further would no longer speed this frame up.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real engines overlap frames: while the GPU draws frame N, the CPU records frame N + 1, as <a class="xref" data-ch="2.2">2.2 The game loop and threads</a> describes. The picture still holds. Whichever side takes longer per frame sets the frame rate, and an idle GPU is the sign that the CPU side is the limit.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="sorting"><span class="step-num">3</span> Sorting draws by state</h3>
+              <p>The cheapest fix changes nothing about the content: draw things in a better order. Changing shader is the most expensive switch, then changing material, then changing mesh, and changing only the matrix is cheapest. So engines sort each pass's draws so that objects sharing a shader sit together, and within those, objects sharing a material. This is <dfn class="term" data-term="material-sorting">material sorting</dfn>, also called state sorting.</p>
+              <p>A common way to do it is a sort key: one 64-bit number per draw, with the most important state in the highest bits. Sorting the numbers sorts the draws. Opaque objects are also roughly sorted front to back, so nearer surfaces hide farther ones early; transparent objects must be drawn back to front, which can force more state changes. <a class="xref" data-ch="5.5">5.5 Depth, stencil and blending</a> explains why.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Top: 24 draws in scene order, each labelled with its material A, B, C or D; the material changes 19 times. Middle: the same 24 draws sorted by material; it changes 4 times. Bottom: a 64-bit sort key split into fields for pass, layer, shader, material, mesh and depth.">
+<text class="t-caps" x="20" y="30">24 DRAWS IN SCENE ORDER · EACH LETTER IS A MATERIAL</text>
+<rect class="f-geo-soft s-geo" x="20" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="32.5" y="64">B</text><line class="s-acc w2" x1="18.5" y1="38" x2="18.5" y2="82"/>
+<rect class="f-geo" x="48" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="60.5" y="64">A</text><line class="s-acc w2" x1="46.5" y1="38" x2="46.5" y2="82"/>
+<rect class="f-lit" x="76" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="88.5" y="64">C</text><line class="s-acc w2" x1="74.5" y1="38" x2="74.5" y2="82"/>
+<rect class="f-geo-soft s-geo" x="104" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="116.5" y="64">B</text><line class="s-acc w2" x1="102.5" y1="38" x2="102.5" y2="82"/>
+<rect class="f-geo" x="132" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="144.5" y="64">A</text><line class="s-acc w2" x1="130.5" y1="38" x2="130.5" y2="82"/>
+<rect class="f-lit-soft s-lit" x="160" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="172.5" y="64">D</text><line class="s-acc w2" x1="158.5" y1="38" x2="158.5" y2="82"/>
+<rect class="f-lit-soft s-lit" x="188" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="200.5" y="64">D</text>
+<rect class="f-lit-soft s-lit" x="216" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="228.5" y="64">D</text>
+<rect class="f-geo" x="244" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="256.5" y="64">A</text><line class="s-acc w2" x1="242.5" y1="38" x2="242.5" y2="82"/>
+<rect class="f-geo" x="272" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="284.5" y="64">A</text>
+<rect class="f-lit-soft s-lit" x="300" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="312.5" y="64">D</text><line class="s-acc w2" x1="298.5" y1="38" x2="298.5" y2="82"/>
+<rect class="f-lit" x="328" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="340.5" y="64">C</text><line class="s-acc w2" x1="326.5" y1="38" x2="326.5" y2="82"/>
+<rect class="f-geo-soft s-geo" x="356" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="368.5" y="64">B</text><line class="s-acc w2" x1="354.5" y1="38" x2="354.5" y2="82"/>
+<rect class="f-lit" x="384" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="396.5" y="64">C</text><line class="s-acc w2" x1="382.5" y1="38" x2="382.5" y2="82"/>
+<rect class="f-geo-soft s-geo" x="412" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="424.5" y="64">B</text><line class="s-acc w2" x1="410.5" y1="38" x2="410.5" y2="82"/>
+<rect class="f-geo" x="440" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="452.5" y="64">A</text><line class="s-acc w2" x1="438.5" y1="38" x2="438.5" y2="82"/>
+<rect class="f-geo" x="468" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="480.5" y="64">A</text>
+<rect class="f-geo" x="496" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="508.5" y="64">A</text>
+<rect class="f-geo-soft s-geo" x="524" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="536.5" y="64">B</text><line class="s-acc w2" x1="522.5" y1="38" x2="522.5" y2="82"/>
+<rect class="f-lit" x="552" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="564.5" y="64">C</text><line class="s-acc w2" x1="550.5" y1="38" x2="550.5" y2="82"/>
+<rect class="f-lit-soft s-lit" x="580" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="592.5" y="64">D</text><line class="s-acc w2" x1="578.5" y1="38" x2="578.5" y2="82"/>
+<rect class="f-geo" x="608" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="620.5" y="64">A</text><line class="s-acc w2" x1="606.5" y1="38" x2="606.5" y2="82"/>
+<rect class="f-geo-soft s-geo" x="636" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="648.5" y="64">B</text><line class="s-acc w2" x1="634.5" y1="38" x2="634.5" y2="82"/>
+<rect class="f-geo" x="664" y="44" width="25" height="32"/><text class="t-mono t-small mid" x="676.5" y="64">A</text><line class="s-acc w2" x1="662.5" y1="38" x2="662.5" y2="82"/>
+<text class="t-head" x="710" y="58">19 material changes</text>
+<text class="t-small t-muted" x="710" y="74">for 24 draws</text>
+<text class="t-caps" x="20" y="110">THE SAME 24 DRAWS, SORTED BY MATERIAL</text>
+<rect class="f-geo" x="20" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="32.5" y="144">A</text><line class="s-acc w2" x1="18.5" y1="118" x2="18.5" y2="162"/>
+<rect class="f-geo" x="48" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="60.5" y="144">A</text>
+<rect class="f-geo" x="76" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="88.5" y="144">A</text>
+<rect class="f-geo" x="104" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="116.5" y="144">A</text>
+<rect class="f-geo" x="132" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="144.5" y="144">A</text>
+<rect class="f-geo" x="160" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="172.5" y="144">A</text>
+<rect class="f-geo" x="188" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="200.5" y="144">A</text>
+<rect class="f-geo" x="216" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="228.5" y="144">A</text>
+<rect class="f-geo" x="244" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="256.5" y="144">A</text>
+<rect class="f-geo-soft s-geo" x="272" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="284.5" y="144">B</text><line class="s-acc w2" x1="270.5" y1="118" x2="270.5" y2="162"/>
+<rect class="f-geo-soft s-geo" x="300" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="312.5" y="144">B</text>
+<rect class="f-geo-soft s-geo" x="328" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="340.5" y="144">B</text>
+<rect class="f-geo-soft s-geo" x="356" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="368.5" y="144">B</text>
+<rect class="f-geo-soft s-geo" x="384" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="396.5" y="144">B</text>
+<rect class="f-geo-soft s-geo" x="412" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="424.5" y="144">B</text>
+<rect class="f-lit" x="440" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="452.5" y="144">C</text><line class="s-acc w2" x1="438.5" y1="118" x2="438.5" y2="162"/>
+<rect class="f-lit" x="468" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="480.5" y="144">C</text>
+<rect class="f-lit" x="496" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="508.5" y="144">C</text>
+<rect class="f-lit" x="524" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="536.5" y="144">C</text>
+<rect class="f-lit-soft s-lit" x="552" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="564.5" y="144">D</text><line class="s-acc w2" x1="550.5" y1="118" x2="550.5" y2="162"/>
+<rect class="f-lit-soft s-lit" x="580" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="592.5" y="144">D</text>
+<rect class="f-lit-soft s-lit" x="608" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="620.5" y="144">D</text>
+<rect class="f-lit-soft s-lit" x="636" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="648.5" y="144">D</text>
+<rect class="f-lit-soft s-lit" x="664" y="124" width="25" height="32"/><text class="t-mono t-small mid" x="676.5" y="144">D</text>
+<text class="t-head" x="710" y="138">4 material changes</text>
+<text class="t-small t-muted" x="710" y="154">for 24 draws</text>
+<text class="t-caps" x="20" y="204">A SORT KEY: ONE 64-BIT NUMBER PER DRAW, SORTED SMALLEST FIRST</text>
+<rect class="f-surface s-strong" x="20" y="214" width="53.75" height="34"/><text class="mid" x="46.88" y="235">pass</text><text class="t-mono t-muted t-small mid" x="46.88" y="264">4 bits</text>
+<rect class="f-surface s-strong" x="73.75" y="214" width="53.75" height="34"/><text class="mid" x="100.63" y="235">layer</text><text class="t-mono t-muted t-small mid" x="100.63" y="264">4 bits</text>
+<rect class="f-acc-soft s-acc" x="127.5" y="214" width="161.25" height="34"/><text class="mid" x="208.13" y="235">shader</text><text class="t-mono t-muted t-small mid" x="208.13" y="264">12 bits</text>
+<rect class="f-acc-soft s-acc" x="288.75" y="214" width="215" height="34"/><text class="mid" x="396.25" y="235">material</text><text class="t-mono t-muted t-small mid" x="396.25" y="264">16 bits</text>
+<rect class="f-geo-soft s-geo" x="503.75" y="214" width="161.25" height="34"/><text class="mid" x="584.38" y="235">mesh</text><text class="t-mono t-muted t-small mid" x="584.38" y="264">12 bits</text>
+<rect class="f-surface s-strong" x="665" y="214" width="215" height="34"/><text class="mid" x="772.5" y="235">depth</text><text class="t-mono t-muted t-small mid" x="772.5" y="264">16 bits</text>
+<text class="t-small t-muted" x="20" y="288">Fields on the left matter most. Draws with the same shader end up next to each other, then the same material, then the same mesh.</text>
+
+                  </svg>
+                </div>
+                <figcaption><b>Sorting turns many state changes into a few.</b> Blue lines mark each change of material. The same 24 draws need 19 changes in scene order and 4 once sorted. The draw count does not change, but each draw after the first in a group costs much less.</figcaption>
+              </figure>
+              <p>Unity's URP and HDRP push this idea further with the <dfn class="term" data-term="srp-batcher">SRP Batcher</dfn>. It keeps every material's settings in GPU memory, uploads them only when they change, and keeps per-object data in one large buffer. Draws that use the same shader variant then need almost no set-up between them, even if their materials differ. Unity's documentation puts it plainly: the SRP Batcher reduces render-state changes between draw calls. The number of draws stays the same; each one gets cheaper.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="batching"><span class="step-num">4</span> Merging meshes: static and dynamic batching</h3>
+              <p><dfn class="term" data-term="batching">Batching</dfn> is the umbrella name for turning many draw requests into fewer or cheaper ones. The oldest form merges geometry. Take every object that never moves and shares a material, transform its vertices into <a class="term" data-term="world-space" href="glossary.html#world-space">world space</a>, and copy them all into one big vertex buffer. That is <dfn class="term" data-term="static-batching">static batching</dfn>: a hundred rocks become one buffer and as little as one draw.</p>
+              <p>The price is memory and culling. A rock used a hundred times is now stored a hundred times, because each copy sits at its own place in world space. And the batch is one object as far as the renderer knows, so it cannot skip the rocks that are out of view without splitting the draw into pieces. Unity's static batching does split it, at the cost of more draws.</p>
+              <p><dfn class="term" data-term="dynamic-batching">Dynamic batching</dfn> does the same merge for moving objects, every frame, on the CPU: transform each small mesh's vertices and write them into a shared <a class="term" data-term="dynamic-buffer" href="glossary.html#dynamic-buffer">dynamic buffer</a>. The transform work grows with vertex count, so it only pays for tiny meshes. Unity's documentation limits it to meshes under 300 vertices and notes that it often gains nothing on consoles or with modern APIs.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left, static batching: two rocks of 600 vertices and a wall of 400 vertices are transformed into world space and copied once into a single 1,600-vertex buffer, drawn with one draw call per material; the rock is now stored twice and the batch culls as one object. Right, dynamic batching: three small moving coins are transformed by the CPU every frame and written into a dynamic buffer, drawn with one draw call; it only pays off for tiny meshes.">
+                    <defs>
+                      <marker id="bat-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="bat-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">STATIC BATCHING · ONCE, BEFORE THE GAME RUNS</text>
+                    <polygon class="f-solid s-strong" points="40,92 52,62 84,56 104,74 98,96 66,102"/>
+                    <polygon class="f-solid s-strong" points="150,92 162,62 194,56 214,74 208,96 176,102"/>
+                    <rect class="f-solid s-strong" x="262" y="62" width="120" height="38"/>
+                    <path class="s-strong" d="M262,81 H382 M292,62 V81 M322,81 V100 M352,62 V81"/>
+                    <text class="t-small mid" x="72" y="120">rock · 600 verts</text>
+                    <text class="t-small mid" x="182" y="120">rock · 600 verts</text>
+                    <text class="t-small mid" x="322" y="120">wall · 400 verts</text>
+                    <text class="t-small t-muted" x="20" y="142">3 objects, same material: 3 draws</text>
+                    <line class="s-muted w15" x1="210" y1="150" x2="210" y2="178" marker-end="url(#bat-arr)"/>
+                    <text class="t-small t-muted" x="222" y="168">moved into world space, copied</text>
+                    <rect class="f-geo-soft s-geo" x="20" y="186" width="150" height="30"/>
+                    <rect class="f-geo-soft s-geo" x="170" y="186" width="150" height="30"/>
+                    <rect class="f-geo-soft s-geo" x="320" y="186" width="100" height="30"/>
+                    <text class="t-small mid" x="95" y="205">rock, copy 1</text>
+                    <text class="t-small mid" x="245" y="205">rock, copy 2</text>
+                    <text class="t-small mid" x="370" y="205">wall</text>
+                    <text class="t-mono t-muted t-small" x="20" y="232">one vertex buffer · 1,600 vertices</text>
+                    <text class="t-strong t-acc" x="20" y="258">1 draw call</text>
+                    <text class="t-small" x="20" y="276">The rock mesh is now stored twice.</text>
+                    <text class="t-small" x="20" y="292">The batch is culled as one object unless the engine splits it.</text>
+
+                    <line class="s-line" x1="450" y1="14" x2="450" y2="292"/>
+
+                    <text class="t-caps" x="480" y="24">DYNAMIC BATCHING · EVERY FRAME, ON THE CPU</text>
+                    <circle class="f-lit-soft s-lit" cx="520" cy="78" r="16"/>
+                    <circle class="f-lit-soft s-lit" cx="600" cy="66" r="16"/>
+                    <circle class="f-lit-soft s-lit" cx="680" cy="84" r="16"/>
+                    <path class="s-muted dash" d="M500,104 Q510,96 520,96 M580,92 Q590,84 600,84 M660,110 Q670,102 680,102"/>
+                    <text class="t-small t-muted" x="480" y="126">3 small moving coins, 24 vertices each</text>
+                    <line class="s-muted w15" x1="600" y1="136" x2="600" y2="152" marker-end="url(#bat-arr)"/>
+                    <rect class="f-acc-soft s-acc" x="480" y="156" width="400" height="34" rx="6"/>
+                    <text class="t-small" x="494" y="177">CPU transforms every vertex of every coin, every frame</text>
+                    <line class="s-acc w15" x1="600" y1="192" x2="600" y2="206" marker-end="url(#bat-arr-a)"/>
+                    <rect class="f-geo-soft s-geo dash" x="480" y="210" width="216" height="26"/>
+                    <text class="t-small" x="490" y="228">dynamic buffer · 72 vertices</text>
+                    <text class="t-strong t-acc" x="480" y="258">1 draw call</text>
+                    <text class="t-small" x="480" y="276">Pays off only for tiny meshes; the transform</text>
+                    <text class="t-small" x="480" y="292">work grows with every vertex merged.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Two ways to merge.</b> Static batching pays once, in memory: every copy is stored at its world position. Dynamic batching pays every frame, in CPU time: every vertex is transformed again. Both trade one cost for fewer draws.</figcaption>
+              </figure>
+              <p>Teams also merge by hand. A <dfn class="term" data-term="merged-mesh">merged mesh</dfn> is several objects joined into one asset, in the modelling tool or with an engine tool, so a market stall of twenty props becomes one object with one draw per material. It suits clusters that always appear together. It goes wrong when the merged area is large: Godot's documentation warns that an entire city that is off screen will still be rendered if it is joined to a single blade of grass that is on screen.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="instancing"><span class="step-num">5</span> Instancing: one mesh, many copies</h3>
+              <p>Merging copies geometry. <dfn class="term" data-term="instancing">GPU instancing</dfn> avoids the copies. The mesh stays in memory once, and one draw call asks for it to be drawn many times. Alongside it goes a buffer of <dfn class="term" data-term="per-instance-data">per-instance data</dfn>: one row per copy, usually a transform and perhaps a tint or a few custom numbers. The <a class="term" data-term="vertex-shader" data-forward href="glossary.html#vertex-shader">vertex shader</a> runs for every vertex of every instance and uses the instance's number to read its row.</p>
+              <p>Instancing has one strict rule. Every instance uses the same mesh and the same material, so everything that differs between copies must move into the per-instance data. Four tree materials that differ only in colour can become one material with a per-instance tint. Four materials with different shaders cannot.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Left: one tree mesh stored once, a vertex buffer of 1,200 vertices and an index buffer of 6,000 indices. Middle: an instance buffer with one 80-byte row per tree: a 64-byte matrix for position, rotation and scale, and a 16-byte tint. Below it, one draw call asks for 6,000 indices times 1,000 instances. Right: rows 0, 1 and 2 place three trees with different tints in the forest.">
+                    <defs>
+                      <marker id="ins-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">STORED ONCE</text>
+                    <rect class="f-solid s-strong" x="76" y="104" width="12" height="34"/>
+                    <polygon class="f-geo-soft s-geo" points="82,40 122,108 42,108"/>
+                    <rect class="f-geo-soft s-geo" x="20" y="160" width="210" height="26"/>
+                    <text class="t-small" x="30" y="178">vertex buffer · 1,200 vertices</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="192" width="210" height="26"/>
+                    <text class="t-small" x="30" y="210">index buffer · 6,000 indices</text>
+                    <text class="t-mono t-muted t-small" x="20" y="236">49 KB, whatever the tree count</text>
+
+                    <text class="t-caps" x="270" y="24">INSTANCE BUFFER · ONE ROW PER TREE</text>
+                    <text class="t-small t-muted mid" x="288" y="50">#</text>
+                    <text class="t-small t-muted mid" x="400" y="50">position, rotation, scale</text>
+                    <text class="t-small t-muted mid" x="534" y="50">tint</text>
+                    <rect class="f-surface s-strong" x="270" y="58" width="36" height="22"/><rect class="f-surface s-strong" x="306" y="58" width="196" height="22"/><rect class="f-surface s-strong" x="502" y="58" width="64" height="22"/><rect class="f-geo s-strong" x="510" y="64" width="11" height="11"/>
+                    <rect class="f-surface s-strong" x="270" y="80" width="36" height="22"/><rect class="f-surface s-strong" x="306" y="80" width="196" height="22"/><rect class="f-surface s-strong" x="502" y="80" width="64" height="22"/><rect class="f-lit s-strong" x="510" y="86" width="11" height="11"/>
+                    <rect class="f-surface s-strong" x="270" y="102" width="36" height="22"/><rect class="f-surface s-strong" x="306" y="102" width="196" height="22"/><rect class="f-surface s-strong" x="502" y="102" width="64" height="22"/><rect class="f-geo-soft s-strong" x="510" y="108" width="11" height="11"/>
+                    <rect class="f-surface s-strong" x="270" y="134" width="36" height="22"/><rect class="f-surface s-strong" x="306" y="134" width="196" height="22"/><rect class="f-surface s-strong" x="502" y="134" width="64" height="22"/><rect class="f-lit-soft s-strong" x="510" y="140" width="11" height="11"/>
+                    <text class="t-mono t-small mid" x="288" y="74">0</text><text class="t-mono t-small mid" x="404" y="74">4 × 4 matrix · 64 B</text><text class="t-mono t-small" x="528" y="74">16 B</text>
+                    <text class="t-mono t-small mid" x="288" y="96">1</text><text class="t-mono t-small mid" x="404" y="96">4 × 4 matrix · 64 B</text><text class="t-mono t-small" x="528" y="96">16 B</text>
+                    <text class="t-mono t-small mid" x="288" y="118">2</text><text class="t-mono t-small mid" x="404" y="118">4 × 4 matrix · 64 B</text><text class="t-mono t-small" x="528" y="118">16 B</text>
+                    <text class="t-muted mid" x="404" y="131">⋮</text>
+                    <text class="t-mono t-small mid" x="288" y="150">999</text><text class="t-mono t-small mid" x="404" y="150">4 × 4 matrix · 64 B</text><text class="t-mono t-small" x="528" y="150">16 B</text>
+                    <text class="t-mono t-muted t-small" x="270" y="176">80 B × 1,000 trees = 80,000 B, about 78 KB</text>
+                    <rect class="f-acc s-acc" x="270" y="194" width="296" height="48" rx="6"/>
+                    <text class="t-mono t-on-acc" x="284" y="214">draw 6,000 indices × 1,000</text>
+                    <text class="t-small t-on-acc" x="284" y="232">one draw call</text>
+                    <line class="s-muted w15" x1="232" y1="205" x2="266" y2="214" marker-end="url(#ins-arr)"/>
+
+                    <text class="t-caps" x="610" y="24">THE RESULT</text>
+                    <g class="f-geo-soft">
+                      <circle cx="760" cy="60" r="4"/><circle cx="820" cy="76" r="4"/><circle cx="860" cy="50" r="4"/><circle cx="700" cy="150" r="4"/><circle cx="790" cy="170" r="4"/><circle cx="850" cy="140" r="4"/><circle cx="640" cy="200" r="4"/><circle cx="720" cy="230" r="4"/><circle cx="810" cy="236" r="4"/><circle cx="866" cy="206" r="4"/><circle cx="660" cy="110" r="4"/><circle cx="742" cy="108" r="4"/>
+                    </g>
+                    <polygon class="f-geo s-strong" points="650,48 668,80 632,80"/>
+                    <polygon class="f-lit s-strong" points="772,118 794,156 750,156"/>
+                    <polygon class="f-geo-soft s-strong" points="700,176 716,204 684,204"/>
+                    <path class="s-muted dash" d="M568,69 C600,69 610,64 628,64 M568,91 C660,91 700,136 746,136 M568,113 C620,113 640,190 680,190"/>
+                    <text class="t-mono t-small" x="676" y="70">#0</text>
+                    <text class="t-mono t-small" x="800" y="142">#1</text>
+                    <text class="t-mono t-small" x="722" y="196">#2</text>
+                    <text class="t-small t-muted" x="610" y="266">The vertex shader runs 1,200 × 1,000 times and</text>
+                    <text class="t-small t-muted" x="610" y="282">reads each tree's row by its instance number.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Instancing stores the mesh once and the differences once per copy.</b> A thousand trees cost 49 KB of mesh plus 78 KB of instance data. Merging the same forest into one mesh would store 1,000 world-space copies of the tree: about 48 MB.</figcaption>
+              </figure>
+              <p>Try all four approaches on one forest below. Start with one draw per tree, then sort, merge and instance, and watch where the CPU time goes. Then switch on culling: separate draws and instances can skip trees outside the view, a merged mesh cannot.</p>
+              <figure>
+                <div class="demo" data-demo="forest-draws">
+                  <p class="demo-hint">The forest draws interactive needs JavaScript. Without it: 1,000 trees drawn one at a time take about 1,000 draw calls and 735 material changes; sorted, 1,000 draws and 4 changes; merged by material, 4 draws; instanced, 1 draw.</p>
+                </div>
+                <figcaption><b>Forest draws.</b> The bars use an illustrative cost model, stated under the readout, and compare all four methods at the current tree count. Watch the readout's last two cells as you switch: triangles for the GPU stay the same unless culling is on, and merging costs memory that instancing does not.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="gpu-driven"><span class="step-num">6</span> Letting the GPU decide: indirect and GPU-driven drawing</h3>
+              <p>Even instanced, the CPU still decides what to draw: it culls the scene, counts the visible instances and writes their data. In <dfn class="term" data-term="indirect-drawing">indirect drawing</dfn>, the draw call's own numbers, how many indices and how many instances, are read from a buffer in GPU memory instead of being supplied by the CPU. Microsoft's Direct3D 12 documentation describes it as moving some scene traversal and culling from the CPU to the GPU.</p>
+              <p>That opens the door to <dfn class="term" data-term="gpu-driven-rendering">GPU-driven rendering</dfn>. The whole scene's object data lives in GPU memory. Each frame a <a class="term" data-term="compute-shader" data-forward href="glossary.html#compute-shader">compute shader</a> tests every instance against the view, using the techniques of <a class="xref" data-ch="4.4">4.4 Culling</a>, and writes the survivors and the draw arguments itself. A handful of indirect draws then consume them. The CPU's work no longer grows with the number of objects. Ubisoft's renderer for <em>Assassin's Creed Unity</em> used this approach and reported one to two orders of magnitude fewer draw calls with about ten times the objects of the previous game.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="A GPU-driven frame. On the CPU: upload only what changed, then record a few commands. On the GPU: scene data for every instance, a compute pass that culls each instance against the frustum and the depth pyramid, a visible list with draw arguments written by the GPU, and indirect draws that read those arguments without a round trip to the CPU.">
+                    <defs>
+                      <marker id="gd-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="gd-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">CPU</text>
+                    <rect class="f-sunken s-strong" x="20" y="32" width="860" height="76" rx="8"/>
+                    <rect class="f-surface s-strong" x="36" y="46" width="250" height="48" rx="6"/>
+                    <text class="t-strong" x="50" y="66">1 · Upload what changed</text>
+                    <text class="t-small t-muted" x="50" y="83">moved, added or removed objects only</text>
+                    <rect class="f-surface s-strong" x="580" y="46" width="284" height="48" rx="6"/>
+                    <text class="t-strong" x="594" y="66">3 · Record a few commands</text>
+                    <text class="t-small t-muted" x="594" y="83">run the culling pass, then draw indirect</text>
+
+                    <text class="t-caps" x="20" y="134">GPU</text>
+                    <rect class="f-sunken s-strong" x="20" y="144" width="860" height="104" rx="8"/>
+                    <rect class="f-geo-soft s-geo" x="36" y="160" width="190" height="72" rx="6"/>
+                    <text class="t-strong" x="50" y="180">Scene data</text>
+                    <text class="t-small" x="50" y="198">every instance: bounds,</text>
+                    <text class="t-small" x="50" y="213">transform, mesh, material</text>
+                    <rect class="f-acc-soft s-acc" x="252" y="160" width="190" height="72" rx="6"/>
+                    <text class="t-strong" x="266" y="180">2 · Cull on the GPU</text>
+                    <text class="t-small" x="266" y="198">a compute shader tests each</text>
+                    <text class="t-small" x="266" y="213">instance: view, then occlusion</text>
+                    <rect class="f-surface s-strong" x="468" y="160" width="190" height="72" rx="6"/>
+                    <text class="t-strong" x="482" y="180">Visible list + arguments</text>
+                    <text class="t-small" x="482" y="198">index and instance counts,</text>
+                    <text class="t-small" x="482" y="213">written by the GPU itself</text>
+                    <rect class="f-acc s-acc" x="684" y="160" width="180" height="72" rx="6"/>
+                    <text class="t-strong t-on-acc" x="698" y="180">4 · Draw indirect</text>
+                    <text class="t-small t-on-acc" x="698" y="198">reads its own arguments,</text>
+                    <text class="t-small t-on-acc" x="698" y="213">no trip back to the CPU</text>
+                    <line class="s-muted w15" x1="226" y1="196" x2="248" y2="196" marker-end="url(#gd-arr)"/>
+                    <line class="s-muted w15" x1="442" y1="196" x2="464" y2="196" marker-end="url(#gd-arr)"/>
+                    <line class="s-muted w15" x1="658" y1="196" x2="680" y2="196" marker-end="url(#gd-arr)"/>
+                    <line class="s-muted w15" x1="130" y1="94" x2="130" y2="156" marker-end="url(#gd-arr)"/>
+                    <path class="s-acc w15 dash" d="M700,94 V126 H346 V156" marker-end="url(#gd-arr-a)"/>
+                    <path class="s-acc w15 dash" d="M780,94 V156" marker-end="url(#gd-arr-a)"/>
+                    <text class="t-small t-acc" x="356" y="122">launches</text>
+                    <text class="t-small t-muted" x="20" y="276">The CPU records the same few commands whether 5,000 or 500,000 instances survive culling.</text>
+                  </svg>
+                </div>
+                <figcaption><b>GPU-driven rendering moves the per-object loop onto the GPU.</b> The CPU uploads changes and launches two kinds of work. The GPU decides what is visible and writes the draw arguments it then reads back for itself, so the draw count the CPU sees stays small however busy the scene gets.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Code</span> What a draw's arguments look like when the GPU writes them</summary>
+                <div class="fold-body">
+                  <p>In Direct3D 12, an ordinary instanced draw takes five numbers from the CPU. An indirect draw reads the same five numbers from a buffer, one record per draw, which a compute shader can fill. Vulkan and Metal have equivalents.</p>
+<pre class="code"><span class="c">// A direct draw: the CPU supplies the numbers.</span>
+cmdList-&gt;DrawIndexedInstanced(<span class="n">6000</span>, <span class="n">1000</span>, <span class="n">0</span>, <span class="n">0</span>, <span class="n">0</span>);
+<span class="c">//                  indices per instance, instances, first index, base vertex, first instance</span>
+
+<span class="c">// An indirect draw: the same five numbers live in GPU memory,</span>
+<span class="c">// one record per draw (D3D12_DRAW_INDEXED_ARGUMENTS).</span>
+<span class="k">struct</span> DrawArgs { UINT IndexCountPerInstance, InstanceCount,
+                   StartIndexLocation; INT BaseVertexLocation;
+                   UINT StartInstanceLocation; };
+
+<span class="c">// A culling compute shader writes DrawArgs records and a count;</span>
+<span class="c">// the GPU then runs as many draws as it wrote.</span>
+cmdList-&gt;ExecuteIndirect(signature, <span class="n">maxDraws</span>, argsBuffer, <span class="n">0</span>, countBuffer, <span class="n">0</span>);</pre>
+                  <p>When reviewing code like this, check who writes the count buffer, what happens when the GPU writes more draws than the maximum, and whether the argument buffer is cleared or rewritten every frame.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="courtyard-draws"><span class="step-num">7</span> Draw calls in a real scene</h3>
+              <p>The Lantern Courtyard below is built the way this chapter recommends. Its 31 objects use six meshes and materials, and each group goes out as one instanced draw. The Triangles view colours each draw call differently. Switch to Final and watch the draw count: every pass that draws the scene adds its draws again.</p>
+              <figure>
+                <div class="demo" data-demo="courtyard" data-view="triangles" data-views="triangles,final">
+                  <p class="demo-hint">The Lantern Courtyard needs WebGL 2. In the Triangles view, each draw call has its own colour: the ground, the stone blocks, the crates, the lantern's iron parts, its glass and the banner, six draws for 31 objects.</p>
+                </div>
+                <figcaption><b>The Lantern Courtyard draws 31 objects with six draw calls per pass.</b> Each colour is one draw call. All 13 stone blocks share one mesh and material, so they go out as one instanced draw; so do the four crates and the 11 iron parts of the lantern. The readout counts 13 in this view because it draws each mesh twice, filled and then as edges, plus one pass that puts the picture on screen. The Final view counts 27: six draws for the shadow map, six for the G-buffer, and 15 full-screen passes that light and finish the image.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Take this chapter's illustrative model: 5 µs of CPU time to record a draw and 15 µs more to change material. A level with 1,000 draws, sorted so that material changes are rare, spends about 5 ms on the render thread just recording them. That is 30% of a 16.7 ms frame at 60 fps, 36% of a 13.9 ms frame on a 72 Hz headset and 60% of an 8.3 ms frame at 120 fps. The render thread has other work too, so the real ceiling is lower.</p>
+            <p>Draws multiply with passes. An object drawn into a depth pre-pass, four shadow cascades and the main pass costs six draws. Adrian Courrèges's breakdown of one <em>GTA V</em> frame on PC shows how the total builds up.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 132" role="img" aria-label="A bar of 4,155 draw calls in one frame of GTA V on PC, split to scale: about 1,900 for the G-buffer, about 1,000 for shadow cascades, 650 for the water reflection and 605 for everything else.">
+<text class="t-caps" x="20" y="24">DRAW CALLS IN ONE FRAME OF GTA V ON PC · 4,155 IN TOTAL</text>
+<rect class="f-acc" x="20" y="40" width="393.26" height="36"/>
+<text class="t-strong mid t-on-acc" x="216.63" y="63">about 1,900</text>
+<text class="t-small " x="20" y="96">G-buffer</text>
+<rect class="f-acc-soft s-acc" x="413.26" y="40" width="206.98" height="36"/>
+<text class="t-strong mid" x="516.75" y="63">about 1,000</text>
+<text class="t-small " x="413.26" y="96">shadow cascades</text>
+<rect class="f-surface s-strong" x="620.24" y="40" width="134.54" height="36"/>
+<text class="t-strong mid" x="687.51" y="63">650</text>
+<text class="t-small " x="620.24" y="96">water reflection</text>
+<rect class="f-solid s-strong" x="754.78" y="40" width="125.22" height="36"/>
+<text class="t-strong mid" x="817.39" y="63">605</text>
+<text class="t-small end" x="880" y="96">everything else</text>
+<text class="t-small t-muted" x="20" y="120">The study gives the first two as round figures; the last segment is the remainder: other passes, post-processing and UI.</text>
+
+                </svg>
+              </div>
+              <figcaption><b>Most draws are the scene drawn again.</b> In this 2015 frame the main geometry pass is fewer than half the draw calls. Shadows and a reflection redraw the scene from other viewpoints. Culling, in <a class="xref" data-ch="4.4">4.4</a>, keeps each of those redraws as small as it can.</figcaption>
+            </figure>
+            <h3>Draw call budgets by platform</h3>
+            <p>A <dfn class="term" data-term="draw-call-budget">draw call budget</dfn> is the number of draw calls per frame a project allows on each platform, set from what that platform's CPU can record within the frame. Published figures are rare and always come with conditions, because the real limit depends on the engine, the graphics API, the state changes and what else the CPU is doing. These are the figures platform holders and engine makers have published, with one row labelled typical where none is published.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Platform</th><th scope="col" class="num">Draw calls per frame</th><th scope="col">Source and conditions</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Meta Quest 2 and Quest Pro</th><td class="num">200 to 300</td><td>Meta's example range for a medium simulation load; 80 to 200 for busy multiplayer apps, 400 to 600 for light ones.</td></tr>
+                  <tr><th scope="row">Meta Quest 3 and 3S</th><td class="num">400 to 600</td><td>Meta, medium simulation load; 200 to 300 busy, 700 to 1,000 light.</td></tr>
+                  <tr><th scope="row">Android tablet (Galaxy Tab S6)</th><td class="num">about 700</td><td>Epic's target for an optimised Unreal scene; under 500 on lower-end hardware.</td></tr>
+                  <tr><th scope="row">High-end PC, DirectX 11 era</th><td class="num">thousands</td><td>Epic's Unreal Engine 4.27 profiling guide; mobile "more in the hundreds".</td></tr>
+                  <tr><th scope="row"><em>GTA V</em> on PC, 2015</th><td class="num">4,155</td><td>One captured frame, in Courrèges's study.</td></tr>
+                  <tr><th scope="row">Current consoles and PCs, DirectX 12 or Vulkan</th><td class="num">several thousand</td><td>Typical, not a published limit. GPU-driven renderers go far beyond this, because their draw count no longer tracks object count.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <h3>Memory is the price of merging</h3>
+            <p>Fewer draws are not free. For the 1,000 trees of the picture, each mesh 1,200 vertices of 32 bytes and 6,000 16-bit indices:</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th scope="col">Approach</th><th scope="col" class="num">Draw calls</th><th scope="col" class="num">Geometry memory</th><th scope="col">Culling</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Separate objects</th><td class="num">1,000</td><td class="num">49 KB</td><td>Per tree</td></tr>
+                  <tr><th scope="row">Merged or statically batched</th><td class="num">4</td><td class="num">48.1 MB</td><td>Per merged mesh</td></tr>
+                  <tr><th scope="row">Instanced</th><td class="num">1</td><td class="num">127 KB</td><td>Per instance, if the engine culls before writing the instance data</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul class="grows">
+              <li><strong>Passes per object</strong><span>Every pass that draws an object adds its draws again: depth pre-pass, each shadow cascade, the main pass, reflection captures.</span></li>
+              <li><strong>Unique materials</strong><span>Each one splits batches and adds state changes. A material copied per object, often by a script, can multiply draws overnight.</span></li>
+              <li><strong>Shader variants</strong><span>A different variant of the same shader still breaks a batch. Unity notes that SRP batches with few draws in each often mean too many shader variants.</span></li>
+              <li><strong>Extra views</strong><span>Split screen, the second eye in VR, reflection probes and security-camera screens each draw the scene again.</span></li>
+              <li><strong>Small props</strong><span>Every separate object counts, however few triangles it has. A pebble costs the CPU as much as a statue.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>Draw calls cost CPU time, and only matter when the CPU is the limit. If the GPU is the slower side, halving draws changes nothing on screen. Check which side overruns the <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a> before spending artist time on merging and instancing; <a class="xref" data-ch="11.1">11.1 Frame budgets</a> shows how.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Draw call problems look like performance problems first, and occasionally like visual ones. These are the usual patterns.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two timing bars: a long CPU bar filling almost the whole frame, and a GPU bar with short busy blocks separated by idle gaps.">
+                    <defs><pattern id="sy-idle" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="s-line" x1="0" y1="0" x2="0" y2="6" stroke-width="2"/></pattern></defs>
+                    <text class="t-small" x="14" y="44">CPU</text>
+                    <rect class="f-acc" x="50" y="30" width="170" height="20"/>
+                    <text class="t-small" x="14" y="84">GPU</text>
+                    <rect x="50" y="70" width="176" height="20" fill="url(#sy-idle)"/>
+                    <rect class="f-geo" x="54" y="70" width="12" height="20"/><rect class="f-geo" x="96" y="70" width="12" height="20"/><rect class="f-geo" x="140" y="70" width="12" height="20"/><rect class="f-geo" x="184" y="70" width="12" height="20"/>
+                    <line class="s-pix dash" x1="226" y1="20" x2="226" y2="100"/>
+                    <text class="t-small t-pix end" x="222" y="116">frame budget</text>
+                  </svg>
+                </div>
+                <h4>Slow even on a fast graphics card</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too many draw calls or state changes. The render thread takes longer than the GPU, which waits between commands. Frame rate barely changes with resolution.</dd></div>
+                  <div><dt>Ask for</dt><dd>Render thread and GPU times side by side, the draw count per pass, and the top meshes and materials by draws, before any fix is chosen.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A bar chart of draw calls across six builds: steady around the same height for five builds, then one bar three times taller.">
+                    <line class="s-line" x1="16" y1="112" x2="226" y2="112"/>
+                    <rect class="f-solid s-strong" x="24" y="82" width="22" height="30"/>
+                    <rect class="f-solid s-strong" x="58" y="80" width="22" height="32"/>
+                    <rect class="f-solid s-strong" x="92" y="83" width="22" height="29"/>
+                    <rect class="f-solid s-strong" x="126" y="81" width="22" height="31"/>
+                    <rect class="f-solid s-strong" x="160" y="82" width="22" height="30"/>
+                    <rect class="f-pix-soft s-pix" x="194" y="20" width="22" height="92"/>
+                    <text class="t-small t-muted" x="24" y="24">draw calls per build</text>
+                  </svg>
+                </div>
+                <h4>Draw calls jump after a small change</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Objects that shared a material now each have their own copy, so they no longer batch or instance. In Unity, reading <code>Renderer.material</code> in a script clones a shared material for that object.</dd></div>
+                  <div><dt>Ask for</dt><dd>A before-and-after frame capture with the reasons batches break, and a search for per-object material copies, material property overrides and new shader variants in the change.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A field with dotted outlines where trees should stand, and all the trees piled on top of each other in one spot.">
+                    <rect class="f-sunken" x="10" y="14" width="220" height="104" rx="4"/>
+                    <polygon class="s-muted dash" points="40,40 50,58 30,58"/><polygon class="s-muted dash" points="190,36 200,54 180,54"/><polygon class="s-muted dash" points="70,96 80,114 60,114"/><polygon class="s-muted dash" points="200,92 210,110 190,110"/>
+                    <polygon class="f-geo-soft s-geo" points="120,48 138,80 102,80"/>
+                    <polygon class="f-geo-soft s-geo" points="122,46 140,78 104,78"/>
+                    <polygon class="f-geo-soft s-geo" points="118,50 136,82 100,82"/>
+                    <circle class="f-pix" cx="120" cy="82" r="4"/>
+                  </svg>
+                </div>
+                <h4>Every copy in the same place</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The shader ignores the per-instance data, so every instance uses the same transform or the same tint. It happens when a custom shader lacks instancing support or the instance buffer is not bound.</dd></div>
+                  <div><dt>Ask for</dt><dd>A frame capture showing the draw's instance count and the instance buffer's contents, and a check that the shader reads its row by instance number.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A small rock on the left, and on the right a tall memory bar built of many identical rock copies stacked up.">
+                    <polygon class="f-solid s-strong" points="20,92 28,74 48,70 60,82 56,96 36,100"/>
+                    <text class="t-small t-muted" x="18" y="118">1 mesh</text>
+                    <line class="s-muted" x1="72" y1="84" x2="110" y2="84"/>
+                    <rect class="f-pix-soft s-pix" x="120" y="14" width="40" height="96"/>
+                    <path class="s-pix" d="M120,26 H160 M120,38 H160 M120,50 H160 M120,62 H160 M120,74 H160 M120,86 H160 M120,98 H160"/>
+                    <text class="t-small t-pix" x="168" y="58">×1,000</text>
+                    <text class="t-small t-pix" x="168" y="74">copies</text>
+                  </svg>
+                </div>
+                <h4>Memory jumps after batching</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Static batching or merging stored a world-space copy of a mesh for every placement. Repeated props, rocks and foliage are the worst cases.</dd></div>
+                  <div><dt>Ask for</dt><dd>Instancing for meshes that repeat, batching only for unique static geometry, and the memory before and after in a build on the target platform.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A camera's view cone covers a small corner of a large merged block of buildings; the whole block is highlighted as drawn, far outside the view.">
+                    <rect class="f-pix-soft s-pix" x="70" y="16" width="160" height="96"/>
+                    <path class="s-pix" d="M110,16 V112 M150,16 V112 M190,16 V112 M70,48 H230 M70,80 H230"/>
+                    <polygon class="f-acc-soft s-acc" points="16,112 96,60 96,112"/>
+                    <circle class="f-acc" cx="16" cy="112" r="5"/>
+                    <text class="t-small t-pix" x="120" y="128">all drawn</text>
+                  </svg>
+                </div>
+                <h4>Fast in one direction, slow in another</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A merged mesh or an instanced group spans a large area, so it is drawn whole whenever any corner is in view. Wrong bounds on a group can also make all of it vanish or pop at once.</dd></div>
+                  <div><dt>Ask for</dt><dd>Merges and instance groups split by area, sized so each is mostly in or out of view, and the bounds checked in the engine's culling debug view.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To see draw calls directly, step through a frame with the engine's frame debugger or a <a class="term" data-term="profiler" data-forward href="glossary.html#profiler">frame capture tool</a> such as RenderDoc or PIX. Each lists every draw, its state and its instance count.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines sort and instance some draws automatically. Where they differ is in what they do without being asked, and in which tools you reach for when that is not enough.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6 (URP, HDRP)</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Counting draws</th>
+                    <td>Console command <code>stat RHI</code> shows the draw call count; <code>stat SceneRendering</code> gives general rendering statistics.</td>
+                    <td><strong>Window &gt; Analysis &gt; Frame Debugger</strong> lists every draw and, for SRP batches, the reason a draw started a new batch. The Rendering Profiler module counts Draw Calls, Batches and SetPass Calls.</td>
+                    <td>The Debugger's <strong>Monitors</strong> tab graphs draw calls per frame. In code, <code>Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Automatic help</th>
+                    <td>Dynamic instancing merges cached mesh draw commands with identical shader bindings into one instanced draw. <code>r.MeshDrawCommands.LogDynamicInstancingStats 1</code> reports how well it worked.</td>
+                    <td><strong>SRP Batcher</strong>, on by default in URP: material data stays in GPU memory, so draws with the same shader variant need little set-up.</td>
+                    <td>The Forward+ renderer automatically instances <code>MeshInstance3D</code> nodes that share a mesh and material. The Mobile and Compatibility renderers do not.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Merging</th>
+                    <td><strong>Actor &gt; Merge Actors</strong>. Merge mode makes one mesh with one draw per material; Batch mode turns identical meshes into instanced components.</td>
+                    <td><strong>Static Batching</strong> in Player Settings, Other Settings, plus the <strong>Batching Static</strong> flag per object; buffers of up to 64,000 vertices. Unity's own comparison recommends leaving it off in URP and HDRP, because it is not compatible with the GPU Resident Drawer.</td>
+                    <td>No automatic static batching. The documentation suggests joining static meshes ahead of time, by artists or with an add-on, and warns that joined objects are culled as one.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Instancing</th>
+                    <td><strong>Instanced Static Mesh</strong> component: many copies of one mesh sharing materials, with <strong>Per Instance Custom Data</strong> floats for the material. Foliage uses the hierarchical variant, HISM.</td>
+                    <td>Material <strong>Enable GPU Instancing</strong> under Advanced Options; in URP and HDRP it applies only when the SRP Batcher is off or the shader is incompatible with it. In code, <code>Graphics.RenderMeshInstanced</code>.</td>
+                    <td><strong>MultiMeshInstance3D</strong>: thousands of instances in one draw call, with optional per-instance colour and custom data. The whole MultiMesh is culled as one, so split large ones by area and set <code>custom_aabb</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">GPU-driven</th>
+                    <td>Instanced Static Mesh instances are culled and given their level of detail one by one on the GPU. <a class="term" data-term="nanite" data-forward href="glossary.html#nanite">Nanite</a> geometry has its own GPU culling and level of detail.</td>
+                    <td><strong>GPU Resident Drawer</strong> (URP Asset: <strong>Instanced Drawing</strong>) draws compatible Mesh Renderers with instancing through the BatchRendererGroup API. It needs Forward+ or Deferred+ and <strong>BatchRendererGroup Variants</strong> set to Keep All. <code>Graphics.RenderMeshIndirect</code> for custom indirect draws.</td>
+                    <td>The documentation offers MultiMesh and automatic instancing; it describes no GPU-driven culling path.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.7, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Unity caveat</p>
+              <p>In URP and HDRP, a MaterialPropertyBlock on a renderer makes it incompatible with the SRP Batcher and keeps it out of the GPU Resident Drawer. Unity's guidance is to avoid the API in those pipelines and use Material Variants for objects that need different settings.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about draw calls state the platform's budget, the current count per pass and which thread is over budget, and ask for the memory and culling cost of every fix. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when the render thread is over budget</span></div>
+              <pre class="prompt-body">Engine: Unity 6.6, URP, Forward+. Target: Meta Quest 3 at 72 Hz (13.9 ms per frame).
+Our market square level averages 1,450 draw calls and 9.5 ms on the render thread. Meta's guidance for a medium simulation load is 400 to 600 draw calls. Most draws are props: about 2,300 crates, barrels and lamps from 40 meshes and 120 materials.
+
+1. From the attached Frame Debugger capture, list the top 20 meshes and materials by draw count, and every batch-break reason that appears more than 10 times.
+2. Propose a plan: what to instance (GPU Resident Drawer or GPU instancing), what to merge, and which materials to consolidate with per-instance data. Give the memory and culling cost of each step.
+3. Estimate draw calls and render thread time after each step.
+4. Tell us how to verify each step on the headset, not only in the editor.</pre>
+              <ul class="prompt-why">
+                <li>The budget and current numbers give the AI a target to reason against.</li>
+                <li>Asking for batch-break reasons finds the cause before proposing fixes.</li>
+                <li>Memory and culling costs stop a blind "merge everything" answer.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when draw calls jump after a change</span></div>
+              <pre class="prompt-body">After we merged the weather branch, the harbour level went from 900 to 2,600 draw calls and the render thread from 6 ms to 14 ms. Unreal Engine 5.7. Nothing new was placed in the level. The branch adds a wetness parameter that a Blueprint sets on every boat and crate each frame.
+
+Find why draws went up. Check whether each actor now gets its own dynamic material instance and whether that stops identical meshes being merged by dynamic instancing; compare r.MeshDrawCommands.LogDynamicInstancingStats 1 before and after. Propose a fix that keeps the wetness effect, and an automated check that fails if the level's draw count rises by more than 10%.</pre>
+              <ul class="prompt-why">
+                <li>"Nothing new was placed" points away from content and towards materials.</li>
+                <li>Naming the engine's own statistic gives a before-and-after measure.</li>
+                <li>Asking for a guard turns a one-off fix into a lasting budget check.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing work on draw calls</h3>
+            <ol class="review-list">
+              <li>How many draw calls does this add per frame, in which passes, on our weakest platform?<span class="why">One visible object is often several draws: depth, each shadow cascade, the main pass.</span></li>
+              <li>Does this create a unique material or material instance per object?<span class="why">Unique materials split batches and multiply state changes.</span></li>
+              <li>If meshes are merged, what does it cost in memory, and how is the result culled and streamed?<span class="why">A merged mesh is drawn, culled and loaded as one piece.</span></li>
+              <li>If instancing is used, where do the differences between copies live, and what bounds are used for culling?<span class="why">Wrong bounds make whole groups pop, vanish or never cull.</span></li>
+              <li>Was the gain measured on the target device, with render thread and GPU time both reported?<span class="why">Fewer draws only help a CPU-bound frame, and the editor adds overhead of its own.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A level has 2,000 copies of one rock mesh with one material. Static batching and instancing would both cut it to one or two draws. Why is instancing usually the better choice?</p>
+                <details><summary>Show answer</summary><p>Static batching stores a world-space copy of the rock for every placement, so roughly 2,000 times the mesh memory, and the batch culls coarsely. Instancing stores the mesh once plus a small row of data per rock, and can skip rocks outside the view.</p></details>
+              </li>
+              <li>
+                <p class="q">An optimisation cut draw calls from 3,000 to 300, and the frame rate did not change. What does that tell you?</p>
+                <details><summary>Show answer</summary><p>The frame was limited by the GPU, or became limited by it. Draw calls cost CPU time, so cutting them only speeds up a frame whose render thread is the slower side. Check render thread and GPU times before and after.</p></details>
+              </li>
+              <li>
+                <p class="q">A thousand trees share one mesh but use four materials that differ only in colour. Why can't they be one instanced draw as they are, and what would make it possible?</p>
+                <details><summary>Show answer</summary><p>One instanced draw uses one mesh and one material. Replace the four materials with one that reads a tint from per-instance data, and give each tree its colour there.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#draw-call">draw call</a></li>
+              <li><a class="chip" href="glossary.html#render-state">render state</a></li>
+              <li><a class="chip" href="glossary.html#material-sorting">material sorting</a></li>
+              <li><a class="chip" href="glossary.html#srp-batcher">SRP Batcher</a></li>
+              <li><a class="chip" href="glossary.html#batching">batching</a></li>
+              <li><a class="chip" href="glossary.html#static-batching">static batching</a></li>
+              <li><a class="chip" href="glossary.html#dynamic-batching">dynamic batching</a></li>
+              <li><a class="chip" href="glossary.html#merged-mesh">merged mesh</a></li>
+              <li><a class="chip" href="glossary.html#instancing">GPU instancing</a></li>
+              <li><a class="chip" href="glossary.html#per-instance-data">per-instance data</a></li>
+              <li><a class="chip" href="glossary.html#indirect-drawing">indirect drawing</a></li>
+              <li><a class="chip" href="glossary.html#gpu-driven-rendering">GPU-driven rendering</a></li>
+              <li><a class="chip" href="glossary.html#draw-call-budget">draw call budget</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="4.4"></a> covers the other half of the story: finding the objects that cannot be seen and not sending them at all.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/reduce-draw-calls/optimizing-draw-calls-choose-method">Choose a method for optimizing draw calls</a>, Unity 6.6 manual. SRP Batcher, GPU Resident Drawer, GPU instancing and static batching compared per render pipeline.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/analysis/graphics-performance-profiling/in-urp/reduce-draw-calls-urp/srpbatcher/srpbatcher">SRP Batcher in URP</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/analysis/graphics-performance-profiling/in-urp/reduce-draw-calls-urp/srpbatcher/srpbatcher-profile">Troubleshoot the SRP Batcher</a>, Unity 6.6 manual.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/analysis/graphics-performance-profiling/reduce-draw-calls/draw-call-batching/draw-call-batching">Introduction to static batching</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/reduce-draw-calls/gpuinstancing/gpuinstancing">Introduction to GPU instancing</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/in-urp/reduce-draw-calls-urp/reduce-rendering-work-on-cpu/gpu-resident-drawer">Enable the GPU Resident Drawer in URP</a>, Unity 6.6 manual.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/profile-rendering/profiler-rendering">Rendering Profiler module reference</a> and <a href="https://docs.unity.com/en-us/engine/current/script-reference/unityengine/renderer/material">Renderer.material</a>, Unity 6.6.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/guidelines-for-optimizing-rendering-for-real-time-in-unreal-engine?application_version=5.7">Guidelines for optimizing rendering for real-time</a>, Unreal Engine 5.7 documentation. Draw call counts and targets.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/mesh-drawing-pipeline-in-unreal-engine?application_version=5.7">Mesh drawing pipeline</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/instanced-static-mesh-component-in-unreal-engine?application_version=5.7">Instanced Static Mesh component</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/merging-actors-in-unreal-engine?application_version=5.7">Merging actors</a>, Unreal Engine 5.7 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/cpu-profiling?application_version=4.27">CPU profiling</a>, Unreal Engine 4.27 documentation. Draw calls on PC and mobile, and how to reduce them.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/tutorials/performance/gpu_optimization.html">GPU optimization</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/performance/optimizing_3d_performance.html">Optimizing 3D performance</a> and the <a href="https://docs.godotengine.org/en/stable/classes/class_multimesh.html">MultiMesh</a> class reference, Godot 4.7 documentation.</li>
+              <li><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/indirect-drawing">Indirect drawing</a>, Direct3D 12 documentation, Microsoft.</li>
+              <li>Ulrich Haar and Sebastian Aaltonen, <a href="https://advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf">GPU-Driven Rendering Pipelines</a>, SIGGRAPH 2015 Advances in Real-Time Rendering course. The <em>Assassin's Creed Unity</em> pipeline and its results.</li>
+              <li><a href="https://developers.meta.com/horizon/documentation/unity/unity-perf/">Performance and optimization guidelines</a>, Meta Horizon documentation. Draw call ranges for Quest headsets.</li>
+              <li>Adrian Courrèges, <a href="https://www.adriancourreges.com/blog/2015/11/02/gta-v-graphics-study/">GTA V: Graphics Study</a>, 2015. One frame taken apart, pass by pass.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/forest-draws.js"></script>
+  <script src="assets/demos/courtyard-gl.js"></script>
+  <script src="assets/demos/courtyard-shaders.js"></script>
+  <script src="assets/demos/courtyard.js"></script>
+</body>
+</html>

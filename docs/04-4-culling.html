@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>4.4 Culling · Graphics Handbook</title>
+  <meta name="description" content="How engines skip what the camera cannot see: bounding volumes, frustum, distance and small-object culling, occlusion culling with occluders and Hi-Z depth pyramids, potentially visible sets and portals, GPU culling and backface culling, what each costs and how culling breaks.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="4.4">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 4 · Geometry</p>
+            <h1><span class="ch-num">4.4</span> Culling</h1>
+            <p class="lead">The cheapest object to draw is the one you never send. Culling finds what the camera cannot see, because it is behind the camera, hidden behind a wall, or too small to matter, and skips it before it costs a draw call or any GPU work.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>, <a class="xref" data-ch="4.3">4.3 Draw calls, batching and instancing</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="4.5">4.5 Level of detail</a>, <a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Culling map</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 344" role="img" aria-label="A top-down map of a level with a camera and its view wedge, two buildings and 30 objects in all. 8 objects lie outside the view, 3 are too small to matter, and 7 sit in the zones the buildings hide. A funnel on the right shows 30 objects in the level narrowing to 12 sent to the GPU, which then skips the back faces of what remains.">
+<defs><clipPath id="pic-clip"><rect x="20" y="44" width="480" height="272" rx="6"/></clipPath></defs>
+<text class="t-caps" x="20" y="24">ONE VIEW OF A LEVEL, FROM ABOVE</text>
+<rect class="f-sunken s-line" x="20" y="44" width="480" height="272" rx="6"/>
+<defs><clipPath id="pic-wedge"><polygon points="52,180 482,-78.4 482,438.4"/></clipPath></defs>
+<g clip-path="url(#pic-clip)">
+<polygon class="f-acc-soft" opacity="0.7" points="52,180 482,-78.4 482,438.4"/>
+<g clip-path="url(#pic-wedge)">
+<polygon class="f-pix-soft" opacity="0.85" points="196,128 916,-132 916,216 196,186"/>
+<polygon class="f-pix-soft" opacity="0.85" points="340,196 1780,276 1528,564 298,244"/>
+</g>
+<line class="s-acc" x1="52" y1="180" x2="482" y2="-78.4"/><line class="s-acc" x1="52" y1="180" x2="482" y2="438.4"/>
+<line class="s-acc dash" x1="482" y1="44" x2="482" y2="316"/>
+</g>
+<rect class="f-acc-soft s-acc w15" x="196" y="128" width="40" height="58" rx="2"/>
+<rect class="f-acc-soft s-acc w15" x="298" y="196" width="42" height="48" rx="2"/>
+<circle class="f-acc" cx="204.4" cy="255.2" r="9"/><circle class="f-acc" cx="146" cy="225.6" r="9"/><circle class="f-line" cx="181.6" cy="76.1" r="9"/><circle class="f-acc" cx="164.2" cy="174.9" r="9"/><circle class="f-pix-soft s-pix" cx="375.6" cy="214.1" r="9"/><circle class="f-acc" cx="242.4" cy="90.2" r="9"/><circle class="f-acc" cx="394.4" cy="188.5" r="6"/><circle class="f-pix-soft s-pix" cx="373.5" cy="150.2" r="6"/><circle class="f-acc" cx="429.5" cy="284.7" r="6"/><circle class="f-line" cx="67.5" cy="105.6" r="6"/><circle class="f-pix-soft s-pix" cx="376.9" cy="256.9" r="6"/><circle class="f-pix-soft s-pix" cx="456.1" cy="148.9" r="6"/><circle class="f-pix-soft s-pix" cx="472" cy="122.8" r="6"/><circle class="f-acc" cx="331.2" cy="265.1" r="6"/><circle class="f-pix-soft s-pix" cx="339.6" cy="158.9" r="4.5"/><circle class="f-line" cx="42.4" cy="234.1" r="4.5"/><circle class="f-pix-soft s-pix" cx="319.6" cy="99.5" r="4.5"/><circle class="f-line" cx="61.3" cy="278.5" r="4.5"/><circle class="f-line" cx="124.3" cy="72.3" r="4.5"/><circle class="f-line" cx="44.8" cy="69.8" r="4.5"/><circle class="f-acc" cx="303.7" cy="66.7" r="4.5"/><circle class="f-acc" cx="292.3" cy="275.9" r="4.5"/><circle class="f-line" cx="114.1" cy="265.9" r="1.8"/><circle class="f-line" cx="135.2" cy="114" r="1.8"/><circle class="f-lit-soft s-lit" cx="386.2" cy="283.8" r="1.8"/><circle class="f-lit-soft s-lit" cx="408.9" cy="59.6" r="1.8"/><circle class="f-lit-soft s-lit" cx="388" cy="84.3" r="1.8"/><circle class="f-acc" cx="182.1" cy="145.3" r="1.8"/>
+<circle class="f-acc" cx="52" cy="180" r="7"/><text class="t-small t-acc t-strong" x="40" y="204">camera</text>
+<text class="t-small t-acc end" x="478" y="58">far plane</text>
+<text class="t-small t-pix" x="242" y="122">hidden zone</text>
+<circle class="f-acc" cx="26" cy="330" r="6"/><text class="t-small" x="37" y="334">drawn</text><circle class="f-line" cx="91.5" cy="330" r="6"/><text class="t-small" x="102.5" y="334">outside the view</text><circle class="f-lit-soft s-lit" cx="226.3" cy="330" r="6"/><text class="t-small" x="237.3" y="334">too small</text><circle class="f-pix-soft s-pix" cx="317" cy="330" r="6"/><text class="t-small" x="328" y="334">hidden</text>
+<text class="t-caps" x="560" y="24">WHAT SURVIVES EACH TEST</text>
+<text class="t-strong" x="560" y="52">In the level</text>
+<rect class="f-acc-soft s-acc" x="560" y="60" width="300" height="20"/><text class="t-head" x="868" y="75">30</text>
+<text class="t-strong" x="560" y="114">Inside the view</text>
+<rect class="f-acc-soft s-acc" x="560" y="122" width="220" height="20"/><text class="t-head" x="788" y="137">22</text>
+<text class="t-small t-muted end" x="880" y="114">−8 outside the view</text>
+<text class="t-strong" x="560" y="176">Big enough to see</text>
+<rect class="f-acc-soft s-acc" x="560" y="184" width="190" height="20"/><text class="t-head" x="758" y="199">19</text>
+<text class="t-small t-lit end" x="880" y="176">−3 too small</text>
+<text class="t-strong" x="560" y="238">Not hidden: sent to the GPU</text>
+<rect class="f-acc" x="560" y="246" width="120" height="20"/><text class="t-head" x="688" y="261">12</text>
+<text class="t-small t-pix end" x="880" y="238">−7 hidden behind buildings</text>
+<text class="t-small" x="560" y="300">Then the GPU skips the back faces of what</text>
+<text class="t-small" x="560" y="316">remains: about half of their triangles.</text>
+
+                </svg>
+              </div>
+              <figcaption><b>Culling is a funnel, and most of the level never reaches the GPU.</b> Of 30 objects, 8 are outside the camera's view, 3 are too small to see and 7 are hidden behind buildings. Only 12 are sent to be drawn. Each test is cheaper than drawing what it removes, and the cheapest tests run first.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A level holds far more than any one view shows. Behind the camera, around the corner, inside the next building, over the hill: from most viewpoints, most of the world is out of sight. Drawing it anyway costs a <a class="term" data-term="draw-call" href="glossary.html#draw-call">draw call</a> on the CPU and vertex and pixel work on the GPU, for nothing on screen.</p>
+            <p><dfn class="term" data-term="culling">Culling</dfn> is the family of tests that find this waste and skip it. Each test asks one question of every object. Is it inside the camera's view? Is it big enough on screen to matter? Is something solid in front of it? Then, on the GPU, one last question of every triangle: is it facing the camera? Every test must be conservative. It may keep something that turns out to be invisible, which wastes a little time, but it must never remove something that should be seen.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A theatre set is built for the audience's view. Nothing is built offstage, out of the audience's sightlines. Rooms behind the set's walls are left empty. The backs of the flats are bare wood. Props at the very back of the stage get less detail than those at the front.</p>
+                <p>Culling makes the same decisions every frame, for a camera that can walk anywhere.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without culling, the cost of a frame would grow with the size of the level instead of with what the camera sees. A city level would cost the same whether you face a wall or a skyline.</p>
+                <p>Culling lets a level be large, because only the part in view costs anything.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Culling is where level design meets performance. A layout with walls, corners and rooms hides most of itself and runs fast; a wide-open vista with long sightlines gives culling little to remove. Some culling needs authoring and build steps, such as marking occluders or baking visibility data. And when culling goes wrong, it is visible: objects pop in late, vanish at the screen edge, or shadows disappear.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow one frame's culling from the cheapest tests on the CPU to the last test on the GPU. There are eight steps.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="bounds"><span class="step-num">1</span> Test the bounds, not the triangles</h3>
+              <p>Testing every triangle of every object would cost more than drawing them. Instead each object carries a <dfn class="term" data-term="bounding-volume">bounding volume</dfn>: a simple shape that encloses all of it. The two common ones are a box aligned with the world's axes, called an AABB, and a sphere. If the shape is outside the view, everything inside it is too.</p>
+              <p>A sphere is the cheapest to test: one point and one radius. A box fits tall or flat objects much more tightly, so it culls more often. Engines usually store both, compute them when the mesh is imported, and update them as the object moves.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left: a lamp post and a rock, each with a bounding box and a bounding sphere. The box fits the tall lamp post closely while its sphere is mostly empty space; for the round rock both fit well. Right, seen from above: a camera's view frustum with four spheres. One is inside and kept, one crosses the edge and is kept, one lies wholly outside a side plane and is culled, and one lies beyond the far plane and is culled.">
+                    <text class="t-caps" x="20" y="24">BOUNDING VOLUMES</text>
+                    <circle class="s-acc dash" cx="113" cy="148" r="89"/>
+                    <rect class="s-acc w15" x="96" y="61" width="34" height="174"/>
+                    <rect class="f-solid s-strong" x="110" y="82" width="6" height="140"/>
+                    <polygon class="f-lit-soft s-strong" points="100,82 126,82 122,64 104,64"/>
+                    <rect class="f-solid s-strong" x="100" y="222" width="26" height="12"/>
+                    <circle class="s-acc dash" cx="233" cy="187" r="42"/>
+                    <rect class="s-acc w15" x="196" y="158" width="74" height="58"/>
+                    <polygon class="f-solid s-strong" points="196,206 204,170 236,158 266,172 270,200 240,216"/>
+                    <line class="s-acc w15" x1="196" y1="270" x2="220" y2="270"/><text class="t-small" x="226" y="274">box (AABB)</text>
+                    <line class="s-acc dash" x1="196" y1="288" x2="220" y2="288"/><text class="t-small" x="226" y="292">sphere</text>
+                    <text class="t-small t-muted" x="20" y="274">tall post: the box fits,</text>
+                    <text class="t-small t-muted" x="20" y="290">the sphere is mostly air</text>
+
+                    <line class="s-line" x1="340" y1="14" x2="340" y2="292"/>
+
+                    <text class="t-caps" x="360" y="24">TESTING SPHERES AGAINST THE FRUSTUM, FROM ABOVE</text>
+                    <polygon class="f-acc-soft" opacity="0.6" points="390,160 760,39.8 760,280.2"/>
+                    <line class="s-acc w15" x1="390" y1="160" x2="760" y2="39.8"/>
+                    <line class="s-acc w15" x1="390" y1="160" x2="760" y2="280.2"/>
+                    <line class="s-acc w2" x1="420" y1="150.3" x2="420" y2="169.7"/>
+                    <line class="s-acc w2" x1="760" y1="39.8" x2="760" y2="280.2"/>
+                    <circle class="f-acc" cx="390" cy="160" r="6"/>
+                    <text class="t-small t-acc" x="398" y="188">near plane</text>
+                    <text class="t-small t-acc end" x="754" y="272">far plane</text>
+                    <circle class="f-acc s-acc" cx="560" cy="160" r="26"/>
+                    <text class="t-small t-strong mid" x="560" y="208">inside: kept</text>
+                    <circle class="f-acc s-acc" cx="640" cy="72" r="22"/>
+                    <text class="t-small t-strong" x="668" y="64">crosses the edge:</text>
+                    <text class="t-small t-strong" x="668" y="79">kept</text>
+                    <circle class="f-line s-strong" cx="520" cy="62" r="18"/>
+                    <line class="s-pix w15 dash" x1="520" y1="62" x2="535.6" y2="109.7"/>
+                    <text class="t-small t-strong end" x="496" y="50">wholly outside</text>
+                    <text class="t-small t-strong end" x="496" y="65">one plane: culled</text>
+                    <text class="t-small t-pix end" x="526" y="104">distance below −r</text>
+                    <circle class="f-line s-strong" cx="830" cy="170" r="20"/>
+                    <text class="t-small t-strong mid" x="830" y="212">beyond the</text>
+                    <text class="t-small t-strong mid" x="830" y="227">far plane:</text>
+                    <text class="t-small t-strong mid" x="830" y="242">culled</text>
+                  </svg>
+                </div>
+                <figcaption><b>Culling tests simple shapes that enclose each object.</b> A sphere is outside the frustum if its centre lies farther than its radius outside any one of the frustum's planes. A sphere that only crosses an edge is kept, even if the object inside it is out of view: the test is conservative, so it can waste a little work but never removes something visible.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="frustum"><span class="step-num">2</span> Frustum culling: is it in view at all?</h3>
+              <p>The camera sees the inside of its <a class="term" data-term="frustum" href="glossary.html#frustum">view frustum</a>, the cut-off pyramid of <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>, bounded by six planes: left, right, top, bottom, near and far. <dfn class="term" data-term="frustum-culling">Frustum culling</dfn> tests each object's bounding volume against those planes and skips anything wholly outside one of them. For a camera with a 90° view, it typically removes everything behind and beside the camera: often more than half the level.</p>
+              <p>Testing tens of thousands of objects one by one adds up, so engines group objects in space, into grids, trees of boxes or bounding volume hierarchies, and test the groups first. A group wholly outside the view rejects everything in it with one test. A group wholly inside accepts everything in it with no further tests. Only the groups crossing an edge need their objects tested one by one.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="A level split into a grid of 32 cells with three objects in each, 96 objects in all, and a camera's view wedge crossing it. Cells wholly outside the view are rejected with one test each, cells wholly inside are kept without further tests, and only objects in cells on the edge are tested individually: 68 tests in all instead of 96.">
+<defs><clipPath id="grid-clip"><rect x="20" y="40" width="560" height="224"/></clipPath></defs>
+<text class="t-caps" x="20" y="24">A LEVEL SPLIT INTO 32 CELLS, 3 OBJECTS IN EACH</text>
+<rect class="f-surface s-strong" x="20" y="40" width="70" height="56"/><rect class="f-surface s-strong" x="90" y="40" width="70" height="56"/><rect class="f-surface s-strong" x="160" y="40" width="70" height="56"/><rect class="f-acc-soft s-strong" x="230" y="40" width="70" height="56"/><rect class="f-acc-soft s-strong" x="300" y="40" width="70" height="56"/><rect class="f-acc-soft s-strong" x="370" y="40" width="70" height="56"/><rect class="f-acc-soft s-strong" x="440" y="40" width="70" height="56"/><rect class="f-acc-soft s-strong" x="510" y="40" width="70" height="56"/><rect class="f-surface s-strong" x="20" y="96" width="70" height="56"/><rect class="f-surface s-strong" x="90" y="96" width="70" height="56"/><rect class="f-surface s-strong" x="160" y="96" width="70" height="56"/><rect class="f-surface s-strong" x="230" y="96" width="70" height="56"/><rect class="f-surface s-strong" x="300" y="96" width="70" height="56"/><rect class="f-acc-soft s-strong" x="370" y="96" width="70" height="56"/><rect class="f-acc-soft s-strong" x="440" y="96" width="70" height="56"/><rect class="f-acc-soft s-strong" x="510" y="96" width="70" height="56"/><rect class="f-line s-strong" x="20" y="152" width="70" height="56"/><rect class="f-line s-strong" x="90" y="152" width="70" height="56"/><rect class="f-line s-strong" x="160" y="152" width="70" height="56"/><rect class="f-line s-strong" x="230" y="152" width="70" height="56"/><rect class="f-surface s-strong" x="300" y="152" width="70" height="56"/><rect class="f-surface s-strong" x="370" y="152" width="70" height="56"/><rect class="f-surface s-strong" x="440" y="152" width="70" height="56"/><rect class="f-surface s-strong" x="510" y="152" width="70" height="56"/><rect class="f-line s-strong" x="20" y="208" width="70" height="56"/><rect class="f-line s-strong" x="90" y="208" width="70" height="56"/><rect class="f-line s-strong" x="160" y="208" width="70" height="56"/><rect class="f-line s-strong" x="230" y="208" width="70" height="56"/><rect class="f-line s-strong" x="300" y="208" width="70" height="56"/><rect class="f-line s-strong" x="370" y="208" width="70" height="56"/><rect class="f-line s-strong" x="440" y="208" width="70" height="56"/><rect class="f-line s-strong" x="510" y="208" width="70" height="56"/>
+<g clip-path="url(#grid-clip)"><polygon class="f-acc-soft" opacity="0.45" points="36,100 872,-233.2 921.6,260.5"/><line class="s-acc w15" x1="36" y1="100" x2="872" y2="-233.2"/><line class="s-acc w15" x1="36" y1="100" x2="921.6" y2="260.5"/></g>
+<circle class="f-strong s-ink" cx="43" cy="79" r="5"/><circle class="f-strong s-ink" cx="57" cy="74.8" r="5"/><circle class="f-strong s-ink" cx="30.1" cy="79.4" r="5"/><circle class="f-strong s-ink" cx="100.6" cy="53.8" r="5"/><circle class="f-acc s-ink" cx="119.8" cy="74.2" r="5"/><circle class="f-strong s-ink" cx="118.3" cy="52.3" r="5"/><circle class="f-acc s-ink" cx="186.9" cy="76.2" r="5"/><circle class="f-acc s-ink" cx="182.7" cy="56.8" r="5"/><circle class="f-acc s-ink" cx="192.9" cy="77.6" r="5"/><circle class="f-acc" cx="264.6" cy="59.8" r="4"/><circle class="f-acc" cx="267.8" cy="77.4" r="4"/><circle class="f-acc" cx="259" cy="77.8" r="4"/><circle class="f-acc" cx="358.6" cy="68.7" r="4"/><circle class="f-acc" cx="323" cy="84.6" r="4"/><circle class="f-acc" cx="320.5" cy="66.4" r="4"/><circle class="f-acc" cx="414.4" cy="64.1" r="4"/><circle class="f-acc" cx="394.9" cy="58.7" r="4"/><circle class="f-acc" cx="414.5" cy="64.2" r="4"/><circle class="f-acc" cx="495.1" cy="56.9" r="4"/><circle class="f-acc" cx="490.8" cy="67.5" r="4"/><circle class="f-acc" cx="480.3" cy="75.3" r="4"/><circle class="f-acc" cx="557.9" cy="60" r="4"/><circle class="f-acc" cx="549.6" cy="77.7" r="4"/><circle class="f-acc" cx="542.7" cy="55.7" r="4"/><circle class="f-strong s-ink" cx="31" cy="129.3" r="5"/><circle class="f-strong s-ink" cx="79.5" cy="125.6" r="5"/><circle class="f-strong s-ink" cx="44.8" cy="132" r="5"/><circle class="f-strong s-ink" cx="141" cy="124" r="5"/><circle class="f-acc s-ink" cx="135" cy="115.2" r="5"/><circle class="f-strong s-ink" cx="137.2" cy="128.1" r="5"/><circle class="f-acc s-ink" cx="208.4" cy="111.4" r="5"/><circle class="f-acc s-ink" cx="207.1" cy="109.1" r="5"/><circle class="f-strong s-ink" cx="183.8" cy="128.7" r="5"/><circle class="f-acc s-ink" cx="258.7" cy="118.1" r="5"/><circle class="f-acc s-ink" cx="282.4" cy="108.4" r="5"/><circle class="f-acc s-ink" cx="278.9" cy="107.3" r="5"/><circle class="f-acc s-ink" cx="338.3" cy="126.1" r="5"/><circle class="f-acc s-ink" cx="345.9" cy="106.4" r="5"/><circle class="f-acc s-ink" cx="359.9" cy="136" r="5"/><circle class="f-acc" cx="389.2" cy="126.6" r="4"/><circle class="f-acc" cx="419.7" cy="139.9" r="4"/><circle class="f-acc" cx="386.9" cy="108.7" r="4"/><circle class="f-acc" cx="470.5" cy="130.9" r="4"/><circle class="f-acc" cx="474.7" cy="137.3" r="4"/><circle class="f-acc" cx="469.8" cy="122" r="4"/><circle class="f-acc" cx="523.9" cy="107.5" r="4"/><circle class="f-acc" cx="562.7" cy="119" r="4"/><circle class="f-acc" cx="556.1" cy="139" r="4"/><circle class="f-strong" cx="67.2" cy="190.7" r="4"/><circle class="f-strong" cx="74.8" cy="173.9" r="4"/><circle class="f-strong" cx="31.8" cy="192.2" r="4"/><circle class="f-strong" cx="130.1" cy="191.8" r="4"/><circle class="f-strong" cx="109.9" cy="197.7" r="4"/><circle class="f-strong" cx="117.9" cy="162.9" r="4"/><circle class="f-strong" cx="196.8" cy="173.4" r="4"/><circle class="f-strong" cx="193.2" cy="174" r="4"/><circle class="f-strong" cx="177.9" cy="179.3" r="4"/><circle class="f-strong" cx="275.4" cy="167.5" r="4"/><circle class="f-strong" cx="268.7" cy="180" r="4"/><circle class="f-strong" cx="282" cy="186.3" r="4"/><circle class="f-strong s-ink" cx="340.5" cy="169.9" r="5"/><circle class="f-strong s-ink" cx="314" cy="197.7" r="5"/><circle class="f-strong s-ink" cx="331.9" cy="181.5" r="5"/><circle class="f-strong s-ink" cx="413.6" cy="193.2" r="5"/><circle class="f-strong s-ink" cx="414" cy="171.6" r="5"/><circle class="f-strong s-ink" cx="419.2" cy="173.7" r="5"/><circle class="f-strong s-ink" cx="496.8" cy="189" r="5"/><circle class="f-strong s-ink" cx="497.8" cy="196.1" r="5"/><circle class="f-acc s-ink" cx="475.3" cy="169.8" r="5"/><circle class="f-strong s-ink" cx="537.8" cy="194.2" r="5"/><circle class="f-acc s-ink" cx="553.9" cy="167.5" r="5"/><circle class="f-strong s-ink" cx="552.4" cy="193.7" r="5"/><circle class="f-strong" cx="44.7" cy="219.6" r="4"/><circle class="f-strong" cx="65" cy="221.9" r="4"/><circle class="f-strong" cx="79" cy="234.7" r="4"/><circle class="f-strong" cx="119.4" cy="247.4" r="4"/><circle class="f-strong" cx="149.9" cy="247.9" r="4"/><circle class="f-strong" cx="149.2" cy="230.6" r="4"/><circle class="f-strong" cx="176.5" cy="227.6" r="4"/><circle class="f-strong" cx="179" cy="220.6" r="4"/><circle class="f-strong" cx="203.5" cy="236.2" r="4"/><circle class="f-strong" cx="248.1" cy="244.7" r="4"/><circle class="f-strong" cx="260.1" cy="233.2" r="4"/><circle class="f-strong" cx="264.9" cy="221.4" r="4"/><circle class="f-strong" cx="349.9" cy="239" r="4"/><circle class="f-strong" cx="321.3" cy="229.4" r="4"/><circle class="f-strong" cx="311.3" cy="220.7" r="4"/><circle class="f-strong" cx="383" cy="238.2" r="4"/><circle class="f-strong" cx="422.8" cy="238.3" r="4"/><circle class="f-strong" cx="423.2" cy="233.9" r="4"/><circle class="f-strong" cx="466.9" cy="249.5" r="4"/><circle class="f-strong" cx="477.5" cy="249.2" r="4"/><circle class="f-strong" cx="460.3" cy="234.4" r="4"/><circle class="f-strong" cx="551.3" cy="221.8" r="4"/><circle class="f-strong" cx="547.9" cy="219.8" r="4"/><circle class="f-strong" cx="552.8" cy="244.1" r="4"/>
+<circle class="f-acc" cx="36" cy="100" r="7"/>
+<rect class="f-line s-strong" x="610" y="48" width="16" height="12"/><text class="t-small" x="634" y="58">12 cells wholly outside: rejected with one test each</text>
+<rect class="f-acc-soft s-strong" x="610" y="74" width="16" height="12"/><text class="t-small" x="634" y="84">8 cells wholly inside: all kept, no more tests</text>
+<rect class="f-surface s-strong" x="610" y="100" width="16" height="12"/><text class="t-small" x="634" y="110">12 cells on the edge: test each object</text>
+<text class="t-head" x="610" y="156">68 tests</text>
+<text class="t-small t-muted" x="610" y="174">32 cell tests + 36 object tests</text>
+<text class="t-head t-muted" x="610" y="214">96 tests</text>
+<text class="t-small t-muted" x="610" y="232">testing every object on its own</text>
+
+                  </svg>
+                </div>
+                <figcaption><b>Testing groups first saves most of the work.</b> Here 68 tests do the job of 96. Real levels have far more objects per group and several levels of grouping, so the saving grows: a whole district behind the camera costs one test.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The sphere against plane test</summary>
+                <div class="fold-body">
+                  <p>Each frustum plane is stored as a unit normal <em>n</em> pointing into the frustum and a distance <em>d</em>. For a sphere with centre <em>c</em> and radius <em>r</em>:</p>
+                  <p class="formula">signed distance = n · c + d</p>
+                  <p class="formula">outside if signed distance &lt; −r for any of the six planes</p>
+                  <p>That is one <a class="term" data-term="dot-product" href="glossary.html#dot-product">dot product</a> and one comparison per plane. A box test does the same with the box corner that lies farthest along the plane's normal.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="distance"><span class="step-num">3</span> Distance and small-object culling</h3>
+              <p>An object in view can still be too small to matter. A bottle 80 m away covers a few pixels; drawing it costs a draw call and gains almost nothing. <dfn class="term" data-term="distance-culling">Distance culling</dfn> skips objects beyond a set distance, usually shorter for smaller objects. <dfn class="term" data-term="small-object-culling">Small-object culling</dfn> asks the same question directly: how many pixels would it cover? Below a threshold, it is skipped.</p>
+              <p>The two are the same idea from two directions, because an object's size on screen falls in proportion to its distance. Unreal's Cull Distance Volume makes the link explicit: a table of object sizes and the distance at which each size is culled.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="A chart of on-screen width in pixels against distance from 2 to 100 metres, on a scale where each step is ten times the last, for a 1920-pixel-wide screen with a 75 degree field of view. A 10 metre house stays above 100 pixels. A 1 metre crate falls from about 63 pixels at 20 metres to about 13 at 100 metres. A 0.25 metre bottle falls below the 4 pixel cull line at about 78 metres.">
+<text class="t-caps" x="20" y="22">WIDTH ON A 1920-PIXEL SCREEN, 75° FIELD OF VIEW</text>
+<line class="s-line" x1="90" y1="250" x2="740" y2="250"/><text class="t-mono t-muted t-small end" x="82" y="254">1 px</text>
+<line class="s-line" x1="90" y1="180" x2="740" y2="180"/><text class="t-mono t-muted t-small end" x="82" y="184">10 px</text>
+<line class="s-line" x1="90" y1="110" x2="740" y2="110"/><text class="t-mono t-muted t-small end" x="82" y="114">100 px</text>
+<line class="s-line" x1="90" y1="40" x2="740" y2="40"/><text class="t-mono t-muted t-small end" x="82" y="44">1,000 px</text>
+<line class="s-strong" x1="90" y1="250" x2="90" y2="255"/><text class="t-mono t-muted t-small mid" x="90" y="268">2 m</text>
+<line class="s-strong" x1="209.4" y1="250" x2="209.4" y2="255"/><text class="t-mono t-muted t-small mid" x="209.4" y="268">20 m</text>
+<line class="s-strong" x1="342" y1="250" x2="342" y2="255"/><text class="t-mono t-muted t-small mid" x="342" y="268">40 m</text>
+<line class="s-strong" x1="474.7" y1="250" x2="474.7" y2="255"/><text class="t-mono t-muted t-small mid" x="474.7" y="268">60 m</text>
+<line class="s-strong" x1="607.3" y1="250" x2="607.3" y2="255"/><text class="t-mono t-muted t-small mid" x="607.3" y="268">80 m</text>
+<line class="s-strong" x1="740" y1="250" x2="740" y2="255"/><text class="t-mono t-muted t-small mid" x="740" y="268">100 m</text>
+<text class="t-small t-muted mid" x="415" y="286">distance from the camera</text>
+<rect class="f-lit-soft" opacity="0.6" x="90" y="207.9" width="650" height="42.1"/>
+<line class="s-lit w15 dash" x1="90" y1="207.9" x2="740" y2="207.9"/><text class="t-small t-lit" x="98" y="223.9">below 4 px: cull</text>
+<polyline class="s-ink w2 round" points="163,41.2 166.3,42.3 169.6,43.4 172.9,44.5 176.2,45.5 179.5,46.5 182.9,47.5 186.2,48.4 189.5,49.3 192.8,50.2 196.1,51.1 199.4,51.9 202.8,52.7 206.1,53.5 209.4,54.3 212.7,55 216,55.7 219.3,56.5 222.7,57.2 226,57.8 229.3,58.5 232.6,59.2 235.9,59.8 239.2,60.4 242.6,61 245.9,61.6 249.2,62.2 252.5,62.8 255.8,63.4 259.1,63.9 262.4,64.5 265.8,65 269.1,65.6 272.4,66.1 275.7,66.6 279,67.1 282.3,67.6 285.7,68.1 289,68.6 292.3,69 295.6,69.5 298.9,69.9 302.2,70.4 305.6,70.8 308.9,71.3 312.2,71.7 315.5,72.1 318.8,72.6 322.1,73 325.5,73.4 328.8,73.8 332.1,74.2 335.4,74.6 338.7,75 342,75.3 345.4,75.7 348.7,76.1 352,76.5 355.3,76.8 358.6,77.2 361.9,77.5 365.3,77.9 368.6,78.2 371.9,78.6 375.2,78.9 378.5,79.3 381.8,79.6 385.2,79.9 388.5,80.2 391.8,80.6 395.1,80.9 398.4,81.2 401.7,81.5 405.1,81.8 408.4,82.1 411.7,82.4 415,82.7 418.3,83 421.6,83.3 424.9,83.6 428.3,83.9 431.6,84.2 434.9,84.5 438.2,84.7 441.5,85 444.8,85.3 448.2,85.6 451.5,85.8 454.8,86.1 458.1,86.4 461.4,86.6 464.7,86.9 468.1,87.1 471.4,87.4 474.7,87.7 478,87.9 481.3,88.2 484.6,88.4 488,88.7 491.3,88.9 494.6,89.1 497.9,89.4 501.2,89.6 504.5,89.9 507.9,90.1 511.2,90.3 514.5,90.6 517.8,90.8 521.1,91 524.4,91.2 527.8,91.5 531.1,91.7 534.4,91.9 537.7,92.1 541,92.3 544.3,92.6 547.7,92.8 551,93 554.3,93.2 557.6,93.4 560.9,93.6 564.2,93.8 567.6,94 570.9,94.2 574.2,94.4 577.5,94.6 580.8,94.8 584.1,95 587.4,95.2 590.8,95.4 594.1,95.6 597.4,95.8 600.7,96 604,96.2 607.3,96.4 610.7,96.6 614,96.8 617.3,97 620.6,97.2 623.9,97.3 627.2,97.5 630.6,97.7 633.9,97.9 637.2,98.1 640.5,98.2 643.8,98.4 647.1,98.6 650.5,98.8 653.8,99 657.1,99.1 660.4,99.3 663.7,99.5 667,99.6 670.4,99.8 673.7,100 677,100.2 680.3,100.3 683.6,100.5 686.9,100.7 690.3,100.8 693.6,101 696.9,101.1 700.2,101.3 703.5,101.5 706.8,101.6 710.2,101.8 713.5,101.9 716.8,102.1 720.1,102.3 723.4,102.4 726.7,102.6 730.1,102.7 733.4,102.9 736.7,103 740,103.2"/>
+<text class="t-small t-strong t-ink" x="746" y="107.2">house, 10 m</text>
+<polyline class="s-acc w2 round" points="90,54.3 93.3,61 96.6,66.6 99.9,71.3 103.3,75.3 106.6,78.9 109.9,82.1 113.2,85 116.5,87.7 119.8,90.1 123.2,92.3 126.5,94.4 129.8,96.4 133.1,98.2 136.4,100 139.7,101.6 143.1,103.2 146.4,104.7 149.7,106.1 153,107.4 156.3,108.7 159.6,110 163,111.2 166.3,112.3 169.6,113.4 172.9,114.5 176.2,115.5 179.5,116.5 182.9,117.5 186.2,118.4 189.5,119.3 192.8,120.2 196.1,121.1 199.4,121.9 202.8,122.7 206.1,123.5 209.4,124.3 212.7,125 216,125.7 219.3,126.5 222.7,127.2 226,127.8 229.3,128.5 232.6,129.2 235.9,129.8 239.2,130.4 242.6,131 245.9,131.6 249.2,132.2 252.5,132.8 255.8,133.4 259.1,133.9 262.4,134.5 265.8,135 269.1,135.6 272.4,136.1 275.7,136.6 279,137.1 282.3,137.6 285.7,138.1 289,138.6 292.3,139 295.6,139.5 298.9,139.9 302.2,140.4 305.6,140.8 308.9,141.3 312.2,141.7 315.5,142.1 318.8,142.6 322.1,143 325.5,143.4 328.8,143.8 332.1,144.2 335.4,144.6 338.7,145 342,145.3 345.4,145.7 348.7,146.1 352,146.5 355.3,146.8 358.6,147.2 361.9,147.5 365.3,147.9 368.6,148.2 371.9,148.6 375.2,148.9 378.5,149.3 381.8,149.6 385.2,149.9 388.5,150.2 391.8,150.6 395.1,150.9 398.4,151.2 401.7,151.5 405.1,151.8 408.4,152.1 411.7,152.4 415,152.7 418.3,153 421.6,153.3 424.9,153.6 428.3,153.9 431.6,154.2 434.9,154.5 438.2,154.7 441.5,155 444.8,155.3 448.2,155.6 451.5,155.8 454.8,156.1 458.1,156.4 461.4,156.6 464.7,156.9 468.1,157.1 471.4,157.4 474.7,157.7 478,157.9 481.3,158.2 484.6,158.4 488,158.7 491.3,158.9 494.6,159.1 497.9,159.4 501.2,159.6 504.5,159.9 507.9,160.1 511.2,160.3 514.5,160.6 517.8,160.8 521.1,161 524.4,161.2 527.8,161.5 531.1,161.7 534.4,161.9 537.7,162.1 541,162.3 544.3,162.6 547.7,162.8 551,163 554.3,163.2 557.6,163.4 560.9,163.6 564.2,163.8 567.6,164 570.9,164.2 574.2,164.4 577.5,164.6 580.8,164.8 584.1,165 587.4,165.2 590.8,165.4 594.1,165.6 597.4,165.8 600.7,166 604,166.2 607.3,166.4 610.7,166.6 614,166.8 617.3,167 620.6,167.2 623.9,167.3 627.2,167.5 630.6,167.7 633.9,167.9 637.2,168.1 640.5,168.2 643.8,168.4 647.1,168.6 650.5,168.8 653.8,169 657.1,169.1 660.4,169.3 663.7,169.5 667,169.6 670.4,169.8 673.7,170 677,170.2 680.3,170.3 683.6,170.5 686.9,170.7 690.3,170.8 693.6,171 696.9,171.1 700.2,171.3 703.5,171.5 706.8,171.6 710.2,171.8 713.5,171.9 716.8,172.1 720.1,172.3 723.4,172.4 726.7,172.6 730.1,172.7 733.4,172.9 736.7,173 740,173.2"/>
+<text class="t-small t-strong t-acc" x="746" y="177.2">crate, 1 m</text>
+<polyline class="s-pix w2 round" points="90,96.4 93.3,103.2 96.6,108.7 99.9,113.4 103.3,117.5 106.6,121.1 109.9,124.3 113.2,127.2 116.5,129.8 119.8,132.2 123.2,134.5 126.5,136.6 129.8,138.6 133.1,140.4 136.4,142.1 139.7,143.8 143.1,145.3 146.4,146.8 149.7,148.2 153,149.6 156.3,150.9 159.6,152.1 163,153.3 166.3,154.5 169.6,155.6 172.9,156.6 176.2,157.7 179.5,158.7 182.9,159.6 186.2,160.6 189.5,161.5 192.8,162.3 196.1,163.2 199.4,164 202.8,164.8 206.1,165.6 209.4,166.4 212.7,167.2 216,167.9 219.3,168.6 222.7,169.3 226,170 229.3,170.7 232.6,171.3 235.9,171.9 239.2,172.6 242.6,173.2 245.9,173.8 249.2,174.4 252.5,175 255.8,175.5 259.1,176.1 262.4,176.6 265.8,177.2 269.1,177.7 272.4,178.2 275.7,178.7 279,179.2 282.3,179.7 285.7,180.2 289,180.7 292.3,181.2 295.6,181.6 298.9,182.1 302.2,182.5 305.6,183 308.9,183.4 312.2,183.8 315.5,184.3 318.8,184.7 322.1,185.1 325.5,185.5 328.8,185.9 332.1,186.3 335.4,186.7 338.7,187.1 342,187.5 345.4,187.9 348.7,188.2 352,188.6 355.3,189 358.6,189.3 361.9,189.7 365.3,190 368.6,190.4 371.9,190.7 375.2,191.1 378.5,191.4 381.8,191.7 385.2,192.1 388.5,192.4 391.8,192.7 395.1,193 398.4,193.3 401.7,193.6 405.1,194 408.4,194.3 411.7,194.6 415,194.9 418.3,195.2 421.6,195.5 424.9,195.7 428.3,196 431.6,196.3 434.9,196.6 438.2,196.9 441.5,197.2 444.8,197.4 448.2,197.7 451.5,198 454.8,198.2 458.1,198.5 461.4,198.8 464.7,199 468.1,199.3 471.4,199.6 474.7,199.8 478,200.1 481.3,200.3 484.6,200.6 488,200.8 491.3,201 494.6,201.3 497.9,201.5 501.2,201.8 504.5,202 507.9,202.2 511.2,202.5 514.5,202.7 517.8,202.9 521.1,203.2 524.4,203.4 527.8,203.6 531.1,203.8 534.4,204.1 537.7,204.3 541,204.5 544.3,204.7 547.7,204.9 551,205.1 554.3,205.3 557.6,205.6 560.9,205.8 564.2,206 567.6,206.2 570.9,206.4 574.2,206.6 577.5,206.8 580.8,207 584.1,207.2 587.4,207.4 590.8,207.6 594.1,207.8 597.4,208 600.7,208.2 604,208.4 607.3,208.6 610.7,208.7 614,208.9 617.3,209.1 620.6,209.3 623.9,209.5 627.2,209.7 630.6,209.9 633.9,210 637.2,210.2 640.5,210.4 643.8,210.6 647.1,210.7 650.5,210.9 653.8,211.1 657.1,211.3 660.4,211.4 663.7,211.6 667,211.8 670.4,212 673.7,212.1 677,212.3 680.3,212.5 683.6,212.6 686.9,212.8 690.3,213 693.6,213.1 696.9,213.3 700.2,213.5 703.5,213.6 706.8,213.8 710.2,213.9 713.5,214.1 716.8,214.3 720.1,214.4 723.4,214.6 726.7,214.7 730.1,214.9 733.4,215 736.7,215.2 740,215.3"/>
+<text class="t-small t-strong t-pix" x="746" y="219.3">bottle, 0.25 m</text>
+
+                  </svg>
+                </div>
+                <figcaption><b>Size on screen falls in proportion to distance.</b> On a 1920-pixel-wide screen with a 75° field of view, a 1 m crate is about 63 pixels wide at 20 m and 13 at 100 m. A bottle drops below 4 pixels at about 78 m, where culling it is invisible. The same crate culled at 30 m would visibly pop.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Distant objects are usually swapped for simpler versions before they are culled, which is <a class="term" data-term="lod" data-forward href="glossary.html#lod">level of detail</a>, the subject of <a class="xref" data-ch="4.5">4.5</a>. Culling is the last step of that chain: the version with nothing in it.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="occlusion"><span class="step-num">4</span> Occlusion culling: is something in front of it?</h3>
+              <p>Frustum culling keeps everything in the view's direction, including the street behind the building in front of you. <dfn class="term" data-term="occlusion-culling">Occlusion culling</dfn> removes objects that are in view but completely hidden. The objects that do the hiding are <dfn class="term" data-term="occluder">occluders</dfn>: large, solid things such as walls, buildings and terrain. The objects being tested are <dfn class="term" data-term="occludee">occludees</dfn>. Most objects are occludees only; a barrel hides too little to be worth using as an occluder.</p>
+              <p>An object counts as hidden only if it is hidden everywhere. A tower whose top shows above a wall must be drawn whole, because the GPU draws whole objects.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 280" role="img" aria-label="Left, a side view: a camera, a wall, a house behind the wall and a tall tower further back. The line of sight over the top of the wall passes above the house, so the house is hidden and culled; the tower rises above the line, so its top is visible and it is drawn. Right, the camera's view: the wall fills the lower part of the screen, the house is hidden behind it, and only the top of the tower shows above it.">
+                    <text class="t-caps" x="20" y="24">FROM THE SIDE</text>
+                    <polygon class="f-pix-soft" opacity="0.8" points="216,130 520,1.8 520,240 216,240"/>
+                    <line class="s-line" x1="20" y1="240" x2="520" y2="240"/>
+                    <line class="s-muted dash" x1="50" y1="200" x2="520" y2="1.8"/>
+                    <circle class="f-acc" cx="50" cy="200" r="6"/>
+                    <text class="t-small t-acc t-strong" x="28" y="226">camera</text>
+                    <rect class="f-solid s-strong" x="200" y="130" width="16" height="110"/>
+                    <text class="t-small t-strong" x="140" y="122">occluder: wall</text>
+                    <rect class="f-surface s-pix dash" x="300" y="180" width="80" height="60"/>
+                    <polygon class="f-surface s-pix dash" points="294,180 340,156 386,180"/>
+                    <text class="t-small t-strong t-pix mid" x="340" y="214">house</text>
+                    <text class="t-small t-pix mid" x="340" y="258">hidden: culled</text>
+                    <rect class="f-acc s-acc" x="440" y="10" width="30" height="230"/>
+                    <text class="t-small t-strong t-acc end" x="434" y="70">tower: top</text>
+                    <text class="t-small t-strong t-acc end" x="434" y="85">shows, drawn</text>
+                    <text class="t-small t-muted" x="230" y="100">line of sight over the wall</text>
+
+                    <line class="s-line" x1="545" y1="14" x2="545" y2="266"/>
+
+                    <text class="t-caps" x="570" y="24">WHAT THE CAMERA SEES</text>
+                    <rect class="f-sunken s-strong" x="570" y="40" width="310" height="200"/>
+                    <rect class="f-acc s-acc" x="792" y="88" width="24" height="44"/>
+                    <rect class="f-solid s-strong" x="570" y="130" width="310" height="110"/>
+                    <polygon class="s-pix dash" points="636,176 690,148 744,176"/>
+                    <rect class="s-pix dash" x="644" y="176" width="92" height="44"/>
+                    <text class="t-small t-strong mid" x="690" y="200">house, behind the wall</text>
+                    <text class="t-small t-strong" x="824" y="104">tower</text>
+                    <text class="t-small t-muted" x="570" y="262">Only occluders are drawn into the small depth buffer used for the test.</text>
+                  </svg>
+                </div>
+                <figcaption><b>An occludee is culled only when it is hidden everywhere.</b> The house sits wholly in the zone the wall hides, so it is skipped. The tower's top rises above the wall's line of sight, so the whole tower is drawn. Large, solid occluders close to the camera hide the most.</figcaption>
+              </figure>
+              <p>The oldest way to ask the question uses the GPU itself. The renderer draws an object's bounding box against the depth buffer without writing any colour, and an occlusion query reports how many pixels passed the depth test. Zero means hidden. The catch is timing: the answer arrives after the GPU has done the work, and waiting for it stalls the CPU. Dean Sekulic's chapter in <em>GPU Gems</em> describes the usual fix, reading each result a frame later, which can make objects appear a frame late as the camera moves.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="hi-z"><span class="step-num">5</span> Hi-Z: testing against a depth pyramid</h3>
+              <p>Many modern engines test many objects at once against a depth pyramid instead. First they render the best occluders into a depth buffer. Then they build a chain of ever smaller copies of it, each texel keeping the farthest depth of the four texels below it. That chain is the hierarchical depth buffer, and testing against it is <dfn class="term" data-term="hi-z">Hi-Z occlusion culling</dfn>, also called HZB.</p>
+              <p>To test an object, take the rectangle it covers on screen and pick the pyramid level where that rectangle spans only a texel or two. Read those few texels. If the object's nearest point is farther than the farthest depth stored there, every pixel it could cover is already hidden. Big objects and small ones cost the same: a handful of reads.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 280" role="img" aria-label="A 16 by 8 depth buffer with far sky above and a near wall across its lower half, and its pyramid of 8 by 4, 4 by 2 and 2 by 1 texels, each texel keeping the farthest of the four below it. Object A, a crate behind the wall, covers 5 by 3 texels and is tested against 2 texels at level 2, whose farthest depth is 0.44; its nearest depth of 0.60 is farther, so it is hidden. Object B, a tower rising above the wall, is tested against 4 texels at level 2 that reach the sky at depth 1.00, so it is drawn.">
+<text class="t-caps" x="20" y="22">DEPTH BUFFER AND ITS PYRAMID · EACH TEXEL KEEPS THE FARTHEST OF THE FOUR BELOW IT</text>
+<rect class="f-buf-lo" x="20" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="20" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="42" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="64" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="86" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="108" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="130" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="152" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="174" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="196" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="218" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="240" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="262" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="284" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="306" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="328" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="350" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="20" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="20" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="42" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="64" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="86" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="108" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="130" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="152" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="174" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="196" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="218" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="240" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="262" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="284" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="306" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="328" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="350" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="20" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="20" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="42" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="64" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="86" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="108" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="130" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="152" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="174" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="196" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="218" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="240" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="262" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="284" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="306" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="328" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="350" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="20" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="20" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="42" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="64" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="86" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="108" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="130" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="152" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="174" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="196" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="218" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="240" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="262" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="284" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="306" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="328" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="350" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="20" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="20" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="42" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="64" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="86" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.40" x="108" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.32" x="130" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.38" x="152" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="174" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.36" x="196" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="218" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="240" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.40" x="262" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.32" x="284" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.38" x="306" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="328" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="128" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="350" y="128" width="22.3" height="22.3"/><rect class="f-buf-lo" x="20" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.78" x="20" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.78" x="42" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.38" x="64" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="86" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.36" x="108" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="130" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="152" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.40" x="174" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.32" x="196" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.38" x="218" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="240" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.36" x="262" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="284" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="306" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.78" x="328" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="150" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.78" x="350" y="150" width="22.3" height="22.3"/><rect class="f-buf-lo" x="20" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.74" x="20" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.74" x="42" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="64" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.40" x="86" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.32" x="108" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.38" x="130" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="152" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.36" x="174" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="196" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="218" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.40" x="240" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.32" x="262" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.38" x="284" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="306" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.74" x="328" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="172" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.74" x="350" y="172" width="22.3" height="22.3"/><rect class="f-buf-lo" x="20" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.70" x="20" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="42" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.70" x="42" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="64" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="64" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="86" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.36" x="86" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="108" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="108" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="130" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="130" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="152" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.40" x="152" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="174" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.32" x="174" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="196" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.38" x="196" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="218" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="218" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="240" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.36" x="240" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="262" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="262" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="284" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.34" x="284" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="306" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.40" x="306" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="328" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.70" x="328" y="194" width="22.3" height="22.3"/><rect class="f-buf-lo" x="350" y="194" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.70" x="350" y="194" width="22.3" height="22.3"/><rect class="s-strong" x="20" y="40" width="352" height="176"/>
+<text class="t-small t-muted" x="20" y="232">level 0 · 16 × 8</text>
+<rect class="f-buf-lo" x="400" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="400" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="422" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="422" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="444" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="444" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="466" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="466" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="488" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="488" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="510" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="510" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="532" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="532" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="554" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="554" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="400" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="400" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="422" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="422" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="444" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="444" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="466" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="466" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="488" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="488" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="510" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="510" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="532" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="532" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="554" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="554" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="400" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="400" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="422" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="422" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="444" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="444" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="466" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="466" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="488" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="488" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="510" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="510" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="532" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="532" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="554" y="84" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="554" y="84" width="22.3" height="22.3"/><rect class="f-buf-lo" x="400" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.74" x="400" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="422" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="422" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="444" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="444" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="466" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="466" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="488" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="488" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="510" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.42" x="510" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="532" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="532" y="106" width="22.3" height="22.3"/><rect class="f-buf-lo" x="554" y="106" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.74" x="554" y="106" width="22.3" height="22.3"/><rect class="s-strong" x="400" y="40" width="176" height="88"/>
+<text class="t-small t-muted" x="400" y="144">level 1 · 8 × 4</text>
+<rect class="f-buf-lo" x="600" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="600" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="622" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="622" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="644" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="644" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="666" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="666" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="600" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="600" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="622" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="622" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="644" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.44" x="644" y="62" width="22.3" height="22.3"/><rect class="f-buf-lo" x="666" y="62" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="0.82" x="666" y="62" width="22.3" height="22.3"/><rect class="s-strong" x="600" y="40" width="88" height="44"/>
+<text class="t-small t-muted" x="600" y="100">level 2 · 4 × 2</text>
+<rect class="f-buf-lo" x="712" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="712" y="40" width="22.3" height="22.3"/><rect class="f-buf-lo" x="734" y="40" width="22.3" height="22.3"/><rect class="f-buf-hi" opacity="1.00" x="734" y="40" width="22.3" height="22.3"/><rect class="s-strong" x="712" y="40" width="44" height="22"/>
+<text class="t-small t-muted" x="712" y="78">level 3 · 2 × 1</text>
+<rect class="s-pix w3" fill="none" x="130" y="150" width="110" height="66"/><rect class="f-surface s-strong" x="133" y="153" width="16" height="16" rx="3"/><text class="t-mono t-small t-strong mid" x="141" y="165">A</text>
+<rect class="s-pix w3" fill="none" x="622" y="62" width="22" height="22"/><rect class="s-pix w3" fill="none" x="644" y="62" width="22" height="22"/>
+<rect class="s-acc w3" fill="none" x="262" y="84" width="44" height="110"/><rect class="f-surface s-strong" x="265" y="87" width="16" height="16" rx="3"/><text class="t-mono t-small t-strong mid" x="273" y="99">B</text>
+<rect class="s-acc w3" fill="none" x="644" y="40" width="22" height="22"/><rect class="s-acc w3" fill="none" x="666" y="40" width="22" height="22"/><rect class="s-acc w3" fill="none" x="644" y="62" width="22" height="22"/><rect class="s-acc w3" fill="none" x="666" y="62" width="22" height="22"/>
+<text class="t-strong t-pix" x="400" y="168">A · a crate behind the wall</text>
+<text class="t-small" x="400" y="186">Covers 5 × 3 texels, so it is tested at level 2: 2 texels.</text>
+<text class="t-small" x="400" y="202">Its nearest depth 0.60 is farther than their farthest, 0.44: hidden.</text>
+<text class="t-strong t-acc" x="400" y="230">B · a tower rising above it</text>
+<text class="t-small" x="400" y="248">Covers 2 × 5 texels; at level 2 its 4 texels reach the sky,</text>
+<text class="t-small" x="400" y="264">farthest depth 1.00. Its 0.55 is nearer, so it may be visible: drawn.</text>
+<text class="t-small t-muted" x="20" y="250">Dark is near, light is far. Depth runs from 0 at the camera to 1 at the far plane.</text>
+
+                  </svg>
+                </div>
+                <figcaption><b>The pyramid lets one read stand for many pixels.</b> Because each texel keeps the farthest depth beneath it, "farther than this texel" means "farther than every pixel it covers". Crate A is hidden behind the wall with two reads. Tower B touches texels that reach the sky, so it cannot be culled.</figcaption>
+              </figure>
+              <p>Try it on a whole town below. The strip under the map is the occlusion depth buffer for one row of the screen, with its pyramid. Turn the camera into the buildings, then away from them, and switch the stages on and off to see what each one saves.</p>
+              <figure>
+                <div class="demo" data-demo="culling-map">
+                  <p class="demo-hint">The culling map needs JavaScript. Without it: a camera in a small town sees about a third of 161 objects; frustum culling removes those outside its view, size culling the tiniest far ones, and occlusion culling those hidden behind buildings, leaving about 60 to draw.</p>
+                </div>
+                <figcaption><b>Culling map.</b> Each object is coloured by the first test that removes it. Dashed outlines are objects sent to the GPU that turn out not to be visible: the tests are conservative, so a few always slip through. Switch every stage off and count how many objects are sent for nothing.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="pvs"><span class="step-num">6</span> Precomputed visibility: PVS and portals</h3>
+              <p>For levels that do not change, visibility can be worked out before the game ships. The level is divided into cells, and for each cell a tool computes every object that could be seen from anywhere inside it: its <dfn class="term" data-term="pvs">potentially visible set</dfn>. At runtime the engine finds the camera's cell and looks up the list. The idea goes back to Teller and Séquin's 1991 work on architectural walkthroughs.</p>
+              <p>Indoors, rooms and doorways make the structure explicit. In <dfn class="term" data-term="portal-culling">portal culling</dfn>, each room is a cell and each doorway or window is a portal. The renderer draws the camera's room, then looks into the next room only through the portals it can see, narrowing its view to each opening as it goes.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="Left: a floor plan of five rooms, A to E, joined by doorways that act as portals. A camera in room A looks through the doorway into B and on through the next doorway into C; the visible region narrows at each doorway, and rooms D and E are not visible from here. Right: a baked table of which rooms can see which. Room A can see A, B, C and D but never E; room E can see only B, D and E.">
+                    <text class="t-caps" x="40" y="40">PORTAL CULLING AT RUNTIME</text>
+                    <rect class="f-acc-soft" opacity="0.5" x="40" y="60" width="160" height="140"/>
+                    <polygon class="f-acc-soft" points="200,110 360,66.4 360,164.5 200,150"/>
+                    <polygon class="f-acc-soft" points="360,80 450,60 520,60 520,108.1 360,120"/>
+                    <path class="s-ink w3" d="M40,60 H520 V300 H200 V200 M40,60 V200 H200 M200,60 V110 M200,150 V200 M360,60 V80 M360,120 V200 M200,200 H220 M260,200 H520 M360,200 V230 M360,270 V300"/>
+                    <path class="s-acc w3 dash" d="M200,110 V150 M360,80 V120 M220,200 H260 M360,230 V270"/>
+                    <line class="s-acc" x1="90" y1="140" x2="360" y2="66.4"/>
+                    <line class="s-acc" x1="90" y1="140" x2="360" y2="164.5"/>
+                    <line class="s-acc dash" x1="360" y1="80" x2="450" y2="60"/>
+                    <line class="s-acc dash" x1="360" y1="120" x2="520" y2="108.1"/>
+                    <circle class="f-acc" cx="90" cy="140" r="7"/>
+                    <text class="t-small t-acc t-strong" x="72" y="168">camera</text>
+                    <text class="t-head" x="52" y="84">A</text>
+                    <text class="t-head" x="212" y="84">B</text>
+                    <text class="t-head" x="496" y="190">C</text>
+                    <text class="t-head" x="212" y="290">D</text>
+                    <text class="t-head" x="496" y="290">E</text>
+                    <text class="t-small t-muted" x="232" y="258">not visible from here,</text>
+                    <text class="t-small t-muted" x="232" y="273">though in A's PVS</text>
+                    <text class="t-small t-muted" x="40" y="322">Dashed blue: doorways (portals). Shaded: what the camera can see through them.</text>
+
+                    <text class="t-caps" x="600" y="40">BAKED AHEAD OF TIME: THE PVS</text>
+                    <text class="t-small t-muted" x="600" y="64">from room</text>
+                    <text class="t-small t-muted end" x="860" y="64">can see</text>
+<text class="t-mono t-strong mid" x="680" y="78">A</text><text class="t-mono t-strong mid" x="638" y="109">A</text><text class="t-mono t-strong mid" x="720" y="78">B</text><text class="t-mono t-strong mid" x="638" y="149">B</text><text class="t-mono t-strong mid" x="760" y="78">C</text><text class="t-mono t-strong mid" x="638" y="189">C</text><text class="t-mono t-strong mid" x="800" y="78">D</text><text class="t-mono t-strong mid" x="638" y="229">D</text><text class="t-mono t-strong mid" x="840" y="78">E</text><text class="t-mono t-strong mid" x="638" y="269">E</text>
+<rect class="f-acc-soft s-acc" x="660" y="84" width="40" height="40"/><circle class="f-acc" cx="680" cy="104" r="5"/><rect class="f-acc-soft s-acc" x="700" y="84" width="40" height="40"/><circle class="f-acc" cx="720" cy="104" r="5"/><rect class="f-acc-soft s-acc" x="740" y="84" width="40" height="40"/><circle class="f-acc" cx="760" cy="104" r="5"/><rect class="f-acc-soft s-acc" x="780" y="84" width="40" height="40"/><circle class="f-acc" cx="800" cy="104" r="5"/><rect class="f-surface s-line" x="820" y="84" width="40" height="40"/><rect class="f-acc-soft s-acc" x="660" y="124" width="40" height="40"/><circle class="f-acc" cx="680" cy="144" r="5"/><rect class="f-acc-soft s-acc" x="700" y="124" width="40" height="40"/><circle class="f-acc" cx="720" cy="144" r="5"/><rect class="f-acc-soft s-acc" x="740" y="124" width="40" height="40"/><circle class="f-acc" cx="760" cy="144" r="5"/><rect class="f-acc-soft s-acc" x="780" y="124" width="40" height="40"/><circle class="f-acc" cx="800" cy="144" r="5"/><rect class="f-acc-soft s-acc" x="820" y="124" width="40" height="40"/><circle class="f-acc" cx="840" cy="144" r="5"/><rect class="f-acc-soft s-acc" x="660" y="164" width="40" height="40"/><circle class="f-acc" cx="680" cy="184" r="5"/><rect class="f-acc-soft s-acc" x="700" y="164" width="40" height="40"/><circle class="f-acc" cx="720" cy="184" r="5"/><rect class="f-acc-soft s-acc" x="740" y="164" width="40" height="40"/><circle class="f-acc" cx="760" cy="184" r="5"/><rect class="f-acc-soft s-acc" x="780" y="164" width="40" height="40"/><circle class="f-acc" cx="800" cy="184" r="5"/><rect class="f-surface s-line" x="820" y="164" width="40" height="40"/><rect class="f-acc-soft s-acc" x="660" y="204" width="40" height="40"/><circle class="f-acc" cx="680" cy="224" r="5"/><rect class="f-acc-soft s-acc" x="700" y="204" width="40" height="40"/><circle class="f-acc" cx="720" cy="224" r="5"/><rect class="f-acc-soft s-acc" x="740" y="204" width="40" height="40"/><circle class="f-acc" cx="760" cy="224" r="5"/><rect class="f-acc-soft s-acc" x="780" y="204" width="40" height="40"/><circle class="f-acc" cx="800" cy="224" r="5"/><rect class="f-acc-soft s-acc" x="820" y="204" width="40" height="40"/><circle class="f-acc" cx="840" cy="224" r="5"/><rect class="f-surface s-line" x="660" y="244" width="40" height="40"/><rect class="f-acc-soft s-acc" x="700" y="244" width="40" height="40"/><circle class="f-acc" cx="720" cy="264" r="5"/><rect class="f-surface s-line" x="740" y="244" width="40" height="40"/><rect class="f-acc-soft s-acc" x="780" y="244" width="40" height="40"/><circle class="f-acc" cx="800" cy="264" r="5"/><rect class="f-acc-soft s-acc" x="820" y="244" width="40" height="40"/><circle class="f-acc" cx="840" cy="264" r="5"/>
+<text class="t-small t-muted" x="600" y="306">From A, room E can never be seen,</text>
+<text class="t-small t-muted" x="600" y="322">so E is skipped without any test.</text>
+
+                  </svg>
+                </div>
+                <figcaption><b>Two ways to use a level's rooms and doorways.</b> Portal culling works out, each frame, what the camera can see through each opening; here rooms D and E are skipped. A potentially visible set is baked ahead of time for whole rooms: from anywhere in A you might glimpse D, so it is listed, but never E. Both rely on walls that do not move.</figcaption>
+              </figure>
+              <p>Both techniques shine in buildings, corridors and dense streets, and do little in open landscapes. Both depend on geometry that does not move: if a wall in the bake is destroyed in play, the baked data still says the rooms behind it are hidden.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="gpu-culling"><span class="step-num">7</span> Culling on the GPU</h3>
+              <p>The renderers of <a class="xref" data-ch="4.3">4.3</a> that keep the scene in GPU memory cull there too. In <dfn class="term" data-term="gpu-culling">GPU culling</dfn>, a <a class="term" data-term="compute-shader" data-forward href="glossary.html#compute-shader">compute shader</a> tests every instance, or every small cluster of triangles, against the frustum and the depth pyramid, then writes the survivors for <a class="term" data-term="indirect-drawing" href="glossary.html#indirect-drawing">indirect draws</a>. Thousands of GPU threads test thousands of objects at once, and the CPU never sees the list.</p>
+              <p>There is a chicken-and-egg problem. Hi-Z needs a depth buffer, but the depth buffer comes from drawing the scene. A common answer is to cull in two passes, using last frame's depth first and this frame's depth to catch the rest. Unity's documentation for its URP GPU occlusion culling describes the same principle: it tests against depth from the current and previous frames and renders objects found unoccluded in either.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="Two-pass GPU occlusion culling in six steps: take last frame's depth pyramid; test every object against it; draw the objects that pass; build this frame's pyramid from what was drawn; retest only the objects the first test rejected; draw any of those that are now visible. This frame's pyramid is kept for the next frame.">
+                    <defs>
+                      <marker id="tp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="26" y="26">PASS 1</text>
+                    <text class="t-caps" x="608" y="26">PASS 2</text>
+                    <rect class="f-surface s-strong" x="26" y="40" width="128" height="86" rx="6"/>
+                    <text class="t-strong" x="38" y="62">Last frame's</text>
+                    <text class="t-strong" x="38" y="78">depth pyramid</text>
+                    <rect class="f-buf-lo" x="38" y="92" width="40" height="20"/><rect class="f-buf-hi" opacity="0.6" x="38" y="92" width="20" height="20"/><rect class="f-buf-lo" x="84" y="97" width="20" height="10"/><rect class="f-buf-hi" opacity="0.8" x="94" y="97" width="10" height="10"/><rect class="f-buf-hi" opacity="0.7" x="110" y="99" width="10" height="6"/>
+                    <rect class="f-acc-soft s-acc" x="170" y="40" width="128" height="86" rx="6"/>
+                    <text class="t-strong" x="182" y="62">Test every</text>
+                    <text class="t-strong" x="182" y="78">object</text>
+                    <text class="t-small" x="182" y="98">frustum, then Hi-Z</text>
+                    <rect class="f-acc s-acc" x="314" y="40" width="128" height="86" rx="6"/>
+                    <text class="t-strong t-on-acc" x="326" y="62">Draw the ones</text>
+                    <text class="t-strong t-on-acc" x="326" y="78">that pass</text>
+                    <text class="t-small t-on-acc" x="326" y="98">most of the frame</text>
+                    <rect class="f-surface s-strong" x="458" y="40" width="128" height="86" rx="6"/>
+                    <text class="t-strong" x="470" y="62">Build this</text>
+                    <text class="t-strong" x="470" y="78">frame's pyramid</text>
+                    <text class="t-small" x="470" y="98">from what was drawn</text>
+                    <rect class="f-acc-soft s-acc" x="602" y="40" width="128" height="86" rx="6"/>
+                    <text class="t-strong" x="614" y="62">Retest only the</text>
+                    <text class="t-strong" x="614" y="78">rejected ones</text>
+                    <text class="t-small" x="614" y="98">against the new one</text>
+                    <rect class="f-acc s-acc" x="746" y="40" width="128" height="86" rx="6"/>
+                    <text class="t-strong t-on-acc" x="758" y="62">Draw any now</text>
+                    <text class="t-strong t-on-acc" x="758" y="78">visible</text>
+                    <text class="t-small t-on-acc" x="758" y="98">just came into view</text>
+                    <line class="s-muted w15" x1="154" y1="83" x2="166" y2="83" marker-end="url(#tp-arr)"/>
+                    <line class="s-muted w15" x1="298" y1="83" x2="310" y2="83" marker-end="url(#tp-arr)"/>
+                    <line class="s-muted w15" x1="442" y1="83" x2="454" y2="83" marker-end="url(#tp-arr)"/>
+                    <line class="s-muted w15" x1="586" y1="83" x2="598" y2="83" marker-end="url(#tp-arr)"/>
+                    <line class="s-muted w15" x1="730" y1="83" x2="742" y2="83" marker-end="url(#tp-arr)"/>
+                    <path class="s-muted w15 dash" d="M522,126 V160 H90 V130" marker-end="url(#tp-arr)"/>
+                    <text class="t-small t-muted mid" x="306" y="178">kept for next frame</text>
+                    <text class="t-small t-muted" x="26" y="214">Pass 1 uses old information and may wrongly reject something that just came into view. Pass 2 rescues it the same frame.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Two passes make GPU occlusion both cheap and safe.</b> Last frame's depth is almost right, so pass 1 does most of the work. The objects it rejects get a second chance against this frame's real depth, so nothing appears a frame late.</figcaption>
+              </figure>
+              <p>Ubisoft's <em>Assassin's Creed Unity</em> renderer took this down to clusters of 64 triangles, culling by cluster bounds and triangle facing on the GPU. Its authors report 20 to 40% of triangles culled that way, and 30 to 80% of shadow triangles.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="backface"><span class="step-num">8</span> The last test: back faces</h3>
+              <p>Everything so far skips whole objects. The GPU adds one more test, for every triangle. <a class="xref" data-ch="4.1">4.1 Meshes</a> showed that the order of a triangle's corners, its <a class="term" data-term="winding-order" href="glossary.html#winding-order">winding order</a>, tells its front from its back. Once the vertices are on screen, a front-facing triangle's corners go one way round and a back-facing triangle's go the other. <dfn class="term" data-term="backface-culling">Backface culling</dfn> skips the back-facing ones. On a closed mesh they are always hidden behind the front, and they are about half its triangles.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="Left: two triangles on screen with their corners numbered. One goes 0, 1, 2 anticlockwise and faces the camera, so it is kept; the other goes clockwise and faces away, so it is skipped. Middle: a closed outline seen from a camera; the 8 edges of 16 facing the camera are kept, the rest face away. Right: where the test happens: after the vertex shader has run for every vertex, before rasterisation and pixel shading.">
+                    <defs>
+                      <marker id="bf-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="bf-arr-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="24">CORNER ORDER ON SCREEN</text>
+                    <polygon class="f-acc-soft s-acc w15" points="40,200 140,200 90,100"/>
+                    <path class="s-acc w15" d="M60,188 H116" marker-end="url(#bf-arr)"/>
+                    <path class="s-acc w15" d="M124,182 L102,138" marker-end="url(#bf-arr)"/>
+                    <path class="s-acc w15" d="M80,132 L58,176" marker-end="url(#bf-arr)"/>
+                    <text class="t-mono t-strong" x="28" y="216">0</text><text class="t-mono t-strong" x="144" y="216">1</text><text class="t-mono t-strong" x="86" y="94">2</text>
+                    <text class="t-small t-strong mid" x="90" y="238">anticlockwise: front, kept</text>
+                    <polygon class="f-surface s-muted dash" points="180,200 230,100 280,200"/>
+                    <path class="s-muted w15" d="M198,180 L218,140" marker-end="url(#bf-arr-m)"/>
+                    <path class="s-muted w15" d="M242,140 L262,180" marker-end="url(#bf-arr-m)"/>
+                    <path class="s-muted w15" d="M256,190 H204" marker-end="url(#bf-arr-m)"/>
+                    <text class="t-mono t-strong" x="168" y="216">0</text><text class="t-mono t-strong" x="226" y="94">1</text><text class="t-mono t-strong" x="284" y="216">2</text>
+                    <text class="t-small t-strong mid" x="230" y="238">clockwise: back, skipped</text>
+
+                    <line class="s-line" x1="316" y1="14" x2="316" y2="246"/>
+
+                    <text class="t-caps" x="336" y="24">A CLOSED MESH, IN SECTION</text>
+                    <circle class="f-acc" cx="346" cy="150" r="7"/>
+                    <line class="s-acc w15" x1="356" y1="150" x2="390" y2="150" marker-end="url(#bf-arr)"/>
+                    <text class="t-small t-acc t-strong" x="330" y="176">camera,</text>
+                    <text class="t-small t-acc" x="330" y="191">far away</text>
+<line class="s-muted w15 dash round" x1="536" y1="150" x2="531" y2="175.3"/><line class="s-muted w15 dash round" x1="531" y1="175.3" x2="516.7" y2="196.7"/><line class="s-muted w15 dash round" x1="516.7" y1="196.7" x2="495.3" y2="211"/><line class="s-muted w15 dash round" x1="495.3" y1="211" x2="470" y2="216"/><line class="s-acc w3 round" x1="470" y1="216" x2="444.7" y2="211"/><line class="s-acc w3 round" x1="444.7" y1="211" x2="423.3" y2="196.7"/><line class="s-acc w3 round" x1="423.3" y1="196.7" x2="409" y2="175.3"/><line class="s-acc w3 round" x1="409" y1="175.3" x2="404" y2="150"/><line class="s-acc w3 round" x1="404" y1="150" x2="409" y2="124.7"/><line class="s-acc w3 round" x1="409" y1="124.7" x2="423.3" y2="103.3"/><line class="s-acc w3 round" x1="423.3" y1="103.3" x2="444.7" y2="89"/><line class="s-acc w3 round" x1="444.7" y1="89" x2="470" y2="84"/><line class="s-muted w15 dash round" x1="470" y1="84" x2="495.3" y2="89"/><line class="s-muted w15 dash round" x1="495.3" y1="89" x2="516.7" y2="103.3"/><line class="s-muted w15 dash round" x1="516.7" y1="103.3" x2="531" y2="124.7"/><line class="s-muted w15 dash round" x1="531" y1="124.7" x2="536" y2="150"/>
+
+                    <text class="t-small mid" x="470" y="238">8 of 16 faces point at the camera</text>
+
+                    <line class="s-line" x1="580" y1="14" x2="580" y2="246"/>
+
+                    <text class="t-caps" x="600" y="24">WHERE THE TEST RUNS, ON THE GPU</text>
+                    <rect class="f-surface s-strong" x="600" y="40" width="280" height="50" rx="6"/>
+                    <text class="t-strong" x="614" y="61">Vertex shader</text>
+                    <text class="t-small t-muted" x="614" y="78">runs for every vertex, front or back</text>
+                    <rect class="f-acc-soft s-acc" x="600" y="110" width="280" height="50" rx="6"/>
+                    <text class="t-strong" x="614" y="131">Facing test, per triangle</text>
+                    <text class="t-small" x="614" y="148">from the order of its corners on screen</text>
+                    <rect class="f-surface s-strong" x="600" y="180" width="280" height="50" rx="6"/>
+                    <text class="t-strong" x="614" y="201">Rasteriser and pixel shader</text>
+                    <text class="t-small t-muted" x="614" y="218">front faces only: about half the work</text>
+                    <line class="s-muted w15" x1="740" y1="90" x2="740" y2="106" marker-end="url(#bf-arr-m)"/>
+                    <line class="s-muted w15" x1="740" y1="160" x2="740" y2="176" marker-end="url(#bf-arr-m)"/>
+                  </svg>
+                </div>
+                <figcaption><b>Back faces are skipped per triangle, after the vertices are placed.</b> The GPU can only tell which way a triangle faces once its corners are on screen, so the vertex shader has already run for them. What backface culling saves is the rasterisation and pixel shading of roughly half of every closed mesh.</figcaption>
+              </figure>
+              <p>Surfaces with no back to hide, such as leaves, flags and cloth, turn it off and draw both sides. Which corner order counts as the front is a convention: glTF uses anticlockwise, and an import that flips it turns a mesh inside out.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Culling is work, and it only pays when it removes more than it costs. Each stage has its own bill.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Stage</th><th scope="col">Runs on</th><th scope="col">What it costs</th><th scope="col">What it saves</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Frustum</th><td>CPU, or GPU in GPU-driven renderers</td><td>A few plane tests per object or group, every frame</td><td>Draw calls and GPU work for everything out of view, often more than half the level</td></tr>
+                  <tr><th scope="row">Distance and size</th><td>CPU or GPU</td><td>One distance or size check per object; authoring the distances</td><td>Draw calls for many tiny far objects; risks visible popping if set too close</td></tr>
+                  <tr><th scope="row">Occlusion, runtime</th><td>GPU queries, Hi-Z on GPU, or software on CPU</td><td>Rendering occluders, building the pyramid, the tests; one frame of delay with queries</td><td>Draw calls and pixel work for hidden objects: large in dense, walled scenes, near nothing in open ones</td></tr>
+                  <tr><th scope="row">Precomputed (PVS)</th><td>Bake on the build machine, lookup at runtime</td><td>Bake time and memory for the visibility data; works only for geometry that never moves</td><td>Most of the occlusion test cost at runtime</td></tr>
+                  <tr><th scope="row">Backface</th><td>GPU, fixed hardware</td><td>Almost nothing</td><td>Rasterising and shading about half of every closed mesh</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Published numbers show the scale. On a PlayStation 4, the <em>Assassin's Creed Unity</em> pipeline spent about 600 µs drawing its 300 best occluders, 100 µs shrinking that depth to 512 × 256, 50 µs combining it with last frame's depth and 50 µs building the pyramid. That is about 0.8 ms of GPU time each frame before a single object has been tested.</p>
+            <p>The other side of the ledger is just as real. Unity's documentation warns that its built-in occlusion culling runs on the CPU at runtime and can offset the time it saves, so it helps most when a project is GPU-bound because of overdraw. Godot's warns that detailed occluders can overload the CPU, and that moving an occluder forces its acceleration structure to be rebuilt.</p>
+            <ul class="grows">
+              <li><strong>Object count</strong><span>Every object is tested every frame. Grouping objects in space keeps the cost growing slower than the level.</span></li>
+              <li><strong>Open views</strong><span>With few occluders, occlusion culling costs time and removes little. Long sightlines make every stage less effective.</span></li>
+              <li><strong>Extra views</strong><span>Every shadow cascade, reflection capture and split-screen view needs its own culling, from its own viewpoint.</span></li>
+              <li><strong>Moving occluders</strong><span>Baked data cannot follow them, and runtime occluders that move cost rebuilds.</span></li>
+              <li><strong>Precomputed detail</strong><span>Smaller visibility cells cull more precisely but take more memory and longer bakes.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>Frustum and backface culling are always worth having and every engine does them for you. Occlusion culling and baked visibility are choices: measure them on your level, from the viewpoints players actually use, with them on and off.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Culling bugs are among the most visible in rendering, because the symptom is something appearing or vanishing. These are the common ones.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A screen whose right edge cuts through a tree; the tree's canopy is missing even though its trunk is still on screen.">
+                    <rect class="f-sunken s-strong" x="14" y="14" width="190" height="104"/>
+                    <rect class="f-solid s-strong" x="176" y="70" width="10" height="48"/>
+                    <circle class="s-pix dash" cx="196" cy="56" r="26"/>
+                    <rect class="s-acc dash" x="170" y="62" width="22" height="56"/>
+                    <text class="t-small t-pix" x="120" y="30">canopy gone</text>
+                  </svg>
+                </div>
+                <h4>Objects vanish at the screen edge</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The bounding volume is smaller than what is drawn. Shaders that move vertices, such as wind on trees, or animation that reaches outside the bind pose, push geometry beyond its bounds, so the object is culled while part of it is still on screen.</dd></div>
+                  <div><dt>Ask for</dt><dd>The bounds drawn in a debug view, and the engine's bounds scale or extension set for animated and shader-deformed meshes.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A corner of a wall with a character half-drawn appearing from behind it, with motion lines showing the camera turning quickly.">
+                    <rect class="f-solid s-strong" x="20" y="20" width="90" height="98"/>
+                    <rect class="f-pix-soft s-pix dash" x="120" y="44" width="26" height="74" rx="6"/>
+                    <circle class="f-pix-soft s-pix dash" cx="133" cy="36" r="10"/>
+                    <path class="s-muted" d="M170,50 H220 M176,64 H226 M170,78 H220"/>
+                    <text class="t-small t-pix" x="150" y="112">a frame late</text>
+                  </svg>
+                </div>
+                <h4>Things pop in a frame late</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Occlusion results from the previous frame. An object hidden last frame is skipped this frame, even though it has just come into view round a corner.</dd></div>
+                  <div><dt>Ask for</dt><dd>A two-pass occlusion test or a conservative margin, and a test at full speed on the target device, where frame rates and camera speeds are real.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A screen showing the ground with a long shadow that suddenly ends, because the object casting it is just off screen.">
+                    <rect class="f-sunken s-strong" x="14" y="14" width="160" height="104"/>
+                    <polygon class="s-pix dash" points="196,98 40,84 40,102 196,106"/>
+                    <rect class="f-solid s-strong" x="190" y="30" width="22" height="72"/>
+                    <text class="t-small t-pix" x="30" y="72">shadow missing</text>
+                    <text class="t-small t-muted" x="176" y="120">off screen</text>
+                  </svg>
+                </div>
+                <h4>Shadows disappear</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A shadow caster was culled against the camera's view instead of the light's. The object is off screen, but its shadow falls into view.</dd></div>
+                  <div><dt>Ask for</dt><dd>Shadow casters culled against each light's own frustum or cascade, and the setting that controls shadow-caster culling distance checked.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A street of buildings with an empty gap where one building should stand.">
+                    <rect class="f-solid s-strong" x="16" y="40" width="46" height="78"/>
+                    <rect class="f-solid s-strong" x="70" y="28" width="40" height="90"/>
+                    <rect class="s-pix dash" x="118" y="34" width="48" height="84"/>
+                    <rect class="f-solid s-strong" x="174" y="46" width="50" height="72"/>
+                    <text class="t-small t-pix mid" x="142" y="80">gone</text>
+                  </svg>
+                </div>
+                <h4>Something visible is missing</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Stale or over-simplified visibility data. A level was edited after the occlusion bake, or simplified occluders poke out beyond the real walls and hide things that should show.</dd></div>
+                  <div><dt>Ask for</dt><dd>The bake run as part of every build, a check that fails when baked data is older than the level, and simpler occluders kept inside the real geometry.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A flag on a pole, drawn solid from one side, and from the other side only a dashed outline where the flag should be.">
+                    <line class="s-ink w2" x1="40" y1="20" x2="40" y2="118"/>
+                    <polygon class="f-acc-soft s-acc" points="42,24 96,34 42,60"/>
+                    <line class="s-ink w2" x1="160" y1="20" x2="160" y2="118"/>
+                    <polygon class="s-pix dash" points="158,24 104,34 158,60"/>
+                    <text class="t-small mid" x="68" y="84">front</text>
+                    <text class="t-small t-pix mid" x="132" y="84">behind</text>
+                  </svg>
+                </div>
+                <h4>Thin surfaces vanish from behind</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Backface culling on a surface with no back, such as a leaf, a flag or a sheet of paper, or a winding order flipped by mirroring or import.</dd></div>
+                  <div><dt>Ask for</dt><dd>Two-sided materials on exactly those surfaces, and a check of the import's handedness and any negative scales.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two frame-time bars: with occlusion culling on, the bar is longer than with it off, because the culling cost outweighs what it saves.">
+                    <text class="t-small" x="14" y="44">off</text>
+                    <rect class="f-solid s-strong" x="56" y="30" width="140" height="20"/>
+                    <text class="t-small" x="14" y="88">on</text>
+                    <rect class="f-solid s-strong" x="56" y="74" width="128" height="20"/>
+                    <rect class="f-pix-soft s-pix" x="184" y="74" width="36" height="20"/>
+                    <text class="t-small t-pix" x="168" y="116">culling cost</text>
+                  </svg>
+                </div>
+                <h4>Occlusion culling made it slower</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>An open scene with few occluders. The tests and the occluder rendering cost more than the little they remove.</dd></div>
+                  <div><dt>Ask for</dt><dd>Frame timings with occlusion on and off from the views players use, and occlusion limited to the areas where it pays.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>Every engine has a way to freeze culling and fly the camera out to see what was kept. It is the fastest way to confirm any of these.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines do frustum and backface culling automatically. They differ in their occlusion tools and in what you must author or bake.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6 (URP, HDRP)</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Order of stages</th>
+                    <td>Distance, view frustum, precomputed visibility, then dynamic occlusion, cheapest first.</td>
+                    <td>Cameras always frustum cull; with occlusion enabled they run both.</td>
+                    <td>Frustum culling is automatic; occlusion culling is optional per project.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Distance</th>
+                    <td>Per actor <strong>Desired Max Draw Distance</strong> and <strong>Min Draw Distance</strong>. A <strong>Cull Distance Volume</strong> maps object size to cull distance.</td>
+                    <td><code>Camera.layerCullDistances</code>: one distance per layer, 0 meaning the far plane.</td>
+                    <td><strong>Visibility Range</strong> on any GeometryInstance3D: <strong>Begin</strong>, <strong>End</strong>, their margins and <strong>Fade Mode</strong>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Runtime occlusion</th>
+                    <td>Hardware occlusion queries, one per actor; <code>r.HZBOcclusion 1</code> switches to the HZB test, which the documentation calls more conservative. Project Settings, Culling: <strong>Occlusion Culling</strong>.</td>
+                    <td>URP: <strong>GPU Occlusion</strong> on the Universal Renderer, with the GPU Resident Drawer. It tests bounding spheres against depth from this frame and the last.</td>
+                    <td><strong>OccluderInstance3D</strong> with <strong>Bake Occluders</strong>, plus Project Settings <strong>Rendering &gt; Occlusion Culling &gt; Use Occlusion Culling</strong>. Occluders are rasterised on the CPU with Embree.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Baked visibility</th>
+                    <td><strong>Precompute Visibility</strong> in World Settings and Precomputed Visibility Volumes; cells built in the lighting build, static actors only.</td>
+                    <td>Baked occlusion culling, built on Umbra: <strong>Occluder Static</strong> and <strong>Occludee Static</strong> flags, then <strong>Window &gt; Rendering &gt; Occlusion Culling</strong>, Bake. Occlusion Portals for doors.</td>
+                    <td>None built in. Godot 3's rooms and portals have no equivalent in Godot 4's class reference.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Backface</th>
+                    <td>Material <strong>Two Sided</strong> lights back faces as well as front faces, for leaves and cloth.</td>
+                    <td>URP Lit <strong>Render Face</strong>: Front (default), Back or Both.</td>
+                    <td>BaseMaterial3D <strong>Cull Mode</strong>: Back (default), Front or Disabled.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Debugging</th>
+                    <td><code>stat InitViews</code> for culling time and effectiveness; <code>FreezeRendering</code>; <code>r.VisualizeOccludedPrimitives 1</code> draws boxes round occluded actors.</td>
+                    <td>The Occlusion Culling window's <strong>Visualization</strong> tab shows, in the Scene view, what the selected camera can see; the Rendering Debugger for GPU occlusion.</td>
+                    <td>Viewport <strong>Display Advanced &gt; Occlusion Culling Buffer</strong>; <strong>View Information</strong> for draw calls and objects.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.7, Unity 6.6 and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Static only</p>
+              <p>Baked visibility in every engine covers geometry that never moves. Unity's documentation is explicit that moving objects can be occludees but cannot occlude, and that its built-in occlusion culling is not suitable for scenes generated at runtime. Destructible walls and procedural levels need runtime occlusion instead.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs about culling name the viewpoints that matter, give the counts before and after each stage, and ask for the cost of culling as well as its savings. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when a dense level sends too much to the GPU</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.7, no Nanite on props. Target: PlayStation 5 at 60 fps.
+Our old-town level has 38,000 actors. From the market square, stat InitViews shows about 9,000 visible primitives, and draw calls run near 5,000. The square is ringed by tall buildings, so most of the town should be hidden from it.
+
+1. Explain what each culling stage is doing from the square, using the stat InitViews numbers, and where the visible count is higher than the view suggests.
+2. Propose changes: cull distances by size with a Cull Distance Volume, HZB occlusion, and whether precomputed visibility suits this level. Give the expected effect and the cost of each.
+3. List any props whose bounds look too large or too small, and how to check them.
+4. Tell us how to measure the result from five fixed camera positions, with culling frozen to verify what is sent.</pre>
+              <ul class="prompt-why">
+                <li>Fixed viewpoints and the stat numbers make the problem measurable.</li>
+                <li>Asking for the cost of each stage stops a blanket "turn everything on".</li>
+                <li>Freezing culling gives a visual check of what is actually sent.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when objects pop in or vanish</span></div>
+              <pre class="prompt-body">Unity 6.6, URP, GPU Resident Drawer with GPU occlusion on. Two problems since we enabled them:
+1. Enemies rounding a corner at sprint speed appear one frame late.
+2. Trees at the right edge of the screen lose their canopies on windy days. Our foliage shader moves vertices up to 1.5 m.
+
+For each, tell me which culling stage removes the object and why. Check the trees' bounds against the maximum wind offset, and say how to extend them. For the enemies, check which depth the occlusion test uses and whether a second test this frame is happening. Give me a repeatable test scene for both.</pre>
+              <ul class="prompt-why">
+                <li>Separating the two symptoms points at two different stages.</li>
+                <li>Giving the wind offset lets the AI compute the bounds needed.</li>
+                <li>A test scene turns a visual glitch into something that can be retested.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing culling work</h3>
+            <ol class="review-list">
+              <li>Which stages run, in what order, and what does each cost on the target device?<span class="why">Culling that costs more than it saves makes the frame slower.</span></li>
+              <li>What are the bounds of anything animated or moved in a shader?<span class="why">Bounds that are too small make things vanish at the screen edge.</span></li>
+              <li>Are shadow casters culled against each light's own view?<span class="why">Otherwise shadows disappear when their casters leave the screen.</span></li>
+              <li>When is baked visibility rebuilt, and what checks that it is current?<span class="why">Stale data hides things that should be seen.</span></li>
+              <li>How does it behave in the most open view in the game?<span class="why">Occlusion culling saves least where sightlines are longest.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A lamp post's bounding sphere crosses the edge of the view, but the post itself is just off screen. It is drawn anyway. Is that a bug?</p>
+                <details><summary>Show answer</summary><p>No. Culling tests the bounding volume, and is conservative on purpose: anything whose bounds touch the view is kept. It costs one wasted draw. A tighter box would cull it, which is why engines often test boxes for tall objects.</p></details>
+              </li>
+              <li>
+                <p class="q">A team turns on occlusion culling in an open desert level and the frame gets slower. Why?</p>
+                <details><summary>Show answer</summary><p>There is almost nothing to hide behind. The occluder rendering and the tests still cost time, but they remove few objects, so the cost outweighs the saving.</p></details>
+              </li>
+              <li>
+                <p class="q">Backface culling skips about half the triangles of a closed mesh. Why does it not halve the vertex shader's work?</p>
+                <details><summary>Show answer</summary><p>The GPU can only tell which way a triangle faces once its corners are on screen, which is after the vertex shader has run. What it saves is rasterisation and pixel shading of the back faces.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#culling">culling</a></li>
+              <li><a class="chip" href="glossary.html#bounding-volume">bounding volume</a></li>
+              <li><a class="chip" href="glossary.html#frustum-culling">frustum culling</a></li>
+              <li><a class="chip" href="glossary.html#distance-culling">distance culling</a></li>
+              <li><a class="chip" href="glossary.html#small-object-culling">small-object culling</a></li>
+              <li><a class="chip" href="glossary.html#occlusion-culling">occlusion culling</a></li>
+              <li><a class="chip" href="glossary.html#occluder">occluder</a></li>
+              <li><a class="chip" href="glossary.html#occludee">occludee</a></li>
+              <li><a class="chip" href="glossary.html#hi-z">Hi-Z occlusion culling</a></li>
+              <li><a class="chip" href="glossary.html#pvs">potentially visible set</a></li>
+              <li><a class="chip" href="glossary.html#portal-culling">portal culling</a></li>
+              <li><a class="chip" href="glossary.html#gpu-culling">GPU culling</a></li>
+              <li><a class="chip" href="glossary.html#backface-culling">backface culling</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="4.5"></a> covers what happens to the objects that survive culling but are far away: drawing them with fewer triangles.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/visibility-and-occlusion-culling-in-unreal-engine?application_version=5.7">Visibility and occlusion culling</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/visibility-and-occlusion-culling-reference-in-unreal-engine?application_version=5.7">its reference</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/precomputed-visibility-volumes-in-unreal-engine?application_version=5.7">Precomputed visibility volumes</a>, Unreal Engine 5.7 documentation.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/stat-commands-in-unreal-engine?application_version=5.7">Stat commands</a>, Unreal Engine 5.7 documentation, for <code>stat InitViews</code>.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/cameras/occlusion-culling/occlusion-culling">Occlusion culling</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/cameras/occlusion-culling/getting-started">Set up a scene for occlusion culling</a>, Unity 6.6 manual; <a href="https://docs.unity3d.com/ScriptReference/UnityEngine.UmbraModule.html">UmbraModule</a>, Unity scripting reference.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/in-urp/gpu-culling">Enable GPU occlusion culling in URP</a> and <a href="https://docs.unity.com/en-us/engine/current/script-reference/unityengine/camera/layerculldistances">Camera.layerCullDistances</a>, Unity 6.6.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/tutorials/3d/occlusion_culling.html">Occlusion culling</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/3d/visibility_ranges.html">Visibility ranges</a> and <a href="https://docs.godotengine.org/en/stable/classes/class_basematerial3d.html">BaseMaterial3D</a>, Godot 4.7 documentation.</li>
+              <li>Daniel Rákos, <a href="https://www.rastergrid.com/blog/2010/10/hierarchical-z-map-based-occlusion-culling/">Hierarchical-Z map based occlusion culling</a>, 2010. Building the pyramid and choosing the level to test.</li>
+              <li>Dean Sekulic, <a href="https://developer.nvidia.com/gpugems/gpugems/part-v-performance-and-practicalities/chapter-29-efficient-occlusion-culling">Efficient Occlusion Culling</a>, <em>GPU Gems</em>, NVIDIA, 2004. Occlusion queries and their one-frame delay.</li>
+              <li>Ulrich Haar and Sebastian Aaltonen, <a href="https://advances.realtimerendering.com/s2015/aaltonenhaar_siggraph2015_combined_final_footer_220dpi.pdf">GPU-Driven Rendering Pipelines</a>, SIGGRAPH 2015 Advances in Real-Time Rendering course. Cluster and occlusion culling on the GPU, with timings.</li>
+              <li>Seth Teller and Carlo Séquin, <a href="https://www.cs.princeton.edu/courses/archive/spr01/cs598b/papers/teller91.pdf">Visibility Preprocessing for Interactive Walkthroughs</a>, SIGGRAPH 1991. Cells, portals and precomputed visibility.</li>
+              <li>Daniel Cohen-Or, Yiorgos Chrysanthou, Cláudio Silva and Frédo Durand, <a href="https://www.cs.princeton.edu/courses/archive/fall16/cos526/papers/cohenor03.pdf">A Survey of Visibility for Walkthrough Applications</a>, IEEE TVCG, 2003.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/culling-map.js"></script>
+</body>
+</html>
