@@ -34,8 +34,14 @@ svg.dg.is-mid {
 
 svg.dg text {
   font-family: var(--font-body);
-  font-size: 12px;
   fill: var(--ink);
+}
+
+/* Default size with zero added specificity, so both the t-* size classes
+   and an explicit font-size="..." attribute on a <text> take precedence.
+   (A plain "svg.dg text { font-size }" rule silently beat the attribute.) */
+svg.dg :where(text:not([font-size])) {
+  font-size: 12px;
 }
 
 /* ---------- Text roles ---------- */

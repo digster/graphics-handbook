@@ -360,7 +360,7 @@
             <div class="step">
               <h3 class="step-title" id="choosing-formats"><span class="step-num">5</span> Which format for which map</h3>
               <p>A material's textures hold different kinds of data, and each kind has a natural format. Colour that people look at is stored in sRGB, the gamma-encoded form <a class="xref" data-ch="3.2">3.2 Colour</a> describes, and decoded to linear values when sampled. Everything else is data: normals, roughness, masks. Data must be stored linear, with sRGB off, or the decoding bends the numbers.</p>
-              <p>Packing several masks into the channels of one texture is <dfn class="term" data-term="channel-packing">channel packing</dfn>. A common layout puts ambient occlusion, roughness and metalness in red, green and blue. It saves a texture sample and a file, but formats that share endpoints between channels, such as BC1 and BC7, can let one channel's pattern leak into another.</p>
+              <p>Packing several masks into the channels of one texture is <a class="term" data-term="channel-packing" href="glossary.html#channel-packing">channel packing</a>. A common layout puts ambient occlusion, roughness and metalness in red, green and blue. It saves a texture sample and a file, but formats that share endpoints between channels, such as BC1 and BC7, can let one channel's pattern leak into another.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 318" role="img" aria-label="Eight cards. Base colour: BC1 or BC7 on PC and console, ASTC or ETC2 on mobile, sRGB. Colour with alpha: BC7 or BC3, ASTC or ETC2 RGBA, sRGB colour. Normal map: BC5 with X and Y only, ASTC with X and Y only, linear. Single mask: BC4, ASTC or EAC R11, linear. Packed masks: BC1 or BC7, ASTC, linear. HDR: BC6H, ASTC HDR where supported, linear. UI and text: RGBA8 uncompressed or BC7 if it survives, RGBA8 or ASTC 4 by 4, sRGB. A legend card explains bits per pixel and sRGB against linear.">
@@ -943,7 +943,6 @@ Find out whether this is the memory budget or loading speed. Report Texture.desi
               <li><a class="chip" href="glossary.html#bc7">BC7</a></li>
               <li><a class="chip" href="glossary.html#etc2">ETC2</a></li>
               <li><a class="chip" href="glossary.html#astc">ASTC</a></li>
-              <li><a class="chip" href="glossary.html#channel-packing">channel packing</a></li>
               <li><a class="chip" href="glossary.html#mip-streaming">mip streaming</a></li>
               <li><a class="chip" href="glossary.html#streaming-pool">texture streaming pool</a></li>
               <li><a class="chip" href="glossary.html#virtual-texturing">virtual texturing</a></li>

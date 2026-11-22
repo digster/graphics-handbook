@@ -84,8 +84,8 @@
     {
       n: 6, title: "Textures and materials", blurb: "How flat triangles get their surface detail.",
       chapters: [
-        { num: "6.1", slug: "textures-uvs", title: "Textures and UVs", terms: "texel, UV unwrap, seams, texel density, wrap modes, atlas, cubemap", core: true, status: "planned" },
-        { num: "6.2", slug: "filtering-mipmaps", title: "Filtering and mipmaps", terms: "nearest, bilinear, trilinear, anisotropic, mip chain, LOD bias, shimmer", core: true, status: "planned" },
+        { num: "6.1", slug: "textures-uvs", title: "Textures and UVs", terms: "texel, UV unwrap, seams, texel density, wrap modes, atlas, cubemap", core: true, status: "published" },
+        { num: "6.2", slug: "filtering-mipmaps", title: "Filtering and mipmaps", terms: "nearest, bilinear, trilinear, anisotropic, mip chain, LOD bias, shimmer", core: true, status: "published" },
         { num: "6.3", slug: "texture-memory", title: "Texture memory", terms: "BC1 to BC7, ASTC, block compression, streaming, virtual textures", core: false, status: "published" },
         { num: "6.4", slug: "normal-maps", title: "Normal maps and fake detail", terms: "tangent space, normal map, baking, height map, parallax occlusion, displacement, detail maps", core: false, status: "published" },
         { num: "6.5", slug: "pbr-materials", title: "PBR materials", terms: "base colour, metallic, roughness, F0, Fresnel, microfacets, GGX, BRDF, energy conservation, material instance, shader graph", core: true, status: "planned" }
