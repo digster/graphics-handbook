@@ -75,8 +75,8 @@
       chapters: [
         { num: "5.1", slug: "pipeline-overview", title: "The pipeline in one picture", terms: "input assembly, vertex shader, rasterizer, pixel shader, output merger; programmable and fixed stages", core: true, status: "published" },
         { num: "5.2", slug: "vertex-shaders", title: "Vertex shaders", terms: "transform, clip space, interpolators, vertex animation", core: false, status: "published" },
-        { num: "5.3", slug: "rasterization", title: "Rasterization", terms: "coverage, sample point, barycentric interpolation, perspective correction, fill rule", core: true, status: "planned" },
-        { num: "5.4", slug: "pixel-shaders", title: "Pixel shaders and overdraw", terms: "fragment, early-Z, depth pre-pass, overdraw, quad overdraw, derivatives", core: true, status: "planned" },
+        { num: "5.3", slug: "rasterization", title: "Rasterization", terms: "coverage, sample point, barycentric interpolation, perspective correction, fill rule", core: true, status: "published" },
+        { num: "5.4", slug: "pixel-shaders", title: "Pixel shaders and overdraw", terms: "fragment, early-Z, depth pre-pass, overdraw, quad overdraw, derivatives", core: true, status: "published" },
         { num: "5.5", slug: "depth-blending", title: "Depth, stencil and blending", terms: "z-buffer, z-fighting, reversed-Z, stencil, alpha blend, premultiplied alpha, alpha test, sort order, OIT", core: true, status: "planned" },
         { num: "5.6", slug: "shaders-in-practice", title: "Shaders in practice", terms: "HLSL, GLSL, constant buffer, shader variant, PSO, compile stutter, compute shader, render target, render pass, frame graph", core: false, status: "planned" }
       ]
