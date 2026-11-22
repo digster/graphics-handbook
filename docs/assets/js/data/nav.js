@@ -88,13 +88,13 @@
         { num: "6.2", slug: "filtering-mipmaps", title: "Filtering and mipmaps", terms: "nearest, bilinear, trilinear, anisotropic, mip chain, LOD bias, shimmer", core: true, status: "published" },
         { num: "6.3", slug: "texture-memory", title: "Texture memory", terms: "BC1 to BC7, ASTC, block compression, streaming, virtual textures", core: false, status: "published" },
         { num: "6.4", slug: "normal-maps", title: "Normal maps and fake detail", terms: "tangent space, normal map, baking, height map, parallax occlusion, displacement, detail maps", core: false, status: "published" },
-        { num: "6.5", slug: "pbr-materials", title: "PBR materials", terms: "base colour, metallic, roughness, F0, Fresnel, microfacets, GGX, BRDF, energy conservation, material instance, shader graph", core: true, status: "planned" }
+        { num: "6.5", slug: "pbr-materials", title: "PBR materials", terms: "base colour, metallic, roughness, F0, Fresnel, microfacets, GGX, BRDF, energy conservation, material instance, shader graph", core: true, status: "published" }
       ]
     },
     {
       n: 7, title: "Lighting and shadows", blurb: "How surfaces get lit and shadowed, and the main ways renderers organise that work.",
       chapters: [
-        { num: "7.1", slug: "lights", title: "Lights", terms: "directional, point, spot, area, sky and emissive lights; attenuation; lumen, lux, nit, EV", core: false, status: "planned" },
+        { num: "7.1", slug: "lights", title: "Lights", terms: "directional, point, spot, area, sky and emissive lights; attenuation; lumen, lux, nit, EV", core: false, status: "published" },
         { num: "7.2", slug: "shading-models", title: "Shading models", terms: "diffuse, specular, Lambert, Blinn-Phong, Cook-Torrance, N·L", core: false, status: "planned" },
         { num: "7.3", slug: "render-paths", title: "Forward, deferred and clustered", terms: "forward, deferred, G-buffer, multiple render targets, tiled and clustered (Forward+), visibility buffer", core: true, status: "planned" },
         { num: "7.4", slug: "shadow-maps", title: "Shadow maps", terms: "light-space depth, shadow bias, acne, peter-panning, PCF, PCSS", core: true, status: "planned" },
