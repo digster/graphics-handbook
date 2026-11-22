@@ -21,3 +21,11 @@ Comment on the plan artifact, anchored to the section "The three terms you named
 ### 3
 
 Start the work.
+
+### 4
+
+I hit my usage limit while you were working, but it has reset now. Please continue from where you left off. (Sent twice, after each usage-limit pause.)
+
+### 5
+
+Also, after the current agents are done working do not create multiple agents.
