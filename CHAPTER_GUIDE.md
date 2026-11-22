@@ -79,6 +79,8 @@ typical chapter has 8 to 12 figures, including the symptom thumbnails.
   chapter is about; geo (teal) = geometry and vertex data; lit (amber) =
   light; pix (rose) = screen-space data (depth, G-buffer, post). Neutral
   shapes use `f-surface s-strong`, `f-solid`, `f-sunken`.
+- Put `t-*` classes on each `<text>` element: on a `<g>` they do not reach
+  the text inside it.
 - Text at 10.5 to 13px in the viewBox. SVG collapses spaces, so align
   columns with separate `<text>` elements.
 - Ids inside `<defs>` (markers, gradients, filters, patterns) must be unique

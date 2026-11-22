@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>5.5 Depth, stencil and blending · Graphics Handbook</title>
+  <meta name="description" content="What happens to every pixel after it is shaded: the depth test, z-fighting and reversed-Z, the stencil buffer, alpha blending, premultiplied alpha, alpha test, transparency sorting and order-independent transparency.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="5.5">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 5 · The GPU pipeline</p>
+            <h1><span class="ch-num">5.5</span> Depth, stencil and blending</h1>
+            <p class="lead">Once a pixel shader has coloured a pixel, three small fixed units decide whether that colour is kept and how it mixes with what is already there. They are why near things hide far ones, how outlines and portals are made, and why glass is one of the hardest things in a frame to get right.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a>, <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="5.6">5.6 Shaders in practice</a>, <a class="xref" data-ch="7.3">7.3 Forward, deferred and clustered</a>, <a class="xref" data-ch="9.6">9.6 Special surfaces and effects</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Transparency sorter</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 400" role="img" aria-label="Top: one small scene held in three screen-sized buffers. The colour buffer shows a wall, floor, crate, ball and a rose glass pane. The depth buffer shows the same scene in grey, near surfaces dark and far ones light; the glass pane is missing from it. The stencil buffer is black except for the crate, marked 1. Bottom: one fragment from the glass pane at the marked pixel passes the stencil test, passes the depth test because the glass at 2.4 metres is nearer than the ball at 6 metres, and is blended: 0.4 of the glass colour plus 0.6 of the ball colour. The depth buffer keeps 6 metres because glass does not write depth.">
+                  <defs>
+                    <marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    <marker id="pic-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    <linearGradient id="pic-floor" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" class="stop-buf-lo" stop-opacity="0.08"/>
+                      <stop offset="1" class="stop-buf-lo" stop-opacity="0.88"/>
+                    </linearGradient>
+                    <radialGradient id="pic-ball" cx="0.4" cy="0.4" r="0.7">
+                      <stop offset="0" class="stop-buf-lo" stop-opacity="0.56"/>
+                      <stop offset="1" class="stop-buf-lo" stop-opacity="0.42"/>
+                    </radialGradient>
+                  </defs>
+
+                  <text class="t-caps" x="20" y="22">COLOUR BUFFER</text>
+                  <text class="t-caps" x="320" y="22">DEPTH BUFFER · NEAR DARK, FAR LIGHT</text>
+                  <text class="t-caps" x="620" y="22">STENCIL BUFFER · ONE NUMBER PER PIXEL</text>
+
+                  <!-- Colour buffer -->
+                  <g transform="translate(20,32)">
+                    <rect class="f-sunken" x="0" y="0" width="260" height="84"/>
+                    <rect class="f-solid" x="0" y="84" width="260" height="56"/>
+                    <circle class="f-surface" cx="172" cy="92" r="28"/>
+                    <circle class="f-geo s-geo" fill-opacity="0.55" cx="172" cy="92" r="28"/>
+                    <polygon class="f-lit-soft s-strong" points="70,62 88,50 158,50 140,62"/>
+                    <polygon class="f-lit-soft s-strong" points="140,62 158,50 158,116 140,128"/>
+                    <rect class="f-lit-soft s-strong" x="70" y="62" width="70" height="66"/>
+                    <rect class="f-pix s-pix" fill-opacity="0.35" x="186" y="18" width="64" height="94"/>
+                    <rect class="s-strong" x="0" y="0" width="260" height="140"/>
+                    <circle class="s-acc w2" cx="196" cy="98" r="6"/>
+                  </g>
+
+                  <!-- Depth buffer -->
+                  <g transform="translate(320,32)">
+                    <rect class="f-buf-hi" x="0" y="0" width="260" height="140"/>
+                    <rect class="f-buf-lo" fill-opacity="0.08" x="0" y="0" width="260" height="84"/>
+                    <rect x="0" y="84" width="260" height="56" fill="url(#pic-floor)"/>
+                    <circle class="f-buf-hi" cx="172" cy="92" r="28"/>
+                    <circle cx="172" cy="92" r="28" fill="url(#pic-ball)"/>
+                    <polygon class="f-buf-hi" points="70,62 88,50 158,50 158,116 140,128 70,128"/>
+                    <polygon class="f-buf-lo" fill-opacity="0.72" points="70,62 88,50 158,50 140,62"/>
+                    <polygon class="f-buf-lo" fill-opacity="0.72" points="140,62 158,50 158,116 140,128"/>
+                    <rect class="f-buf-lo" fill-opacity="0.75" x="70" y="62" width="70" height="66"/>
+                    <rect class="s-pix dash" x="186" y="18" width="64" height="94"/>
+                    <rect class="s-strong" x="0" y="0" width="260" height="140"/>
+                    <circle class="s-acc w2" cx="196" cy="98" r="6"/>
+                  </g>
+                  <text class="t-small t-pix" x="320" y="190">dashed: the glass pane, which is not in the depth buffer</text>
+
+                  <!-- Stencil buffer -->
+                  <g transform="translate(620,32)">
+                    <rect class="f-buf-lo" x="0" y="0" width="260" height="140"/>
+                    <polygon class="f-buf-hi" points="70,62 88,50 158,50 158,116 140,128 70,128"/>
+                    <text class="t-mono t-strong f-buf-lo mid" x="112" y="100">1</text>
+                    <text class="t-mono f-buf-hi mid" x="34" y="40">0</text>
+                    <text class="t-mono f-buf-hi mid" x="214" y="40">0</text>
+                    <rect class="s-strong" x="0" y="0" width="260" height="140"/>
+                    <circle class="s-acc w2" cx="196" cy="98" r="6"/>
+                  </g>
+                  <text class="t-small t-muted" x="620" y="190">the crate is marked 1, for an outline drawn later</text>
+
+                  <!-- One fragment's path -->
+                  <line class="s-line" x1="20" y1="206" x2="880" y2="206"/>
+                  <text class="t-caps" x="20" y="228">ONE FRAGMENT FROM THE GLASS, AT THE CIRCLED PIXEL</text>
+
+                  <rect class="f-surface s-strong" x="20" y="242" width="170" height="96" rx="6"/>
+                  <text class="t-strong" x="34" y="264">Pixel shader output</text>
+                  <rect class="f-pix s-pix" fill-opacity="0.4" x="34" y="276" width="22" height="22" rx="3"/>
+                  <text class="t-small" x="64" y="285">rose glass</text>
+                  <text class="t-small t-muted" x="64" y="298">alpha 0.4</text>
+                  <text class="t-small" x="34" y="324">distance 2.4 m</text>
+
+                  <line class="s-muted" x1="192" y1="290" x2="218" y2="290" marker-end="url(#pic-arr)"/>
+                  <rect class="f-surface s-strong" x="222" y="242" width="186" height="96" rx="6"/>
+                  <text class="t-caps" x="236" y="262">1 · STENCIL TEST</text>
+                  <text class="t-small" x="236" y="284">rule for glass: always pass</text>
+                  <text class="t-small t-muted" x="236" y="300">stored here: 0</text>
+                  <text class="t-small t-acc t-strong" x="236" y="324">pass</text>
+
+                  <line class="s-muted" x1="410" y1="290" x2="436" y2="290" marker-end="url(#pic-arr)"/>
+                  <rect class="f-surface s-strong" x="440" y="242" width="196" height="96" rx="6"/>
+                  <text class="t-caps" x="454" y="262">2 · DEPTH TEST</text>
+                  <text class="t-small" x="454" y="284">2.4 m is nearer than the</text>
+                  <text class="t-small" x="454" y="300">stored 6.0 m (the ball)</text>
+                  <text class="t-small t-acc t-strong" x="454" y="324">pass · glass does not write depth</text>
+
+                  <line class="s-muted" x1="638" y1="290" x2="664" y2="290" marker-end="url(#pic-arr)"/>
+                  <rect class="f-acc-soft s-acc" x="668" y="242" width="212" height="96" rx="6"/>
+                  <text class="t-caps" x="682" y="262">3 · BLEND</text>
+                  <text class="t-small t-mono" x="682" y="284">0.4 × glass + 0.6 × ball</text>
+                  <text class="t-small" x="682" y="300">written to the colour buffer</text>
+                  <text class="t-small t-muted" x="682" y="324">depth buffer still says 6.0 m</text>
+
+                  <path class="s-muted dash" d="M315,340 V360" marker-end="url(#pic-arr)"/>
+                  <text class="t-small t-muted mid" x="315" y="378">fail: fragment thrown away</text>
+                  <path class="s-muted dash" d="M538,340 V360" marker-end="url(#pic-arr)"/>
+                  <text class="t-small t-muted mid" x="538" y="378">fail: fragment thrown away</text>
+                </svg>
+              </div>
+              <figcaption><b>Three buffers, two tests and a blend decide every pixel.</b> The colour buffer holds the picture, the depth buffer holds how far away each pixel's surface is, and the stencil buffer holds a small number per pixel that effects can use as a mask. Each fragment from the pixel shader must pass the stencil test and the depth test, then it is blended into the colour buffer. Distances are shown in metres for clarity; the buffer stores a scaled value (step 3).</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> draws objects in whatever order the engine hands them over. Something has to make sure a house drawn first is not painted over by a mountain drawn later that is really behind it. That something is the <dfn class="term" data-term="depth-buffer">depth buffer</dfn>: a screen-sized image that stores, for every <a class="term" data-term="pixel" href="glossary.html#pixel">pixel</a>, how far away the nearest surface drawn there so far is. A new surface is kept only where it is nearer.</p>
+            <p>Next to it sits a second small image, the stencil buffer, which holds a number per pixel that effects can write and test, like a cut-out mask. And at the very end, blending decides how a new colour combines with the colour already in the <a class="term" data-term="framebuffer" href="glossary.html#framebuffer">framebuffer</a>: replace it, mix with it for glass and smoke, add to it for fire and glow, or multiply it.</p>
+            <p>The depth buffer makes solid objects come out right in any order. See-through objects break that guarantee. Each layer of glass has to be mixed over what is behind it, so what is behind it has to be drawn first. That one fact explains most transparency bugs in games.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A sign-painter is painting a street scene from a pile of jobs that arrive in random order. On every patch of wall they keep a sticky note saying how far away the thing already painted there is meant to be. A job that is further away than the note gets skipped on that patch. A nearer one gets painted, and the note is updated. A cardboard stencil taped to the wall can stop them touching some patches at all.</p>
+                <p>Glass is the awkward job. It has to be painted as a thin tint over whatever is already on the wall, so it only looks right if everything behind it was painted first.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without a per-pixel record of distance, whatever was drawn last would cover everything, and the engine would have to sort every triangle in the scene from back to front each frame. That is slow, and impossible to get right when triangles cross each other.</p>
+                <p>The depth buffer removes the need for solid objects. For transparent ones nothing removes it cheaply, so engines sort them and live with the cases sorting cannot fix.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Flickering distant roads, glass that hides what is behind it, smoke that pops in front of a character as the camera turns, foliage that thins out with distance: these are among the most reported visual bugs in any game, and all of them live here. So do some of the costliest effects on a GPU, because every layer of smoke or glass is blended over the whole area it covers. Knowing which setting causes which symptom turns a vague bug report into a fix in an afternoon.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Nine steps: the depth test, its precision and how it fails, the stencil test, the three common ways of blending, cut-outs, and finally the transparency problem and the ways around it.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="depth-test"><span class="step-num">1</span> The depth test keeps the nearest surface</h3>
+              <p>Before a frame is drawn, the depth buffer is cleared to the far value: nothing has been drawn anywhere. Then every fragment, the candidate colour a triangle produces for one pixel, goes through the <dfn class="term" data-term="depth-test">depth test</dfn>. The GPU compares the fragment's depth with the value stored for that pixel. If the fragment is nearer, it passes: its colour goes on to blending and, normally, its depth replaces the stored one. If not, it is thrown away.</p>
+              <p>That second part, storing the new depth, is the <dfn class="term" data-term="depth-write">depth write</dfn>, and it can be switched off separately. Opaque objects test and write. Transparent ones usually test but do not write, for reasons step 8 makes clear.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left: the depth buffer of a small scene as a greyscale image, near surfaces dark and far ones light, with a distance scale from 1.5 metres to 12 metres. One pixel on the side of the crate is circled. Right: the three surfaces that cover that pixel arrive in draw order. The back wall at 11 metres passes against the cleared buffer and is written. The crate at 3.2 metres is nearer, passes and is written. The ball at 6 metres is further than the stored 3.2 metres, fails and is thrown away. Any order gives the same final picture.">
+                    <defs>
+                      <linearGradient id="dt-floor" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" class="stop-buf-lo" stop-opacity="0.08"/>
+                        <stop offset="1" class="stop-buf-lo" stop-opacity="0.88"/>
+                      </linearGradient>
+                      <radialGradient id="dt-ball" cx="0.4" cy="0.4" r="0.7">
+                        <stop offset="0" class="stop-buf-lo" stop-opacity="0.56"/>
+                        <stop offset="1" class="stop-buf-lo" stop-opacity="0.42"/>
+                      </radialGradient>
+                      <linearGradient id="dt-scale" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" class="stop-buf-lo"/>
+                        <stop offset="1" class="stop-buf-hi"/>
+                      </linearGradient>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">THE DEPTH BUFFER AFTER THE FRAME</text>
+                    <g transform="translate(20,34) scale(1.4)">
+                      <rect class="f-buf-hi" x="0" y="0" width="260" height="140"/>
+                      <rect class="f-buf-lo" fill-opacity="0.08" x="0" y="0" width="260" height="84"/>
+                      <rect x="0" y="84" width="260" height="56" fill="url(#dt-floor)"/>
+                      <circle class="f-buf-hi" cx="172" cy="92" r="28"/>
+                    <circle cx="172" cy="92" r="28" fill="url(#dt-ball)"/>
+                      <polygon class="f-buf-hi" points="70,62 88,50 158,50 158,116 140,128 70,128"/>
+                    <polygon class="f-buf-lo" fill-opacity="0.72" points="70,62 88,50 158,50 140,62"/>
+                      <polygon class="f-buf-lo" fill-opacity="0.72" points="140,62 158,50 158,116 140,128"/>
+                      <rect class="f-buf-lo" fill-opacity="0.75" x="70" y="62" width="70" height="66"/>
+                      <circle class="s-acc w2" cx="148" cy="90" r="5"/>
+                    </g>
+                    <rect class="s-strong" x="20" y="34" width="364" height="196"/>
+                    <text class="t-small f-buf-hi" x="128" y="176">crate 3.0 m</text>
+                    <text class="t-small t-strong f-buf-lo" x="300" y="64">wall 11 m</text>
+                    <rect x="20" y="250" width="364" height="12" fill="url(#dt-scale)"/>
+                    <rect class="s-strong" x="20" y="250" width="364" height="12"/>
+                    <text class="t-mono t-small t-muted" x="20" y="282">near</text>
+                    <text class="t-mono t-small t-muted end" x="384" y="282">far</text>
+
+                    <text class="t-caps" x="430" y="22">ONE PIXEL: THREE SURFACES ARRIVE IN DRAW ORDER</text>
+                    <rect class="f-sunken s-line" x="430" y="36" width="450" height="40" rx="6"/>
+                    <rect class="f-buf-hi s-strong" x="444" y="44" width="24" height="24"/>
+                    <text class="t-small" x="480" y="54">Cleared: every pixel starts at the far value.</text>
+                    <text class="t-small t-muted" x="480" y="69">stored: far</text>
+
+                    <rect class="f-surface s-strong" x="430" y="88" width="450" height="56" rx="6"/>
+                    <text class="t-mono t-muted" x="444" y="110">1</text>
+                    <text class="t-strong" x="464" y="110">Back wall, 11 m</text>
+                    <text class="t-small" x="464" y="130">nearer than far: pass, colour and depth written</text>
+                    <rect class="f-buf-hi s-strong" x="842" y="100" width="24" height="24"/>
+                    <rect class="f-buf-lo" fill-opacity="0.08" x="842" y="100" width="24" height="24"/>
+                    <text class="t-small t-acc t-strong end" x="832" y="110">pass</text>
+
+                    <rect class="f-surface s-strong" x="430" y="154" width="450" height="56" rx="6"/>
+                    <text class="t-mono t-muted" x="444" y="176">2</text>
+                    <text class="t-strong" x="464" y="176">Crate, 3.2 m</text>
+                    <text class="t-small" x="464" y="196">nearer than 11 m: pass, overwrites both</text>
+                    <rect class="f-buf-hi s-strong" x="842" y="166" width="24" height="24"/>
+                    <rect class="f-buf-lo" fill-opacity="0.72" x="842" y="166" width="24" height="24"/>
+                    <text class="t-small t-acc t-strong end" x="832" y="176">pass</text>
+
+                    <rect class="f-sunken s-line" x="430" y="220" width="450" height="56" rx="6"/>
+                    <text class="t-mono t-muted" x="444" y="242">3</text>
+                    <text class="t-strong" x="464" y="242">Ball, 6.0 m, behind the crate</text>
+                    <text class="t-small" x="464" y="262">further than the stored 3.2 m: fail, thrown away</text>
+                    <rect class="f-buf-hi s-strong" x="842" y="232" width="24" height="24"/>
+                    <rect class="f-buf-lo" fill-opacity="0.72" x="842" y="232" width="24" height="24"/>
+                    <text class="t-small t-pix t-strong end" x="832" y="242">fail</text>
+                    <text class="t-small t-muted end" x="880" y="292">Draw them 3, 1, 2 instead: the stored result is the same.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The nearest surface wins, whatever the order.</b> The depth buffer is the scene's shape as seen from the camera. Each pixel keeps only the nearest distance it has seen, so opaque objects can be drawn in any order. Drawing near things first still pays off: far fragments then fail the test, and GPUs can reject them before running the pixel shader at all, which <a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a> covers.</figcaption>
+              </figure>
+              <p>The comparison rule is a setting. Usually it is "pass if nearer". It can also be "pass if equal", used when a second pass redraws exactly the same surfaces, or "always", used for things that must sit on top of everything, such as a debug gizmo. Together with blending and the stencil rules, these settings are part of the fixed state of a draw, which <a class="xref" data-ch="5.6">5.6 Shaders in practice</a> shows is baked into a <a class="term" data-term="pso" data-forward href="glossary.html#pso">pipeline state object</a>.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="z-fighting"><span class="step-num">2</span> Z-fighting: when two surfaces tie</h3>
+              <p>The depth buffer stores a number with a fixed number of bits, so it can only tell apart distances that differ by at least one step. When two surfaces lie closer together than that step, the test cannot decide which is in front. Tiny rounding differences decide instead, and they change from pixel to pixel and from frame to frame. The result is <dfn class="term" data-term="z-fighting">z-fighting</dfn>: two surfaces showing through each other in jagged stripes that crawl as the camera moves.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left: a poster placed 1 centimetre in front of a wall 200 metres away. Instead of a clean poster, jagged diagonal stripes of poster and wall alternate across it. Right: why. The depth buffer stores distance in steps of about 2.4 centimetres at that range, drawn as horizontal bands. The wall and the poster are two nearly parallel lines 1 centimetre apart, slightly tilted. Where a step boundary falls between them the poster wins; where both fall into the same step they tie, and rounding picks a winner.">
+                    <defs>
+                      <clipPath id="zf-clip"><rect x="110" y="72" width="220" height="156"/></clipPath>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">WHAT YOU SEE</text>
+                    <rect class="f-solid s-strong" x="30" y="40" width="380" height="220"/>
+                    <rect class="f-lit" fill-opacity="0.75" x="110" y="72" width="220" height="156"/>
+                    <g class="f-solid" clip-path="url(#zf-clip)" shape-rendering="crispEdges"><rect x="110" y="72" width="20" height="4"/><rect x="174" y="72" width="32" height="4"/><rect x="246" y="72" width="56" height="4"/><rect x="110" y="76" width="16" height="4"/><rect x="174" y="76" width="32" height="4"/><rect x="242" y="76" width="56" height="4"/><rect x="306" y="76" width="4" height="4"/><rect x="110" y="80" width="4" height="4"/><rect x="166" y="80" width="32" height="4"/><rect x="242" y="80" width="52" height="4"/><rect x="298" y="80" width="4" height="4"/><rect x="170" y="84" width="28" height="4"/><rect x="230" y="84" width="52" height="4"/><rect x="158" y="88" width="36" height="4"/><rect x="226" y="88" width="52" height="4"/><rect x="150" y="92" width="40" height="4"/><rect x="222" y="92" width="44" height="4"/><rect x="146" y="96" width="36" height="4"/><rect x="214" y="96" width="48" height="4"/><rect x="326" y="96" width="4" height="4"/><rect x="134" y="100" width="4" height="4"/><rect x="142" y="100" width="36" height="4"/><rect x="210" y="100" width="36" height="4"/><rect x="310" y="100" width="20" height="4"/><rect x="130" y="104" width="36" height="4"/><rect x="202" y="104" width="36" height="4"/><rect x="298" y="104" width="32" height="4"/><rect x="110" y="108" width="52" height="4"/><rect x="198" y="108" width="32" height="4"/><rect x="278" y="108" width="52" height="4"/><rect x="110" y="112" width="36" height="4"/><rect x="186" y="112" width="32" height="4"/><rect x="262" y="112" width="68" height="4"/><rect x="110" y="116" width="28" height="4"/><rect x="178" y="116" width="36" height="4"/><rect x="254" y="116" width="60" height="4"/><rect x="110" y="120" width="16" height="4"/><rect x="170" y="120" width="32" height="4"/><rect x="242" y="120" width="60" height="4"/><rect x="162" y="124" width="28" height="4"/><rect x="230" y="124" width="40" height="4"/><rect x="274" y="124" width="8" height="4"/><rect x="150" y="128" width="36" height="4"/><rect x="218" y="128" width="44" height="4"/><rect x="142" y="132" width="36" height="4"/><rect x="210" y="132" width="40" height="4"/><rect x="314" y="132" width="16" height="4"/><rect x="122" y="136" width="48" height="4"/><rect x="202" y="136" width="40" height="4"/><rect x="298" y="136" width="4" height="4"/><rect x="306" y="136" width="24" height="4"/><rect x="110" y="140" width="52" height="4"/><rect x="194" y="140" width="36" height="4"/><rect x="282" y="140" width="4" height="4"/><rect x="290" y="140" width="40" height="4"/><rect x="110" y="144" width="44" height="4"/><rect x="190" y="144" width="32" height="4"/><rect x="266" y="144" width="4" height="4"/><rect x="278" y="144" width="52" height="4"/><rect x="110" y="148" width="36" height="4"/><rect x="182" y="148" width="36" height="4"/><rect x="258" y="148" width="68" height="4"/><rect x="110" y="152" width="28" height="4"/><rect x="182" y="152" width="32" height="4"/><rect x="250" y="152" width="72" height="4"/><rect x="110" y="156" width="28" height="4"/><rect x="174" y="156" width="36" height="4"/><rect x="246" y="156" width="64" height="4"/><rect x="110" y="160" width="16" height="4"/><rect x="174" y="160" width="32" height="4"/><rect x="246" y="160" width="52" height="4"/><rect x="306" y="160" width="4" height="4"/><rect x="110" y="164" width="16" height="4"/><rect x="170" y="164" width="32" height="4"/><rect x="238" y="164" width="52" height="4"/><rect x="294" y="164" width="4" height="4"/><rect x="110" y="168" width="12" height="4"/><rect x="166" y="168" width="36" height="4"/><rect x="234" y="168" width="52" height="4"/><rect x="162" y="172" width="40" height="4"/><rect x="234" y="172" width="56" height="4"/><rect x="162" y="176" width="36" height="4"/><rect x="234" y="176" width="48" height="4"/><rect x="162" y="180" width="36" height="4"/><rect x="226" y="180" width="52" height="4"/><rect x="282" y="180" width="4" height="4"/><rect x="158" y="184" width="36" height="4"/><rect x="226" y="184" width="52" height="4"/><rect x="158" y="188" width="32" height="4"/><rect x="226" y="188" width="40" height="4"/><rect x="154" y="192" width="36" height="4"/><rect x="226" y="192" width="40" height="4"/><rect x="154" y="196" width="32" height="4"/><rect x="218" y="196" width="44" height="4"/><rect x="146" y="200" width="40" height="4"/><rect x="214" y="200" width="48" height="4"/><rect x="326" y="200" width="4" height="4"/><rect x="142" y="204" width="40" height="4"/><rect x="218" y="204" width="36" height="4"/><rect x="326" y="204" width="4" height="4"/><rect x="134" y="208" width="44" height="4"/><rect x="210" y="208" width="36" height="4"/><rect x="310" y="208" width="20" height="4"/><rect x="122" y="212" width="52" height="4"/><rect x="206" y="212" width="36" height="4"/><rect x="298" y="212" width="32" height="4"/><rect x="114" y="216" width="52" height="4"/><rect x="198" y="216" width="32" height="4"/><rect x="286" y="216" width="4" height="4"/><rect x="294" y="216" width="36" height="4"/><rect x="110" y="220" width="48" height="4"/><rect x="190" y="220" width="36" height="4"/><rect x="274" y="220" width="56" height="4"/><rect x="110" y="224" width="36" height="4"/><rect x="182" y="224" width="36" height="4"/><rect x="254" y="224" width="4" height="4"/><rect x="262" y="224" width="64" height="4"/></g>
+                    <rect class="s-lit w15" x="110" y="72" width="220" height="156"/>
+                    <text class="t-small t-muted" x="30" y="278">A poster 1 cm in front of a wall, 200 m away. Near plane 0.1 m.</text>
+
+                    <text class="t-caps" x="460" y="22">WHY: ONE DEPTH STEP IS WIDER THAN THE GAP</text>
+                    <rect class="f-sunken" x="460" y="40" width="300" height="30"/>
+                    <rect class="f-surface" x="460" y="70" width="300" height="30"/>
+                    <rect class="f-sunken" x="460" y="100" width="300" height="30"/>
+                    <rect class="f-surface" x="460" y="130" width="300" height="30"/>
+                    <rect class="f-sunken" x="460" y="160" width="300" height="30"/>
+                    <rect class="f-surface" x="460" y="190" width="300" height="30"/>
+                    <rect class="s-strong" x="460" y="40" width="300" height="180"/>
+                    <line class="s-ink w2" x1="460" y1="196" x2="760" y2="70"/>
+                    <line class="s-lit w2" x1="460" y1="183.5" x2="760" y2="57.5"/>
+                    <text class="t-small t-strong" x="604" y="162">wall</text>
+                    <text class="t-small t-lit t-strong end" x="600" y="110">poster, 1 cm nearer</text>
+                    <path class="s-muted" d="M770,40 H776 V70 H770"/>
+                    <text class="t-small t-muted" x="782" y="52">one step:</text>
+                    <text class="t-small t-muted" x="782" y="66">2.4 cm here</text>
+                    <text class="t-small t-muted" x="782" y="102">nearer</text>
+                    <text class="t-small t-muted" x="782" y="116">at the top</text>
+                    <circle class="f-acc" cx="530" cy="160" r="4"/>
+                    <circle class="f-pix" cx="495" cy="175" r="4"/>
+                    <text class="t-small" x="460" y="242"><tspan class="t-acc t-strong">●</tspan> a step boundary falls between them: the poster wins</text>
+                    <text class="t-small" x="460" y="260"><tspan class="t-pix t-strong">●</tspan> both in one step: a tie, and rounding picks the winner</text>
+                    <text class="t-small t-muted" x="460" y="284">Fixes: a gap wider than a step, a depth bias, a larger near plane, reversed-Z.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Z-fighting is a tie the depth buffer cannot break.</b> The surfaces are both really there, closer together than one step of stored depth. It shows up on decals, coplanar walls, roads laid on terrain and distant geometry, and it crawls as the camera moves because the rounding changes every frame.</figcaption>
+              </figure>
+              <p>The usual fixes are cheap. Move the surfaces apart by more than a step. For decals and other things meant to lie flat on a surface, apply a depth bias, a small offset the GPU adds to a draw's depth so it always wins the tie. And make the steps smaller where the problem appears, which is what the next step is about.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="reversed-z"><span class="step-num">3</span> Depth precision and reversed-Z</h3>
+              <p>The steps are not the same size everywhere. As <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a> showed, a standard perspective projection spends most of its depth range right in front of the camera: with the near plane at 0.1 m, everything beyond 1 m shares the last tenth of the range. Far away, one step of stored depth covers a long distance.</p>
+              <p><dfn class="term" data-term="reversed-z">Reversed-Z</dfn> flips the range, so the near plane stores 1 and the far distance stores 0, and stores depth as a 32-bit floating-point number. Floating-point numbers are densest close to 0. In the standard range that density is wasted on the space just in front of the near plane; reversed, it lands on the distance, where the standard projection is weakest. The two unevennesses nearly cancel out, and precision becomes almost even across the whole view.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="A log-log chart of the smallest depth difference the buffer can store, against distance from 1 metre to 1 kilometre, with the near plane at 0.1 metres and the far plane at 10 kilometres. The standard depth line, for 24-bit integer or 32-bit float, rises steeply from under a micrometre at 1 metre to 60 centimetres at 1 kilometre, and crosses 1 centimetre at about 130 metres. The reversed-Z 32-bit float line stays far lower and rises slowly, in a sawtooth, to 0.07 millimetres at 1 kilometre. At 200 metres the steps are 2.4 centimetres against 0.02 millimetres.">
+                    <defs>
+                      <clipPath id="dp-clip"><rect x="90" y="40" width="480" height="238"/></clipPath>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">SMALLEST GAP THE DEPTH BUFFER CAN TELL APART · NEAR 0.1 M, FAR 10 KM</text>
+                    <line class="s-line" x1="90" y1="40" x2="570" y2="40"/>
+                    <line class="s-line" x1="90" y1="74" x2="570" y2="74"/>
+                    <line class="s-line" x1="90" y1="108" x2="570" y2="108"/>
+                    <line class="s-line" x1="90" y1="142" x2="570" y2="142"/>
+                    <line class="s-line" x1="90" y1="176" x2="570" y2="176"/>
+                    <line class="s-line" x1="90" y1="210" x2="570" y2="210"/>
+                    <line class="s-line" x1="90" y1="244" x2="570" y2="244"/>
+                    <line class="s-strong" x1="90" y1="278" x2="570" y2="278"/>
+                    <line class="s-line" x1="250" y1="40" x2="250" y2="278"/>
+                    <line class="s-line" x1="410" y1="40" x2="410" y2="278"/>
+                    <line class="s-line" x1="570" y1="40" x2="570" y2="278"/>
+                    <line class="s-strong" x1="90" y1="40" x2="90" y2="278"/>
+                    <text class="t-mono t-muted t-small end" x="82" y="44">1 m</text>
+                    <text class="t-mono t-muted t-small end" x="82" y="78">10 cm</text>
+                    <text class="t-mono t-muted t-small end" x="82" y="112">1 cm</text>
+                    <text class="t-mono t-muted t-small end" x="82" y="146">1 mm</text>
+                    <text class="t-mono t-muted t-small end" x="82" y="180">0.1 mm</text>
+                    <text class="t-mono t-muted t-small end" x="82" y="214">10 µm</text>
+                    <text class="t-mono t-muted t-small end" x="82" y="248">1 µm</text>
+                    <text class="t-mono t-muted t-small end" x="82" y="282">0.1 µm</text>
+                    <text class="t-mono t-muted t-small mid" x="90" y="296">1 m</text>
+                    <text class="t-mono t-muted t-small mid" x="250" y="296">10 m</text>
+                    <text class="t-mono t-muted t-small mid" x="410" y="296">100 m</text>
+                    <text class="t-mono t-muted t-small mid" x="570" y="296">1 km</text>
+                    <text class="t-small t-muted mid" x="330" y="318">distance from the camera</text>
+
+                    <line class="s-muted dash" x1="90" y1="108" x2="570" y2="108"/>
+                    <line class="s-muted dot-dash" x1="458.2" y1="40" x2="458.2" y2="278"/>
+                    <path class="s-pix w2" d="M90,251.6 L570,47.6"/>
+                    <path class="s-acc w2" clip-path="url(#dp-clip)" d="M90.0,282.3 L122.6,268.5 L122.6,278.7 L170.8,258.2 L170.8,268.5 L218.9,248.0 L218.9,258.2 L267.1,237.8 L267.1,248.0 L315.1,227.6 L315.1,237.8 L363.1,217.4 L363.1,227.7 L410.9,207.4 L410.9,217.6 L458.4,197.4 L458.4,207.7 L505.2,187.8 L505.2,198.0 L550.7,178.7 L550.7,188.9 L570.0,180.7"/>
+                    <circle class="f-pix" cx="428.0" cy="108" r="4"/>
+                    <circle class="f-pix" cx="458.2" cy="95.2" r="4"/>
+                    <circle class="f-acc" cx="458.2" cy="197.5" r="4"/>
+                    <text class="t-small t-pix t-strong end" x="450" y="88">2.4 cm</text>
+                    <text class="t-small t-acc t-strong" x="466" y="226">0.02 mm</text>
+                    <text class="t-small t-muted mid" x="458.2" y="34">200 m</text>
+                    <text class="t-small t-pix t-strong end" x="300" y="128">standard depth</text>
+                    <text class="t-small t-pix end" x="300" y="142">24-bit integer or 32-bit float</text>
+                    <text class="t-small t-acc t-strong" x="300" y="184">reversed-Z, 32-bit float</text>
+
+                    <text class="t-head" x="610" y="60">At 200 m</text>
+                    <text class="t-small t-pix" x="610" y="82">standard: one step is 2.4 cm</text>
+                    <text class="t-small t-acc" x="610" y="98">reversed-Z: one step is 0.02 mm</text>
+                    <text class="t-small" x="610" y="126">Dashed line: a 1 cm gap. Beyond about</text>
+                    <text class="t-small" x="610" y="142">130 m the standard buffer cannot see it.</text>
+                    <text class="t-head" x="610" y="182">Why 32-bit float alone fails</text>
+                    <text class="t-small" x="610" y="204">Standard depth crowds everything far</text>
+                    <text class="t-small" x="610" y="220">away close to 1. Between 0.5 and 1 a</text>
+                    <text class="t-small" x="610" y="236">32-bit float has the same 24-bit steps</text>
+                    <text class="t-small" x="610" y="252">as an integer. Reversed, distant depth</text>
+                    <text class="t-small" x="610" y="268">sits near 0, where floats are finest.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Reversed-Z makes depth precision nearly even.</b> Both lines are computed from the projection formula and the number formats. The standard line steepens with the square of distance. The reversed line grows only in proportion to distance; its sawtooth is the floating-point format changing step size at each power of two. At 1 km the difference is 60 cm against 0.07 mm.</figcaption>
+              </figure>
+              <p>Reversed-Z costs nothing at run time and needs no extra memory. All three major engines use it where the graphics API allows. It does change what a stored depth of 0 and 1 mean, so custom shaders that read the depth buffer, such as water foam or soft particles, must be written for it. Godot found exactly that when it switched in 4.3.</p>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> Where the two lines come from</summary>
+                <div class="fold-body">
+                  <p>For near plane n, far plane f and distance z, standard depth and reversed depth are:</p>
+                  <p class="formula">standard = f ÷ (f − n) × (1 − n ÷ z)      reversed = 1 − standard = n × (f − z) ÷ ((f − n) × z)</p>
+                  <p>Both change with distance at the same rate, f × n ÷ ((f − n) × z²). The smallest gap the buffer can tell apart is one step of the stored number divided by that rate. A 24-bit integer has a fixed step of 1 ÷ 2<sup>24</sup>, so the gap grows with z². A 32-bit float's step is about its value × 2<sup>−23</sup>; reversed depth is roughly n ÷ z, so the gap grows only with z.</p>
+                  <p>With n = 0.1 m and f = 10 km, at z = 200 m: 2<sup>−24</sup> × (f − n) × z² ÷ (f × n) = 2.4 cm for the standard buffer, and about 0.023 mm reversed.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="stencil"><span class="step-num">4</span> The stencil buffer: a mask you can draw into</h3>
+              <p>The <dfn class="term" data-term="stencil-buffer">stencil buffer</dfn> stores a small whole number for every pixel, usually 8 bits, so 0 to 255. It usually shares memory with the depth buffer. Nothing in it is visible. Effects use it to mark pixels in one draw and to restrict later draws to the marked pixels, or to everything else.</p>
+              <p>The <dfn class="term" data-term="stencil-test">stencil test</dfn> compares a reference value set by the draw with the stored value, using a rule such as "equal" or "not equal". Separate settings say what to do to the stored value when the test fails, when it passes but the depth test fails, and when both pass: keep it, replace it with the reference, increment it and so on. That small set of operations covers a surprising range of effects.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Four panels making a selection outline with the stencil buffer. One: the character is drawn normally and writes 1 into the stencil buffer wherever it covers. Two: the stencil buffer is 0 everywhere except a character-shaped area of 1. Three: the character is drawn again, pushed out a few pixels, in a flat blue, with the stencil test set to pass only where the stored value is not 1; the inner part fails. Four: the result is the character with a blue outline.">
+                    <defs>
+                      <pattern id="st-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="s-muted" x1="0" y1="0" x2="0" y2="6" stroke-width="1.4"/></pattern>
+                      <g id="st-shape"><circle cx="100" cy="62" r="20"/><path d="M70,178 C70,120 78,92 100,92 C122,92 130,120 130,178 Z"/></g>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">1 · DRAW, AND WRITE 1</text>
+                    <text class="t-caps" x="240" y="22">2 · THE STENCIL BUFFER</text>
+                    <text class="t-caps" x="460" y="22">3 · DRAW A FATTER COPY</text>
+                    <text class="t-caps" x="680" y="22">4 · RESULT</text>
+
+                    <g transform="translate(20,34)">
+                      <rect class="f-sunken s-strong" x="0" y="0" width="200" height="200"/>
+                      <use href="#st-shape" class="f-geo-soft s-geo w15"/>
+                    </g>
+                    <text class="t-small" x="20" y="256">Stencil rule: always pass;</text>
+                    <text class="t-small" x="20" y="272">on pass, replace with 1.</text>
+
+                    <g transform="translate(240,34)">
+                      <rect class="f-buf-lo" x="0" y="0" width="200" height="200"/>
+                      <use href="#st-shape" class="f-buf-hi"/>
+                      <text class="t-mono t-strong f-buf-lo mid" x="100" y="150">1</text>
+                      <text class="t-mono f-buf-hi" x="16" y="28">0</text>
+                      <text class="t-mono f-buf-hi" x="172" y="186">0</text>
+                    </g>
+                    <text class="t-small" x="240" y="256">Invisible. One number per pixel,</text>
+                    <text class="t-small" x="240" y="272">here 0 or 1.</text>
+
+                    <g transform="translate(460,34)">
+                      <rect class="f-sunken s-strong" x="0" y="0" width="200" height="200"/>
+                      <use href="#st-shape" class="f-acc s-acc" stroke-width="12" stroke-linejoin="round"/>
+                      <use href="#st-shape" class="f-geo-soft"/>
+                      <use href="#st-shape" fill="url(#st-hatch)"/>
+                      <text class="t-small t-strong mid" x="100" y="148">fails:</text>
+                      <text class="t-small t-strong mid" x="100" y="162">stored 1</text>
+                    </g>
+                    <text class="t-small" x="460" y="256">Pushed out, flat colour. Passes only</text>
+                    <text class="t-small" x="460" y="272">where the stored value is not 1: a rim.</text>
+
+                    <g transform="translate(680,34)">
+                      <rect class="f-sunken s-strong" x="0" y="0" width="200" height="200"/>
+                      <use href="#st-shape" class="f-acc s-acc" stroke-width="12" stroke-linejoin="round"/>
+                      <use href="#st-shape" class="f-geo-soft s-geo w15"/>
+                    </g>
+                    <text class="t-small" x="680" y="256">An outline that follows the shape</text>
+                    <text class="t-small" x="680" y="272">exactly, from two draws.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A stencil outline is two draws and a mask.</b> The first draw marks the character's pixels. The second draws a fatter copy, each vertex pushed out along its normal, that is allowed only where the mark is absent, which leaves a rim. Engines also build outlines as a post-process that finds the edges of the marked area, which gives a more even width; the stencil does the marking either way.</figcaption>
+              </figure>
+              <p>The same tool makes many other effects. A portal or a mirror marks its opening with one value, then draws the other room only where that value is stored. An x-ray view draws a character behind walls in a flat colour, only where its depth test fails. Shadow volumes, an older shadow technique, counted in and out of shadowed regions with stencil increments. Deferred renderers use stencil marks to skip pixels that a lighting pass does not need to touch.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="blending"><span class="step-num">5</span> Blending: combining with what is already there</h3>
+              <p>A fragment that survives both tests reaches the blender, a fixed unit that combines its colour, the source, with the colour already stored, the destination. The <dfn class="term" data-term="blend-mode">blend mode</dfn> picks the formula. Opaque surfaces use "replace". Three others cover nearly everything else in a game.</p>
+              <p><dfn class="term" data-term="alpha-blending">Alpha blending</dfn> mixes by the source's alpha, its opacity from 0 to 1, held in its fourth <a class="term" data-term="colour-channel" href="glossary.html#colour-channel">colour channel</a>. It is right for glass, smoke, and anything that partly covers what is behind. <dfn class="term" data-term="additive-blending">Additive blending</dfn> adds the source to the destination, so it can only brighten: fire, sparks, laser beams, light shafts. Multiplicative blending multiplies them, so it can only darken or tint: stains, tinted overlays.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 312" role="img" aria-label="Four columns, each drawing a coloured disc over a backdrop of light, mid and dark bands. Alpha blending: out equals alpha times source plus one minus alpha times destination; the disc is half see-through. Premultiplied alpha: out equals source plus one minus alpha times destination, with the source already multiplied by alpha; at alpha 0.6 it looks the same, and at alpha 0 the same rule adds the colour like a glow. Additive: out equals source plus destination; the disc brightens every band. Multiply: out equals source times destination; the disc tints and darkens. Below, one worked channel: destination 0.40, source 0.80, alpha 0.5 gives 0.60, 0.60, 1.20 and 0.32. Alpha and premultiplied blending depend on draw order; additive and multiply do not.">
+                    <text class="t-head" x="20" y="24">Alpha blending</text>
+                    <text class="t-head" x="244" y="24">Premultiplied alpha</text>
+                    <text class="t-head" x="468" y="24">Additive</text>
+                    <text class="t-head" x="692" y="24">Multiply</text>
+                    <text class="t-mono t-small" x="20" y="44">a·src + (1 − a)·dst</text>
+                    <text class="t-mono t-small" x="244" y="44">src + (1 − a)·dst</text>
+                    <text class="t-mono t-small" x="468" y="44">src + dst</text>
+                    <text class="t-mono t-small" x="692" y="44">src × dst</text>
+
+                    <g style="isolation:isolate">
+                      <rect class="f-solid" x="20" y="58" width="62" height="116"/><rect class="f-strong" x="82" y="58" width="62" height="116"/><rect class="f-ink" x="144" y="58" width="62" height="116"/>
+                      <circle class="f-pix" fill-opacity="0.6" cx="113" cy="116" r="44"/>
+                    </g>
+                    <g style="isolation:isolate">
+                      <rect class="f-solid" x="244" y="58" width="62" height="116"/><rect class="f-strong" x="306" y="58" width="62" height="116"/><rect class="f-ink" x="368" y="58" width="62" height="116"/>
+                      <circle class="f-pix" fill-opacity="0.6" cx="296" cy="96" r="26"/>
+                      <circle class="f-lit" style="mix-blend-mode:plus-lighter" cx="378" cy="136" r="26"/>
+                    </g>
+                    <text class="t-small t-muted" x="244" y="190">left: alpha 0.6 · right: alpha 0, a glow</text>
+                    <g style="isolation:isolate">
+                      <rect class="f-solid" x="468" y="58" width="62" height="116"/><rect class="f-strong" x="530" y="58" width="62" height="116"/><rect class="f-ink" x="592" y="58" width="62" height="116"/>
+                      <circle class="f-lit" style="mix-blend-mode:plus-lighter" cx="561" cy="116" r="44"/>
+                    </g>
+                    <g style="isolation:isolate">
+                      <rect class="f-solid" x="692" y="58" width="62" height="116"/><rect class="f-strong" x="754" y="58" width="62" height="116"/><rect class="f-ink" x="816" y="58" width="62" height="116"/>
+                      <circle class="f-geo" style="mix-blend-mode:multiply" cx="785" cy="116" r="44"/>
+                    </g>
+
+                    <line class="s-line" x1="20" y1="204" x2="880" y2="204"/>
+                    <text class="t-caps" x="20" y="224">ONE CHANNEL, WORKED · DESTINATION 0.40, SOURCE 0.80, ALPHA 0.5</text>
+                    <text class="t-mono" x="20" y="250">0.5 × 0.80 + 0.5 × 0.40</text>
+                    <text class="t-mono t-strong" x="20" y="270">= 0.60</text>
+                    <text class="t-mono" x="244" y="250">0.40 + 0.5 × 0.40</text>
+                    <text class="t-mono t-strong" x="244" y="270">= 0.60</text>
+                    <text class="t-small t-muted" x="244" y="288">source stored as 0.80 × 0.5</text>
+                    <text class="t-mono" x="468" y="250">0.80 + 0.40</text>
+                    <text class="t-mono t-strong" x="468" y="270">= 1.20</text>
+                    <text class="t-small t-muted" x="468" y="288">above 1: kept only in HDR targets</text>
+                    <text class="t-mono" x="692" y="250">0.80 × 0.40</text>
+                    <text class="t-mono t-strong" x="692" y="270">= 0.32</text>
+                    <text class="t-small t-pix t-strong" x="20" y="306">order matters</text>
+                    <text class="t-small t-pix t-strong" x="244" y="306">order matters</text>
+                    <text class="t-small t-acc t-strong" x="468" y="306">any order</text>
+                    <text class="t-small t-acc t-strong" x="692" y="306">any order</text>
+                  </svg>
+                </div>
+                <figcaption><b>Four blend modes, four formulas.</b> Each disc is drawn with its real blend over light, mid and dark bands. Addition and multiplication give the same answer in any order, so additive particles never need sorting among themselves. Alpha blending does not: the last layer drawn always covers a share of everything before it.</figcaption>
+              </figure>
+              <p>Blending happens per <a class="term" data-term="render-target" data-forward href="glossary.html#render-target">render target</a>, on the stored values. A renderer that works in <a class="term" data-term="linear-colour" href="glossary.html#linear-colour">linear colour</a> blends light, which is why particle edges and fades look wrong in a renderer that does not, as <a class="xref" data-ch="3.2">3.2 Colour done right</a> showed. Additive results above 1 survive only in a floating-point target, the reason <a class="term" data-term="hdr-rendering" href="glossary.html#hdr-rendering">HDR rendering</a> makes glow and fire look right.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="premultiplied"><span class="step-num">6</span> Premultiplied alpha</h3>
+              <p>With <dfn class="term" data-term="premultiplied-alpha">premultiplied alpha</dfn>, a texture or shader stores its colour already multiplied by its alpha, and the blender uses "source plus (1 − alpha) × destination". For a single colour the picture is identical. Two things improve.</p>
+              <p>First, filtering. When the GPU averages neighbouring texels, for example at the edge of a leaf texture or in a smaller mip level, it averages colour and alpha separately. With straight alpha, the invisible texels just outside the leaf still carry colour, often black, and that colour leaks into the average. The edge comes out with a dark or bright halo. Premultiplied texels outside the leaf are exactly zero, so they add nothing, and filtering gives the right answer.</p>
+              <p>Second, one blend mode covers two. With alpha 1 it behaves like normal blending; with alpha 0 and a non-zero colour it adds, like additive blending. A particle can go from glowing spark to dark smoke in one draw, with no change of blend state, so whole particle systems batch together. Unreal calls this mode AlphaComposite, Unity's URP calls it Premultiply, and Godot calls it Premultiplied Alpha.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="alpha-test"><span class="step-num">7</span> Cut-outs: alpha test</h3>
+              <p>Many see-through things are really either there or not there: leaves, grass, chain-link fences, hair cards, lace. For these, the <dfn class="term" data-term="alpha-test">alpha test</dfn> skips blending altogether. The pixel shader compares alpha with a threshold, typically 0.5, and discards the pixel if it is below. Everything that survives is fully opaque, so it can write depth and be drawn in any order like any solid object.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Three panels. One: a leaf texture's alpha channel, white in the middle fading to black at a soft edge. Two: the leaf alpha-blended over a striped background, with a soft edge; it needs sorting and does not write depth. Three: the same leaf alpha-tested at 0.5, with a hard, crisp edge; it writes depth and can be drawn in any order, but its edge can shimmer.">
+                    <defs>
+                      <filter id="at-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>
+                      <path id="at-leaf" d="M100,26 C150,46 168,100 140,150 C124,176 104,186 100,190 C96,186 76,176 60,150 C32,100 50,46 100,26 Z"/>
+                      <mask id="at-soft" maskUnits="userSpaceOnUse" x="0" y="0" width="900" height="270"><use href="#at-leaf" class="f-buf-hi" filter="url(#at-blur)" transform="translate(340,30)"/></mask>
+                      <pattern id="at-bg" width="20" height="20" patternUnits="userSpaceOnUse"><rect class="f-sunken" width="20" height="20"/><rect class="f-strong" width="10" height="20"/></pattern>
+                    </defs>
+                    <text class="t-caps" x="40" y="22">THE TEXTURE'S ALPHA</text>
+                    <text class="t-caps" x="340" y="22">ALPHA BLENDED</text>
+                    <text class="t-caps" x="640" y="22">ALPHA TESTED AT 0.5</text>
+
+                    <rect class="f-buf-lo" x="40" y="30" width="200" height="200"/>
+                    <use href="#at-leaf" class="f-buf-hi" filter="url(#at-blur)" transform="translate(40,30)"/>
+                    <text class="t-mono t-small f-buf-hi" x="52" y="48">0</text>
+                    <text class="t-mono t-small t-strong f-buf-lo mid" x="140" y="134">1</text>
+
+                    <rect x="340" y="30" width="200" height="200" fill="url(#at-bg)"/>
+                    <rect class="f-geo" x="340" y="30" width="200" height="200" mask="url(#at-soft)"/>
+
+                    <rect x="640" y="30" width="200" height="200" fill="url(#at-bg)"/>
+                    <use href="#at-leaf" class="f-geo" transform="translate(640,30)"/>
+
+                    <text class="t-small" x="40" y="250">Soft edge from 1 (inside) to 0 (outside)</text>
+                    <text class="t-small" x="340" y="250">Soft edge. Must be sorted; no depth write.</text>
+                    <text class="t-small" x="640" y="250">Hard edge. Writes depth; any order.</text>
+                    <text class="t-small t-muted" x="640" y="266">Edges can shimmer as the camera moves.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A cut-out trades soft edges for freedom from sorting.</b> The alpha-tested leaf behaves like a solid object, which is why foliage, fences and hair cards almost always use it. Its hard edge aliases, and anti-aliasing techniques such as alpha to coverage or <a class="term" data-term="taa" data-forward href="glossary.html#taa">TAA</a> are what soften it again.</figcaption>
+              </figure>
+              <p>It has two costs. A shader that can discard pixels cannot let the GPU write depth before it runs, so the early depth test from <a class="xref" data-ch="5.4">5.4</a> works less well; engines often draw alpha-tested foliage in a depth-only pass first for this reason. And as a texture gets smaller in its mip levels, its averaged alpha drifts below the threshold, so distant trees lose leaves. Dithered transparency is a cousin. It discards a noisy pattern of pixels whose density follows alpha, to fake partial opacity, and usually relies on anti-aliasing such as TAA to smooth the pattern out. Godot's Alpha Hash mode is one example.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="sorting"><span class="step-num">8</span> Transparency sort order</h3>
+              <p>Alpha blending only gives the right picture when each layer is blended over everything behind it. Engines therefore draw a frame in a fixed order. All opaque objects first, in any order, writing depth. Then all transparent objects, sorted from the furthest to the nearest. This <dfn class="term" data-term="transparency-sorting">transparency sorting</dfn> is done per object, usually by the distance from the camera to the centre of each object's bounds.</p>
+              <p>Transparent objects keep the depth test on, so glass behind a wall stays hidden, but switch the depth write off. If glass wrote depth, any glass drawn later and further away would fail the test against it and vanish. Try both mistakes, and the case no order can fix.</p>
+              <figure>
+                <div class="demo" data-demo="transparency-sorter">
+                  <p class="demo-hint">The transparency sorter needs JavaScript. Without it: three overlapping glass panes at 3, 5 and 7 metres look right only when drawn from 7 to 3 with depth writes off. Drawn from 3 to 7, the far panes are blended on top of the near ones; with depth writes on, they vanish where they overlap. Two panes that cross each other look wrong in every order.</p>
+                </div>
+                <figcaption><b>Transparency sorter.</b> It opens drawing front to back, the wrong way round, with the wrong pixels hatched. Press Back to front to fix it, then tick Glass writes depth and press Front to back to see panes vanish. Then switch to Two panes cross: each pane is in front on one side of the crossing, and no order of whole objects can show that.</figcaption>
+              </figure>
+              <p>Per-object sorting fails in predictable ways. A large transparent object, such as a whole building's windows in one mesh or a long water surface, has one centre and one place in the order, although the camera may be inside it or beside it. Objects that cross, like the two panes, cannot be ordered at all. Triangles inside a single mesh are drawn in the order they are stored, so a glass bottle can show its back faces in front of its front ones. And when two objects' centres pass each other as the camera moves, their order flips from one frame to the next and the picture pops.</p>
+              <p>Engines give artists a manual override for the worst cases, a sort priority per object or material, and the usual advice is structural: split large transparent meshes, avoid intersecting glass, prefer cut-outs and additive effects, which need no sorting, wherever they look acceptable.</p>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Sorting by bounds centre is the common default; engines also offer sorting by distance along the view direction or along a fixed axis for 2D games. Sorting also fights with performance. Opaque objects are sorted by material and shader to cut state changes, but transparent ones must be sorted by distance, so they batch poorly and cost more draw calls.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="oit"><span class="step-num">9</span> Order-independent transparency</h3>
+              <p><dfn class="term" data-term="oit">Order-independent transparency</dfn> (OIT) is the family of techniques that make blended layers come out right per pixel, whatever order they arrive in. There are two broad approaches, and they trade memory against accuracy.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Left, exact: one pixel receives three glass fragments in the order teal at 7 metres, rose at 3 metres, amber at 5 metres. They are all stored in a per-pixel list, sorted far to near as teal, amber, rose, and blended in that order. Memory grows with the number of layers. Right, approximate: the same three fragments are added into two running totals, a weighted colour sum and a coverage product, in one pass with fixed memory. A final step divides to get an average colour. No sorting, but layers of very different opacity come out wrong.">
+                    <defs>
+                      <marker id="oit-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">EXACT · STORE EVERY LAYER, THEN SORT</text>
+                    <text class="t-small t-muted" x="20" y="44">fragments arrive at one pixel:</text>
+                    <rect class="f-geo s-geo" fill-opacity="0.5" x="20" y="56" width="70" height="30" rx="4"/><text class="t-small t-strong mid" x="55" y="76">teal 7 m</text>
+                    <rect class="f-pix s-pix" fill-opacity="0.5" x="96" y="56" width="70" height="30" rx="4"/><text class="t-small t-strong mid" x="131" y="76">rose 3 m</text>
+                    <rect class="f-lit s-lit" fill-opacity="0.5" x="172" y="56" width="80" height="30" rx="4"/><text class="t-small t-strong mid" x="212" y="76">amber 5 m</text>
+                    <line class="s-muted" x1="136" y1="94" x2="136" y2="116" marker-end="url(#oit-arr)"/>
+                    <rect class="f-sunken s-strong" x="20" y="122" width="232" height="34" rx="4"/>
+                    <text class="t-small mid" x="136" y="144">stored in a list for this pixel</text>
+                    <line class="s-muted" x1="136" y1="160" x2="136" y2="182" marker-end="url(#oit-arr)"/>
+                    <rect class="f-geo s-geo" fill-opacity="0.5" x="20" y="188" width="70" height="30" rx="4"/><text class="t-small t-strong mid" x="55" y="208">teal 7 m</text>
+                    <rect class="f-lit s-lit" fill-opacity="0.5" x="96" y="188" width="80" height="30" rx="4"/><text class="t-small t-strong mid" x="136" y="208">amber 5 m</text>
+                    <rect class="f-pix s-pix" fill-opacity="0.5" x="182" y="188" width="70" height="30" rx="4"/><text class="t-small t-strong mid" x="217" y="208">rose 3 m</text>
+                    <text class="t-small" x="270" y="140">sorted far to near,</text>
+                    <text class="t-small" x="270" y="156">then blended: exact</text>
+                    <text class="t-small t-pix" x="20" y="242">Memory grows with layers per pixel; needs a cap.</text>
+
+                    <line class="s-line" x1="440" y1="34" x2="440" y2="250"/>
+
+                    <text class="t-caps" x="470" y="22">APPROXIMATE · WEIGHTED AVERAGE, ONE PASS</text>
+                    <text class="t-small t-muted" x="470" y="44">the same fragments, any order:</text>
+                    <rect class="f-geo s-geo" fill-opacity="0.5" x="470" y="56" width="70" height="30" rx="4"/><text class="t-small t-strong mid" x="505" y="76">teal 7 m</text>
+                    <rect class="f-pix s-pix" fill-opacity="0.5" x="546" y="56" width="70" height="30" rx="4"/><text class="t-small t-strong mid" x="581" y="76">rose 3 m</text>
+                    <rect class="f-lit s-lit" fill-opacity="0.5" x="622" y="56" width="80" height="30" rx="4"/><text class="t-small t-strong mid" x="662" y="76">amber 5 m</text>
+                    <line class="s-muted" x1="586" y1="94" x2="586" y2="116" marker-end="url(#oit-arr)"/>
+                    <rect class="f-sunken s-strong" x="470" y="122" width="232" height="34" rx="4"/>
+                    <text class="t-small mid" x="586" y="138">added into two running totals:</text>
+                    <text class="t-small t-muted mid" x="586" y="151">weighted colour, total coverage</text>
+                    <line class="s-muted" x1="586" y1="160" x2="586" y2="182" marker-end="url(#oit-arr)"/>
+                    <rect class="f-acc-soft s-acc" x="470" y="188" width="232" height="30" rx="4"/>
+                    <text class="t-small mid" x="586" y="208">one average colour × coverage</text>
+                    <text class="t-small" x="718" y="140">weights favour</text>
+                    <text class="t-small" x="718" y="156">nearer layers</text>
+                    <text class="t-small t-pix" x="470" y="242">Fixed memory and no sort; wrong when layers differ a lot.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Exact OIT stores and sorts; cheap OIT averages.</b> Per-pixel lists give the right answer but need memory for every layer and a cap when it runs out. Weighted blended OIT, published by Morgan McGuire and Louis Bavoil in 2013, keeps two extra screen-sized targets and blends in one pass. It suits smoke and particles; it handles a clear pane in front of a nearly opaque one badly.</figcaption>
+              </figure>
+              <p>Between the two sit depth peeling, which renders the transparent layers several times and peels off one layer per pass, and newer schemes that keep a few layers per pixel or approximate how light is absorbed along each view ray. Unreal Engine has two experimental options of this kind. None of them is the default in a major engine. They cost memory, extra shader variants and GPU time, and most games get by with sorting, cut-outs and careful art direction.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>The tests themselves are nearly free: fixed hardware does them for many pixels per clock. What costs is memory, and the memory traffic of reading and writing buffers for every layer.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Buffer at 1920 × 1080 (2,073,600 pixels)</th><th scope="col" class="num">Bytes per pixel</th><th scope="col" class="num">1080p</th><th scope="col" class="num">4K</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Depth 24-bit + stencil 8-bit</th><td class="num">4</td><td class="num">8.3 MB</td><td class="num">33.2 MB</td></tr>
+                  <tr><th scope="row">Depth 32-bit float, no stencil</th><td class="num">4</td><td class="num">8.3 MB</td><td class="num">33.2 MB</td></tr>
+                  <tr><th scope="row">Depth 32-bit float + stencil, Direct3D layout (24 bits unused)</th><td class="num">8</td><td class="num">16.6 MB</td><td class="num">66.4 MB</td></tr>
+                  <tr><th scope="row">HDR colour target, 16-bit float RGBA</th><td class="num">8</td><td class="num">16.6 MB</td><td class="num">66.4 MB</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>Blending is where the bill grows. Each blended layer must read the colour already in the target and write the result back. Take an explosion whose smoke covers half of a 1080p screen in 10 overlapping layers, drawn into a 16-bit float HDR target:</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">10.4 M</span><span class="what">blended pixels per frame: 1,036,800 pixels × 10 layers</span></div>
+              <div class="stat"><span class="value">166 MB</span><span class="what">of colour traffic per frame: 8 bytes read and 8 written per blended pixel</span></div>
+              <div class="stat"><span class="value">10 GB/s</span><span class="what">at 60 fps, before the particle shaders read a single texture</span></div>
+            </div>
+            <p>That is overdraw, measured. Every one of those 10.4 million pixels also runs a pixel shader, which <a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a> prices. On phones, where memory traffic also costs battery and heat, a few full-screen layers of smoke can be the single most expensive thing in a frame.</p>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Layers × screen area</strong><span>Smoke filling the screen in front of the camera is the worst case; the same effect far away costs a fraction.</span></li>
+              <li><strong>Resolution and format</strong><span>4K has four times the pixels of 1080p. A 16-bit float target moves twice the bytes of an 8-bit one per blend.</span></li>
+              <li><strong>Sorting and batching</strong><span>Distance-sorted transparents cannot be grouped by material, so each costs its own draw call on the CPU.</span></li>
+              <li><strong>Stencil and outline passes</strong><span>A stencil outline draws its objects at least twice. Unreal's custom depth draws marked objects into a separate depth and stencil target.</span></li>
+              <li><strong>OIT</strong><span>Per-pixel lists cost memory per layer; weighted blending adds two screen-sized targets. Unreal notes its voxel-based OIT compiles an extra shader version of every translucent material.</span></li>
+              <li><strong>Alpha-tested foliage</strong><span>Discard weakens early depth rejection, so dense foliage often needs its own depth pre-pass.</span></li>
+            </ul>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>These six pictures cover most of the bug reports in this area. Each has a typical cause and a short, checkable request.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A road laid on terrain, where jagged stripes of terrain show through the road surface.">
+                    <defs><clipPath id="sy-zf-clip"><polygon points="70,120 170,120 140,20 100,20"/></clipPath></defs>
+                    <rect class="f-solid" x="0" y="0" width="240" height="130"/>
+                    <polygon class="f-strong" points="70,120 170,120 140,20 100,20"/>
+                    <g class="f-solid" clip-path="url(#sy-zf-clip)">
+                      <polygon points="90,30 150,40 150,46 90,38"/><polygon points="80,58 160,70 160,76 80,66"/><polygon points="70,84 170,92 170,100 70,94"/><polygon points="96,48 140,54 140,58 96,53"/><polygon points="76,106 170,112 170,116 76,113"/>
+                    </g>
+                  </svg>
+                </div>
+                <h4>Flickering stripes on distant surfaces</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Z-fighting: two surfaces closer together than one depth step at that distance. Common with decals, roads on terrain, coplanar walls and a very small near plane.</dd></div>
+                  <div><dt>Ask for</dt><dd>The near and far planes and whether reversed-Z is on; a depth bias for decals; and geometry fixes that separate coplanar faces.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A glass pane in front of a box, where the part of the box behind the glass is missing.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-lit-soft s-strong" x="120" y="40" width="90" height="70"/>
+                    <rect class="f-sunken" x="120" y="30" width="60" height="70"/>
+                    <rect class="f-pix s-pix" fill-opacity="0.3" x="60" y="20" width="120" height="80"/>
+                    <path class="s-strong dash" d="M120,40 H180 M120,40 V100"/>
+                  </svg>
+                </div>
+                <h4>Glass hides what is behind it</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A transparent material writes depth, and something behind it was drawn after it, so it fails the depth test inside the glass's outline.</dd></div>
+                  <div><dt>Ask for</dt><dd>Depth writes off for blended materials, transparents drawn after opaques, sorted back to front; a check of any custom depth or sort settings on that material.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two frames side by side: smoke behind a character in the first, the same smoke drawn in front of the character in the second.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <line class="s-line" x1="120" y1="0" x2="120" y2="130"/>
+                    <circle class="f-strong" cx="42" cy="60" r="30" fill-opacity="0.8"/>
+                    <rect class="f-geo-soft s-geo" x="56" y="40" width="28" height="70" rx="12"/>
+                    <rect class="f-geo-soft s-geo" x="176" y="40" width="28" height="70" rx="12"/>
+                    <circle class="f-strong" cx="162" cy="60" r="30" fill-opacity="0.8"/>
+                    <text class="t-small t-muted mid" x="60" y="124">frame 1</text>
+                    <text class="t-small t-pix t-strong mid" x="180" y="124">frame 2</text>
+                  </svg>
+                </div>
+                <h4>Transparent things pop in front of each other</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Per-object sorting by bounds centre: large or overlapping transparent objects swap order when their centres pass each other as the camera moves.</dd></div>
+                  <div><dt>Ask for</dt><dd>Splitting large transparent meshes, a sort priority for the pair that matters, or switching the effect to additive, cut-out or dithered so it no longer needs sorting.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A leaf over a light sky with a dark halo around its edge.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <path class="f-geo s-ink" stroke-width="5" stroke-opacity="0.7" d="M120,12 C150,24 160,60 144,90 C134,108 124,116 120,118 C116,116 106,108 96,90 C80,60 90,24 120,12 Z"/>
+                  </svg>
+                </div>
+                <h4>Dark or bright halos around cut-outs</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Straight-alpha textures filtered or mip-mapped: colour from invisible texels leaks into edge pixels.</dd></div>
+                  <div><dt>Ask for</dt><dd>Premultiplied alpha in the texture and the blend mode, or a texture export that fills invisible texels with the edge colour.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A character standing behind a wall, with its blue selection outline drawn through the wall.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-acc" x="102" y="26" width="36" height="88" rx="16"/>
+                    <rect class="f-solid s-strong" x="40" y="50" width="160" height="80"/>
+                    <rect class="s-acc w3" x="100" y="24" width="40" height="92" rx="18"/>
+                  </svg>
+                </div>
+                <h4>Outlines drawn through walls, or missing</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The outline pass ignores depth when it should not, or the stencil marks are never written: stencil not enabled for the pass, a wrong reference value, or a material that skips the marking draw.</dd></div>
+                  <div><dt>Ask for</dt><dd>A frame capture showing the stencil buffer after the marking pass, and the stencil and depth settings of both draws.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A near tree with full foliage and a distant tree whose leaves have mostly vanished.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-strong" x="66" y="70" width="8" height="50"/>
+                    <circle class="f-geo" cx="70" cy="52" r="34"/>
+                    <rect class="f-strong" x="178" y="84" width="4" height="30"/>
+                    <circle class="f-geo" cx="174" cy="72" r="5"/><circle class="f-geo" cx="188" cy="76" r="4"/><circle class="f-geo" cx="181" cy="64" r="3"/>
+                    <circle class="s-geo dot-dash" cx="180" cy="72" r="18"/>
+                  </svg>
+                </div>
+                <h4>Foliage thins out with distance</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Alpha test on mip-mapped textures: averaged alpha in small mips falls below the threshold, so distant leaves are discarded.</dd></div>
+                  <div><dt>Ask for</dt><dd>Mips generated to preserve coverage, a tuned threshold, or alpha to coverage; and a check with the camera at gameplay distance.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>A <a class="term" data-term="profiler" data-forward href="glossary.html#profiler">frame capture tool</a> such as RenderDoc or PIX confirms most of these in minutes. It shows each draw's depth, stencil and blend settings, and lets you view the depth and stencil buffers as images after any draw.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines expose these ideas as material settings. The names differ; the hardware underneath is the same.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6 (URP)</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Opaque or blended</th>
+                    <td>Material <strong>Blend Mode</strong>: Opaque, Masked, Translucent, Additive, Modulate, AlphaComposite, AlphaHoldout.</td>
+                    <td>Lit material <strong>Surface Type</strong>: Opaque or Transparent. Transparent surfaces render in a separate pass after opaque ones.</td>
+                    <td>StandardMaterial3D <strong>Transparency</strong>: Disabled, Alpha, Alpha Scissor, Alpha Hash, Depth Pre-Pass.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Blend mode</th>
+                    <td>Translucent (alpha), Additive, Modulate (multiply), AlphaComposite (premultiplied).</td>
+                    <td><strong>Blending Mode</strong>: Alpha, Premultiply, Additive, Multiply.</td>
+                    <td><strong>Blend Mode</strong>: Mix, Add, Subtract, Multiply, Premultiplied Alpha. Any mode but Mix moves the object to the transparent pipeline.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Cut-outs</th>
+                    <td>Blend Mode Masked, with <strong>Opacity Mask Clip Value</strong> as the threshold.</td>
+                    <td><strong>Alpha Clipping</strong> with <strong>Threshold</strong>, default 0.5.</td>
+                    <td>Transparency Alpha Scissor with <code>alpha_scissor_threshold</code>; Alpha Hash for dithered cut-outs.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Sorting</th>
+                    <td>Per object: <strong>Translucency Sort Priority</strong>, default 0. Project setting <strong>Translucent Sort Policy</strong>: Sort by Distance (default), Sort by Projected Z, Sort Along Axis.</td>
+                    <td>Material <strong>Sorting Priority</strong>: lower values render first.</td>
+                    <td>Transparent objects are sorted by depth; <code>render_priority</code> (−128 to 127) on the material overrides it.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Depth settings</th>
+                    <td><strong>Disable Depth Test</strong> for translucent materials, which the docs warn is much slower.</td>
+                    <td>ShaderLab <code>ZWrite</code> and <code>ZTest</code> in custom shaders; the Render Objects renderer feature can override <strong>Write Depth</strong> and <strong>Depth Test</strong>.</td>
+                    <td><code>depth_draw_mode</code>: Opaque Only (default), Always, Never. <code>depth_test</code>: Default or Inverted (experimental).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Stencil</th>
+                    <td>Project setting <strong>Custom Depth-Stencil Pass</strong> set to Enabled with Stencil; per object <strong>Render Custom Depth</strong> and a <strong>Custom Depth Stencil Value</strong>, read by a post-process material.</td>
+                    <td>A <code>Stencil</code> block in ShaderLab, or the Render Objects renderer feature's Stencil override: Value, Compare Function, Pass, Fail, Z Fail.</td>
+                    <td>Since 4.5, <code>stencil_mode</code> on the material: Outline and X-Ray presets, or Custom with its own compare and write flags.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Reversed-Z</th>
+                    <td>Yes: the RHI defines the far plane as 0 and the near plane as 1.</td>
+                    <td>On DirectX, Metal and Vulkan (1 near, 0 far); not on OpenGL ES or WebGL. Shaders check <code>UNITY_REVERSED_Z</code>.</td>
+                    <td>Since 4.3. Custom shaders that compare depth values had to be updated.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Beyond sorting</th>
+                    <td>Experimental OIT through <code>r.OIT.Method</code>: 1 for adaptive voxel-based OIT, 2 for sorted pixels, which also needs the project setting <strong>Enable Order Independent Transparency (Experimental)</strong>. The voxel method needs a desktop Shader Model 6 platform.</td>
+                    <td>No OIT option on the URP Lit material; the tools are Sorting Priority, Alpha Clipping and blend mode.</td>
+                    <td>Transparency <strong>Depth Pre-Pass</strong> renders opaque parts first for mostly correct sorting, for example on foliage.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9 (materials, rendering settings, PSO and OIT pages), Unity 6.6 (6000.6) with URP, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Depth reads in custom shaders</p>
+              <p>Any custom shader that reads the depth buffer, for soft particles, water edges, fog or outlines, depends on the engine's depth convention and the platform's graphics API. Unity's own documentation shows the same shader needing a flip on some APIs. Ask for depth reads to go through the engine's helper functions, never raw comparisons with 0 or 1.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Good briefs here name the material settings involved, describe the symptom with the camera movement that triggers it, and ask for the cheapest fix that removes the need for perfect sorting.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when transparent objects sort wrongly</span></div>
+              <pre class="prompt-body">Engine: Unity 6, URP, PC and PS5. In the greenhouse level, glass panels in the roof sometimes hide the plants below them, and steam particles pop in front of and behind the glass as the camera pans.
+The glass uses the URP Lit shader, Surface Type Transparent, Blending Mode Alpha. The roof is one mesh of 120 panels. The steam is a particle system with Blending Mode Alpha.
+
+1. Explain each symptom in terms of depth writes, the per-object sort and draw order.
+2. Propose fixes in order of cost: material settings, mesh splitting, Sorting Priority, changing the steam to additive or premultiplied.
+3. For each fix, say what could still look wrong and from which camera angles.
+4. Tell me what to look at in a RenderDoc capture to confirm the cause before we change anything.</pre>
+              <ul class="prompt-why">
+                <li>Naming the shader and its settings lets the AI check depth writes and blend mode first.</li>
+                <li>"One mesh of 120 panels" points straight at the single-centre sorting problem.</li>
+                <li>Asking for residual failures stops it presenting a sort tweak as a cure.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding a selection or x-ray outline</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.9, desktop. We need a 2-pixel selection outline on interactable objects, visible only where the object itself is visible, plus an optional x-ray silhouette when the object is behind a wall.
+
+Design this with Custom Depth and the custom stencil:
+1. Which project setting and per-object settings to enable, and which stencil values to reserve for which effect.
+2. The post-process material logic for the outline and for the x-ray case, and how it tests depth.
+3. The GPU cost at 1440p with up to 30 marked objects, and what grows it.
+4. How we would check it with a stencil buffer view in a frame capture.</pre>
+              <ul class="prompt-why">
+                <li>Stating "visible only where the object is" settles the depth-test question up front.</li>
+                <li>Reserving stencil values early avoids two features fighting over the same numbers.</li>
+                <li>A pixel count and an object count make the cost estimate concrete.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing depth, stencil and blending work</h3>
+            <ol class="review-list">
+              <li>Does any blended material write depth? Why?<span class="why">It is the most common cause of glass hiding what is behind it.</span></li>
+              <li>Could this effect be additive, premultiplied or a cut-out instead of alpha-blended?<span class="why">Those need no sorting among themselves and batch better.</span></li>
+              <li>What are the near and far planes, and is reversed-Z on for every target platform?<span class="why">Z-fighting at a distance usually comes from a near plane far smaller than needed.</span></li>
+              <li>Which stencil values does this use, and what else in the project uses them?<span class="why">Stencil bits are a shared resource with no registry unless someone keeps one.</span></li>
+              <li>How many blended layers can cover the screen in the worst case, at what resolution and format?<span class="why">Full-screen smoke or glass layers are where blending cost explodes.</span></li>
+              <li>Do shaders that read depth use the engine's helpers?<span class="why">Raw depth comparisons break across reversed and standard depth.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A glass window renders correctly from outside, but from one angle a lamp behind it disappears wherever it overlaps the window. What is the most likely setting at fault, and why does the angle matter?</p>
+                <details><summary>Show answer</summary><p>The window's material writes depth. From that angle the sort draws the window before the lamp, so the lamp fails the depth test inside the window's outline. Turn depth writes off for the window; the angle matters because it changes the per-object sort order.</p></details>
+              </li>
+              <li>
+                <p class="q">An open-world game flickers on roads 300 m away. The camera's near plane is 1 cm. What two changes would you ask about first?</p>
+                <details><summary>Show answer</summary><p>Raising the near plane, which shrinks depth steps everywhere, and making sure reversed-Z with a 32-bit float depth buffer is in use. For the roads themselves, a depth bias or a small physical offset from the terrain.</p></details>
+              </li>
+              <li>
+                <p class="q">Your VFX artist says the spark particles do not need sorting, but the smoke does. Are they right?</p>
+                <details><summary>Show answer</summary><p>Yes, if the sparks are additive: addition gives the same result in any order. Alpha-blended smoke does depend on order. Both still need the depth test against opaque geometry.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#depth-buffer">depth buffer</a></li>
+              <li><a class="chip" href="glossary.html#depth-test">depth test</a></li>
+              <li><a class="chip" href="glossary.html#depth-write">depth write</a></li>
+              <li><a class="chip" href="glossary.html#z-fighting">z-fighting</a></li>
+              <li><a class="chip" href="glossary.html#reversed-z">reversed-Z</a></li>
+              <li><a class="chip" href="glossary.html#stencil-buffer">stencil buffer</a></li>
+              <li><a class="chip" href="glossary.html#stencil-test">stencil test</a></li>
+              <li><a class="chip" href="glossary.html#blend-mode">blend mode</a></li>
+              <li><a class="chip" href="glossary.html#alpha-blending">alpha blending</a></li>
+              <li><a class="chip" href="glossary.html#additive-blending">additive blending</a></li>
+              <li><a class="chip" href="glossary.html#premultiplied-alpha">premultiplied alpha</a></li>
+              <li><a class="chip" href="glossary.html#alpha-test">alpha test</a></li>
+              <li><a class="chip" href="glossary.html#transparency-sorting">transparency sorting</a></li>
+              <li><a class="chip" href="glossary.html#oit">order-independent transparency</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="5.6"></a> looks at the shaders themselves as a team meets them: the languages, the variants, the pipeline objects these settings live in, and the passes that make up a frame.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://www.reedbeta.com/blog/depth-precision-visualized/">Depth Precision Visualized</a>, Nathan Reed, 2015. Where depth precision goes in integer and float formats, and why reversed-Z works.</li>
+              <li><a href="https://godotengine.org/article/introducing-reverse-z/">Introducing Reverse Z</a>, Clay John, Godot Engine blog, 2024. The switch in Godot 4.3 and what it broke.</li>
+              <li><a href="https://www.shawnhargreaves.com/blog/premultiplied-alpha.html">Premultiplied alpha</a>, Shawn Hargreaves, 2009. The blend equations and why filtering needs premultiplied colour.</li>
+              <li><a href="https://developer.nvidia.com/content/alpha-blending-pre-or-not-pre">Alpha Blending: To Pre or Not To Pre</a>, NVIDIA Developer. A worked mip-map example of straight against premultiplied alpha.</li>
+              <li><a href="https://jcgt.org/published/0002/02/09/">Weighted Blended Order-Independent Transparency</a>, Morgan McGuire and Louis Bavoil, Journal of Computer Graphics Techniques, 2013.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-material-properties">Material Properties</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/rendering-settings-in-the-unreal-engine-project-settings">Rendering Settings</a>, Unreal Engine documentation, Epic Games. Blend modes, sort policy and custom depth-stencil.</li>
+              <li><a href="https://dev.epicgames.com/documentation/unreal-engine/adaptive-voxelbased-order-independent-transparency-in-unreal-engine">Adaptive Voxel-Based Order Independent Transparency</a>, Unreal Engine documentation, Epic Games.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/built-in/shaders-in-universalrp/reference/lit-shader">Lit shader reference</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/writing-custom/shader-writing/sl/writing-shader-writing-shader-programs-hlsl/sl-platform-differences">Platform differences</a>, Unity 6.6 manual. Surface and blending options; reversed depth per graphics API.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/tutorials/3d/standard_material_3d.html">Standard Material 3D</a> and <a href="https://docs.godotengine.org/en/stable/classes/class_basematerial3d.html">BaseMaterial3D</a>, Godot 4.7 documentation. Transparency, blend, depth and stencil settings.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/transparency-sorter.js"></script>
+</body>
+</html>

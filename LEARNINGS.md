@@ -23,6 +23,9 @@ related area.
   class.** `diagrams.css` sets `fill: none` only for elements with an `s-*`
   class token and no `f-*` token, matched on class-token boundaries so names
   such as `is-wide` are not caught.
+- **Text classes on a `<g>` do nothing.** `svg.dg text` sets font, size
+  and fill on every `<text>` directly, so `<g class="t-small t-muted">`
+  does not reach its children. Put `t-*` classes on each `<text>`.
 - When a figure claims numbers (angles, bytes, percentages), compute them
   rather than eyeballing. Two early drafts had a 128-byte bracket spanning
   2.5 vertices and a "same corner" marked at a point that was not shared.

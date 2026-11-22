@@ -1,0 +1,949 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>5.6 Shaders in practice · Graphics Handbook</title>
+  <meta name="description" content="Shaders as a team meets them: HLSL and GLSL, cross-compilation, constant buffers, shader graphs, variants and permutations, pipeline state objects, compile stutter and PSO caching, render targets, frame graphs and compute shaders.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="5.6">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 5 · The GPU pipeline</p>
+            <h1><span class="ch-num">5.6</span> Shaders in practice</h1>
+            <p class="lead">Real shaders are short programs in a C-like language, multiplied into many compiled variants and bundled with fixed GPU settings into pipeline objects, then run pass by pass through the frame. How a team writes, multiplies and compiles them decides build times, memory and whether the game hitches the first time an effect appears.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a>, <a class="xref" data-ch="5.5">5.5 Depth, stencil and blending</a>, <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="6.5">6.5 PBR materials</a>, <a class="xref" data-ch="7.3">7.3 Forward, deferred and clustered</a>, <a class="xref" data-ch="11.4">11.4 Memory, streaming and hitches</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 520" role="img" aria-label="A 14-line HLSL pixel shader, annotated. Lines 1 and 2 declare constants set by the CPU: sun direction and colour per frame, a tint per material. Lines 3 and 4 declare a texture and a sampler. Lines 5 to 9 declare the inputs from the vertex shader: position, normal and UV. Line 11 reads the texture at this pixel's UV and tints it. Line 12 works out how directly the sun hits the surface. Line 13 outputs one colour to render target 0. Below, a small frame: a shadow pass writes a shadow map, the main pass runs this shader and writes HDR colour and depth, post-processing writes the final image.">
+                  <defs>
+                    <marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+                  <text class="t-caps" x="20" y="22">A PIXEL SHADER IN HLSL · RUNS ONCE FOR EVERY PIXEL THE SURFACE COVERS</text>
+                  <rect class="f-sunken s-line" x="20" y="36" width="560" height="358" rx="6"/>
+                  <rect class="f-acc-soft" x="21" y="46" width="558" height="46"/>
+                  <rect class="f-lit-soft" x="21" y="94" width="558" height="46"/>
+                  <rect class="f-geo-soft" x="21" y="142" width="558" height="118"/>
+                  <rect class="f-lit-soft" x="21" y="286" width="558" height="22"/>
+                  <rect class="f-solid" x="21" y="310" width="558" height="22"/>
+                  <rect class="f-pix-soft" x="21" y="334" width="558" height="22"/>
+                  <g class="end">
+                    <text class="t-mono t-muted" x="44" y="62">1</text><text class="t-mono t-muted" x="44" y="86">2</text><text class="t-mono t-muted" x="44" y="110">3</text><text class="t-mono t-muted" x="44" y="134">4</text><text class="t-mono t-muted" x="44" y="158">5</text><text class="t-mono t-muted" x="44" y="182">6</text><text class="t-mono t-muted" x="44" y="206">7</text>
+                    <text class="t-mono t-muted" x="44" y="230">8</text><text class="t-mono t-muted" x="44" y="254">9</text><text class="t-mono t-muted" x="44" y="278">10</text><text class="t-mono t-muted" x="44" y="302">11</text><text class="t-mono t-muted" x="44" y="326">12</text><text class="t-mono t-muted" x="44" y="350">13</text><text class="t-mono t-muted" x="44" y="374">14</text>
+                  </g>
+                  <g>
+                    <text class="t-mono" x="56" y="62">cbuffer PerFrame : register(b0) { float3 SunDir; float3 SunColour; };</text>
+                    <text class="t-mono" x="56" y="86">cbuffer PerMaterial : register(b1) { float4 Tint; };</text>
+                    <text class="t-mono" x="56" y="110">Texture2D BaseMap : register(t0);</text>
+                    <text class="t-mono" x="56" y="134">SamplerState Linear : register(s0);</text>
+                    <text class="t-mono" x="56" y="158">struct PSInput {</text>
+                    <text class="t-mono" x="84.8" y="182">float4 pos : SV_Position;</text>
+                    <text class="t-mono" x="84.8" y="206">float3 normal : NORMAL;</text>
+                    <text class="t-mono" x="84.8" y="230">float2 uv : TEXCOORD0;</text>
+                    <text class="t-mono" x="56" y="254">};</text>
+                    <text class="t-mono" x="56" y="278">float4 main(PSInput i) : <tspan class="t-pix t-strong">SV_Target0</tspan> {</text>
+                    <text class="t-mono" x="84.8" y="302">float3 base = BaseMap.Sample(Linear, i.uv).rgb * Tint.rgb;</text>
+                    <text class="t-mono" x="84.8" y="326">float ndotl = saturate(dot(normalize(i.normal), -SunDir));</text>
+                    <text class="t-mono" x="84.8" y="350">return float4(base * SunColour * ndotl, 1.0);</text>
+                    <text class="t-mono" x="56" y="374">}</text>
+                  </g>
+
+                  <path class="s-acc w15" d="M586,48 H592 V90 H586"/>
+                  <rect class="f-acc" x="604" y="42" width="4" height="44"/>
+                  <text class="t-strong t-acc" x="616" y="54">Constants</text>
+                  <text class="t-small" x="616" y="70">Set by the CPU per frame or per material;</text>
+                  <text class="t-small" x="616" y="84">the same for every pixel of the draw.</text>
+
+                  <path class="s-lit w15" d="M586,96 H592 V138 H586"/>
+                  <rect class="f-lit" x="604" y="102" width="4" height="30"/>
+                  <text class="t-strong t-lit" x="616" y="114">Texture and sampler</text>
+                  <text class="t-small" x="616" y="130">The image to read, and how to filter it.</text>
+
+                  <path class="s-geo w15" d="M586,144 H592 V258 H586"/>
+                  <rect class="f-geo" x="604" y="170" width="4" height="44"/>
+                  <text class="t-strong t-geo" x="616" y="182">Inputs from the vertex shader</text>
+                  <text class="t-small" x="616" y="198">Position, normal and UV, blended across</text>
+                  <text class="t-small" x="616" y="212">the triangle for this one pixel.</text>
+
+                  <path class="s-muted" d="M574,297 H596 L604,284"/>
+                  <rect class="f-lit" x="604" y="262" width="4" height="30"/>
+                  <text class="t-strong t-lit" x="616" y="274">Texture read</text>
+                  <text class="t-small" x="616" y="290">Filtered colour at this pixel's UV, tinted.</text>
+
+                  <path class="s-muted" d="M574,321 H604"/>
+                  <rect class="f-muted" x="604" y="304" width="4" height="30"/>
+                  <text class="t-strong" x="616" y="316">Maths</text>
+                  <text class="t-small" x="616" y="332">How directly the sun hits: 0 to 1.</text>
+
+                  <path class="s-muted" d="M574,345 H596 L604,358"/>
+                  <rect class="f-pix" x="604" y="346" width="4" height="44"/>
+                  <text class="t-strong t-pix" x="616" y="358">Output</text>
+                  <text class="t-small" x="616" y="374">One colour for this pixel, written to</text>
+                  <text class="t-small" x="616" y="388">render target 0 (SV_Target0).</text>
+
+                  <line class="s-line" x1="20" y1="412" x2="880" y2="412"/>
+                  <text class="t-caps" x="20" y="434">WHERE IT RUNS · ONE PASS OF A SMALL FRAME</text>
+                  <rect class="f-surface s-strong" x="20" y="450" width="112" height="48" rx="4"/>
+                  <text class="t-strong mid" x="76" y="479">Shadow pass</text>
+                  <line class="s-muted" x1="134" y1="474" x2="152" y2="474" marker-end="url(#pic-arr)"/>
+                  <rect class="f-pix-soft s-pix" x="156" y="454" width="106" height="40" rx="10"/>
+                  <text class="t-small mid" x="209" y="478">shadow map</text>
+                  <line class="s-muted" x1="264" y1="474" x2="282" y2="474" marker-end="url(#pic-arr)"/>
+                  <rect class="f-acc-soft s-acc w15" x="286" y="450" width="196" height="48" rx="4"/>
+                  <text class="t-strong t-acc mid" x="384" y="470">Main pass: this shader</text>
+                  <text class="t-small mid" x="384" y="488">2,073,600 runs for a full 1080p screen</text>
+                  <line class="s-muted" x1="484" y1="474" x2="502" y2="474" marker-end="url(#pic-arr)"/>
+                  <rect class="f-pix-soft s-pix" x="506" y="454" width="136" height="40" rx="10"/>
+                  <text class="t-small mid" x="574" y="478">HDR colour + depth</text>
+                  <line class="s-muted" x1="644" y1="474" x2="662" y2="474" marker-end="url(#pic-arr)"/>
+                  <rect class="f-surface s-strong" x="666" y="450" width="76" height="48" rx="4"/>
+                  <text class="t-strong mid" x="704" y="479">Post</text>
+                  <line class="s-muted" x1="744" y1="474" x2="762" y2="474" marker-end="url(#pic-arr)"/>
+                  <rect class="f-pix-soft s-pix" x="766" y="454" width="114" height="40" rx="10"/>
+                  <text class="t-small mid" x="823" y="478">final image</text>
+                </svg>
+              </div>
+              <figcaption><b>A shader is a short function; the frame is a chain of passes that run them.</b> This one reads three kinds of data, constants, a texture and per-pixel inputs, does a little maths and writes one colour. Rectangles in the strip below are passes; rounded boxes are the images they hand on, called render targets. Everything in this chapter is about how many such programs a game ends up with, and how they are compiled and wired together.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A <a class="term" data-term="shader" href="glossary.html#shader">shader</a> is a small function the <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> runs thousands of times at once, once per vertex, pixel or work item. Programmers write it as text in a shader language, or artists build it in a node editor that writes the text for them. Before the game can use it, it is compiled, usually many times over, into versions for each feature combination, each pass and each graphics API.</p>
+            <p>A compiled shader is never used alone. The GPU needs it bundled with the fixed settings from <a class="xref" data-ch="5.5">5.5</a>, such as depth test and blend mode, into a pipeline object, and creating that bundle is slow. And each shader runs inside a <dfn class="term" data-term="render-pass">render pass</dfn>, one step of the frame that reads some images and writes others. A frame is a chain of a few dozen of those.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A restaurant chain writes each recipe once, in one house style, then prints it for every kitchen it runs, in each kitchen's own format. Every option on the menu doubles the cards: with or without nuts, mild or spicy, small or large. Before a dish can be cooked, a station has to be set up for it, with the right pans, oven temperature and garnish tray. Setting up a station in the middle of dinner service makes that table wait. The kitchen's ticket board says which station hands which tray to which, and in what order.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Recipes are shader source code, kitchens are graphics APIs and GPUs, menu options are shader variants, station set-up is pipeline creation, the wait is a hitch, trays are render targets and the ticket board is the frame graph.</p>
+                <p>The craft is keeping the card count down, setting up stations before service starts, and keeping the ticket board honest so nothing is cooked that no one eats.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Shaders are where art direction meets engineering cost. Every switch an artist adds to a master material can double its compiled versions, which shows up as hours of build time, gigabytes of cache and memory, and hitches for players. Shader compilation stutter has been a widely reported problem in PC releases, enough that Epic, Unity and the Godot project have each built systems to fight it. And as more rendering is built as passes in a frame graph, adding an effect becomes a question of what it reads, what it writes and when, which is something you can review without reading shader code.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Nine steps: the languages and how one source reaches every platform, what a shader reads, node-based authoring, variants, pipeline objects, compile stutter, render targets and passes, frame graphs, and compute shaders.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="languages"><span class="step-num">1</span> Shader languages and cross-compilation</h3>
+              <p>Two languages dominate. <dfn class="term" data-term="hlsl">HLSL</dfn>, Microsoft's High-Level Shader Language, is the language of Direct3D, and Unreal and Unity use it for every platform. <dfn class="term" data-term="glsl">GLSL</dfn>, the OpenGL Shading Language from the Khronos Group, serves OpenGL, phones and WebGL, and can also target Vulkan. Both look like C with built-in vector types such as <code>float3</code> or <code>vec3</code>. Apple's Metal has its own language, and Godot has its own shading language, close to GLSL.</p>
+              <p>A game ships on several graphics APIs, and each wants its own format. <dfn class="term" data-term="cross-compilation">Shader cross-compilation</dfn> turns one source into all of them. Microsoft's DXC compiler turns HLSL into DXIL for Direct3D 12 and into <dfn class="term" data-term="spir-v">SPIR-V</dfn>, the Khronos format that Vulkan drivers read. SPIRV-Cross turns SPIR-V back into Metal's language or GLSL, and Apple's Metal shader converter turns DXIL into a Metal library. On the player's machine, the driver then compiles the result once more into that GPU's own instructions, as <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a> described.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Sources on the left: HLSL, GLSL and Godot's shading language. Compilers: DXC turns HLSL into DXIL and SPIR-V; glslang turns GLSL into SPIR-V; Godot's own compiler produces SPIR-V, DXIL or Metal output. Intermediate formats: DXIL for Direct3D 12, SPIR-V for Vulkan, and a Metal library. Translators: SPIRV-Cross turns SPIR-V into Metal's language or GLSL ES for OpenGL ES and WebGL; Apple's Metal shader converter turns DXIL into a Metal library. On the right, on the player's machine, the driver compiles each into the GPU's machine code.">
+                    <defs>
+                      <marker id="xc-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">WRITTEN ONCE</text>
+                    <text class="t-caps" x="200" y="22">COMPILED</text>
+                    <text class="t-caps" x="400" y="22">SHIPPED, ONE PER API</text>
+                    <text class="t-caps" x="740" y="22">ON THE PLAYER'S PC</text>
+
+                    <rect class="f-acc-soft s-acc" x="20" y="44" width="130" height="40" rx="4"/><text class="t-strong mid" x="85" y="69">HLSL</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="124" width="130" height="40" rx="4"/><text class="t-strong mid" x="85" y="149">GLSL</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="204" width="130" height="40" rx="4"/><text class="t-strong mid" x="85" y="222">Godot shading</text><text class="t-strong mid" x="85" y="237">language</text>
+
+                    <rect class="f-surface s-strong" x="200" y="44" width="130" height="40" rx="4"/><text class="mid" x="265" y="69">DXC</text>
+                    <rect class="f-surface s-strong" x="200" y="124" width="130" height="40" rx="4"/><text class="mid" x="265" y="149">glslang</text>
+                    <rect class="f-surface s-strong" x="200" y="204" width="130" height="40" rx="4"/><text class="mid" x="265" y="229">Godot's compiler</text>
+
+                    <rect class="f-geo-soft s-geo" x="400" y="44" width="150" height="40" rx="4"/><text class="t-strong mid" x="475" y="62">DXIL</text><text class="t-small mid" x="475" y="77">Direct3D 12</text>
+                    <rect class="f-geo-soft s-geo" x="400" y="124" width="150" height="40" rx="4"/><text class="t-strong mid" x="475" y="142">SPIR-V</text><text class="t-small mid" x="475" y="157">Vulkan</text>
+                    <rect class="f-geo-soft s-geo" x="400" y="204" width="150" height="40" rx="4"/><text class="t-strong mid" x="475" y="222">Metal library</text><text class="t-small mid" x="475" y="237">Metal</text>
+                    <rect class="f-geo-soft s-geo dash" x="600" y="204" width="120" height="40" rx="4"/><text class="t-strong mid" x="660" y="222">GLSL ES</text><text class="t-small mid" x="660" y="237">OpenGL ES, WebGL</text>
+
+                    <path class="s-muted" d="M152,64 H196" marker-end="url(#xc-arr)"/>
+                    <path class="s-muted" d="M152,144 H196" marker-end="url(#xc-arr)"/>
+                    <path class="s-muted" d="M152,224 H196" marker-end="url(#xc-arr)"/>
+                    <path class="s-muted" d="M332,64 H396" marker-end="url(#xc-arr)"/>
+                    <path class="s-muted" d="M332,70 C366,70 366,138 396,138" marker-end="url(#xc-arr)"/>
+                    <path class="s-muted" d="M332,144 H396" marker-end="url(#xc-arr)"/>
+                    <path class="s-muted" d="M332,224 H396" marker-end="url(#xc-arr)"/>
+                    <path class="s-muted dash" d="M332,218 C366,218 366,154 396,154" marker-end="url(#xc-arr)"/>
+                    <path class="s-acc dash" d="M475,166 V200" marker-end="url(#xc-arr)"/>
+                    <text class="t-small t-acc" x="482" y="190">SPIRV-Cross</text>
+                    <path class="s-acc dash" d="M552,150 C640,150 660,170 660,200" marker-end="url(#xc-arr)"/>
+                    <path class="s-acc dash" d="M552,72 C572,72 576,84 576,104 V196 C576,214 570,220 556,222" marker-end="url(#xc-arr)"/>
+                    <text class="t-small t-acc" x="584" y="92">Metal shader</text>
+                    <text class="t-small t-acc" x="584" y="106">converter</text>
+
+                    <rect class="f-sunken s-strong" x="740" y="44" width="140" height="200" rx="6"/>
+                    <text class="t-strong" x="754" y="70">Driver</text>
+                    <text class="t-small" x="754" y="92">compiles each into</text>
+                    <text class="t-small" x="754" y="107">this GPU's machine</text>
+                    <text class="t-small" x="754" y="122">code when a pipeline</text>
+                    <text class="t-small" x="754" y="137">is created, and keeps</text>
+                    <text class="t-small" x="754" y="152">the result in a cache</text>
+                    <text class="t-small" x="754" y="167">on disk.</text>
+                    <path class="s-muted" d="M722,224 H736" marker-end="url(#xc-arr)"/>
+                    <text class="t-small t-muted" x="20" y="278">Solid arrows: compiling. Blue dashed arrows: translating one compiled format into another. Engines run all of this in their build or cook.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One source, several shipped formats, one final compile on the player's machine.</b> Engines hide this pipeline, but it decides which shader features a platform can use and how long a build takes. Each extra target API multiplies the compile work, and the last compile happens on hardware you do not control.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="inputs-constants"><span class="step-num">2</span> What a shader reads: inputs, constants, textures</h3>
+              <p>The shader in the picture reads three kinds of data. Inputs change from pixel to pixel: the vertex shader writes values at each corner and the rasterizer blends them across the triangle. Textures are images the shader can sample anywhere. And constants are values that stay the same for the whole draw.</p>
+              <p>Constants live in a <dfn class="term" data-term="constant-buffer">constant buffer</dfn>, called a uniform buffer in Vulkan and OpenGL: a small block of memory the CPU fills before the draw. Engines group constants by how often they change, because updating them costs CPU time for every draw. Camera and sun go in a per-frame buffer, updated once. Material settings go in a per-material buffer. The object's position goes in a per-object buffer that changes with every <a class="term" data-term="draw-call" href="glossary.html#draw-call">draw call</a>.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 272" role="img" aria-label="Left, on the CPU: three constant buffers grouped by how often they change. Per frame: camera matrices, sun direction and colour, time; updated once a frame. Per material: tint, roughness, which textures; updated when the material changes. Per object: the object's world matrix, 64 bytes; updated every draw. Middle: one draw call binds them. Right, on the GPU: the pixel shader runs for every covered pixel; constants are the same for all of them, inputs differ for each pixel, and textures can be read at any position.">
+                    <defs>
+                      <marker id="cb-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">ON THE CPU · CONSTANTS GROUPED BY HOW OFTEN THEY CHANGE</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="36" width="300" height="56" rx="4"/>
+                    <text class="t-strong" x="34" y="56">Per frame</text><text class="t-small t-muted end" x="306" y="56">once a frame</text>
+                    <text class="t-small" x="34" y="76">camera matrices, sun direction and colour, time</text>
+                    <rect class="f-acc-soft s-acc" x="20" y="104" width="300" height="56" rx="4"/>
+                    <text class="t-strong" x="34" y="124">Per material</text><text class="t-small t-muted end" x="306" y="124">when the material changes</text>
+                    <text class="t-small" x="34" y="144">tint, roughness, which textures to use</text>
+                    <rect class="f-acc-soft s-acc w15" x="20" y="172" width="300" height="56" rx="4"/>
+                    <text class="t-strong" x="34" y="192">Per object</text><text class="t-small t-muted end" x="306" y="192">every draw</text>
+                    <text class="t-small" x="34" y="212">world matrix: 16 floats, 64 bytes</text>
+
+                    <path class="s-muted" d="M322,64 C350,64 350,132 376,132" marker-end="url(#cb-arr)"/>
+                    <path class="s-muted" d="M322,132 H376" marker-end="url(#cb-arr)"/>
+                    <path class="s-muted" d="M322,200 C350,200 350,132 376,132" marker-end="url(#cb-arr)"/>
+                    <rect class="f-surface s-strong" x="380" y="104" width="130" height="56" rx="4"/>
+                    <text class="t-strong mid" x="445" y="128">one draw call</text>
+                    <text class="t-small t-muted mid" x="445" y="146">binds all three</text>
+                    <path class="s-muted" d="M512,132 H546" marker-end="url(#cb-arr)"/>
+
+                    <text class="t-caps" x="550" y="22">ON THE GPU · ONE DRAW, MANY PIXELS</text>
+                    <rect class="f-sunken s-strong" x="550" y="36" width="330" height="192" rx="6"/>
+                    <g>
+                      <rect class="f-surface s-line" x="566" y="52" width="22" height="22"/><rect class="f-surface s-line" x="592" y="52" width="22" height="22"/><rect class="f-surface s-line" x="618" y="52" width="22" height="22"/><rect class="f-surface s-line" x="644" y="52" width="22" height="22"/>
+                      <rect class="f-surface s-line" x="566" y="78" width="22" height="22"/><rect class="f-surface s-line" x="592" y="78" width="22" height="22"/><rect class="f-surface s-line" x="618" y="78" width="22" height="22"/><rect class="f-surface s-line" x="644" y="78" width="22" height="22"/>
+                      <rect class="f-surface s-line" x="566" y="104" width="22" height="22"/><rect class="f-surface s-line" x="592" y="104" width="22" height="22"/><rect class="f-surface s-line" x="618" y="104" width="22" height="22"/><rect class="f-surface s-line" x="644" y="104" width="22" height="22"/>
+                    </g>
+                    <text class="t-small t-muted" x="566" y="146">one run of the pixel shader per pixel</text>
+                    <rect class="f-acc" x="684" y="57" width="4" height="14"/>
+                    <text class="t-small" x="696" y="68">constants: same for every pixel</text>
+                    <rect class="f-geo" x="684" y="89" width="4" height="14"/>
+                    <text class="t-small" x="696" y="100">inputs: different per pixel</text>
+                    <rect class="f-lit" x="684" y="121" width="4" height="14"/>
+                    <text class="t-small" x="696" y="132">textures: read at any position</text>
+                    <text class="t-small" x="566" y="176">Output goes to the render targets</text>
+                    <text class="t-small" x="566" y="191">bound for the pass, then through the</text>
+                    <text class="t-small" x="566" y="206">depth test and blending.</text>
+                    <text class="t-small t-muted" x="20" y="256">A scene of 2,000 draws updates 2,000 × 64 bytes = 128 KB of per-object constants a frame. The bytes are trivial; the per-draw CPU work is not.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Constants are per draw, inputs are per pixel, textures are random access.</b> Grouping constants by how often they change means the CPU rewrites only the small per-object block for most draws. Getting a value into the wrong group is a common source of either wasted CPU time or values that never update.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Code</span> The same constants in HLSL, with the packing rule that catches people out</summary>
+                <div class="fold-body">
+                  <p>HLSL packs constant buffer members into 16-byte rows, and a value cannot straddle two rows. The CPU code that fills the buffer must lay out its bytes the same way, or every value after the first mismatch is read from the wrong place.</p>
+<pre class="code"><span class="k">cbuffer</span> PerObject : register(b2)
+{
+    float4x4 World;       <span class="c">// bytes 0 to 63: four full rows</span>
+    float3   TintRGB;     <span class="c">// bytes 64 to 75</span>
+    float    Fade;        <span class="c">// bytes 76 to 79: fills the rest of that row</span>
+    float2   UVOffset;    <span class="c">// bytes 80 to 87: starts a new row</span>
+};</pre>
+                  <p>When reviewing shader and engine code together, check that each constant buffer is declared once and shared, or that a test compares the two layouts. A mismatch gives wrong colours or positions, never an error.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="shader-graphs"><span class="step-num">3</span> Shader graphs: node-based authoring</h3>
+              <p>Many of the material shaders in a modern game are never typed by hand. Artists build them in a <dfn class="term" data-term="shader-graph">shader graph</dfn>, a node editor where boxes such as "sample texture", "multiply" and "lerp" are wired into the inputs of a surface: base colour, roughness, normal and so on. Unreal calls it the Material Editor, Unity calls it Shader Graph and Godot calls it Visual Shader. The engine writes ordinary shader code from the graph and compiles it like any other.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Left: a node graph. A Base map texture sample and a Tint colour feed a Multiply node. A Detail map texture sample feeds a second Multiply. A switch node called Use detail map picks between the plain and the detailed result and feeds Base Color on the output node. Right: the shader code the engine generates from it: a texture read, a multiply by tint, and a block between hash-if and hash-endif lines that is only compiled into the variant where Use detail map is on.">
+                    <defs>
+                      <marker id="sg-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">WHAT THE ARTIST BUILDS</text>
+                    <rect class="f-surface s-strong" x="20" y="40" width="120" height="50" rx="5"/><rect class="f-lit-soft" x="21" y="41" width="118" height="18" rx="4"/>
+                    <text class="t-small t-strong" x="30" y="54">Texture sample</text><text class="t-small" x="30" y="78">Base map</text><circle class="f-lit" cx="140" cy="74" r="4"/>
+                    <rect class="f-surface s-strong" x="20" y="104" width="120" height="44" rx="5"/><rect class="f-acc-soft" x="21" y="105" width="118" height="18" rx="4"/>
+                    <text class="t-small t-strong" x="30" y="118">Colour parameter</text><text class="t-small" x="30" y="140">Tint</text><circle class="f-acc" cx="140" cy="134" r="4"/>
+                    <rect class="f-surface s-strong" x="20" y="176" width="120" height="50" rx="5"/><rect class="f-lit-soft" x="21" y="177" width="118" height="18" rx="4"/>
+                    <text class="t-small t-strong" x="30" y="190">Texture sample</text><text class="t-small" x="30" y="214">Detail map</text><circle class="f-lit" cx="140" cy="210" r="4"/>
+
+                    <rect class="f-surface s-strong" x="180" y="84" width="90" height="56" rx="5"/>
+                    <text class="t-small t-strong" x="192" y="104">Multiply</text>
+                    <circle class="f-muted" cx="180" cy="114" r="4"/><circle class="f-muted" cx="180" cy="128" r="4"/><circle class="f-muted" cx="270" cy="120" r="4"/>
+                    <path class="s-lit w15" d="M144,74 C162,74 162,114 176,114"/>
+                    <path class="s-acc w15" d="M144,134 C162,134 162,128 176,128"/>
+
+                    <rect class="f-surface s-strong" x="300" y="170" width="90" height="56" rx="5"/>
+                    <text class="t-small t-strong" x="312" y="190">Multiply</text>
+                    <circle class="f-muted" cx="300" cy="200" r="4"/><circle class="f-muted" cx="300" cy="214" r="4"/><circle class="f-muted" cx="390" cy="206" r="4"/>
+                    <path class="s-muted w15" d="M274,120 C288,120 284,200 296,200"/>
+                    <path class="s-lit w15" d="M144,210 C220,210 220,214 296,214"/>
+
+                    <rect class="f-acc-soft s-acc w15" x="420" y="96" width="120" height="82" rx="5"/>
+                    <text class="t-small t-strong" x="430" y="114">Switch:</text>
+                    <text class="t-small t-strong" x="430" y="128">Use detail map</text>
+                    <text class="t-small t-muted" x="430" y="150">off</text><circle class="f-muted" cx="420" cy="146" r="4"/>
+                    <text class="t-small t-muted" x="430" y="170">on</text><circle class="f-muted" cx="420" cy="166" r="4"/>
+                    <circle class="f-acc" cx="540" cy="137" r="4"/>
+                    <path class="s-muted w15" d="M274,120 C350,120 350,146 416,146"/>
+                    <path class="s-muted w15" d="M394,206 C408,206 404,166 416,166"/>
+
+                    <rect class="f-surface s-strong" x="570" y="96" width="110" height="82" rx="5"/>
+                    <text class="t-small t-strong" x="580" y="114">Output</text>
+                    <circle class="f-muted" cx="570" cy="137" r="4"/><text class="t-small" x="582" y="141">Base Color</text>
+                    <text class="t-small t-muted" x="582" y="159">Roughness</text>
+                    <text class="t-small t-muted" x="582" y="173">Normal</text>
+                    <path class="s-acc w15" d="M544,137 H566"/>
+
+                    <line class="s-line" x1="20" y1="244" x2="680" y2="244"/>
+                    <text class="t-small t-muted" x="20" y="266">Unreal: Material Editor · Unity: Shader Graph · Godot: Visual Shader. Each can show the code it writes.</text>
+
+                    <text class="t-caps" x="706" y="22">WHAT THE ENGINE WRITES</text>
+                    <rect class="f-sunken s-line" x="700" y="34" width="180" height="214" rx="6"/>
+                    <g>
+                      <text class="t-mono t-small" x="710" y="56">float3 base =</text>
+                      <text class="t-mono t-small" x="720" y="72">BaseMap.Sample(</text>
+                      <text class="t-mono t-small" x="730" y="88">S, uv).rgb;</text>
+                      <text class="t-mono t-small" x="710" y="106">base *= Tint.rgb;</text>
+                      <text class="t-mono t-small t-acc t-strong" x="710" y="128">#if USE_DETAIL</text>
+                      <text class="t-mono t-small" x="720" y="146">base *= Detail</text>
+                      <text class="t-mono t-small" x="730" y="162">.Sample(S,</text>
+                      <text class="t-mono t-small" x="730" y="178">uv * 8).rgb;</text>
+                      <text class="t-mono t-small t-acc t-strong" x="710" y="196">#endif</text>
+                      <text class="t-mono t-small" x="710" y="216">o.BaseColor =</text>
+                      <text class="t-mono t-small" x="720" y="232">base;</text>
+                    </g>
+                  </svg>
+                </div>
+                <figcaption><b>A graph is shader code drawn as boxes.</b> The switch node becomes a block that is compiled in or out, so this one material is really two compiled shaders. Every switch of this kind, a static switch in Unreal or a keyword in Unity, doubles the count. That is the subject of the next step.</figcaption>
+              </figure>
+              <p>Graphs put look development in artists' hands, which is why every engine has one. They also make it easy to build a 400-node material without seeing its cost. Every engine can show the generated code, and Unreal's Material Editor shows a per-material instruction count in its Stats panel. A <a class="term" data-term="technical-artist" href="glossary.html#technical-artist">technical artist</a> usually owns a small set of master materials, and other artists make instances of them that change parameters but not the graph.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="variants"><span class="step-num">4</span> Variants: why one shader becomes thousands</h3>
+              <p>A branch decided before compilation costs nothing when the shader runs, so engines turn feature switches into separately compiled versions. Each version is a <dfn class="term" data-term="shader-variant">shader variant</dfn>, also called a permutation. One on/off switch makes 2 variants, two make 4, five make 32. The count doubles with every independent switch, then multiplies again by the passes the material is drawn in, the kinds of mesh it is used on, the quality levels and the graphics APIs.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 446" role="img" aria-label="Drawn to scale, one square per compiled variant. On the left, rows for one to five on/off switches: 2, 4, 8, 16 and 32 squares. Below, one material with five switches drawn in four passes on two graphics APIs: 256 squares. On the right, at the same scale, ten switches: a block of 1,024 squares.">
+                    <defs>
+                      <pattern id="ve-cell" x="0" y="0" width="11" height="11" patternUnits="userSpaceOnUse"><rect class="f-acc" width="9" height="9"/></pattern>
+                      <pattern id="ve-cell-m" x="0" y="0" width="11" height="11" patternUnits="userSpaceOnUse"><rect class="f-strong" width="9" height="9"/></pattern>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">DRAWN TO SCALE · ONE SQUARE = ONE COMPILED VARIANT</text>
+                    <text class="t-small" x="20" y="52">1 switch</text><rect x="110" y="44" width="22" height="11" fill="url(#ve-cell)"/><text class="t-mono t-small t-strong" x="140" y="53">2</text>
+                    <text class="t-small" x="20" y="74">2 switches</text><rect x="110" y="66" width="44" height="11" fill="url(#ve-cell)"/><text class="t-mono t-small t-strong" x="162" y="75">4</text>
+                    <text class="t-small" x="20" y="96">3 switches</text><rect x="110" y="88" width="88" height="11" fill="url(#ve-cell)"/><text class="t-mono t-small t-strong" x="206" y="97">8</text>
+                    <text class="t-small" x="20" y="118">4 switches</text><rect x="110" y="110" width="176" height="11" fill="url(#ve-cell)"/><text class="t-mono t-small t-strong" x="294" y="119">16</text>
+                    <text class="t-small" x="20" y="140">5 switches</text><rect x="110" y="132" width="352" height="11" fill="url(#ve-cell)"/><text class="t-mono t-small t-strong" x="470" y="141">32</text>
+
+                    <text class="t-small t-strong" x="20" y="186">One material, 5 switches × 4 passes × 2 graphics APIs = 256</text>
+                    <text class="t-small t-muted" x="20" y="202">passes: depth, shadow, main, velocity · APIs: Direct3D 12, Vulkan</text>
+                    <rect x="110" y="220" width="352" height="88" fill="url(#ve-cell)"/>
+                    <path class="s-muted" d="M104,220 H98 V308 H104"/>
+                    <text class="t-small t-muted end" x="92" y="250">8 rows</text>
+                    <text class="t-small t-muted end" x="92" y="264">of 32</text>
+
+                    <text class="t-small t-strong" x="506" y="36">10 switches = 1,024, same scale</text>
+                    <rect x="506" y="44" width="352" height="352" fill="url(#ve-cell-m)"/>
+                    <rect x="506" y="44" width="352" height="11" fill="url(#ve-cell)"/>
+                    <text class="t-small t-muted" x="506" y="414">The blue row is the 32 of five switches.</text>
+
+                    <text class="t-small" x="20" y="344">Unity's manual gives the same arithmetic: ten two-way keyword sets</text>
+                    <text class="t-small" x="20" y="360">make 1,024 variants, and 8 sets of 3 keywords can make over 6,000</text>
+                    <text class="t-small" x="20" y="376">(3 × 3 × … eight times = 6,561).</text>
+                    <text class="t-small t-muted" x="20" y="404">Engines compile only the combinations a project can use, where they</text>
+                    <text class="t-small t-muted" x="20" y="420">can tell. Telling is the hard part.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Variants multiply; they do not add.</b> Every independent switch doubles the count, and passes, mesh types, quality levels and APIs multiply it again. Each variant has to be compiled, stored, loaded and turned into pipeline objects, so a few casual switches on a widely used master material can add hours to a build.</figcaption>
+              </figure>
+              <p>The alternatives are to keep a branch inside one shader and decide it at run time, a dynamic branch, or to build one large <dfn class="term" data-term="ubershader">ubershader</dfn> that handles many features this way. Fewer compiles, but every pixel pays a little for the flexibility. Unity exposes the choice directly: a keyword declared with <code>shader_feature</code> compiles only the combinations materials in the build use, <code>multi_compile</code> compiles every combination, and <code>dynamic_branch</code> keeps one program with a run-time branch. In Unreal, static switch parameters and the material's mesh usage flags multiply its variants; Epic's documentation notes that each "Used with" flag compiles extra shaders.</p>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Not every switch is independent. Engines prune combinations that cannot occur together, deduplicate identical results and strip variants for features a project has turned off. Real counts are therefore lower than the raw product, but they still grow with it.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="pso"><span class="step-num">5</span> Pipeline state objects</h3>
+              <p>Direct3D 12, Vulkan and Metal do not let a draw pick its shaders and settings one by one. The engine bundles them in advance into a <dfn class="term" data-term="pso">pipeline state object</dfn> (PSO): the compiled shaders together with the fixed settings they will run with. Creating one is when the driver does its final compile, because the best machine code depends on all the settings at once.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 286" role="img" aria-label="Left, a card listing what a Direct3D 12 pipeline state object fixes: the shaders' compiled code, the vertex layout, the primitive type, the rasterizer state such as culling, the depth and stencil state, the blend state, the formats and number of render targets, and the multisampling settings. Right, what is set per draw instead: buffers and textures to read, constant values, viewport and scissor rectangle, the stencil reference value and blend factor. Below, three examples: the same material opaque and translucent needs two PSOs; on a skinned mesh it needs a different vertex shader and another PSO; drawn into a shadow map it needs another.">
+                    <rect class="f-acc-soft s-acc w15" x="20" y="20" width="410" height="222" rx="8"/>
+                    <text class="t-caps" x="38" y="44">BAKED INTO THE PSO · CREATED IN ADVANCE</text>
+                    <g>
+                      <text class="t-small" x="38" y="70">Shaders</text><text class="t-small t-muted" x="190" y="70">vertex and pixel code, compiled</text>
+                      <text class="t-small" x="38" y="92">Vertex layout</text><text class="t-small t-muted" x="190" y="92">stride and attributes (4.2)</text>
+                      <text class="t-small" x="38" y="114">Primitive type</text><text class="t-small t-muted" x="190" y="114">triangles, lines or points</text>
+                      <text class="t-small" x="38" y="136">Rasterizer state</text><text class="t-small t-muted" x="190" y="136">culling, fill mode, depth bias</text>
+                      <text class="t-small" x="38" y="158">Depth and stencil</text><text class="t-small t-muted" x="190" y="158">test, write, stencil rules (5.5)</text>
+                      <text class="t-small" x="38" y="180">Blend state</text><text class="t-small t-muted" x="190" y="180">per render target (5.5)</text>
+                      <text class="t-small" x="38" y="202">Target formats</text><text class="t-small t-muted" x="190" y="202">count and format of render targets</text>
+                      <text class="t-small" x="38" y="224">Multisampling</text><text class="t-small t-muted" x="190" y="224">sample count</text>
+                    </g>
+                    <rect class="f-surface s-strong" x="470" y="20" width="410" height="148" rx="8"/>
+                    <text class="t-caps" x="488" y="44">SET PER DRAW · CHEAP TO CHANGE</text>
+                    <g>
+                      <text class="t-small" x="488" y="70">Buffers and textures to read</text>
+                      <text class="t-small" x="488" y="92">Constant values</text>
+                      <text class="t-small" x="488" y="114">Viewport and scissor rectangle</text>
+                      <text class="t-small" x="488" y="136">Stencil reference value, blend factor</text>
+                    </g>
+                    <text class="t-small t-strong" x="470" y="194">Change anything on the left, and it is a new PSO.</text>
+                    <text class="t-small" x="470" y="214">Same material opaque and translucent: two PSOs.</text>
+                    <text class="t-small" x="470" y="230">On a skinned mesh: another vertex shader, another PSO.</text>
+                    <text class="t-small" x="470" y="246">Drawn into a shadow map: another.</text>
+                    <text class="t-small t-muted" x="20" y="274">The split shown is Direct3D 12's; Vulkan and Metal draw the line in similar places.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A PSO freezes everything the driver needs to compile the final machine code.</b> That is what makes switching between PSOs at draw time fast, and what makes creating them slow. The settings from <a class="xref" data-ch="5.5">5.5 Depth, stencil and blending</a> live here, so changing a material's blend mode means a different pipeline.</figcaption>
+              </figure>
+              <p>Each variant from the previous step can need several PSOs, one per combination of settings it is drawn with. Godot's documentation puts it plainly: each shader can have dozens of pipelines. A large game has tens of thousands.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="stutter"><span class="step-num">6</span> Compile stutter and PSO caching</h3>
+              <p>If the engine creates a PSO the moment a draw first needs it, the driver compiles it right there, inside the frame. The frame runs long and the game visibly freezes. That is <dfn class="term" data-term="shader-stutter">shader compilation stutter</dfn>: a <a class="term" data-term="hitch" href="glossary.html#hitch">hitch</a> the first time an effect, a material or an enemy appears, which often disappears on the second playthrough because the driver keeps compiled pipelines on disk, then comes back after a driver update clears that cache.</p>
+              <p>The fixes all move the work earlier, which is what a <dfn class="term" data-term="pso-cache">PSO cache</dfn> in the broad sense does. Record which PSOs the game uses during play-testing and ship that list, so they can be created during loading. Or work out the likely PSOs automatically when content loads and compile them in the background, which is Unreal's PSO precaching. Or draw with a slower, general shader until the optimised one is ready, which is Godot's ubershader approach.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 342" role="img" aria-label="Three frame-time timelines, illustrative. One: PSOs created at first use. Frames sit at 16.7 milliseconds until an explosion first appears, then one frame takes about 90 milliseconds, a hitch. Two: PSOs created during loading. The loading screen is longer, then every frame stays at 16.7 milliseconds. Three: PSOs compiled in the background. Frames stay at 16.7 milliseconds; the new effect appears a few frames late, or first draws with a slower general shader.">
+                    <text class="t-caps" x="20" y="22">FRAME TIMES, ILLUSTRATIVE · DASHED LINE = 16.7 MS BUDGET AT 60 FPS</text>
+
+                    <text class="t-strong" x="20" y="56">Created at</text>
+                    <text class="t-strong" x="20" y="72">first use</text>
+                    <rect class="f-sunken s-line" x="130" y="80" width="56" height="20"/><text class="t-small t-muted mid" x="158" y="94">load</text>
+                                        <g class="f-strong">
+                      <rect x="196" y="86.6" width="10" height="13.4"/><rect x="210" y="86.6" width="10" height="13.4"/><rect x="224" y="86.6" width="10" height="13.4"/><rect x="238" y="86.6" width="10" height="13.4"/><rect x="252" y="86.6" width="10" height="13.4"/><rect x="266" y="86.6" width="10" height="13.4"/><rect x="280" y="86.6" width="10" height="13.4"/><rect x="294" y="86.6" width="10" height="13.4"/><rect x="308" y="86.6" width="10" height="13.4"/><rect x="322" y="86.6" width="10" height="13.4"/>
+                      <rect x="350" y="86.6" width="10" height="13.4"/><rect x="364" y="86.6" width="10" height="13.4"/><rect x="378" y="86.6" width="10" height="13.4"/><rect x="392" y="86.6" width="10" height="13.4"/><rect x="406" y="86.6" width="10" height="13.4"/><rect x="420" y="86.6" width="10" height="13.4"/><rect x="434" y="86.6" width="10" height="13.4"/><rect x="448" y="86.6" width="10" height="13.4"/><rect x="462" y="86.6" width="10" height="13.4"/><rect x="476" y="86.6" width="10" height="13.4"/><rect x="490" y="86.6" width="10" height="13.4"/><rect x="504" y="86.6" width="10" height="13.4"/><rect x="518" y="86.6" width="10" height="13.4"/><rect x="532" y="86.6" width="10" height="13.4"/><rect x="546" y="86.6" width="10" height="13.4"/><rect x="560" y="86.6" width="10" height="13.4"/><rect x="574" y="86.6" width="10" height="13.4"/><rect x="588" y="86.6" width="10" height="13.4"/><rect x="602" y="86.6" width="10" height="13.4"/><rect x="616" y="86.6" width="10" height="13.4"/>
+                    </g>
+                    <rect class="f-pix" x="336" y="28" width="10" height="72"/>
+                    <text class="t-small t-pix t-strong" x="354" y="40">explosion first appears:</text>
+                    <text class="t-small t-pix" x="354" y="54">PSO compiled inside the frame</text>
+                    <line class="s-muted dash" x1="192" y1="86.6" x2="640" y2="86.6"/>
+                    <line class="s-strong" x1="130" y1="100" x2="640" y2="100"/>
+                    <text class="t-small" x="660" y="78">A visible freeze. Often gone the</text>
+                    <text class="t-small" x="660" y="92">second time, back after a driver update.</text>
+
+                    <line class="s-line" x1="20" y1="120" x2="880" y2="120"/>
+                    <text class="t-strong" x="20" y="158">Created</text>
+                    <text class="t-strong" x="20" y="174">during loading</text>
+                    <rect class="f-sunken s-line" x="130" y="182" width="56" height="20"/>
+                    <rect class="f-acc-soft s-acc" x="186" y="182" width="40" height="20"/>
+                    <text class="t-small t-muted mid" x="158" y="196">load</text>
+                    <text class="t-small t-acc t-strong mid" x="206" y="196">PSOs</text>
+                    <g class="f-strong">
+                      <rect x="236" y="188.6" width="10" height="13.4"/><rect x="250" y="188.6" width="10" height="13.4"/><rect x="264" y="188.6" width="10" height="13.4"/><rect x="278" y="188.6" width="10" height="13.4"/><rect x="292" y="188.6" width="10" height="13.4"/><rect x="306" y="188.6" width="10" height="13.4"/><rect x="320" y="188.6" width="10" height="13.4"/><rect x="334" y="188.6" width="10" height="13.4"/><rect x="348" y="188.6" width="10" height="13.4"/><rect x="362" y="188.6" width="10" height="13.4"/><rect x="376" y="188.6" width="10" height="13.4"/><rect x="390" y="188.6" width="10" height="13.4"/><rect x="404" y="188.6" width="10" height="13.4"/><rect x="418" y="188.6" width="10" height="13.4"/><rect x="432" y="188.6" width="10" height="13.4"/><rect x="446" y="188.6" width="10" height="13.4"/><rect x="460" y="188.6" width="10" height="13.4"/><rect x="474" y="188.6" width="10" height="13.4"/><rect x="488" y="188.6" width="10" height="13.4"/><rect x="502" y="188.6" width="10" height="13.4"/><rect x="516" y="188.6" width="10" height="13.4"/><rect x="530" y="188.6" width="10" height="13.4"/><rect x="544" y="188.6" width="10" height="13.4"/><rect x="558" y="188.6" width="10" height="13.4"/><rect x="572" y="188.6" width="10" height="13.4"/><rect x="586" y="188.6" width="10" height="13.4"/><rect x="600" y="188.6" width="10" height="13.4"/><rect x="614" y="188.6" width="10" height="13.4"/><rect x="628" y="188.6" width="10" height="13.4"/>
+                    </g>
+                    <line class="s-muted dash" x1="232" y1="188.6" x2="640" y2="188.6"/>
+                    <line class="s-strong" x1="130" y1="202" x2="640" y2="202"/>
+                    <text class="t-small" x="660" y="172">Longer loading, smooth play.</text>
+                    <text class="t-small" x="660" y="186">Needs a list of every PSO the</text>
+                    <text class="t-small" x="660" y="200">game will use: a bundled cache.</text>
+
+                    <line class="s-line" x1="20" y1="222" x2="880" y2="222"/>
+                    <text class="t-strong" x="20" y="260">Compiled in</text>
+                    <text class="t-strong" x="20" y="276">the background</text>
+                    <rect class="f-sunken s-line" x="130" y="284" width="56" height="20"/><text class="t-small t-muted mid" x="158" y="298">load</text>
+                    <g class="f-strong">
+                      <rect x="196" y="290.6" width="10" height="13.4"/><rect x="210" y="290.6" width="10" height="13.4"/><rect x="224" y="290.6" width="10" height="13.4"/><rect x="238" y="290.6" width="10" height="13.4"/><rect x="252" y="290.6" width="10" height="13.4"/><rect x="266" y="290.6" width="10" height="13.4"/><rect x="280" y="290.6" width="10" height="13.4"/><rect x="294" y="290.6" width="10" height="13.4"/><rect x="308" y="290.6" width="10" height="13.4"/><rect x="322" y="290.6" width="10" height="13.4"/><rect x="336" y="290.6" width="10" height="13.4"/><rect x="350" y="290.6" width="10" height="13.4"/><rect x="364" y="290.6" width="10" height="13.4"/><rect x="378" y="290.6" width="10" height="13.4"/><rect x="392" y="290.6" width="10" height="13.4"/><rect x="406" y="290.6" width="10" height="13.4"/><rect x="420" y="290.6" width="10" height="13.4"/><rect x="434" y="290.6" width="10" height="13.4"/><rect x="448" y="290.6" width="10" height="13.4"/><rect x="462" y="290.6" width="10" height="13.4"/><rect x="476" y="290.6" width="10" height="13.4"/><rect x="490" y="290.6" width="10" height="13.4"/><rect x="504" y="290.6" width="10" height="13.4"/><rect x="518" y="290.6" width="10" height="13.4"/><rect x="532" y="290.6" width="10" height="13.4"/><rect x="546" y="290.6" width="10" height="13.4"/><rect x="560" y="290.6" width="10" height="13.4"/><rect x="574" y="290.6" width="10" height="13.4"/><rect x="588" y="290.6" width="10" height="13.4"/><rect x="602" y="290.6" width="10" height="13.4"/><rect x="616" y="290.6" width="10" height="13.4"/>
+                    </g>
+                    <rect class="f-acc-soft" x="336" y="306" width="52" height="8"/>
+                    <text class="t-small t-acc" x="336" y="330">explosion appears 4 frames late, or drawn with a slower general shader first</text>
+                    <line class="s-muted dash" x1="192" y1="290.6" x2="640" y2="290.6"/>
+                    <line class="s-strong" x1="130" y1="304" x2="640" y2="304"/>
+                    <text class="t-small" x="660" y="274">No freeze. The cost moves to a</text>
+                    <text class="t-small" x="660" y="288">late or plainer first appearance.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Compile stutter is moved, never removed.</b> The work happens during loading, in the background, or in the middle of a frame. Engines combine the first two and fall back to the third only for what they missed, so the practical question for a team is coverage: how many PSOs are still created at first use, and when. Bar heights are illustrative; real compile times depend on the shader, the driver and the CPU.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="render-targets"><span class="step-num">7</span> Render targets and render passes</h3>
+              <p>Most of what a GPU draws never reaches the screen directly. A <dfn class="term" data-term="render-target">render target</dfn> is an image the GPU draws into: a shadow map, a <a class="term" data-term="g-buffer" data-forward href="glossary.html#g-buffer">G-buffer</a> layer, an HDR colour buffer, the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a>. Each has a size and a format, and later passes read it like a <a class="term" data-term="texture" data-forward href="glossary.html#texture">texture</a>. A frame is a sequence of render passes, each running its shaders with some render targets as inputs and others as outputs.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 360" role="img" aria-label="The passes of a small deferred frame at 1080p, left to right: shadow, depth pre-pass, G-buffer, AO in a compute shader, lighting in a compute shader, transparents, bloom, and tone map plus UI. Render targets sit between them: a 2048 by 2048 shadow map of 16.8 megabytes, depth of 8.3, three G-buffer layers of 24.9 in total, AO of 2.1, HDR colour of 16.6, a half-resolution bloom target of 4.1 and the final image of 8.3. Arrows show each pass writing its targets and later passes reading them; depth is read by four later passes. The targets total 81 megabytes.">
+                    <defs>
+                      <marker id="pg-w" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="pg-r" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="18">A SMALL DEFERRED FRAME AT 1080P · PASSES IN ORDER, LEFT TO RIGHT</text>
+
+                    <!-- render targets, top row -->
+                    <rect class="f-pix-soft s-pix" x="20" y="34" width="100" height="50" rx="10"/><text class="t-small t-strong mid" x="70" y="54">shadow map</text><text class="t-small t-muted mid" x="70" y="72">2048² · 16.8 MB</text>
+                    <rect class="f-pix-soft s-pix" x="236" y="34" width="100" height="50" rx="10"/><text class="t-small t-strong mid" x="286" y="54">G-buffer ×3</text><text class="t-small t-muted mid" x="286" y="72">RGBA8 · 24.9 MB</text>
+                    <rect class="f-pix-soft s-pix" x="344" y="34" width="90" height="50" rx="10"/><text class="t-small t-strong mid" x="389" y="54">AO</text><text class="t-small t-muted mid" x="389" y="72">R8 · 2.1 MB</text>
+                    <rect class="f-pix-soft s-pix" x="470" y="34" width="190" height="50" rx="10"/><text class="t-small t-strong mid" x="565" y="54">HDR colour</text><text class="t-small t-muted mid" x="565" y="72">RGBA16F · 16.6 MB</text>
+                    <rect class="f-pix-soft s-pix" x="680" y="34" width="90" height="50" rx="10"/><text class="t-small t-strong mid" x="725" y="54">bloom</text><text class="t-small t-muted mid" x="725" y="72">half size · 4.1 MB</text>
+
+                    <!-- passes -->
+                    <rect class="f-surface s-strong" x="20" y="150" width="96" height="44" rx="4"/><text class="t-small t-strong mid" x="68" y="176">Shadow</text>
+                    <rect class="f-surface s-strong" x="128" y="150" width="96" height="44" rx="4"/><text class="t-small t-strong mid" x="176" y="169">Depth</text><text class="t-small t-strong mid" x="176" y="184">pre-pass</text>
+                    <rect class="f-surface s-strong" x="236" y="150" width="96" height="44" rx="4"/><text class="t-small t-strong mid" x="284" y="176">G-buffer</text>
+                    <rect class="f-acc-soft s-acc" x="344" y="150" width="90" height="44" rx="4"/><text class="t-small t-strong mid" x="389" y="169">AO</text><text class="t-small t-acc mid" x="389" y="184">compute</text>
+                    <rect class="f-acc-soft s-acc" x="446" y="150" width="96" height="44" rx="4"/><text class="t-small t-strong mid" x="494" y="169">Lighting</text><text class="t-small t-acc mid" x="494" y="184">compute</text>
+                    <rect class="f-surface s-strong" x="554" y="150" width="106" height="44" rx="4"/><text class="t-small t-strong mid" x="607" y="176">Transparents</text>
+                    <rect class="f-surface s-strong" x="680" y="150" width="90" height="44" rx="4"/><text class="t-small t-strong mid" x="725" y="176">Bloom</text>
+                    <rect class="f-surface s-strong" x="790" y="150" width="90" height="44" rx="4"/><text class="t-small t-strong mid" x="835" y="169">Tone map</text><text class="t-small t-strong mid" x="835" y="184">+ UI</text>
+
+                    <!-- render targets, bottom row -->
+                    <rect class="f-pix-soft s-pix" x="128" y="276" width="96" height="50" rx="10"/><text class="t-small t-strong mid" x="176" y="296">depth</text><text class="t-small t-muted mid" x="176" y="314">D32 · 8.3 MB</text>
+                    <rect class="f-pix-soft s-pix" x="790" y="276" width="90" height="50" rx="10"/><text class="t-small t-strong mid" x="835" y="296">final image</text><text class="t-small t-muted mid" x="835" y="314">RGBA8 · 8.3 MB</text>
+
+                    <!-- writes: solid ink -->
+                    <path class="s-ink w15" d="M68,148 V88" marker-end="url(#pg-w)"/>
+                    <path class="s-ink w15" d="M176,196 V272" marker-end="url(#pg-w)"/>
+                    <path class="s-ink w15" d="M284,148 V88" marker-end="url(#pg-w)"/>
+                    <path class="s-ink w15" d="M389,148 V88" marker-end="url(#pg-w)"/>
+                    <path class="s-ink w15" d="M520,148 V88" marker-end="url(#pg-w)"/>
+                    <path class="s-ink w15" d="M600,148 V88" marker-end="url(#pg-w)"/>
+                    <path class="s-ink w15" d="M712,148 V88" marker-end="url(#pg-w)"/>
+                    <path class="s-ink w15" d="M835,196 V272" marker-end="url(#pg-w)"/>
+
+                    <!-- reads: dashed -->
+                    <path class="s-muted dash" d="M120,66 H130 C150,66 150,118 170,118 H476 V146" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M304,88 V112 H484 V146" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M408,88 V106 H492 V146" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M226,301 H252 V238 H612 V198" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M300,238 V198" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M380,238 V198" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M500,238 V198" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M640,88 V108 H660 V128 H700 V146" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M770,59 H812 V146" marker-end="url(#pg-r)"/>
+                    <path class="s-muted dash" d="M660,76 H668 V132 H824 V146" marker-end="url(#pg-r)"/>
+                    <text class="t-small t-muted" x="262" y="256">depth is read by four later passes</text>
+
+                    <line class="s-ink w15" x1="20" y1="348" x2="44" y2="348" marker-end="url(#pg-w)"/><text class="t-small" x="52" y="352">writes</text>
+                    <line class="s-muted dash" x1="110" y1="348" x2="134" y2="348" marker-end="url(#pg-r)"/><text class="t-small" x="142" y="352">reads</text>
+                    <text class="t-small t-muted" x="300" y="352">Render targets total 81 MB at 1080p, about 274 MB at 4K.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A frame is a graph: passes in between, images handed on.</b> Read it as a production line. Lighting needs four images made earlier, and depth feeds four passes. Blue passes are compute shaders (step 9). Real frames have many more passes and targets, but the same shape; <a class="xref" data-ch="10.1">10.1 A deferred frame, pass by pass</a> walks through one.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="frame-graph"><span class="step-num">8</span> Frame graphs</h3>
+              <p>Hand-wiring that chain gets fragile as features are added. A <dfn class="term" data-term="frame-graph">frame graph</dfn>, also called a render graph, makes the wiring explicit. Each pass declares which render targets it reads and writes; the engine collects the declarations for the frame, then works out the rest. Frostbite's FrameGraph, presented at GDC in 2017, made the idea widespread; Unreal's version is the Render Dependency Graph (RDG), and Unity's URP has a render graph system.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Lifetimes of the frame's render targets against the passes, left to right. The shadow map lives from the shadow pass to lighting; depth from the depth pre-pass to transparents; the G-buffer from the G-buffer pass to lighting; AO from the AO pass to lighting; HDR colour from lighting to tone map; bloom from the bloom pass to tone map. Bloom starts after the G-buffer ends, so the graph places bloom in the G-buffer's memory. A debug view pass writes a target nothing reads, so the graph removes it. Without reuse the targets need 72.8 megabytes; with reuse, 68.6.">
+                    <text class="t-caps" x="20" y="20">LIFETIMES AND MEMORY · THE GRAPH SEES WHEN EACH TARGET IS LAST READ</text>
+                    <g class="mid">
+                      <text class="t-small t-muted" x="225" y="44">Shadow</text><text class="t-small t-muted" x="295" y="44">Depth</text><text class="t-small t-muted" x="365" y="44">G-buf</text><text class="t-small t-muted" x="435" y="44">AO</text><text class="t-small t-muted" x="505" y="44">Light</text><text class="t-small t-muted" x="575" y="44">Transp</text><text class="t-small t-muted" x="645" y="44">Bloom</text><text class="t-small t-muted" x="715" y="44">Tone</text>
+                    </g>
+                    <g class="s-line">
+                      <line x1="190" y1="52" x2="190" y2="236"/><line x1="260" y1="52" x2="260" y2="236"/><line x1="330" y1="52" x2="330" y2="236"/><line x1="400" y1="52" x2="400" y2="236"/><line x1="470" y1="52" x2="470" y2="236"/><line x1="540" y1="52" x2="540" y2="236"/><line x1="610" y1="52" x2="610" y2="236"/><line x1="680" y1="52" x2="680" y2="236"/><line x1="750" y1="52" x2="750" y2="236"/>
+                    </g>
+                    <text class="t-small" x="20" y="74">shadow map 16.8 MB</text><rect class="f-pix-soft s-pix" x="196" y="62" width="338" height="16" rx="3"/>
+                    <text class="t-small" x="20" y="98">depth 8.3 MB</text><rect class="f-pix-soft s-pix" x="266" y="86" width="338" height="16" rx="3"/>
+                    <text class="t-small" x="20" y="122">G-buffer 24.9 MB</text><rect class="f-pix-soft s-pix" x="336" y="110" width="198" height="16" rx="3"/>
+                    <rect class="f-acc-soft s-acc" x="616" y="110" width="128" height="16" rx="3"/><text class="t-small t-acc t-strong" x="626" y="122">bloom 4.1 MB</text>
+                    <text class="t-small" x="20" y="146">AO 2.1 MB</text><rect class="f-pix-soft s-pix" x="406" y="134" width="128" height="16" rx="3"/>
+                    <text class="t-small" x="20" y="170">HDR colour 16.6 MB</text><rect class="f-pix-soft s-pix" x="476" y="158" width="268" height="16" rx="3"/>
+                    <text class="t-small t-muted" x="20" y="194">debug view</text><rect class="s-muted dash" x="616" y="182" width="58" height="16" rx="3"/><text class="t-small t-muted end" x="604" y="194">a pass whose output nothing reads is removed</text>
+                    <text class="t-small t-acc" x="760" y="122">reuses the</text>
+                    <text class="t-small t-acc" x="760" y="136">G-buffer's memory</text>
+                    <line class="s-strong" x1="190" y1="236" x2="750" y2="236"/>
+                    <text class="t-small" x="20" y="262">Without reuse: 72.8 MB of render targets. With reuse: 68.6 MB, the peak during lighting.</text>
+                    <text class="t-small t-muted" x="20" y="282">Barriers, which tell the GPU to finish writing a target before a later pass reads it, are inserted from the same declarations.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Declaring reads and writes lets the engine manage the frame.</b> From the declarations alone a frame graph orders the passes, removes passes whose output nothing reads, inserts the synchronisation the GPU needs between a write and a later read, and lets targets with lifetimes that do not overlap share memory. The saving here is small because the frame is small; frames with dozens of short-lived post-processing targets save more.</figcaption>
+              </figure>
+              <p>For a lead, the practical effect is that adding a feature becomes a reviewable change: a new pass, the targets it reads, the targets it writes. Engines ship viewers for the graph, Unity's Render Graph Viewer and Unreal's RDG Insights among them, that show every pass, every target and which passes were culled or merged.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="compute"><span class="step-num">9</span> Compute shaders and dispatch</h3>
+              <p>A <dfn class="term" data-term="compute-shader">compute shader</dfn> is a GPU program with no triangles attached. Instead of being run once per covered pixel, it is run over a grid of threads that the engine asks for directly, called a dispatch. The threads are organised in a <dfn class="term" data-term="thread-group">thread group</dfn>, a block such as 8 × 8 that runs together on one compute unit and can share a small, fast memory. Post-processing, ambient occlusion, lighting in deferred renderers, culling, particles and skinning increasingly run this way.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="Left: a 1920 by 1080 image covered by thread groups of 8 by 8 pixels: 240 groups across and 135 down, 32,400 groups in all. Each small square drawn stands for 2 by 2 groups. Right: the top-left corner enlarged, four groups across and two down, each showing its 64 threads as dots. One group is highlighted, and in it one thread, which handles pixel x 11, y 5: group 1, 0 times 8 plus thread 3, 5. Below: Dispatch 240, 135, 1 with numthreads 8, 8, 1 launches 2,073,600 threads, one per pixel. With 16 by 16 groups, 1080 divided by 16 is 67.5, so 68 rows of groups are dispatched and the threads past the bottom edge must do nothing.">
+                    <defs>
+                      <pattern id="cd-grid" x="20" y="40" width="4" height="4" patternUnits="userSpaceOnUse"><rect class="f-acc-soft" width="3.4" height="3.4"/></pattern>
+                      <pattern id="cd-dots" x="560" y="40" width="8" height="8" patternUnits="userSpaceOnUse"><circle class="f-muted" cx="4" cy="4" r="1.4"/></pattern>
+                      <pattern id="cd-dots-a" x="560" y="40" width="8" height="8" patternUnits="userSpaceOnUse"><circle class="f-acc" cx="4" cy="4" r="1.6"/></pattern>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">1920 × 1080 IN 8 × 8 GROUPS · EACH SQUARE DRAWN IS 2 × 2 GROUPS</text>
+                    <rect x="20" y="40" width="480" height="270" fill="url(#cd-grid)"/>
+                    <rect class="s-strong" x="20" y="40" width="480" height="270"/>
+                    <rect class="f-surface s-line" x="200" y="200" width="240" height="72" rx="4" fill-opacity="0.92"/>
+                    <text class="t-small t-strong" x="212" y="220">240 groups across, 135 down</text>
+                    <text class="t-small" x="212" y="238">32,400 groups × 64 threads</text>
+                    <text class="t-small" x="212" y="256">= 2,073,600 threads, one per pixel</text>
+                    <path class="s-acc dash" d="M28,40 L560,40 M28,44 L560,168"/>
+                    <rect class="s-acc w2" x="20" y="40" width="8" height="4"/>
+
+                    <text class="t-caps" x="560" y="22">THE CORNER, ENLARGED · 4 × 2 GROUPS</text>
+                    <rect x="560" y="40" width="256" height="128" fill="url(#cd-dots)"/>
+                    <rect class="f-acc-soft" x="624" y="40" width="64" height="64"/>
+                    <rect x="624" y="40" width="64" height="64" fill="url(#cd-dots-a)"/>
+                    <g class="s-strong">
+                      <rect x="560" y="40" width="256" height="128"/>
+                      <line x1="624" y1="40" x2="624" y2="168"/><line x1="688" y1="40" x2="688" y2="168"/><line x1="752" y1="40" x2="752" y2="168"/>
+                      <line x1="560" y1="104" x2="816" y2="104"/>
+                    </g>
+                    <rect class="s-acc w2" x="624" y="40" width="64" height="64"/>
+                    <circle class="f-pix" cx="652" cy="84" r="3.4"/>
+                    <text class="t-small t-acc t-strong" x="560" y="190">one thread group: numthreads(8, 8, 1) = 64 threads</text>
+                    <text class="t-small" x="560" y="208"><tspan class="t-pix t-strong">●</tspan> group (1, 0), thread (3, 5)</text>
+                    <text class="t-small" x="560" y="224">pixel = group × 8 + thread = (11, 5)</text>
+                    <line class="s-line" x1="560" y1="238" x2="880" y2="238"/>
+                    <text class="t-mono t-small" x="560" y="256">Dispatch(240, 135, 1)</text>
+                    <text class="t-small t-muted" x="560" y="272">the CPU asks for a grid of groups</text>
+                    <text class="t-small t-strong" x="560" y="296">16 × 16 groups: 1080 ÷ 16 = 67.5</text>
+                    <text class="t-small" x="560" y="312">Dispatch 68 rows; threads past the</text>
+                    <text class="t-small" x="560" y="328">bottom edge must check and do nothing.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A dispatch covers the work with a grid of thread groups.</b> Each thread works out which pixel or item is its own from its group number and its place in the group. The group size is a tuning choice: big enough to fill a compute unit, small enough to keep shared memory and registers within limits. Direct3D's compute shaders allow up to 1,024 threads per group.</figcaption>
+              </figure>
+              <p>Compute passes appear in the frame graph like any other pass, reading and writing textures and buffers. Because they skip the rasterizer and the depth and blend units, they suit work that is not about drawing triangles, and work that needs threads to cooperate, such as blurs that share loaded pixels within a group.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Shaders cost in four places: build machines, memory, the first time something is drawn, and the GPU every frame. The first three are the ones teams underestimate.</p>
+            <p>Take a project with 300 master materials, each with five independent switches, drawn in four passes, shipping on Direct3D 12 and Vulkan. That is up to 300 × 32 × 4 × 2 = 76,800 pixel shader variants, each with a matching vertex shader. If one variant takes a fifth of a second of compiler time, an assumption that varies widely with shader size and platform, a full rebuild is about 4.3 hours of CPU time, spread over the build farm and cached in the <a class="term" data-term="derived-data-cache" href="glossary.html#derived-data-cache">derived data cache</a>. One more switch on all of them doubles it.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">76,800</span><span class="what">variants from 300 materials × 32 combinations × 4 passes × 2 APIs</span></div>
+              <div class="stat"><span class="value">× 2</span><span class="what">for each extra on/off switch on every material</span></div>
+              <div class="stat"><span class="value">81 MB</span><span class="what">of render targets for the small frame in step 7 at 1080p; about 274 MB at 4K</span></div>
+              <div class="stat"><span class="value">57,600</span><span class="what">thread groups of 8 × 8 for one full-screen compute pass at 2560 × 1440</span></div>
+            </div>
+            <p>At run time the shader's own instructions are only part of a pass's cost. Reading render targets and textures often costs more than the maths, which is why render target formats and resolution matter as much as shader complexity. A full-screen pass touches every pixel; at 4K that is 8,294,400 pixels, four times 1080p, for every post effect in the chain.</p>
+            <h3>What makes the cost grow</h3>
+            <ul class="grows">
+              <li><strong>Independent switches</strong><span>Each one doubles the variants of every material that has it, and every PSO built from them.</span></li>
+              <li><strong>Passes and mesh types</strong><span>A material drawn in depth, shadow, main and velocity passes, on static and skinned meshes, needs a version for each.</span></li>
+              <li><strong>Platforms and graphics APIs</strong><span>Each target API is a separate set of compiled shaders; Unity notes it compiles one set per API for the build target.</span></li>
+              <li><strong>First use in play</strong><span>Every PSO not created during loading is a potential hitch on a player's machine, worst after a driver update.</span></li>
+              <li><strong>Render target size and format</strong><span>Memory and bandwidth scale with pixels × bytes per pixel; 4K quadruples both.</span></li>
+              <li><strong>Graph shape</strong><span>Passes that run but whose results nothing uses cost full price unless a frame graph culls them.</span></li>
+            </ul>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Shader problems split into build-time pain, first-use hitches and wrong pictures. These six cover most reports.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time graph that runs flat, then has one tall spike, then runs flat again.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <line class="s-muted dash" x1="10" y1="96" x2="230" y2="96"/>
+                    <polyline class="s-ink w2 round" points="10,104 40,103 70,105 100,104 112,104 116,18 120,104 150,103 180,105 210,104 230,104"/>
+                    <text class="t-small t-pix t-strong" x="124" y="30">first explosion</text>
+                  </svg>
+                </div>
+                <h4>A hitch the first time something appears</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Shader compilation stutter: a PSO created at first use. Typical after a driver update, on a fresh install, or for content the PSO cache never saw.</dd></div>
+                  <div><dt>Ask for</dt><dd>A log or trace of PSOs created during play, then wider precaching or warm-up during loading for those; and a test pass on a machine with an empty driver cache.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two frames: in the first a crate is missing from its spot, in the second it is drawn.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <line class="s-line" x1="120" y1="0" x2="120" y2="130"/>
+                    <rect class="s-muted dash" x="34" y="44" width="52" height="52"/>
+                    <rect class="f-lit-soft s-strong" x="154" y="44" width="52" height="52"/>
+                    <text class="t-small t-muted mid" x="60" y="120">frames 1 to 4</text>
+                    <text class="t-small mid" x="180" y="120">frame 5</text>
+                  </svg>
+                </div>
+                <h4>Objects pop in late or flash a default material</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The engine's own protection against stutter: it skips a draw, or uses a default material, until the PSO finishes compiling in the background.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which PSOs were late and why precaching missed them, and earlier precaching for content that streams in during play.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A bar chart of build time per week, each bar taller than the last, the final one doubling.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-strong" x="30" y="96" width="24" height="20"/><rect class="f-strong" x="70" y="90" width="24" height="26"/><rect class="f-strong" x="110" y="80" width="24" height="36"/><rect class="f-acc" x="150" y="58" width="24" height="58"/><rect class="f-pix" x="190" y="12" width="24" height="104"/>
+                    <line class="s-strong" x1="20" y1="116" x2="224" y2="116"/>
+                  </svg>
+                </div>
+                <h4>Build times and shader caches balloon</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Variant explosion: new switches on widely used master materials, keywords compiled for every combination, or usage flags set on materials that do not need them.</dd></div>
+                  <div><dt>Ask for</dt><dd>A variant count per shader, before and after the change; which switches could be dynamic branches, material instances or stripped; and a budget enforced in the build.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Left, in the editor, a stone wall with moss on top. Right, in the build, the same wall with no moss.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <line class="s-line" x1="120" y1="0" x2="120" y2="130"/>
+                    <rect class="f-strong" x="20" y="40" width="80" height="60"/><rect class="f-geo" x="20" y="36" width="80" height="14" rx="5"/>
+                    <rect class="f-strong" x="140" y="40" width="80" height="60"/>
+                    <text class="t-small t-muted mid" x="60" y="120">editor</text>
+                    <text class="t-small t-pix t-strong mid" x="180" y="120">build</text>
+                  </svg>
+                </div>
+                <h4>Right in the editor, wrong in the build</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The variant the game needs was stripped from the build, often a keyword switched on by script that no material uses, so the engine falls back to the closest variant it has.</dd></div>
+                  <div><dt>Ask for</dt><dd>How each keyword is declared and who switches it; keep script-driven keywords in every build or list the variant explicitly; then check in a packaged build.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A game frame with a large black rectangle where an effect should be.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-geo-soft s-geo" x="20" y="60" width="60" height="50"/>
+                    <circle class="f-lit-soft s-lit" cx="180" cy="50" r="24"/>
+                    <rect class="f-buf-lo" x="70" y="20" width="100" height="70"/>
+                  </svg>
+                </div>
+                <h4>Black, stale or garbage areas after a rendering change</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A pass reads a render target nobody wrote this frame, in the wrong format, or before the writer finished; or the frame graph removed a pass whose reads were not declared.</dd></div>
+                  <div><dt>Ask for</dt><dd>The pass's declared reads and writes checked against what its shaders use, and a look in the render graph viewer or a frame capture at the target before and after the pass.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A blurred image with an unblurred, sharp strip along its bottom edge.">
+                    <defs><filter id="sy-cs-blur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="4"/></filter></defs>
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <g filter="url(#sy-cs-blur)"><rect class="f-acc" x="40" y="20" width="40" height="80"/><rect class="f-lit" x="140" y="30" width="60" height="70"/></g>
+                    <rect class="f-surface" x="0" y="112" width="240" height="18"/>
+                    <rect class="f-acc" x="40" y="112" width="40" height="18"/><rect class="f-lit" x="140" y="112" width="60" height="18"/>
+                    <line class="s-pix dash" x1="0" y1="112" x2="240" y2="112"/>
+                  </svg>
+                </div>
+                <h4>An untouched strip along a screen edge</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A compute dispatch rounded the group count down, so the last partial row or column of groups never ran; often appears only at some resolutions.</dd></div>
+                  <div><dt>Ask for</dt><dd>Group counts rounded up, a bounds check in the shader, and a test at resolutions that do not divide evenly, such as 1080 lines with 16 × 16 groups.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>A <a class="term" data-term="profiler" data-forward href="glossary.html#profiler">frame capture tool</a> shows every pass, its render targets and the shaders and pipeline state of each draw, and is the fastest way to confirm most of these.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>The three engines make different trade-offs: Unreal compiles many variants and precaches pipelines, Unity hands variant control to the shader author, and Godot leans on ubershaders to avoid waiting.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Shader language</th>
+                    <td>HLSL, in <code>.usf</code> files with entry points and <code>.ush</code> headers.</td>
+                    <td>HLSL inside ShaderLab shader files. Compute shaders are <code>.compute</code> files in DirectX 11-style HLSL.</td>
+                    <td>Its own shading language, similar to GLSL ES 3.0, with <code>shader_type spatial</code> and others. Compute shaders are written in GLSL.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Node-based authoring</th>
+                    <td><strong>Material Editor</strong>. Window, Shader Code, HLSL Code shows the generated HLSL; the Stats panel shows instruction counts.</td>
+                    <td><strong>Shader Graph</strong>. <strong>View Generated Shader</strong> in the asset's Inspector shows the code.</td>
+                    <td><strong>Visual Shader</strong>. The <strong>Show generated code</strong> button shows the code.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Variants</th>
+                    <td>Static switch parameters and the material's <strong>Usage</strong> flags, each of which compiles extra shaders. <strong>Automatically Set Usage in Editor</strong> is on by default.</td>
+                    <td>Keywords declared with <code>shader_feature</code> (only combinations materials use), <code>multi_compile</code> (every combination) or <code>dynamic_branch</code> (one program). Shader Graph keywords have the same choice as their <strong>Definition</strong>.</td>
+                    <td>Fewer variants: pipelines are specialised with specialisation constants, and an ubershader can change them while rendering.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Avoiding compile hitches</th>
+                    <td><strong>PSO precaching</strong> (<code>r.PSOPrecaching</code>, on) collects and compiles pipelines in the background as content loads. Until one is ready the draw is skipped by default, or drawn with the default material. A bundled PSO cache recorded from play can add more.</td>
+                    <td><code>GraphicsStateCollection</code>: trace the PSOs a development build uses, save them, and warm them up during loading. Direct3D 12, Vulkan, Metal and WebGPU; falls back to older shader warm-up elsewhere.</td>
+                    <td>Since 4.4, pipelines are precompiled at load time and ubershaders cover any not yet ready while optimised versions compile. Since 4.5 the <strong>Shader Baker</strong> export option ships compiled intermediate shaders, which shortens first launch. Forward+ and Mobile only.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Frame graph</th>
+                    <td><strong>Render Dependency Graph</strong> (RDG): culls unused passes, inserts barriers, aliases transient memory. Inspect with RDG Insights.</td>
+                    <td>URP's <strong>render graph</strong>. The Render Graph Viewer shows passes, which targets each reads and writes, and culled or merged passes.</td>
+                    <td>No pass-level graph for users. Since 4.3 the RenderingDevice builds a graph of its commands automatically to reorder them and insert barriers.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Compute</th>
+                    <td>Compute and AsyncCompute pass types in RDG, written as HLSL global shaders.</td>
+                    <td><code>#pragma kernel</code> and <code>[numthreads]</code> in a <code>.compute</code> file, run with <code>ComputeShader.Dispatch</code>.</td>
+                    <td>GLSL files with <code>#[compute]</code>, dispatched through RenderingDevice compute lists. Forward+ and Mobile only.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9, Unity 6.6 (6000.6) with Shader Graph 17.3, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Driver caches hide hitches from developers</p>
+              <p>Developers play the same build all day, so their driver caches already hold every pipeline and the hitches never show. Players see them on first launch. Godot's documentation recommends its pipeline monitors so you can find stutter sources without clearing the driver cache; with any engine, test first-time play on a clean machine or with the cache cleared.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Shader briefs go well when they state counts and budgets: variants, passes, platforms, resolution, milliseconds. Ask for the variant and pipeline impact of any change along with the shader code.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when shader builds are too slow or too large</span></div>
+              <pre class="prompt-body">Engine: Unity 6, URP. Targets: PC (Direct3D 12) and PS5. A clean player build spends about 3 hours compiling shaders, and the build report shows over a million variants, mostly from our 14 custom shaders.
+
+1. For each custom shader, list its keywords, how each is declared (shader_feature, multi_compile, dynamic_branch) and who sets it: materials, scripts or quality settings.
+2. Calculate the worst-case variant count per shader and say which keywords multiply it most.
+3. Propose changes in order of saving: shader_feature where only materials set the keyword, dynamic_branch where the branch is cheap, stripping for unused features. For each, state the GPU cost risk and how we would see it.
+4. Tell us how to confirm that no variant we need disappears from the build.</pre>
+              <ul class="prompt-why">
+                <li>Asking who sets each keyword decides whether shader_feature is safe.</li>
+                <li>Worst-case arithmetic shows where the explosion comes from before any change.</li>
+                <li>Item 4 guards against the "right in the editor, wrong in the build" failure.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding a full-screen compute effect</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.9, desktop and Steam Deck. Add a screen-space edge-detection effect for a scanner mode, as a compute pass in the Render Dependency Graph after tone mapping.
+
+Requirements:
+- Reads the scene depth and the tone-mapped colour; writes a new colour target of the same size.
+- Thread groups of 8 × 8, group counts rounded up, and a bounds check for any resolution.
+- Budget: 0.3 ms at 1280 × 800 on Steam Deck, 0.5 ms at 4K on our min-spec PC.
+- No new material switches; the effect's strength is a constant set per frame.
+
+Show the pass declaration with every read and write, the shader, the dispatch size calculation, and how we check it in RDG Insights and a frame capture.</pre>
+              <ul class="prompt-why">
+                <li>Naming reads and writes makes the pass reviewable in the render graph.</li>
+                <li>Group size, rounding and bounds checks prevent the edge-strip bug.</li>
+                <li>A budget per device turns "fast enough" into something testable.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing shader work</h3>
+            <ol class="review-list">
+              <li>How many variants does this add, per material and per platform?<span class="why">One switch on a master material doubles everything built from it.</span></li>
+              <li>Is each new switch compiled in or decided at run time, and why?<span class="why">Compile-time switches multiply variants; run-time branches cost a little on every pixel.</span></li>
+              <li>When is the pipeline for this created: loading, background or first draw?<span class="why">Anything created at first draw is a hitch on some player's machine.</span></li>
+              <li>Does each pass declare every render target it reads and writes?<span class="why">Undeclared reads lead to culled passes, missing barriers and black screens.</span></li>
+              <li>Which constant buffer does each new value live in, and how often is it updated?<span class="why">The wrong group wastes CPU time or leaves a value stale.</span></li>
+              <li>For compute, what is the group size, and what happens at the image edge?<span class="why">Rounding down the group count leaves strips unprocessed.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A master material has six independent on/off switches and is drawn in three passes on two graphics APIs. At most, how many variants of its pixel shader does that make?</p>
+                <details><summary>Show answer</summary><p>2<sup>6</sup> = 64 combinations, × 3 passes × 2 APIs = 384. One more switch would make 768.</p></details>
+              </li>
+              <li>
+                <p class="q">Testers report a half-second freeze the first time a boss uses a fire attack. On the second attempt it is smooth. After a GPU driver update, it is back. What is happening, and what do you ask for?</p>
+                <details><summary>Show answer</summary><p>Shader compilation stutter: the attack's pipeline state objects are created at first use, and the driver's on-disk cache hides it until an update clears that cache. Ask for those PSOs to be precached or warmed up during loading, and for a check on a machine with an empty cache.</p></details>
+              </li>
+              <li>
+                <p class="q">A full-screen compute pass runs at 2560 × 1440 with 8 × 8 thread groups. How many groups does it dispatch? Why must the shader still check bounds in general?</p>
+                <details><summary>Show answer</summary><p>320 × 180 = 57,600 groups, 3,686,400 threads. At resolutions that do not divide by the group size, such as 1080 lines with 16 × 16 groups, the count is rounded up and the extra threads fall outside the image, so they must do nothing.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#render-pass">render pass</a></li>
+              <li><a class="chip" href="glossary.html#hlsl">HLSL</a></li>
+              <li><a class="chip" href="glossary.html#glsl">GLSL</a></li>
+              <li><a class="chip" href="glossary.html#cross-compilation">shader cross-compilation</a></li>
+              <li><a class="chip" href="glossary.html#spir-v">SPIR-V</a></li>
+              <li><a class="chip" href="glossary.html#constant-buffer">constant buffer</a></li>
+              <li><a class="chip" href="glossary.html#shader-graph">shader graph</a></li>
+              <li><a class="chip" href="glossary.html#shader-variant">shader variant</a></li>
+              <li><a class="chip" href="glossary.html#ubershader">ubershader</a></li>
+              <li><a class="chip" href="glossary.html#pso">pipeline state object</a></li>
+              <li><a class="chip" href="glossary.html#shader-stutter">shader compilation stutter</a></li>
+              <li><a class="chip" href="glossary.html#pso-cache">PSO cache</a></li>
+              <li><a class="chip" href="glossary.html#render-target">render target</a></li>
+              <li><a class="chip" href="glossary.html#frame-graph">frame graph</a></li>
+              <li><a class="chip" href="glossary.html#compute-shader">compute shader</a></li>
+              <li><a class="chip" href="glossary.html#thread-group">thread group</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="6.1"></a> starts Part 6 with the images shaders read most: textures, and the UV coordinates that place them on a surface.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://github.com/microsoft/DirectXShaderCompiler">DirectX Shader Compiler (DXC)</a>, Microsoft. HLSL to DXIL, and to SPIR-V for Vulkan.</li>
+              <li><a href="https://www.khronos.org/spir/">SPIR overview</a>, Khronos Group, and <a href="https://github.com/KhronosGroup/SPIRV-Cross">SPIRV-Cross</a>, which converts SPIR-V to GLSL, HLSL and Metal's language.</li>
+              <li><a href="https://developer.apple.com/metal/shader-converter/">Metal shader converter</a>, Apple. DXIL to Metal libraries.</li>
+              <li><a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/managing-graphics-pipeline-state-in-direct3d-12">Managing Graphics Pipeline State in Direct3D 12</a> and <a href="https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/sm5-attributes-numthreads">numthreads</a>, Microsoft. What a PSO holds; thread groups and dispatch.</li>
+              <li><a href="https://www.gdcvault.com/play/1024612/FrameGraph-Extensible-Rendering-Architecture-in">FrameGraph: Extensible Rendering Architecture in Frostbite</a>, Yuriy O'Donnell, GDC 2017.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/pso-precaching-for-unreal-engine">PSO Precaching</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/render-dependency-graph-in-unreal-engine">Render Dependency Graph</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-material-editor-ui">Material Editor UI</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/overview-of-shaders-in-plugins-unreal-engine">Shaders in Plugins</a>, Unreal Engine documentation, Epic Games.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/shader-troubleshooting/shader-reducing/shader-variants/shader-variants">Shader variants</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/writing-custom/shader-writing/sl-multiple-program-variants/shader-conditionals-choose-a-type">How Unity compiles branching shaders</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/materials-and-shaders/shaders/shader-troubleshooting/shader-reduce-stalling/shader-prevent-stutter/shader-pso-trace-warming/shader-pso-introduction">PSO tracing and warming</a>, Unity 6.6 manual; <a href="https://docs.unity3d.com/Packages/com.unity.shadergraph@17.3/manual/Keywords-reference.html">Shader Graph keywords</a>, Shader Graph 17.3.</li>
+              <li><a href="https://docs.godotengine.org/en/stable/tutorials/performance/pipeline_compilations.html">Reducing stutter from shader (pipeline) compilations</a>, <a href="https://docs.godotengine.org/en/stable/tutorials/shaders/compute_shaders.html">Using compute shaders</a> and <a href="https://docs.godotengine.org/en/stable/tutorials/shaders/visual_shaders.html">Using VisualShaders</a>, Godot 4.7 documentation.</li>
+              <li><a href="https://godotengine.org/article/rendering-acyclic-graph/">Rendering acyclic graph</a>, Darío Banini, Godot Engine blog, 2024.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>
