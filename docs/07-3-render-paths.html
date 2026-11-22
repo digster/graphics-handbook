@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>7.3 Forward, deferred and clustered · Graphics Handbook</title>
+  <meta name="description" content="How renderers organise lighting work: forward and deferred rendering, the G-buffer and its bandwidth, tiled and clustered light culling, Forward+, visibility buffers, and why transparency and MSAA complicate deferred.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="7.3">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 7 · Lighting and shadows</p>
+            <h1><span class="ch-num">7.3</span> Forward, deferred and clustered</h1>
+            <p class="lead">Every lit pixel needs its material and every light that reaches it. Forward, deferred and clustered rendering are three ways of organising that work, and the choice decides how many lights a game can afford, how much memory traffic each frame costs, and whether transparency and MSAA come easily.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="7.2">7.2 Shading models</a>, <a class="xref" data-ch="7.1">7.1 Lights</a>, <a class="xref" data-ch="5.6">5.6 Shaders in practice</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="7.4">7.4 Shadow maps</a>, <a class="xref" data-ch="10.1">10.1 A deferred frame, pass by pass</a>, <a class="xref" data-ch="10.2">10.2 A mobile frame</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 35 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>G-buffer viewer, light count and cost</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 282" role="img" aria-label="The same small scene of a floor, a box and a barrel under four lights, drawn three ways. Forward: lines join each object to every light whose range touches it, 7 pairs, with all four lights reaching the large floor. Deferred: the scene's surfaces are stored first, and each light then lights only the pixels inside its range. Clustered: the screen is cut into 24 tiles, each labelled with how many lights reach it, 1.1 on average."><g transform="translate(20,58)"><rect class="f-sunken" x="0" y="0" width="250" height="150" rx="4"/><polygon class="f-solid" points="0,150 250,150 222,72 28,72"/><rect class="f-surface s-strong" x="40" y="82" width="50" height="44"/><circle class="f-surface s-strong" cx="175" cy="106" r="22"/><circle class="s-lit dash" cx="55" cy="50" r="38"/><circle class="s-lit dash" cx="150" cy="30" r="44"/><circle class="s-lit dash" cx="205" cy="95" r="36"/><circle class="s-lit dash" cx="95" cy="112" r="34"/><line class="s-acc w15" x1="125" y1="140" x2="55" y2="50"/><line class="s-acc w15" x1="125" y1="140" x2="150" y2="30"/><line class="s-acc w15" x1="125" y1="140" x2="205" y2="95"/><line class="s-acc w15" x1="125" y1="140" x2="95" y2="112"/><circle class="f-acc" cx="125" cy="140" r="3.5"/><line class="s-acc w15" x1="65" y1="104" x2="55" y2="50"/><line class="s-acc w15" x1="65" y1="104" x2="95" y2="112"/><circle class="f-acc" cx="65" cy="104" r="3.5"/><line class="s-acc w15" x1="175" y1="106" x2="205" y2="95"/><circle class="f-acc" cx="175" cy="106" r="3.5"/><circle class="f-lit" cx="55" cy="50" r="4.5"/><circle class="f-lit" cx="150" cy="30" r="4.5"/><circle class="f-lit" cx="205" cy="95" r="4.5"/><circle class="f-lit" cx="95" cy="112" r="4.5"/><rect class="s-strong" x="0" y="0" width="250" height="150" rx="4"/></g><g transform="translate(325,58)"><rect class="f-sunken" x="0" y="0" width="250" height="150" rx="4"/><polygon class="f-solid" points="0,150 250,150 222,72 28,72"/><rect class="f-surface s-strong" x="40" y="82" width="50" height="44"/><circle class="f-surface s-strong" cx="175" cy="106" r="22"/><circle class="f-lit-soft s-lit dash" cx="55" cy="50" r="38" fill-opacity="0.55"/><circle class="f-lit-soft s-lit dash" cx="150" cy="30" r="44" fill-opacity="0.55"/><circle class="f-lit-soft s-lit dash" cx="205" cy="95" r="36" fill-opacity="0.55"/><circle class="f-lit-soft s-lit dash" cx="95" cy="112" r="34" fill-opacity="0.55"/><circle class="f-lit" cx="55" cy="50" r="4.5"/><circle class="f-lit" cx="150" cy="30" r="4.5"/><circle class="f-lit" cx="205" cy="95" r="4.5"/><circle class="f-lit" cx="95" cy="112" r="4.5"/><rect class="s-strong" x="0" y="0" width="250" height="150" rx="4"/></g><g transform="translate(630,58)"><rect class="f-sunken" x="0" y="0" width="250" height="150" rx="4"/><polygon class="f-solid" points="0,150 250,150 222,72 28,72"/><rect class="f-surface s-strong" x="40" y="82" width="50" height="44"/><circle class="f-surface s-strong" cx="175" cy="106" r="22"/><circle class="s-lit dash" cx="55" cy="50" r="38"/><circle class="s-lit dash" cx="150" cy="30" r="44"/><circle class="s-lit dash" cx="205" cy="95" r="36"/><circle class="s-lit dash" cx="95" cy="112" r="34"/><rect class="f-acc" x="0" y="0" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="0" y="0" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="5" y="13">1</text><rect class="f-acc" x="41.67" y="0" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="41.67" y="0" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="46.67" y="13">1</text><rect class="f-acc" x="83.33" y="0" width="41.67" height="37.5" fill-opacity="0.23"/><rect class="s-acc" x="83.33" y="0" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="88.33" y="13">2</text><rect class="f-acc" x="125" y="0" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="125" y="0" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="130" y="13">1</text><rect class="f-acc" x="166.67" y="0" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="166.67" y="0" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="171.67" y="13">1</text><rect class="f-acc" x="208.33" y="0" width="41.67" height="37.5" fill-opacity="0.05"/><rect class="s-acc" x="208.33" y="0" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="213.33" y="13">0</text><rect class="f-acc" x="0" y="37.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="0" y="37.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="5" y="50.5">1</text><rect class="f-acc" x="41.67" y="37.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="41.67" y="37.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="46.67" y="50.5">1</text><rect class="f-acc" x="83.33" y="37.5" width="41.67" height="37.5" fill-opacity="0.23"/><rect class="s-acc" x="83.33" y="37.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="88.33" y="50.5">2</text><rect class="f-acc" x="125" y="37.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="125" y="37.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="130" y="50.5">1</text><rect class="f-acc" x="166.67" y="37.5" width="41.67" height="37.5" fill-opacity="0.23"/><rect class="s-acc" x="166.67" y="37.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="171.67" y="50.5">2</text><rect class="f-acc" x="208.33" y="37.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="208.33" y="37.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="213.33" y="50.5">1</text><rect class="f-acc" x="0" y="75" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="0" y="75" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="5" y="88">1</text><rect class="f-acc" x="41.67" y="75" width="41.67" height="37.5" fill-opacity="0.23"/><rect class="s-acc" x="41.67" y="75" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="46.67" y="88">2</text><rect class="f-acc" x="83.33" y="75" width="41.67" height="37.5" fill-opacity="0.23"/><rect class="s-acc" x="83.33" y="75" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="88.33" y="88">2</text><rect class="f-acc" x="125" y="75" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="125" y="75" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="130" y="88">1</text><rect class="f-acc" x="166.67" y="75" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="166.67" y="75" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="171.67" y="88">1</text><rect class="f-acc" x="208.33" y="75" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="208.33" y="75" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="213.33" y="88">1</text><rect class="f-acc" x="0" y="112.5" width="41.67" height="37.5" fill-opacity="0.05"/><rect class="s-acc" x="0" y="112.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="5" y="125.5">0</text><rect class="f-acc" x="41.67" y="112.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="41.67" y="112.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="46.67" y="125.5">1</text><rect class="f-acc" x="83.33" y="112.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="83.33" y="112.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="88.33" y="125.5">1</text><rect class="f-acc" x="125" y="112.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="125" y="112.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="130" y="125.5">1</text><rect class="f-acc" x="166.67" y="112.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="166.67" y="112.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="171.67" y="125.5">1</text><rect class="f-acc" x="208.33" y="112.5" width="41.67" height="37.5" fill-opacity="0.14"/><rect class="s-acc" x="208.33" y="112.5" width="41.67" height="37.5" stroke-opacity="0.5"/><text class="t-mono t-small t-acc t-strong" x="213.33" y="125.5">1</text><circle class="f-lit" cx="55" cy="50" r="4.5"/><circle class="f-lit" cx="150" cy="30" r="4.5"/><circle class="f-lit" cx="205" cy="95" r="4.5"/><circle class="f-lit" cx="95" cy="112" r="4.5"/><rect class="s-strong" x="0" y="0" width="250" height="150" rx="4"/></g><text class="t-head" x="20" y="30">Forward</text><text class="t-small" x="20" y="234">Each object is shaded with every</text><text class="t-small" x="20" y="250">light that touches it</text><text class="t-small t-muted" x="20" y="266">here 7 object-light pairs</text><text class="t-head" x="325" y="30">Deferred</text><text class="t-small" x="325" y="234">Surfaces go into a G-buffer first;</text><text class="t-small" x="325" y="250">then each light lights only the</text><text class="t-small t-muted" x="325" y="266">pixels inside its range</text><text class="t-head t-acc" x="630" y="30">Clustered</text><text class="t-small" x="630" y="234">The screen is cut into tiles, each</text><text class="t-small" x="630" y="250">with a short list of nearby lights;</text><text class="t-small t-muted" x="630" y="266">here 1.1 lights per tile on average</text></svg>
+              </div>
+              <figcaption><b>Three ways to pair lights with pixels.</b> Forward rendering shades each object with every light that touches it, so a big floor pays for every light in the room. Deferred rendering first stores what each pixel's surface is, then lets each light shade only the pixels inside its range. Clustered rendering cuts the screen into tiles, and in depth into clusters, and gives each a short list of the lights that reach it. The counts are computed for this scene.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A <a class="term" data-term="shading-model" href="glossary.html#shading-model">shading model</a> (<a class="xref" data-ch="7.2">7.2</a>) says how one light lights one point. A frame has about two million points on screen at 1080p and often dozens of lights. The <dfn class="term" data-term="rendering-path">rendering path</dfn> is how a renderer organises that multiplication: which light meets which pixel, in which pass, and what gets written to memory in between.</p>
+            <p>There are two classic answers. <dfn class="term" data-term="forward-rendering">Forward rendering</dfn> lights each object as it is drawn. <dfn class="term" data-term="deferred-rendering">Deferred rendering</dfn> first draws every object into a set of screen-sized images that record each pixel's surface, and adds the light afterwards. Modern renderers add a third ingredient to either: they cut the screen into small regions and work out in advance which lights reach each one.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A town runs leaflet campaigns, each covering one neighbourhood. In the forward way, every street checks every campaign that touches any part of it, so a long high street hears about nearly all of them. In the deferred way, the town first maps every house, and each campaign team then walks only its own neighbourhood on the map.</p>
+                <p>In the clustered way, each postcode keeps a short list of the campaigns covering it, and every house just reads its own postcode's list.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Lighting costs surfaces times lights. Most of those pairs are wasted: lights that do not reach a pixel, pixels shaded and then hidden behind something nearer, materials worked out again for every light.</p>
+                <p>Each rendering path removes some of that waste, at a price in memory, bandwidth or flexibility.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>The rendering path is one of the earliest technical decisions in a project and one of the hardest to reverse. It sets the dynamic light budget, decides whether MSAA is available, changes how transparent objects are lit, and governs how much memory bandwidth every frame spends, which matters most on phones, standalone VR and at 4K. Engines pick a default; switching later changes which features work, so the decision belongs in pre-production with the art direction in mind.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Start with forward rendering, then deferred and its G-buffer, then the light culling that both use today, and finish with the problems deferred rendering has to work around.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="forward"><span class="step-num">1</span> Forward: light each object as it is drawn</h3>
+              <p>Forward rendering is the obvious way. For each object, the CPU works out which lights touch it and hands the shader that list. The <a class="term" data-term="pixel-shader" href="glossary.html#pixel-shader">pixel shader</a> reads the material's textures and loops over the lights. Everything about the pixel is decided in one go.</p>
+              <p>Two kinds of waste creep in. Lights are matched to whole objects, so a large floor gets every light that touches any part of it, and its pixels loop over lights far away from them. And a pixel may be fully shaded and then covered by something nearer, which is <a class="term" data-term="overdraw" href="glossary.html#overdraw">overdraw</a>; a <a class="term" data-term="depth-prepass" href="glossary.html#depth-prepass">depth pre-pass</a> removes most of that at the cost of drawing the scene twice.</p>
+              <p>Forward renderers cap the lights per object to keep shaders short. Unity's URP Forward path allows the main light plus eight additional lights per object, and Godot's Mobile renderer eight omni and eight spot lights per mesh. Past the cap, lights are dropped, which is why 7.1 lists flickering lights as a forward symptom.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="deferred"><span class="step-num">2</span> Deferred: write the surfaces down, light them later</h3>
+              <p>Deferred rendering splits the frame in two. The geometry pass draws every opaque object once and runs only the material: it reads the textures and writes the results, base colour, normal, roughness and so on, into the <dfn class="term" data-term="g-buffer">G-buffer</dfn>, a set of screen-sized <a class="term" data-term="render-target" href="glossary.html#render-target">render targets</a> plus the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a>. GPUs can write several targets from one pixel shader at once, called <dfn class="term" data-term="mrt">multiple render targets</dfn>, so this takes one pass.</p>
+              <p>The lighting pass then works on the screen instead of on objects. For each pixel it reads the G-buffer, rebuilds the surface, and adds the light of every light that reaches it. Material cost no longer multiplies with light count, and lights only touch the pixels they cover. Olsson and colleagues trace the idea to a 1988 hardware design and the full-screen G-buffer to 1990, and in 2012 described it as mainstream only in recent years, once GPUs had the memory to spare.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Two pipelines. Forward: scene objects go into one draw per object that evaluates the material and every light reaching it, producing the colour buffer, then transparent objects the same way, sorted. Deferred: scene objects go into a G-buffer pass that evaluates materials only and writes several render targets at once, albedo, normal, roughness and metallic, and depth; a lighting pass then reads them and adds each light; transparent objects follow with a forward pass on top."><defs><marker id="fl-muted" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="fl-acc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="20" y="24">FORWARD · LIGHT EACH OBJECT AS IT IS DRAWN</text><rect class="f-geo-soft s-geo" x="20" y="38" width="150" height="56" rx="6"/><text class="t-strong" x="32" y="60">Scene objects</text><text class="t-small t-muted" x="32" y="78">meshes and materials</text><line class="s-muted" x1="172" y1="66" x2="212" y2="66" marker-end="url(#fl-muted)"/><rect class="f-acc-soft s-acc" x="216" y="38" width="290" height="56" rx="6"/><text class="t-strong" x="228" y="60">One draw per object</text><text class="t-small t-muted" x="228" y="78">material + every light that reaches it</text><line class="s-muted" x1="508" y1="66" x2="548" y2="66" marker-end="url(#fl-muted)"/><rect class="f-surface s-strong" x="552" y="38" width="150" height="56" rx="6"/><text class="t-strong" x="564" y="60">Colour buffer</text><text class="t-small t-muted" x="564" y="78">lit pixels</text><line class="s-muted" x1="704" y1="66" x2="744" y2="66" marker-end="url(#fl-muted)"/><rect class="f-surface s-strong" x="748" y="38" width="132" height="56" rx="6"/><text class="t-strong" x="760" y="60">Transparent</text><text class="t-small t-muted" x="760" y="78">same way, sorted</text><text class="t-caps" x="20" y="134">DEFERRED · STORE THE SURFACES, THEN LIGHT THE SCREEN</text><rect class="f-geo-soft s-geo" x="20" y="148" width="150" height="56" rx="6"/><text class="t-strong" x="32" y="170">Scene objects</text><text class="t-small t-muted" x="32" y="188">meshes and materials</text><line class="s-muted" x1="172" y1="176" x2="212" y2="176" marker-end="url(#fl-muted)"/><rect class="f-surface s-strong" x="216" y="148" width="150" height="56" rx="6"/><text class="t-strong" x="228" y="170">G-buffer pass</text><text class="t-small t-muted" x="228" y="188">material only, no lights</text><line class="s-muted" x1="368" y1="176" x2="398" y2="176" marker-end="url(#fl-muted)"/><rect class="f-pix-soft s-pix" x="402" y="140" width="118" height="17" rx="2"/><text class="t-small mid" x="461" y="152.5">albedo</text><rect class="f-pix-soft s-pix" x="402" y="159" width="118" height="17" rx="2"/><text class="t-small mid" x="461" y="171.5">normal</text><rect class="f-pix-soft s-pix" x="402" y="178" width="118" height="17" rx="2"/><text class="t-small mid" x="461" y="190.5">rough · metal</text><rect class="f-sunken s-pix" x="402" y="197" width="118" height="17" rx="2"/><text class="t-small mid" x="461" y="209.5">depth</text><text class="t-small t-pix t-strong mid" x="461" y="230">multiple render targets</text><line class="s-muted" x1="522" y1="176" x2="552" y2="176" marker-end="url(#fl-muted)"/><rect class="f-acc-soft s-acc" x="556" y="148" width="166" height="56" rx="6"/><text class="t-strong" x="568" y="170">Lighting pass</text><text class="t-small t-muted" x="568" y="188">each light, per pixel it covers</text><line class="s-muted" x1="724" y1="176" x2="744" y2="176" marker-end="url(#fl-muted)"/><rect class="f-surface s-strong" x="748" y="148" width="132" height="56" rx="6"/><text class="t-strong" x="760" y="170">Transparent</text><text class="t-small t-muted" x="760" y="188">forward, on top</text><text class="t-small t-muted" x="20" y="262">In forward rendering a surface's material and its lights are worked out together. In deferred rendering the surface is written down first, and lighting reads it back,</text><text class="t-small t-muted" x="20" y="278">so material cost does not multiply with lights. Transparent surfaces cannot be written down one per pixel, so deferred renderers still draw them forward.</text></svg>
+                </div>
+                <figcaption><b>Forward works out material and light together; deferred writes the material down first.</b> The G-buffer is the hand-off between the two halves of a deferred frame, written once with multiple render targets and read back by the lighting pass. Transparent objects skip it and are drawn forward at the end, for reasons step 7 explains.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="gbuffer-viewer"><span class="step-num">3</span> A G-buffer you can look at</h3>
+              <p>The Lantern Courtyard is a small deferred renderer. Its G-buffer pass writes three colour targets and depth, and every view below except Final is one of them, shown as a picture. Nothing in these buffers is lit yet: that happens in the lighting pass, which reads all of them for every pixel.</p>
+              <figure>
+                <div class="demo" data-demo="courtyard" data-view="albedo" data-views="final,albedo,normals,roughness,depth">
+                  <p class="demo-hint">The Lantern Courtyard needs WebGL 2. Its albedo view shows the G-buffer's base colour target: the courtyard's stone, wood, iron and banner in their flat surface colours, with no light, shadow or reflection at all.</p>
+                </div>
+                <figcaption><b>The Lantern Courtyard's albedo target.</b> This is the surface colour of every pixel as the G-buffer pass wrote it: no sun, no lantern, no shadow, no fog. The paving is as bright under the arch as in the open, the banner is flat red, and the puddle is simply darker, wet stone. Switch to Normals to see which way each pixel faces, Roughness for how glossy it is (the puddle is almost black), and Depth for its distance. Final is what the lighting pass and the rest of the frame make of them.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="layout"><span class="step-num">4</span> G-buffer layout and bandwidth</h3>
+              <p>The <dfn class="term" data-term="g-buffer-layout">G-buffer layout</dfn> is the list of what is stored, in which target and in what format. Every byte per pixel is multiplied by every pixel on screen and paid for twice a frame: once when the geometry pass writes it, once when the lighting pass reads it. Burns and Hunt, writing in 2013, put typical optimised layouts at 16 to 32 bytes per pixel.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 328" role="img" aria-label="Two G-buffer layouts drawn to scale, 24 pixels per byte. Unity URP's documented deferred layout uses 20 bytes per pixel: albedo, material flags, specular, occlusion, normal, smoothness, an emissive and GI target and depth-stencil. The Lantern Courtyard uses 16 bytes: albedo, normal, a target for roughness, metallic, emissive and wetness, and 24-bit depth. Bars below show the memory traffic of writing and reading each once a frame: 79.1 MB at 1080p and 316.4 MB at 4K for the URP layout, 19.9 gigabytes a second at 4K and 60 fps."><text class="t-caps" x="20" y="24">ONE PIXEL OF G-BUFFER, DRAWN TO SCALE · 1 BYTE = 24 PX</text><text class="t-small t-muted" x="230" y="150">albedo RGBA8 sRGB · normal 10:10:10:2 · roughness, metallic, emissive, wetness · 24-bit depth</text><text class="t-head" x="20" y="64">Unity URP, Deferred</text><text class="t-small t-muted" x="20" y="81">as documented, with D24S8</text><rect class="f-pix-soft s-strong" x="230" y="44" width="72" height="34"/><text class="mid" x="266" y="65">albedo</text><rect class="f-surface s-strong" x="302" y="44" width="24" height="34"/><text class="mid t-small" x="314" y="65">flags</text><rect class="f-pix-soft s-strong" x="326" y="44" width="72" height="34"/><text class="mid" x="362" y="65">specular</text><rect class="f-surface s-strong" x="398" y="44" width="24" height="34"/><text class="mid t-small" x="410" y="65">occl.</text><rect class="f-pix-soft s-strong" x="422" y="44" width="72" height="34"/><text class="mid" x="458" y="65">normal</text><rect class="f-surface s-strong" x="494" y="44" width="24" height="34"/><text class="mid t-small" x="506" y="65">sm.</text><rect class="f-lit-soft s-strong" x="518" y="44" width="96" height="34"/><text class="mid" x="566" y="65">emissive + GI</text><rect class="f-sunken s-strong" x="614" y="44" width="96" height="34"/><text class="mid" x="662" y="65">depth + stencil</text><text class="t-head" x="720" y="66">20 B</text><text class="t-head" x="20" y="120">Lantern Courtyard</text><text class="t-small t-muted" x="20" y="137">this book's renderer</text><rect class="f-pix-soft s-strong" x="230" y="100" width="96" height="34"/><text class="mid" x="278" y="121">albedo</text><rect class="f-pix-soft s-strong" x="326" y="100" width="96" height="34"/><text class="mid" x="374" y="121">normal</text><rect class="f-surface s-strong" x="422" y="100" width="96" height="34"/><text class="mid" x="470" y="121">material</text><rect class="f-sunken s-strong" x="518" y="100" width="96" height="34"/><text class="mid" x="566" y="121">depth</text><text class="t-head" x="624" y="122">16 B</text><text class="t-caps" x="20" y="180">WRITTEN ONCE AND READ ONCE PER FRAME</text><text class="t-small" x="20" y="208">URP layout, 1080p</text><rect class="f-acc-soft s-acc" x="230" y="194" width="95" height="18"/><text class="t-small t-mono" x="333" y="208">79.1 MB a frame · 5.0 GB/s at 60 fps</text><text class="t-small" x="20" y="234">URP layout, 4K</text><rect class="f-acc" x="230" y="220" width="380" height="18"/><text class="t-small t-mono" x="618" y="234">316.4 MB a frame · 19.9 GB/s at 60 fps</text><text class="t-small" x="20" y="260">Courtyard layout, 1080p</text><rect class="f-acc-soft s-acc" x="230" y="246" width="76" height="18"/><text class="t-small t-mono" x="314" y="260">63.3 MB a frame · 4.0 GB/s at 60 fps</text><text class="t-small" x="20" y="286">Courtyard layout, 4K</text><rect class="f-acc" x="230" y="272" width="304" height="18"/><text class="t-small t-mono" x="542" y="286">253.1 MB a frame · 15.9 GB/s at 60 fps</text><text class="t-small t-muted" x="20" y="314">MB = 1,048,576 bytes; GB/s in billions of bytes a second. A real frame reads the G-buffer more than once (AO, reflections, decals), so these are minimums.</text></svg>
+                </div>
+                <figcaption><b>Bytes per pixel decide the bill.</b> URP's deferred layout is taken from Unity's documentation; the Courtyard's from its own source code. The bars below are computed: pixels × bytes × 2 for one write and one read. At 4K the same layout moves four times as much as at 1080p. The figures leave out depth testing, decals, AO and reflections, which read parts of the G-buffer again.</figcaption>
+              </figure>
+              <p>Layouts are a constant negotiation. Normals squeezed into 24 bits band on smooth surfaces, so URP offers a slower, more accurate encoding as an option. A deferred renderer also needs to know which shading model (<a class="xref" data-ch="7.2">7.2</a>) each pixel uses; URP keeps it in the top four bits of the stencil buffer. Materials that do not fit the layout at all, such as URP's Complex Lit or HDRP's Fabric and Hair shaders, are drawn with a forward pass alongside the deferred ones.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="light-volumes"><span class="step-num">5</span> Lighting the G-buffer, light by light</h3>
+              <p>The classic way to run the lighting pass is to draw a <dfn class="term" data-term="light-volume">light volume</dfn> for each light: a sphere for a point light, a cone for a spot, sized to its range. Only pixels inside the shape run that light's shader, using the stencil buffer to reject pixels in front of or behind the light's range. URP's Deferred path works this way.</p>
+              <p>The catch is bandwidth. Every light volume reads the G-buffer again for every pixel it covers and adds its result into a light buffer, which means reading and writing that too. With eight lights over the average pixel, a 1080p frame reads and writes several hundred megabytes in the lighting pass alone. Tiled and clustered shading were invented to fix exactly that.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="culling"><span class="step-num">6</span> Tiles and clusters</h3>
+              <p><dfn class="term" data-term="light-culling">Light culling</dfn> works out ahead of time which lights can reach which part of the screen. <dfn class="term" data-term="tiled-shading">Tiled shading</dfn> cuts the screen into tiles, such as the 32 × 32 pixel tiles in Olsson and colleagues' tests, and a <a class="term" data-term="compute-shader" href="glossary.html#compute-shader">compute shader</a> builds a list of the lights that reach each tile. Each pixel then reads the G-buffer once and loops over its tile's short list, which turns the lighting pass from bandwidth-bound into arithmetic-bound.</p>
+              <p>Tiles have a blind spot. A tile is a column reaching from the camera into the distance, and if it contains both a near post and a far wall, every light floating in the empty space between them counts too. <dfn class="term" data-term="clustered-shading">Clustered shading</dfn>, published by Olsson, Billeter and Assarsson in 2012, also slices each column in depth, with slices that grow with distance, and keeps only the lights that reach a slice where there is something to light. In their tests a scene with about 2,400 lights took 17 ms with clusters against 26 ms with tiles.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 334" role="img" aria-label="Left: a screen cut into 40 tiles of 50 by 50 pixels under seven lights; each tile is labelled with the number of lights whose range reaches it, at most 3 and 1.1 on average. Right: one tile seen from the side, with a post near the camera and a wall far away. A tile's depth range spans from the post to the wall, so 5 lights floating in the empty space between count for it. Clusters slice the depth into steps that grow with distance and keep only the 2 lights that reach the post or the wall."><defs><marker id="tc-muted" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="20" y="24">TILED · LIGHTS PER 50 × 50 PIXEL TILE</text><rect class="f-sunken" x="20" y="44" width="400" height="250"/><rect class="f-acc" x="20" y="44" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="70" y="44" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="120" y="44" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="170" y="44" width="50" height="50" fill-opacity="0.04"/><rect class="f-acc" x="220" y="44" width="50" height="50" fill-opacity="0.04"/><rect class="f-acc" x="270" y="44" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="320" y="44" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="370" y="44" width="50" height="50" fill-opacity="0.04"/><rect class="f-acc" x="20" y="94" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="70" y="94" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="120" y="94" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="170" y="94" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="220" y="94" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="270" y="94" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="320" y="94" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="370" y="94" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="20" y="144" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="70" y="144" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="120" y="144" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="170" y="144" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="220" y="144" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="270" y="144" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="320" y="144" width="50" height="50" fill-opacity="0.34"/><rect class="f-acc" x="370" y="144" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="20" y="194" width="50" height="50" fill-opacity="0.04"/><rect class="f-acc" x="70" y="194" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="120" y="194" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="170" y="194" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="220" y="194" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="270" y="194" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="320" y="194" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="370" y="194" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="20" y="244" width="50" height="50" fill-opacity="0.04"/><rect class="f-acc" x="70" y="244" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="120" y="244" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="170" y="244" width="50" height="50" fill-opacity="0.04"/><rect class="f-acc" x="220" y="244" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="270" y="244" width="50" height="50" fill-opacity="0.24"/><rect class="f-acc" x="320" y="244" width="50" height="50" fill-opacity="0.14"/><rect class="f-acc" x="370" y="244" width="50" height="50" fill-opacity="0.14"/><circle class="s-lit dash" cx="90" cy="104" r="48"/><circle class="f-lit" cx="90" cy="104" r="4"/><circle class="s-lit dash" cx="195" cy="164" r="62"/><circle class="f-lit" cx="195" cy="164" r="4"/><circle class="s-lit dash" cx="320" cy="114" r="40"/><circle class="f-lit" cx="320" cy="114" r="4"/><circle class="s-lit dash" cx="350" cy="234" r="52"/><circle class="f-lit" cx="350" cy="234" r="4"/><circle class="s-lit dash" cx="130" cy="249" r="36"/><circle class="f-lit" cx="130" cy="249" r="4"/><circle class="s-lit dash" cx="260" cy="249" r="28"/><circle class="f-lit" cx="260" cy="249" r="4"/><circle class="s-lit dash" cx="390" cy="154" r="30"/><circle class="f-lit" cx="390" cy="154" r="4"/><rect class="s-acc" x="20" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="64" y="59">1</text><rect class="s-acc" x="70" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="114" y="59">1</text><rect class="s-acc" x="120" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="164" y="59">1</text><rect class="s-acc" x="170" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="214" y="59">0</text><rect class="s-acc" x="220" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="264" y="59">0</text><rect class="s-acc" x="270" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="314" y="59">1</text><rect class="s-acc" x="320" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="364" y="59">1</text><rect class="s-acc" x="370" y="44" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="414" y="59">0</text><rect class="s-acc" x="20" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="64" y="109">1</text><rect class="s-acc" x="70" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="114" y="109">1</text><rect class="s-acc" x="120" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="164" y="109">2</text><rect class="s-acc" x="170" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="214" y="109">1</text><rect class="s-acc" x="220" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="264" y="109">1</text><rect class="s-acc" x="270" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="314" y="109">1</text><rect class="s-acc" x="320" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="364" y="109">2</text><rect class="s-acc" x="370" y="94" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="414" y="109">1</text><rect class="s-acc" x="20" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="64" y="159">1</text><rect class="s-acc" x="70" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="114" y="159">1</text><rect class="s-acc" x="120" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="164" y="159">1</text><rect class="s-acc" x="170" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="214" y="159">1</text><rect class="s-acc" x="220" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="264" y="159">1</text><rect class="s-acc" x="270" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="314" y="159">2</text><rect class="s-acc" x="320" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="364" y="159">3</text><rect class="s-acc" x="370" y="144" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="414" y="159">2</text><rect class="s-acc" x="20" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="64" y="209">0</text><rect class="s-acc" x="70" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="114" y="209">1</text><rect class="s-acc" x="120" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="164" y="209">2</text><rect class="s-acc" x="170" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="214" y="209">1</text><rect class="s-acc" x="220" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="264" y="209">2</text><rect class="s-acc" x="270" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="314" y="209">2</text><rect class="s-acc" x="320" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="364" y="209">1</text><rect class="s-acc" x="370" y="194" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="414" y="209">1</text><rect class="s-acc" x="20" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="64" y="259">0</text><rect class="s-acc" x="70" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="114" y="259">1</text><rect class="s-acc" x="120" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="164" y="259">1</text><rect class="s-acc" x="170" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="214" y="259">0</text><rect class="s-acc" x="220" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="264" y="259">1</text><rect class="s-acc" x="270" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="314" y="259">2</text><rect class="s-acc" x="320" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="364" y="259">1</text><rect class="s-acc" x="370" y="244" width="50" height="50" stroke-opacity="0.45"/><text class="t-mono t-small t-acc t-strong end" x="414" y="259">1</text><text class="t-small" x="20" y="316">7 lights, but no tile has more than 3: 1.1 per tile on average.</text><text class="t-small t-muted" x="20" y="332">Each pixel loops over its own tile's list instead of all 7.</text><text class="t-caps" x="480" y="24">ONE TILE SEEN FROM THE SIDE</text><polygon class="f-sunken s-strong" points="490,144 880,74 880,214"/><rect class="f-solid s-ink" x="600" y="120.26" width="14" height="23.74"/><rect class="f-solid s-ink" x="850" y="73.38" width="16" height="141.23"/><line class="s-acc w3" x1="600" y1="252" x2="866" y2="252"/><text class="t-small t-acc t-strong mid" x="725" y="268">a tile's depth range: post to wall</text><line class="s-muted dot-dash" x1="508.03" y1="140.76" x2="508.03" y2="147.24"/><line class="s-muted dot-dash" x1="523.34" y1="138.02" x2="523.34" y2="149.98"/><line class="s-muted dot-dash" x1="551.66" y1="132.93" x2="551.66" y2="155.07"/><line class="s-muted dot-dash" x1="604.04" y1="123.53" x2="604.04" y2="164.47"/><line class="s-muted dot-dash" x1="700.89" y1="106.15" x2="700.89" y2="181.85"/><circle class="f-lit-soft s-lit" cx="582" cy="134" r="22" fill-opacity="0.6"/><circle class="f-lit" cx="582" cy="134" r="3.5"/><circle class="s-lit dash" cx="690" cy="148" r="24"/><circle class="f-lit" cx="690" cy="148" r="3.5"/><circle class="s-lit dash" cx="750" cy="124" r="20"/><circle class="f-lit" cx="750" cy="124" r="3.5"/><circle class="s-lit dash" cx="800" cy="158" r="18"/><circle class="f-lit" cx="800" cy="158" r="3.5"/><circle class="f-lit-soft s-lit" cx="840" cy="118" r="26" fill-opacity="0.6"/><circle class="f-lit" cx="840" cy="118" r="3.5"/><circle class="f-ink" cx="490" cy="144" r="5"/><text class="t-small" x="488" y="166">camera</text><text class="t-small t-muted mid" x="607" y="112.26">post</text><text class="t-small t-muted mid" x="858" y="65.38">wall</text><text class="t-small" x="480" y="292">Tiled: all 5 lights inside the depth range count, even in empty space.</text><text class="t-small" x="480" y="308">Clustered: depth slices (dotted) keep only the 2 lights that reach a surface.</text></svg>
+                </div>
+                <figcaption><b>Short lists instead of every light.</b> Left: the tile counts are computed from the seven lights' ranges, so each pixel loops over at most a handful. Right: one tile seen from the side. Its depth range runs from the post to the wall, so lights in the empty air between them still count. Cutting the column into depth slices, spaced exponentially as Olsson and colleagues propose, drops them.</figcaption>
+              </figure>
+              <p>The same light lists work for forward rendering. <dfn class="term" data-term="forward-plus">Forward+</dfn>, presented by Harada, McKee and Yang at Eurographics 2012, adds a depth pre-pass and per-tile light lists to forward rendering, so each pixel loops only over nearby lights with no G-buffer at all. Godot's Forward+ renderer and Unreal's forward renderer use grids of this kind, and Unity's URP offers Forward+ and Deferred+, the tiled and clustered versions of its two paths.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cost-model"><span class="step-num">7</span> How cost grows with the number of lights</h3>
+              <p>The plot below is a small illustrative cost model. Each path is a straight line: a fixed cost for the frame plus a cost for every extra light. Forward with per-object lists has the steepest line, because objects meet far more lights than their pixels need. Classic deferred pays a fixed price for its G-buffer and then re-reads it for every light. Clustered pays a small fixed price for its lists and has the shallowest line.</p>
+              <figure>
+                <div class="demo" data-demo="light-count-cost">
+                  <p class="demo-hint">The light count and cost model needs JavaScript. Its result: with a few lights all three paths cost about the same; at 256 medium lights at 1080p the model gives about 4 ms for forward with per-object lists, 2.7 ms for classic deferred and 1.2 ms for clustered.</p>
+                </div>
+                <figcaption><b>Light count and cost, an illustrative model.</b> Estimated GPU time for lighting the opaque pixels of a frame, without shadows or post-processing, on a made-up mid-range GPU. The dotted line marks where the average object would meet more than eight lights, URP Forward's per-object limit. Change the resolution to see every line scale with pixel count.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The model behind the plot</summary>
+                <div class="fold-body">
+                  <p>P is the pixel count, N the number of lights, a the share of the screen each light's range covers. The GPU is assumed to achieve 5 trillion operations a second and 400 GB/s of memory bandwidth. One light at one pixel costs 150 operations; building one pixel's surface from its textures costs 100. All three paths start with a depth pre-pass.</p>
+                  <p class="formula">forward = pre-pass + P × (material + N × min(1, 8a) × light) + colour write</p>
+                  <p class="formula">deferred = pre-pass + P × material + G-buffer write + N × a × P × (light + read 20 B + read and write 16 B) + N × 2 µs</p>
+                  <p class="formula">clustered = pre-pass + light lists + P × (material + N × a × 1.5 × light) + colour write</p>
+                  <p>The 8 says an object meets eight times as many lights as an average pixel; the 1.5 says a cluster's list holds half as many lights again as really touch the pixel. Change either and the lines move, but their order rarely does.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="transparency"><span class="step-num">8</span> Why transparent objects fall back to forward</h3>
+              <p>A G-buffer stores one surface per pixel. A window in front of a wall needs two, the glass and the wall behind it, and blending them needs both lit. So deferred renderers draw the opaque world into the G-buffer and light it, then draw transparent objects afterwards with an ordinary forward pass, sorted back to front and blended on top, as in <a class="xref" data-ch="5.5">5.5 Depth and blending</a>.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 222" role="img" aria-label="Left: a camera looks through a 40 percent opaque glass pane at a brick wall, so one pixel shows two surfaces. Middle: the G-buffer stores one surface per pixel, here the wall's albedo, normal and depth, with no slot for the glass. Right: so deferred renderers draw opaque surfaces into the G-buffer, light them, and then draw transparent objects in a forward pass, lit per object, sorted back to front and blended over the result."><defs><marker id="tp-muted" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="tp-acc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="20" y="24">ONE PIXEL, TWO SURFACES</text><circle class="f-ink" cx="40" cy="120" r="5"/><text class="t-small mid" x="40" y="146">camera</text><line class="s-muted" x1="46" y1="120" x2="340" y2="120" marker-end="url(#tp-muted)"/><rect class="f-acc-soft s-acc" x="150" y="60" width="10" height="120" fill-opacity="0.6"/><text class="t-small t-acc t-strong mid" x="155" y="50">glass, 40% opaque</text><rect class="f-solid s-ink" x="340" y="50" width="18" height="140"/><text class="t-small mid" x="349" y="40">brick wall</text><text class="t-caps" x="400" y="24">THE G-BUFFER HOLDS ONE</text><rect class="f-pix-soft s-pix" x="400" y="70" width="150" height="34"/><text class="mid" x="475" y="92">albedo: brick</text><rect class="f-pix-soft s-pix" x="400" y="106" width="150" height="34"/><text class="mid" x="475" y="128">normal: wall</text><rect class="f-sunken s-pix" x="400" y="142" width="150" height="34"/><text class="mid" x="475" y="164">depth: 4.0 m</text><text class="t-small t-pix t-strong" x="400" y="200">no slot for the glass in front</text><text class="t-caps" x="600" y="24">SO TRANSPARENTS GO LAST, FORWARD</text><rect class="f-surface s-strong" x="600" y="40" width="280" height="32" rx="5"/><text class="t-small t-strong" x="612" y="61">1  G-buffer: opaque surfaces</text><line class="s-muted" x1="740" y1="73" x2="740" y2="81" marker-end="url(#tp-muted)"/><rect class="f-surface s-strong" x="600" y="82" width="280" height="32" rx="5"/><text class="t-small t-strong" x="612" y="103">2  Lighting pass</text><line class="s-muted" x1="740" y1="115" x2="740" y2="123" marker-end="url(#tp-muted)"/><rect class="f-acc-soft s-acc" x="600" y="124" width="280" height="88" rx="5"/><text class="t-small t-strong" x="612" y="145">3  Transparent pass, forward:</text><text class="t-small" x="612" y="160">each glass object lit with its lights,</text><text class="t-small" x="612" y="175">sorted back to front and blended over</text><text class="t-small" x="612" y="190">the lit opaque image</text></svg>
+                </div>
+                <figcaption><b>One pixel, two surfaces, one slot.</b> The G-buffer can describe the wall or the glass, but only one of them. Deferred renderers therefore keep a complete forward path for transparent surfaces, with its own light lists and limits, which is why glass, water and particles can look different from the opaque world around them.</figcaption>
+              </figure>
+              <p>That second path has its own limits. URP's Deferred path lights transparent objects with at most nine lights each, like its Forward path. HDRP always renders transparent Lit materials forward. Unreal's forward renderer cannot do dynamically shadowed translucency, one of several features its documentation lists as unsupported there.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="msaa"><span class="step-num">9</span> MSAA and deferred</h3>
+              <p>Multisample anti-aliasing, MSAA, smooths edges by keeping several samples per pixel along triangle edges (<a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>). In a deferred renderer every sample needs its own G-buffer data, so 4× MSAA multiplies the G-buffer by four: URP's 20 bytes become 80 bytes per pixel, 633 MB for one 4K G-buffer. Engines do not offer it. Unreal supports MSAA only with its forward renderer, URP only on its Forward and Forward+ paths, and HDRP only in Forward Only or Both modes.</p>
+              <p>Deferred engines use temporal anti-aliasing and upscalers instead. Forward rendering keeps MSAA available, which is one reason it is common in VR: Epic's documentation notes that the constant small head movements in VR make temporal techniques look blurry, "making MSAA a better choice".</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="visibility"><span class="step-num">10</span> Visibility buffers and deferred decals</h3>
+              <p>A <dfn class="term" data-term="visibility-buffer">visibility buffer</dfn> pushes the deferred idea further. Instead of the material's results, the geometry pass stores only which triangle covers each pixel, in as few as four bytes, as Burns and Hunt described in 2013. A later pass looks the triangle up, rebuilds its position, UVs and normal at that pixel, and runs the material only for pixels that are really visible. Unreal's <a class="term" data-term="nanite" href="glossary.html#nanite">Nanite</a> rasterises into a 64-bit visibility buffer, depth plus cluster and triangle index, then writes an ordinary G-buffer so it fits the rest of Unreal's deferred renderer.</p>
+              <p>Deferred rendering also makes decals cheap. A <dfn class="term" data-term="deferred-decal">deferred decal</dfn> is a box projected onto whatever the G-buffer already holds inside it: it rewrites the albedo, normals or roughness there, before any light is added, so a bullet hole or a puddle stain is lit exactly like the wall under it.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 214" role="img" aria-label="Left: bytes per pixel before lighting, to scale. A URP-style G-buffer needs 20 bytes. Burns and Hunt's visibility buffer stores a triangle and instance ID in as few as 4 bytes. Nanite stores depth with a cluster and triangle ID in one 64-bit value, 8 bytes. Right: a deferred decal, a box projected onto the G-buffer, rewrites the albedo and normals inside it before lighting runs."><defs><marker id="vd-muted" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="20" y="24">BYTES PER PIXEL BEFORE LIGHTING · 1 BYTE = 16 PX</text><text class="t-strong" x="20" y="58">G-buffer</text><text class="t-small t-muted" x="20" y="74">URP's deferred layout</text><rect class="f-pix-soft s-strong" x="230" y="40" width="64" height="28"/><text class="t-small mid" x="262" y="58">albedo</text><rect class="f-pix-soft s-strong" x="294" y="40" width="64" height="28"/><text class="t-small mid" x="326" y="58">specular</text><rect class="f-pix-soft s-strong" x="358" y="40" width="64" height="28"/><text class="t-small mid" x="390" y="58">normal</text><rect class="f-lit-soft s-strong" x="422" y="40" width="64" height="28"/><text class="t-small mid" x="454" y="58">GI</text><rect class="f-sunken s-strong" x="486" y="40" width="64" height="28"/><text class="t-small mid" x="518" y="58">depth</text><text class="t-strong" x="558" y="59">20 B</text><text class="t-strong" x="20" y="102">Visibility buffer</text><text class="t-small t-muted" x="20" y="118">Burns and Hunt, 2013: as few as</text><rect class="f-acc-soft s-strong" x="230" y="84" width="64" height="28"/><text class="t-small mid" x="262" y="102">tri + instance</text><text class="t-strong" x="302" y="103">4 B</text><text class="t-strong" x="20" y="146">Nanite</text><text class="t-small t-muted" x="20" y="162">Karis 2021: one 64-bit value</text><rect class="f-sunken s-strong" x="230" y="128" width="64" height="28"/><text class="t-small mid" x="262" y="146">depth</text><rect class="f-acc-soft s-strong" x="294" y="128" width="64" height="28"/><text class="t-small mid" x="326" y="146">cluster + tri</text><text class="t-strong" x="366" y="147">8 B</text><text class="t-small" x="20" y="186">A visibility buffer stores only which triangle covers each pixel. A later pass looks the triangle up,</text><text class="t-small" x="20" y="202">rebuilds its position, UVs and normal, and runs the material for visible pixels only.</text><text class="t-caps" x="640" y="24">A DEFERRED DECAL</text><rect class="f-pix-soft s-pix" x="640" y="44" width="110" height="80"/><text class="t-small mid" x="695" y="140">albedo before</text><rect class="f-pix-soft s-pix" x="776" y="44" width="110" height="80"/><ellipse class="f-strong" cx="831" cy="86" rx="28" ry="20"/><rect class="s-acc dash" x="796" y="58" width="70" height="56"/><text class="t-small mid" x="831" y="140">after the decal</text><line class="s-muted" x1="753" y1="84" x2="772" y2="84" marker-end="url(#vd-muted)"/><text class="t-small" x="640" y="166">A box projected onto the G-buffer</text><text class="t-small" x="640" y="182">rewrites albedo and normals inside it,</text><text class="t-small" x="640" y="198">before any light is added.</text></svg>
+                </div>
+                <figcaption><b>Two ways deferred renderers lean on stored surface data.</b> Left: bytes per pixel before lighting, to scale; a visibility buffer stores the smallest possible record of what is visible. Right: a deferred decal edits the G-buffer inside its box, so lighting treats it as part of the surface. Unreal's DBuffer decals and URP's DBuffer technique use a separate decal buffer that is blended in during the geometry pass.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>The main costs are memory, bandwidth and the time spent on lights that do not matter. Take a 1080p frame (2,073,600 pixels) with URP's 20-byte G-buffer and eight lights over the average pixel.</p>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">What</th><th scope="col">Worked out as</th><th scope="col" class="num">Per frame</th><th scope="col" class="num">At 60 fps</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">G-buffer memory</th><td>2,073,600 × 20 B</td><td class="num">39.6 MB</td><td class="num">resident</td></tr>
+                  <tr><th scope="row">G-buffer written once, read once</th><td>2 × 39.6 MB</td><td class="num">79.1 MB</td><td class="num">5.0 GB/s</td></tr>
+                  <tr><th scope="row">Light volumes: each light re-reads 20 B and reads and writes an 8-byte light buffer</th><td>2,073,600 × 8 × 36 B</td><td class="num">569.5 MB</td><td class="num">35.8 GB/s</td></tr>
+                  <tr><th scope="row">Tiled or clustered: read 20 B once, write 8 B once</th><td>2,073,600 × 28 B</td><td class="num">55.4 MB</td><td class="num">3.5 GB/s</td></tr>
+                  <tr><th scope="row">The same G-buffer at 4K</th><td>8,294,400 × 20 B × 2</td><td class="num">316.4 MB</td><td class="num">19.9 GB/s</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p>A desktop GPU can absorb a few gigabytes a second; tens of gigabytes a second is a real share of its bandwidth, and on phones and standalone headsets, where memory traffic also costs battery and heat, it is often the deciding factor. Tile-based mobile GPUs (<a class="term" data-term="tile-based-gpu" href="glossary.html#tile-based-gpu">tile-based GPU</a>) can keep a G-buffer in on-chip memory if the geometry and lighting passes share one <a class="term" data-term="render-pass" href="glossary.html#render-pass">render pass</a>; otherwise Unity warns that Deferred has a high performance impact on mobile because of the extra passes.</p>
+            <h3>What makes the bill grow</h3>
+            <ul class="grows">
+              <li><strong>Resolution</strong><span>G-buffer memory and traffic scale with pixel count: 4K is four times 1080p.</span></li>
+              <li><strong>Bytes per pixel</strong><span>Each extra G-buffer target or wider format adds to every write and every read.</span></li>
+              <li><strong>Overlapping lights</strong><span>Classic light volumes re-read the G-buffer per light; forward with per-object lists pays for distant lights.</span></li>
+              <li><strong>Light range</strong><span>Bigger ranges put lights in more tiles and clusters and over more pixels.</span></li>
+              <li><strong>Transparency</strong><span>A deferred renderer still needs a complete forward path, with its own shaders and light lists, for everything transparent.</span></li>
+              <li><strong>MSAA</strong><span>Multiplies the G-buffer by the sample count, which is why deferred engines do not offer it.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">In proportion</p>
+              <p>No path is fastest everywhere. With a handful of lights, forward costs least and keeps MSAA. With many lights, clustered light lists win on either path. Deferred buys cheap decals, screen-space effects and one material evaluation per pixel at the price of bandwidth. Measure on the target hardware with the real content, and look at the light complexity view before blaming the path.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Most rendering-path problems show up as lights misbehaving, transparent objects looking out of place, or a frame that slows down far more than expected when the resolution goes up.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A corridor floor with a row of torches; two of the pools of light are missing, shown as dashed outlines."><rect class="f-sunken" x="0" y="0" width="240" height="130" rx="4"/><polygon class="f-solid" points="0,130 240,130 180,50 60,50"/><ellipse class="f-lit-soft" cx="40" cy="110" rx="26" ry="10"/><circle class="f-lit" cx="40" cy="86" r="4"/><ellipse class="f-lit-soft" cx="90" cy="100" rx="26" ry="10"/><circle class="f-lit" cx="90" cy="76" r="4"/><ellipse class="s-pix dash" cx="140" cy="100" rx="26" ry="10"/><circle class="s-pix" cx="140" cy="76" r="4"/><ellipse class="s-pix dash" cx="190" cy="110" rx="26" ry="10"/><circle class="s-pix" cx="190" cy="86" r="4"/><ellipse class="f-lit-soft" cx="118" cy="70" rx="26" ry="10"/><circle class="f-lit" cx="118" cy="46" r="4"/></svg>
+                </div>
+                <h4>Lights pop in and out</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A limit is reached: lights per object in a forward path, or the maximum lights or clustered elements per view, so the engine drops different lights as the camera moves.</dd></div>
+                  <div><dt>Ask for</dt><dd>The engine's light complexity or cluster view at that spot, the limit that applies to the path in use, and the cheapest fix: smaller ranges, fewer lights, split meshes or a clustered path.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A brightly lit wall with a glass pane in front of it that looks dull and grey, missing the light that reaches the wall."><rect class="f-lit-soft" x="0" y="0" width="240" height="130" rx="4"/><circle class="f-lit" cx="60" cy="40" r="6"/><rect class="f-strong s-ink" x="120" y="24" width="84" height="84" fill-opacity="0.7"/><text class="t-small t-strong mid" x="162" y="72">glass</text></svg>
+                </div>
+                <h4>Glass lit differently from the wall behind it</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Transparent objects go through the forward fallback, which has its own light limits, shadow support and features, so they miss lights the deferred world receives.</dd></div>
+                  <div><dt>Ask for</dt><dd>The light list and limits for transparent materials on this path, and a side-by-side of the same light on an opaque and a transparent surface.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A diagonal edge drawn as a hard staircase of pixels, with the MSAA option crossed out."><rect class="f-sunken" x="0" y="0" width="240" height="130" rx="4"/><path class="f-solid s-ink" d="M20,110 L36,110 L36,103 L52,103 L52,96 L68,96 L68,89 L84,89 L84,82 L100,82 L100,75 L116,75 L116,68 L132,68 L132,61 L148,61 L148,54 L164,54 L164,47 L180,47 L180,40 L196,40 L196,33 L212,33 L212,26 L212,110 Z"/><text class="t-small t-pix t-strong mid" x="52" y="32">MSAA</text><line class="s-pix w2" x1="32" y1="36" x2="72" y2="22"/></svg>
+                </div>
+                <h4>Jagged edges and no MSAA option</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The project uses a deferred path, where MSAA is not available, and temporal anti-aliasing is off or unsuitable, as often in VR.</dd></div>
+                  <div><dt>Ask for</dt><dd>A comparison of the engine's temporal options against switching to a forward path with MSAA, with the features each choice gives up.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A smooth, glossy surface whose highlight is broken into visible stepped rings."><rect class="f-buf-lo" x="0" y="0" width="240" height="130" rx="4"/><ellipse class="f-buf-hi" cx="110" cy="60" rx="44" ry="26" fill-opacity="0.18"/><ellipse class="f-buf-hi" cx="110" cy="60" rx="37" ry="22" fill-opacity="0.18"/><ellipse class="f-buf-hi" cx="110" cy="60" rx="30" ry="18" fill-opacity="0.18"/><ellipse class="f-buf-hi" cx="110" cy="60" rx="23" ry="14" fill-opacity="0.18"/><ellipse class="f-buf-hi" cx="110" cy="60" rx="16" ry="10" fill-opacity="0.18"/><ellipse class="f-buf-hi" cx="110" cy="60" rx="9" ry="6" fill-opacity="0.18"/><path class="s-pix" d="M154,60 L190,40"/><text class="t-small t-pix t-strong" x="196" y="38">steps</text></svg>
+                </div>
+                <h4>Stepped rings in smooth highlights</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Normals are packed into too few bits in the G-buffer, so smooth, glossy surfaces show steps in their highlights that forward rendering does not.</dd></div>
+                  <div><dt>Ask for</dt><dd>The G-buffer normal format and any accurate-normals option, such as URP's, with its cost measured on the target hardware.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two frame-time bars: at 1080p the G-buffer and lighting passes are a small part; at 4K they take four times as long and push the frame past its budget line."><rect class="f-sunken" x="0" y="0" width="240" height="130" rx="4"/><text class="t-small" x="14" y="40">1080p</text><rect class="f-surface s-strong" x="56" y="28" width="70" height="18"/><rect class="f-pix-soft s-pix" x="126" y="28" width="30" height="18"/><text class="t-small" x="14" y="86">4K</text><rect class="f-surface s-strong" x="56" y="74" width="70" height="18"/><rect class="f-pix-soft s-pix" x="126" y="74" width="104" height="18"/><line class="s-ink dash" x1="200" y1="16" x2="200" y2="112"/><text class="t-small mid" x="200" y="124">budget</text></svg>
+                </div>
+                <h4>4K or mobile frames slow down far more than expected</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The G-buffer and lighting passes are limited by memory bandwidth, which grows with pixels and bytes per pixel, and on mobile by extra passes that leave tile memory.</dd></div>
+                  <div><dt>Ask for</dt><dd>A GPU capture with the time and memory traffic of the G-buffer and lighting passes at both resolutions, and options: fewer G-buffer bytes, a lower internal resolution with an upscaler, or a forward path.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>Each engine can draw where lights pile up: Unreal's Light Complexity view mode, URP's Lighting Complexity debug mode for Forward+ tiles, HDRP's Tile/Cluster Debug in the Rendering Debugger's Lighting panel, and Godot's Cluster Omni Lights and Cluster Spot Lights debug draw modes.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Every engine offers more than one path, and each defaults to the one that suits its typical target.</p>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 302" role="img" aria-label="A grid of engines against rendering paths. Unreal Engine 5 on desktop defaults to deferred, with forward shading as an option. On mobile it defaults to forward, with deferred as an option. Unity 6 URP defaults to Forward and also offers Forward+, Deferred and Deferred+, a clustered deferred path. Unity 6 HDRP offers forward and deferred through its Lit Shader Mode. Godot 4 defaults to Forward+, a clustered forward renderer, on desktop, and its Mobile and Compatibility renderers are forward; it has no deferred renderer."><text class="t-small t-strong mid" x="285" y="36">Forward</text><text class="t-small t-strong mid" x="383" y="36">Forward+</text><text class="t-small t-muted mid" x="383" y="52">(clustered)</text><text class="t-small t-strong mid" x="481" y="36">Deferred</text><text class="t-small t-strong mid" x="579" y="36">Clustered</text><text class="t-small t-muted mid" x="579" y="52">deferred</text><line class="s-line" x1="20" y1="66" x2="880" y2="66"/><text class="t-strong" x="20" y="88">Unreal Engine 5, desktop</text><line class="s-line" x1="279" y1="84" x2="291" y2="84"/><circle class="f-surface s-acc w2" cx="383" cy="84" r="7"/><circle class="f-acc" cx="481" cy="84" r="8"/><line class="s-line" x1="573" y1="84" x2="585" y2="84"/><text class="t-small t-muted" x="642" y="82">Forward Shading is a project setting; it</text><text class="t-small t-muted" x="642" y="96">culls lights to a frustum-space grid</text><line class="s-line" x1="20" y1="106" x2="880" y2="106"/><text class="t-strong" x="20" y="128">Unreal Engine 5, mobile</text><circle class="f-acc" cx="285" cy="124" r="8"/><line class="s-line" x1="377" y1="124" x2="389" y2="124"/><circle class="f-surface s-acc w2" cx="481" cy="124" r="7"/><line class="s-line" x1="573" y1="124" x2="585" y2="124"/><text class="t-small t-muted" x="642" y="122">Mobile Forward is the default; Mobile</text><text class="t-small t-muted" x="642" y="136">Deferred is optional</text><line class="s-line" x1="20" y1="146" x2="880" y2="146"/><text class="t-strong" x="20" y="168">Unity 6 URP</text><circle class="f-acc" cx="285" cy="164" r="8"/><circle class="f-surface s-acc w2" cx="383" cy="164" r="7"/><circle class="f-surface s-acc w2" cx="481" cy="164" r="7"/><circle class="f-surface s-acc w2" cx="579" cy="164" r="7"/><text class="t-small t-muted" x="642" y="162">Forward, Forward+, Deferred, Deferred+</text><text class="t-small t-muted" x="642" y="176">on the Universal Renderer</text><line class="s-line" x1="20" y1="186" x2="880" y2="186"/><text class="t-strong" x="20" y="208">Unity 6 HDRP</text><line class="s-line" x1="279" y1="204" x2="291" y2="204"/><circle class="f-surface s-acc w2" cx="383" cy="204" r="7"/><circle class="f-surface s-acc w2" cx="481" cy="204" r="7"/><line class="s-line" x1="573" y1="204" x2="585" y2="204"/><text class="t-small t-muted" x="642" y="202">Lit Shader Mode: Forward Only, Deferred</text><text class="t-small t-muted" x="642" y="216">Only or Both; light lists in tiles and clusters</text><line class="s-line" x1="20" y1="226" x2="880" y2="226"/><text class="t-strong" x="20" y="248">Godot 4</text><circle class="f-surface s-acc w2" cx="285" cy="244" r="7"/><circle class="f-acc" cx="383" cy="244" r="8"/><line class="s-line" x1="475" y1="244" x2="487" y2="244"/><line class="s-line" x1="573" y1="244" x2="585" y2="244"/><text class="t-small t-muted" x="642" y="242">Forward+ (clustered) on desktop; Mobile</text><text class="t-small t-muted" x="642" y="256">and Compatibility are forward</text><line class="s-line" x1="20" y1="266" x2="880" y2="266"/><circle class="f-acc" cx="28" cy="286" r="7"/><text class="t-small" x="42" y="290">default</text><circle class="f-surface s-acc w2" cx="108" cy="286" r="6"/><text class="t-small" x="122" y="290">available; HDRP's documentation names no default between its two modes</text></svg>
+              </div>
+              <figcaption><b>Which path each engine uses.</b> Unreal is deferred on desktop and forward on mobile by default. URP defaults to Forward on its Universal Renderer and offers all four combinations of forward or deferred with or without clustered lights. HDRP offers forward and deferred, both with tiled or clustered light lists. Godot has no deferred renderer; its desktop renderer is clustered forward. Checked against each engine's documentation.</figcaption>
+            </figure>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6 URP</th><th scope="col">Unity 6 HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Where to set it</th>
+                    <td>Project Settings, Rendering, Forward Shading (needs a restart). Mobile: <code>r.Mobile.ShadingPath</code>, 0 forward, 1 deferred.</td>
+                    <td>Universal Renderer asset, Rendering Path: Forward (default), Forward+, Deferred, Deferred+.</td>
+                    <td>HDRP Asset, Rendering, Lit Shader Mode: Forward Only, Deferred Only, Both.</td>
+                    <td>Project Settings, Rendering, Renderer: Forward+ (default on desktop), Mobile, Compatibility.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Light limits</th>
+                    <td>Forward renderer: up to 4 overlapping shadow-casting movable lights.</td>
+                    <td>Forward: 9 per object, main light included. Forward+ and Deferred: no per-object limit for opaque objects; up to 256 or 257 per camera by platform.</td>
+                    <td>Maximum Directional, Punctual and Area lights on screen, set in the HDRP Asset.</td>
+                    <td>Forward+: 512 clustered elements per view by default. Mobile: 8 omni and 8 spot lights per mesh. Compatibility: 8 per object, 32 per frame.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">MSAA</th>
+                    <td>Forward renderer only, desktop and mobile.</td>
+                    <td>Forward and Forward+; not Deferred.</td>
+                    <td>Only with Lit Shader Mode Forward Only or Both.</td>
+                    <td>MSAA 3D in all three renderers.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Forward fallbacks and trade-offs</th>
+                    <td>Choosing the forward renderer gives up SSR, SSAO, contact shadows and dynamically shadowed translucency.</td>
+                    <td>Deferred draws transparent objects forward, lit by up to 9 lights each; Complex Lit is always forward.</td>
+                    <td>Fabric, Hair, AxF, StackLit, Unlit and transparent Lit.</td>
+                    <td>Everything is forward; there is no deferred renderer.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Decals</th>
+                    <td>DBuffer decals, supported with the forward renderer too.</td>
+                    <td>Decal Renderer Feature: Automatic, DBuffer or Screen Space, which uses G-buffer normals in Deferred.</td>
+                    <td>Decal Projector.</td>
+                    <td>Decal node in Forward+ and Mobile; not in Compatibility.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">See the light lists</th>
+                    <td>Light Complexity view mode.</td>
+                    <td>Rendering Debugger: Lighting Complexity, per Forward+ tile.</td>
+                    <td>Rendering Debugger, Lighting: Tile/Cluster Debug.</td>
+                    <td>Debug draw: Cluster Omni Lights, Cluster Spot Lights.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp" id="engine-stamp">Names and defaults checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) for URP, HDRP 17.6, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <aside class="note" data-kind="warning">
+              <p class="note-label">Switching paths late</p>
+              <p>Unity's documentation notes that Deferred and Deferred+ need shader model 4.5 and do not support OpenGL or OpenGL ES, and that Unity falls back to Forward when a device or a shader cannot use the selected path. Unreal's forward renderer drops several screen-space features. Check every effect the art direction relies on before switching, not after.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Rendering-path briefs need the engine, the platforms and their frame budgets, the light counts as numbers, and the features that must keep working. Adapt these.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when choosing a rendering path</span></div>
+              <pre class="prompt-body">Engine: Unity 6.6, URP. Targets: PC at 60 fps and Meta Quest 3 at 72 fps.
+Our levels have up to 60 dynamic point and spot lights in view, of which 6 cast shadows. We need decals, soft particles and water, and MSAA on Quest.
+
+1. Compare Forward, Forward+, Deferred and Deferred+ for each target: per-object and per-camera light limits, MSAA, transparency, decals, and anything that falls back to forward.
+2. Recommend a path per target, or one for both, and list what each choice gives up.
+3. Estimate the G-buffer memory and bandwidth at each target's resolution if a deferred path is chosen.
+4. Propose a test scene and the captures that would confirm the choice on real hardware.</pre>
+              <ul class="prompt-why">
+                <li>Light counts and must-have features turn a matter of taste into a check list.</li>
+                <li>Naming MSAA up front rules out the deferred paths on Quest early.</li>
+                <li>Asking for captures ties the decision to measurements on real hardware.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when frame time jumps with resolution</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, deferred renderer, PlayStation 5. Our GPU frame time is 11 ms at 1080p internal resolution and 26 ms at native 4K, more than the 4 × pixel count would explain for the passes we expected.
+
+Take GPU captures at both resolutions. Report the time and memory traffic of the base pass (G-buffer), the lighting passes and every pass that reads the G-buffer. List our G-buffer targets and formats. Tell us which passes grow faster than the pixel count and why, and compare fixes: fewer G-buffer bytes, a lower internal resolution with TSR, or cheaper passes, with the visual cost of each.</pre>
+              <ul class="prompt-why">
+                <li>Two resolutions with numbers separate fixed costs from per-pixel ones.</li>
+                <li>Asking for traffic as well as time points at bandwidth if that is the limit.</li>
+                <li>Listing several fixes with their visual cost turns it into a decision you can make.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing rendering-path work</h3>
+            <ol class="review-list">
+              <li>Which path does each platform use, and what is the light limit there?<span class="why">Limits differ per path and per platform, and exceeding them drops lights silently.</span></li>
+              <li>How many bytes per pixel is our G-buffer, and how many times is it read per frame?<span class="why">That is the bandwidth bill at every resolution.</span></li>
+              <li>Which materials and effects fall back to forward?<span class="why">Transparents and special materials get different lights and features.</span></li>
+              <li>How do we anti-alias, given the path?<span class="why">MSAA needs forward; deferred depends on temporal methods.</span></li>
+              <li>What does the light complexity view look like in our busiest view?<span class="why">It shows where lights pile up before anyone changes the path.</span></li>
+              <li>What would switching path later break?<span class="why">Features differ between paths; knowing now avoids a costly surprise.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A level has 40 small lights scattered over one large floor mesh. Why does forward rendering with per-object light lists struggle here, and what fixes it without going deferred?</p>
+                <details><summary>Show answer</summary><p>Lights are matched to whole objects, so every pixel of the floor loops over every light that touches any part of it, and a per-object cap such as URP Forward's nine will drop most of them. Forward+ fixes it: per-tile or per-cluster light lists give each pixel only the lights near it.</p></details>
+              </li>
+              <li>
+                <p class="q">Why can a deferred renderer not simply draw a glass window into the G-buffer like a wall?</p>
+                <details><summary>Show answer</summary><p>The G-buffer stores one surface per pixel. A window pixel needs two, the glass and what is behind it, both lit, then blended. So transparent objects are drawn after the lighting pass with a forward pass, sorted back to front.</p></details>
+              </li>
+              <li>
+                <p class="q">A 20-byte G-buffer is written and read once per frame at 60 fps. Roughly how much memory traffic is that at 1080p, and at 4K?</p>
+                <details><summary>Show answer</summary><p>At 1080p: 2,073,600 × 20 B × 2 ≈ 83 million bytes a frame, about 5 GB/s at 60 fps. At 4K, four times the pixels: about 20 GB/s. Every extra read of the G-buffer adds more.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#rendering-path">rendering path</a></li>
+              <li><a class="chip" href="glossary.html#forward-rendering">forward rendering</a></li>
+              <li><a class="chip" href="glossary.html#deferred-rendering">deferred rendering</a></li>
+              <li><a class="chip" href="glossary.html#g-buffer">G-buffer</a></li>
+              <li><a class="chip" href="glossary.html#mrt">multiple render targets</a></li>
+              <li><a class="chip" href="glossary.html#g-buffer-layout">G-buffer layout</a></li>
+              <li><a class="chip" href="glossary.html#light-volume">light volume</a></li>
+              <li><a class="chip" href="glossary.html#light-culling">light culling</a></li>
+              <li><a class="chip" href="glossary.html#tiled-shading">tiled shading</a></li>
+              <li><a class="chip" href="glossary.html#clustered-shading">clustered shading</a></li>
+              <li><a class="chip" href="glossary.html#forward-plus">Forward+</a></li>
+              <li><a class="chip" href="glossary.html#visibility-buffer">visibility buffer</a></li>
+              <li><a class="chip" href="glossary.html#deferred-decal">deferred decal</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="7.4"></a> adds shadows: how a renderer finds out, for every pixel and every light, whether something stands in the way.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li><a href="https://www.cse.chalmers.se/~uffe/clustered_shading_preprint.pdf">Clustered Deferred and Forward Shading</a>, Ola Olsson, Markus Billeter and Ulf Assarsson, High Performance Graphics 2012 (preprint). Tiled against clustered shading, exponential depth slices and the history of deferred shading.</li>
+              <li><a href="https://takahiroharada.github.io/forward+">Forward+: Bringing Deferred Lighting to the Next Level</a>, Takahiro Harada, Jay McKee and Jason C. Yang, AMD, Eurographics 2012 short paper.</li>
+              <li><a href="https://jcgt.org/published/0002/02/04/paper.pdf">The Visibility Buffer: A Cache-Friendly Approach to Deferred Shading</a>, Christopher A. Burns and Warren A. Hunt, Journal of Computer Graphics Techniques, 2013.</li>
+              <li><a href="https://advances.realtimerendering.com/s2021/Karis_Nanite_SIGGRAPH_Advances_2021_final.pdf">A Deep Dive into Nanite Virtualized Geometry</a>, Brian Karis, Rune Stubbe and Graham Wihlidal, SIGGRAPH 2021 Advances in Real-Time Rendering course.</li>
+              <li><a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/forward-shading-renderer-in-unreal-engine?application_version=5.8">Forward Shading Renderer</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/mobile-rendering-and-shading-modes-for-unreal-engine?application_version=5.8">Mobile rendering and shading modes</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/anti-aliasing-and-upscaling-in-unreal-engine?application_version=5.8">Anti-aliasing and upscaling</a>, Unreal Engine 5.8 documentation.</li>
+              <li><a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/universal-render-pipeline/introduction/urp-concepts/rendering-paths/comparison">Rendering paths comparison</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/universal-render-pipeline/introduction/urp-concepts/rendering-paths/deferred-rendering-path/g-buffer-layout">G-buffer layout</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/universal-render-pipeline/introduction/urp-concepts/rendering-paths/forward-rendering-paths">Forward and Forward+ rendering paths</a>, URP, Unity 6.6 manual.</li>
+              <li><a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Forward-And-Deferred-Rendering.html">Forward and Deferred rendering</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/HDRP-Asset.html">HDRP Asset</a>, HDRP 17.6.</li>
+              <li><a href="https://docs.godotengine.org/en/4.7/tutorials/rendering/renderers.html">Overview of renderers</a>, Godot 4.7 documentation.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/light-count-cost.js"></script>
+  <script src="assets/demos/courtyard-gl.js"></script>
+  <script src="assets/demos/courtyard-shaders.js"></script>
+  <script src="assets/demos/courtyard.js"></script>
+</body>
+</html>

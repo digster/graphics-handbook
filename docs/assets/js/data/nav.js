@@ -95,9 +95,9 @@
       n: 7, title: "Lighting and shadows", blurb: "How surfaces get lit and shadowed, and the main ways renderers organise that work.",
       chapters: [
         { num: "7.1", slug: "lights", title: "Lights", terms: "directional, point, spot, area, sky and emissive lights; attenuation; lumen, lux, nit, EV", core: false, status: "published" },
-        { num: "7.2", slug: "shading-models", title: "Shading models", terms: "diffuse, specular, Lambert, Blinn-Phong, Cook-Torrance, N·L", core: false, status: "planned" },
-        { num: "7.3", slug: "render-paths", title: "Forward, deferred and clustered", terms: "forward, deferred, G-buffer, multiple render targets, tiled and clustered (Forward+), visibility buffer", core: true, status: "planned" },
-        { num: "7.4", slug: "shadow-maps", title: "Shadow maps", terms: "light-space depth, shadow bias, acne, peter-panning, PCF, PCSS", core: true, status: "planned" },
+        { num: "7.2", slug: "shading-models", title: "Shading models", terms: "diffuse, specular, Lambert, Blinn-Phong, Cook-Torrance, N·L", core: false, status: "published" },
+        { num: "7.3", slug: "render-paths", title: "Forward, deferred and clustered", terms: "forward, deferred, G-buffer, multiple render targets, tiled and clustered (Forward+), visibility buffer", core: true, status: "published" },
+        { num: "7.4", slug: "shadow-maps", title: "Shadow maps", terms: "light-space depth, shadow bias, acne, peter-panning, PCF, PCSS", core: true, status: "published" },
         { num: "7.5", slug: "shadows-at-scale", title: "Shadows at scale", terms: "cascades (CSM), shadow atlas, virtual shadow maps, contact shadows, distance-field shadows, ray-traced shadows", core: false, status: "planned" },
         { num: "7.6", slug: "reflections-ibl", title: "Reflections and image-based lighting", terms: "environment map, reflection probe, box projection, irradiance, SSR, planar reflection", core: false, status: "planned" }
       ]
