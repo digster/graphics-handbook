@@ -1,0 +1,915 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>8.2 Baked lighting · Graphics Handbook</title>
+  <meta name="description" content="How lightmaps, lightmap UVs, light probes, spherical harmonics and probe volumes store bounced light computed ahead of time, what baking costs in memory and artists' time, how bakes break, and how to brief and review baked-lighting work.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="8.2">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <h1><span class="ch-num">8.2</span> Baked lighting</h1>
+            <p class="lead">The oldest and still the most common way to get bounced light into a game is to compute it in the editor, store it in textures and probes, and read it back for almost nothing at run time. This chapter shows what is stored where, what that costs in memory and in artists' time, and how bakes go wrong.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="8.1">8.1 Direct and indirect light</a>, <a class="xref" data-ch="7.1">7.1 Lights</a>, <a class="xref" data-ch="6.1">6.1 Textures and UVs</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.3">8.3 Ambient occlusion</a>, <a class="xref" data-ch="8.5">8.5 Real-time GI families</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 35 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 410" role="img" aria-label="Left: a small room drawn as baked lighting only, with a floor, a back wall, a left wall with a window, and a crate. A patch of sunlight from the window brightens the floor, the corners and the base of the crate are darker, and each surface is marked with a letter, A to F. Right: the lightmap texture that holds that lighting. Each surface is a separate flat piece, a UV island, laid out with gaps between them: the floor A, the back wall B, the left wall C with a hole where the window is, and the three visible faces of the crate D, E and F. A fine grid shows its texels, eight per metre. The bottom right of the texture is unused.">
+<defs><filter id="lm-r-b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="0.14"/></filter><pattern id="lm-r-grid" width="0.125" height="0.125" patternUnits="userSpaceOnUse"><path class="s-line" stroke-width="0.012" stroke-opacity="0.6" d="M0.125,0 V0.125 H0"/></pattern><clipPath id="lm-r-cA"><rect class="" x="0" y="0" width="4" height="3"/></clipPath><clipPath id="lm-r-cB"><rect class="" x="0" y="0" width="4" height="2.5"/></clipPath><clipPath id="lm-r-cC"><path class="" fill-rule="evenodd" clip-rule="evenodd" d="M0,0 H3 V2.5 H0 Z M1,0.6 H2 V1.6 H1 Z"/></clipPath><clipPath id="lm-r-cD"><rect class="" x="0" y="0" width="0.8" height="0.8"/></clipPath><clipPath id="lm-r-cE"><rect class="" x="0" y="0" width="0.8" height="0.8"/></clipPath><clipPath id="lm-r-cF"><rect class="" x="0" y="0" width="0.8" height="0.8"/></clipPath><filter id="lm-a-b" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="0.14"/></filter><pattern id="lm-a-grid" width="0.125" height="0.125" patternUnits="userSpaceOnUse"><path class="s-line" stroke-width="0.012" stroke-opacity="0.6" d="M0.125,0 V0.125 H0"/></pattern><clipPath id="lm-a-cA"><rect class="" x="0" y="0" width="4" height="3"/></clipPath><clipPath id="lm-a-cB"><rect class="" x="0" y="0" width="4" height="2.5"/></clipPath><clipPath id="lm-a-cC"><path class="" fill-rule="evenodd" clip-rule="evenodd" d="M0,0 H3 V2.5 H0 Z M1,0.6 H2 V1.6 H1 Z"/></clipPath><clipPath id="lm-a-cD"><rect class="" x="0" y="0" width="0.8" height="0.8"/></clipPath><clipPath id="lm-a-cE"><rect class="" x="0" y="0" width="0.8" height="0.8"/></clipPath><clipPath id="lm-a-cF"><rect class="" x="0" y="0" width="0.8" height="0.8"/></clipPath></defs>
+<text class="t-caps" x="40" y="22">THE ROOM, BAKED LIGHT ONLY</text>
+<text class="t-caps" x="540" y="22">ITS LIGHTMAP: ONE TEXTURE, SIX UV ISLANDS</text>
+<g transform="matrix(-31.50 21.00 0.00 70.00 134.50 92.00)"><rect class="f-paint-sky" x="1" y="0.6" width="1" height="1"/></g>
+<g transform="matrix(70.00 0.00 -31.50 21.00 134.50 267.00)"><g clip-path="url(#lm-r-cA)"><rect class="f-buf-hi" x="0" y="0" width="4" height="3"/><rect class="f-buf-lo" fill-opacity="0.55" x="0" y="0" width="4" height="3"/><g filter="url(#lm-r-b)"><ellipse class="f-buf-hi" fill-opacity="0.55" cx="1.0" cy="1.7" rx="1.3" ry="0.9"/></g><polygon class="f-buf-hi" points="0.25,1.25 1.35,1.25 1.6,2.25 0.5,2.25"/><g filter="url(#lm-r-b)"><rect class="f-buf-lo" fill-opacity="0.5" x="-0.2" y="-0.2" width="4.4" height="0.32"/><rect class="f-buf-lo" fill-opacity="0.5" x="-0.2" y="-0.2" width="0.32" height="3.4"/><rect class="f-buf-lo" fill-opacity="0.75" x="2.3" y="0.9" width="1.0" height="1.0"/></g><rect x="0" y="0" width="4" height="3" fill="url(#lm-r-grid)"/></g><rect class="s-strong" stroke-width="0.02" x="0" y="0" width="4" height="3"/></g>
+<g transform="matrix(70.00 0.00 0.00 70.00 134.50 92.00)"><g clip-path="url(#lm-r-cB)"><rect class="f-buf-hi" x="0" y="0" width="4" height="2.5"/><rect class="f-buf-lo" fill-opacity="0.5" x="0" y="0" width="4" height="2.5"/><g filter="url(#lm-r-b)"><ellipse class="f-buf-hi" fill-opacity="0.45" cx="0.9" cy="2.4" rx="1.4" ry="0.8"/><rect class="f-buf-lo" fill-opacity="0.5" x="-0.2" y="2.25" width="4.4" height="0.4"/><rect class="f-buf-lo" fill-opacity="0.45" x="-0.2" y="-0.2" width="0.32" height="2.9"/></g><rect x="0" y="0" width="4" height="2.5" fill="url(#lm-r-grid)"/></g><rect class="s-strong" stroke-width="0.02" x="0" y="0" width="4" height="2.5"/></g>
+<g transform="matrix(-31.50 21.00 0.00 70.00 134.50 92.00)"><g clip-path="url(#lm-r-cC)"><rect class="f-buf-hi" x="0" y="0" width="3" height="2.5"/><rect class="f-buf-lo" fill-opacity="0.62" x="0" y="0" width="3" height="2.5"/><g filter="url(#lm-r-b)"><rect class="f-buf-lo" fill-opacity="0.4" x="-0.2" y="2.25" width="3.4" height="0.4"/><rect class="f-buf-lo" fill-opacity="0.4" x="-0.2" y="-0.2" width="0.32" height="2.9"/></g><rect x="0" y="0" width="3" height="2.5" fill="url(#lm-r-grid)"/></g><path class="s-strong" stroke-width="0.02" fill-rule="evenodd" clip-rule="evenodd" d="M0,0 H3 V2.5 H0 Z M1,0.6 H2 V1.6 H1 Z"/></g>
+<g transform="matrix(31.50 -21.00 0.00 70.00 301.80 248.80)"><g clip-path="url(#lm-r-cF)"><rect class="f-buf-hi" x="0" y="0" width="0.8" height="0.8"/><rect class="f-buf-lo" fill-opacity="0.68" x="0" y="0" width="0.8" height="0.8"/><g filter="url(#lm-r-b)"><rect class="f-buf-lo" fill-opacity="0.4" x="-0.1" y="0.68" width="1.0" height="0.2"/></g><rect x="0" y="0" width="0.8" height="0.8" fill="url(#lm-r-grid)"/></g><rect class="s-strong" stroke-width="0.02" x="0" y="0" width="0.8" height="0.8"/></g>
+<g transform="matrix(70.00 0.00 0.00 70.00 245.80 248.80)"><g clip-path="url(#lm-r-cE)"><rect class="f-buf-hi" x="0" y="0" width="0.8" height="0.8"/><rect class="f-buf-lo" fill-opacity="0.48" x="0" y="0" width="0.8" height="0.8"/><g filter="url(#lm-r-b)"><rect class="f-buf-lo" fill-opacity="0.45" x="-0.1" y="0.68" width="1.0" height="0.2"/></g><rect x="0" y="0" width="0.8" height="0.8" fill="url(#lm-r-grid)"/></g><rect class="s-strong" stroke-width="0.02" x="0" y="0" width="0.8" height="0.8"/></g>
+<g transform="matrix(70.00 0.00 -31.50 21.00 271.00 232.00)"><g clip-path="url(#lm-r-cD)"><rect class="f-buf-hi" x="0" y="0" width="0.8" height="0.8"/><rect class="f-buf-lo" fill-opacity="0.3" x="0" y="0" width="0.8" height="0.8"/><rect x="0" y="0" width="0.8" height="0.8" fill="url(#lm-r-grid)"/></g><rect class="s-strong" stroke-width="0.02" x="0" y="0" width="0.8" height="0.8"/></g>
+<circle class="f-acc" cx="164.6" cy="279.6" r="10"/><text class="t-small t-strong t-on-acc mid" x="164.6" y="283.6">A</text>
+<circle class="f-acc" cx="358.5" cy="141" r="10"/><text class="t-small t-strong t-on-acc mid" x="358.5" y="145">B</text>
+<circle class="f-acc" cx="112.5" cy="148.7" r="10"/><text class="t-small t-strong t-on-acc mid" x="112.5" y="152.7">C</text>
+<circle class="f-acc" cx="286.4" cy="240.4" r="10"/><text class="t-small t-strong t-on-acc mid" x="286.4" y="244.4">D</text>
+<circle class="f-acc" cx="273.8" cy="283.8" r="10"/><text class="t-small t-strong t-on-acc mid" x="273.8" y="287.8">E</text>
+<circle class="f-acc" cx="314.4" cy="271.9" r="10"/><text class="t-small t-strong t-on-acc mid" x="314.4" y="275.9">F</text>
+<text class="t-small t-muted" x="82" y="352">sunlight through the window</text>
+<line class="s-muted" x1="110" y1="340" x2="113.5" y2="291.5"/>
+<rect class="f-buf-lo" x="540" y="52" width="319.2" height="319.2"/>
+<g transform="matrix(42.00 0.00 0.00 42.00 548.40 60.40)"><g clip-path="url(#lm-a-cA)"><rect class="f-buf-hi" x="0" y="0" width="4" height="3"/><rect class="f-buf-lo" fill-opacity="0.55" x="0" y="0" width="4" height="3"/><g filter="url(#lm-a-b)"><ellipse class="f-buf-hi" fill-opacity="0.55" cx="1.0" cy="1.7" rx="1.3" ry="0.9"/></g><polygon class="f-buf-hi" points="0.25,1.25 1.35,1.25 1.6,2.25 0.5,2.25"/><g filter="url(#lm-a-b)"><rect class="f-buf-lo" fill-opacity="0.5" x="-0.2" y="-0.2" width="4.4" height="0.32"/><rect class="f-buf-lo" fill-opacity="0.5" x="-0.2" y="-0.2" width="0.32" height="3.4"/><rect class="f-buf-lo" fill-opacity="0.75" x="2.3" y="0.9" width="1.0" height="1.0"/></g><rect x="0" y="0" width="4" height="3" fill="url(#lm-a-grid)"/></g><rect class="s-geo" stroke-width="0.04" x="0" y="0" width="4" height="3"/></g>
+<circle class="f-acc" cx="632.4" cy="123.4" r="10"/><text class="t-small t-strong t-on-acc mid" x="632.4" y="127.4">A</text>
+<g transform="matrix(42.00 0.00 0.00 42.00 548.40 194.80)"><g clip-path="url(#lm-a-cB)"><rect class="f-buf-hi" x="0" y="0" width="4" height="2.5"/><rect class="f-buf-lo" fill-opacity="0.5" x="0" y="0" width="4" height="2.5"/><g filter="url(#lm-a-b)"><ellipse class="f-buf-hi" fill-opacity="0.45" cx="0.9" cy="2.4" rx="1.4" ry="0.8"/><rect class="f-buf-lo" fill-opacity="0.5" x="-0.2" y="2.25" width="4.4" height="0.4"/><rect class="f-buf-lo" fill-opacity="0.45" x="-0.2" y="-0.2" width="0.32" height="2.9"/></g><rect x="0" y="0" width="4" height="2.5" fill="url(#lm-a-grid)"/></g><rect class="s-geo" stroke-width="0.04" x="0" y="0" width="4" height="2.5"/></g>
+<circle class="f-acc" cx="632.4" cy="247.3" r="10"/><text class="t-small t-strong t-on-acc mid" x="632.4" y="251.3">B</text>
+<g transform="matrix(42.00 0.00 0.00 42.00 724.80 60.40)"><g clip-path="url(#lm-a-cC)"><rect class="f-buf-hi" x="0" y="0" width="3" height="2.5"/><rect class="f-buf-lo" fill-opacity="0.62" x="0" y="0" width="3" height="2.5"/><g filter="url(#lm-a-b)"><rect class="f-buf-lo" fill-opacity="0.4" x="-0.2" y="2.25" width="3.4" height="0.4"/><rect class="f-buf-lo" fill-opacity="0.4" x="-0.2" y="-0.2" width="0.32" height="2.9"/></g><rect x="0" y="0" width="3" height="2.5" fill="url(#lm-a-grid)"/></g><path class="s-geo" stroke-width="0.04" fill-rule="evenodd" clip-rule="evenodd" d="M0,0 H3 V2.5 H0 Z M1,0.6 H2 V1.6 H1 Z"/></g>
+<circle class="f-acc" cx="745.8" cy="75.1" r="10"/><text class="t-small t-strong t-on-acc mid" x="745.8" y="79.1">C</text>
+<g transform="matrix(42.00 0.00 0.00 42.00 724.80 175.90)"><g clip-path="url(#lm-a-cD)"><rect class="f-buf-hi" x="0" y="0" width="0.8" height="0.8"/><rect class="f-buf-lo" fill-opacity="0.3" x="0" y="0" width="0.8" height="0.8"/><rect x="0" y="0" width="0.8" height="0.8" fill="url(#lm-a-grid)"/></g><rect class="s-geo" stroke-width="0.04" x="0" y="0" width="0.8" height="0.8"/></g>
+<circle class="f-acc" cx="741.6" cy="192.7" r="10"/><text class="t-small t-strong t-on-acc mid" x="741.6" y="196.7">D</text>
+<g transform="matrix(42.00 0.00 0.00 42.00 766.80 175.90)"><g clip-path="url(#lm-a-cE)"><rect class="f-buf-hi" x="0" y="0" width="0.8" height="0.8"/><rect class="f-buf-lo" fill-opacity="0.48" x="0" y="0" width="0.8" height="0.8"/><g filter="url(#lm-a-b)"><rect class="f-buf-lo" fill-opacity="0.45" x="-0.1" y="0.68" width="1.0" height="0.2"/></g><rect x="0" y="0" width="0.8" height="0.8" fill="url(#lm-a-grid)"/></g><rect class="s-geo" stroke-width="0.04" x="0" y="0" width="0.8" height="0.8"/></g>
+<circle class="f-acc" cx="783.6" cy="192.7" r="10"/><text class="t-small t-strong t-on-acc mid" x="783.6" y="196.7">E</text>
+<g transform="matrix(42.00 0.00 0.00 42.00 808.80 175.90)"><g clip-path="url(#lm-a-cF)"><rect class="f-buf-hi" x="0" y="0" width="0.8" height="0.8"/><rect class="f-buf-lo" fill-opacity="0.68" x="0" y="0" width="0.8" height="0.8"/><g filter="url(#lm-a-b)"><rect class="f-buf-lo" fill-opacity="0.4" x="-0.1" y="0.68" width="1.0" height="0.2"/></g><rect x="0" y="0" width="0.8" height="0.8" fill="url(#lm-a-grid)"/></g><rect class="s-geo" stroke-width="0.04" x="0" y="0" width="0.8" height="0.8"/></g>
+<circle class="f-acc" cx="825.6" cy="192.7" r="10"/><text class="t-small t-strong t-on-acc mid" x="825.6" y="196.7">F</text>
+<text class="t-small" x="729" y="257.8" fill-opacity="1"><tspan class="t-muted">unused texels</tspan></text>
+<rect class="s-strong" x="540" y="52" width="319.2" height="319.2"/>
+<text class="t-small t-muted" x="540" y="389.2">Grid: texels, 8 per metre.</text>
+<text class="t-small t-muted" x="540" y="405.2">Teal outlines: UV islands, with gaps between.</text>
+</svg>
+              </div>
+              <figcaption><b>A lightmap is the room's lighting, peeled off and laid flat.</b> Every surface that does not move gets its own patch of one texture, and each texel holds the light that lands on that spot: sun through the window, light bounced off the floor and walls, darkening in the corners. The game draws the room with its normal materials and multiplies in this texture. Here the room is drawn with the lightmap alone.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p><dfn class="term" data-term="baked-lighting">Baked lighting</dfn> is lighting worked out before the game runs. A tool in the editor traces light around the level, bounce after bounce, as slowly and as carefully as it likes, and saves the answer. The game then reads it back instead of computing it. Bounced light that would cost milliseconds every frame costs a texture read.</p>
+            <p>The answer is stored in two places. A <dfn class="term" data-term="lightmap">lightmap</dfn> holds light for surfaces that never move: floors, walls, buildings, rocks. Light probes, points scattered through the air, hold light for everything else to pick up as it passes: characters, vehicles, props that get knocked over.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 288" role="img" aria-label="A two by two grid. Rows: geometry that never moves, and objects that move. Columns: lights that never change, and lights that move or change. Static light on static geometry: baked into lightmaps, direct and bounced, almost free at run time. Static light on moving objects: baked into light probes, which the object blends as it moves. Moving lights on static geometry: direct light and shadows computed every frame; its bounce is baked only if the light keeps its position, otherwise it needs real-time GI. Moving lights on moving objects: computed every frame.">
+                  <text class="t-caps" x="300" y="24">LIGHTS THAT NEVER CHANGE</text>
+                  <text class="t-caps" x="610" y="24">LIGHTS THAT MOVE OR CHANGE</text>
+                  <text class="t-head" x="20" y="88">Geometry that</text>
+                  <text class="t-head" x="20" y="106">never moves</text>
+                  <text class="t-small t-muted" x="20" y="124">walls, floors, buildings</text>
+                  <text class="t-head" x="20" y="208">Objects</text>
+                  <text class="t-head" x="20" y="226">that move</text>
+                  <text class="t-small t-muted" x="20" y="244">characters, vehicles, props</text>
+
+                  <rect class="f-acc-soft s-acc w15" x="290" y="44" width="290" height="104" rx="8"/>
+                  <text class="t-strong" x="306" y="72">Lightmaps</text>
+                  <text class="t-small" x="306" y="92">direct and bounced light baked</text>
+                  <text class="t-small" x="306" y="108">into the surfaces' own texels</text>
+                  <text class="t-small t-acc t-strong" x="306" y="132">run time: one texture read</text>
+
+                  <rect class="f-acc-soft s-acc w15" x="290" y="164" width="290" height="104" rx="8"/>
+                  <text class="t-strong" x="306" y="192">Light probes</text>
+                  <text class="t-small" x="306" y="212">light baked at points in the air;</text>
+                  <text class="t-small" x="306" y="228">the object blends the nearest ones</text>
+                  <text class="t-small t-acc t-strong" x="306" y="252">run time: a few probe reads</text>
+
+                  <rect class="f-lit-soft s-lit w15" x="600" y="44" width="280" height="104" rx="8"/>
+                  <text class="t-strong" x="616" y="72">Computed every frame</text>
+                  <text class="t-small" x="616" y="92">direct light and shadows; bounce baked</text>
+                  <text class="t-small" x="616" y="108">only if the light stays put (Mixed,</text>
+                  <text class="t-small" x="616" y="124">Stationary), else real-time GI (8.5)</text>
+
+                  <rect class="f-lit-soft s-lit w15" x="600" y="164" width="280" height="104" rx="8"/>
+                  <text class="t-strong" x="616" y="192">Computed every frame</text>
+                  <text class="t-small" x="616" y="212">direct light and shadows, as in</text>
+                  <text class="t-small" x="616" y="228">Part 7; bounced light only from a</text>
+                  <text class="t-small" x="616" y="244">real-time GI method</text>
+                </svg>
+              </div>
+              <figcaption><b>What can be baked depends on what moves.</b> Light that never changes, landing on geometry that never moves, is baked completely. Moving objects still receive it, through probes. Anything about a moving or changing light has to be computed at run time, at least in part. Most games use the blue column for most of their indirect light and spend their per-frame budget on the amber one.</figcaption>
+            </figure>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A theatre set painter paints light and shadow straight onto the scenery: a warm glow below a painted window, dark streaks in the corners. Under plain stage lighting the set looks lit by a sunset. It costs nothing during the show, and it looks as good as the painter is patient.</p>
+                <p>It cannot follow an actor who carries a lamp across the stage, and it is wrong the moment someone moves a flat.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Bounced light, <a class="term" data-term="global-illumination" href="glossary.html#global-illumination">global illumination</a>, needs light from every direction at every point (<a class="xref" data-ch="8.1">8.1</a>). Computing that every frame is expensive enough that real-time methods are a chapter of their own. Baking does it once, at film quality, and makes it nearly free to display, which is why phones, handhelds and most games with fixed lighting still use it.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Baking moves the cost of lighting from the player's GPU to your team's time. Every lighting change needs a new bake, which can take minutes or hours, so bake time sets how many times a day an artist can try an idea. Lightmaps also take memory and disk space, demand a second set of UVs on every static mesh, and rule out moving the lights or walls they were baked with. Whether to bake is a production decision as much as a rendering one.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>A bake has three parts: what is computed, where it is stored, and how the game reads it back. The steps follow that order, from the lightmapper to the probes that light moving objects.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="bake"><span class="step-num">1</span> What the bake computes</h3>
+              <p>The <dfn class="term" data-term="lightmapper">lightmapper</dfn> is the editor tool that does the work: Lightmass and GPU Lightmass in Unreal, the Progressive Lightmapper and the newer Unity Compute Light Baker in Unity, the LightmapGI node in Godot. For each texel of the lightmap, and each probe, it traces light paths: rays to the lights to find direct light, and rays into the scene that collect light which has already bounced. Each path is one sample. Hundreds or thousands of samples per texel are averaged, and a denoiser smooths what noise is left.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Side view of a room with a window in the left wall and the sun outside. One texel on the floor, in shadow, fires rays upward in many directions. Two pass through the window and reach the sky and sun: direct and sky light. Others hit the sunlit floor patch, the back wall and the ceiling, and bring back light that has bounced. The texel's value is the average of all its rays.">
+                    <rect class="f-solid s-ink" x="40" y="40" width="14" height="190"/>
+                    <rect class="f-paint-sky s-ink" x="40" y="80" width="14" height="60"/>
+                    <rect class="f-solid s-ink" x="54" y="40" width="440" height="12"/>
+                    <rect class="f-solid s-ink" x="494" y="40" width="14" height="190"/>
+                    <line class="s-ink w2" x1="40" y1="230" x2="508" y2="230"/>
+                    <polygon class="f-lit-soft" points="54,80 54,140 210,230 120,230"/>
+                    <line class="s-lit w3" x1="120" y1="230" x2="210" y2="230"/>
+                    <circle class="f-lit" cx="20" cy="60" r="11"/>
+                    <text class="t-small t-lit" x="128" y="222">sunlit patch</text>
+                    <g class="round">
+                      <line class="s-lit w15" x1="330" y1="230" x2="54" y2="100"/>
+                      <line class="s-lit w15" x1="330" y1="230" x2="54" y2="126"/>
+                      <line class="s-acc w15" x1="330" y1="230" x2="180" y2="230"/>
+                      <line class="s-acc w15" x1="330" y1="230" x2="120" y2="52"/>
+                      <line class="s-acc w15" x1="330" y1="230" x2="250" y2="52"/>
+                      <line class="s-acc w15" x1="330" y1="230" x2="380" y2="52"/>
+                      <line class="s-acc w15" x1="330" y1="230" x2="494" y2="96"/>
+                      <line class="s-acc w15" x1="330" y1="230" x2="494" y2="180"/>
+                      <line class="s-muted w15" x1="330" y1="230" x2="54" y2="168"/>
+                    </g>
+                    <circle class="f-lit" cx="54" cy="100" r="4"/><circle class="f-lit" cx="54" cy="126" r="4"/>
+                    <circle class="f-acc" cx="180" cy="230" r="4"/><circle class="f-acc" cx="120" cy="52" r="4"/><circle class="f-acc" cx="250" cy="52" r="4"/><circle class="f-acc" cx="380" cy="52" r="4"/><circle class="f-acc" cx="494" cy="96" r="4"/><circle class="f-acc" cx="494" cy="180" r="4"/>
+                    <circle class="f-muted" cx="54" cy="168" r="4"/>
+                    <rect class="f-ink" x="324" y="226" width="12" height="8"/>
+                    <text class="t-small t-strong mid" x="330" y="252">one texel</text>
+
+                    <text class="t-head" x="560" y="60">9 rays from one texel</text>
+                    <line class="s-lit w2" x1="560" y1="86" x2="584" y2="86"/>
+                    <text class="t-small" x="592" y="90">2 out of the window: sky and sun</text>
+                    <line class="s-acc w2" x1="560" y1="108" x2="584" y2="108"/>
+                    <text class="t-small" x="592" y="112">6 hit lit surfaces: bounced light</text>
+                    <line class="s-muted w2" x1="560" y1="130" x2="584" y2="130"/>
+                    <text class="t-small" x="592" y="134">1 hits a dark wall: little light</text>
+                    <text class="t-small t-muted" x="560" y="168">Each hit surface was itself lit by earlier</text>
+                    <text class="t-small t-muted" x="560" y="184">bounces, so each round of the bake adds one</text>
+                    <text class="t-small t-muted" x="560" y="200">more bounce. A real bake fires hundreds of</text>
+                    <text class="t-small t-muted" x="560" y="216">rays per texel, for millions of texels.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A bake is millions of small light-gathering jobs.</b> The texel sits in shadow, out of the sun, yet it is far from black: light reaches it off the sunlit floor patch, the walls and the ceiling. The lightmapper averages many such rays per texel. This is the same bounced light as <a class="xref" data-ch="8.1">8.1</a>'s bounce room, computed once and kept.</figcaption>
+              </figure>
+              <p>The settings that matter are the number of bounces, the number of samples per texel and the area to bake carefully. Unreal's Lightmass emits photons across the whole level, so a <strong>Lightmass Importance Volume</strong> around the playable area keeps the effort there; outside it, surfaces get one lower-quality bounce. Its <strong>Build, Lighting Quality</strong> presets run from Preview ("gets the point across, but at least it is fast") to Production ("looks awesome, takes a while"). Unity sets <strong>Max Bounces</strong> (default 2) and direct and indirect sample counts in the Lighting window; Godot's LightmapGI has <strong>Bounces</strong> (default 3) and quality presets from Low to Ultra.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="lightmap-uvs"><span class="step-num">2</span> Lightmap UVs: a second, unique layout</h3>
+              <p>A lightmap is a texture, so the mesh needs UV coordinates to find its texels (<a class="xref" data-ch="6.1">6.1</a>). The UVs used for the material usually cannot serve. Material UVs are free to overlap and repeat: every plank of a floor can use the same wood texture, and both sides of a symmetrical prop can share one half of its texture. Light is different on every plank and on each side of the prop, so each spot needs its own texel.</p>
+              <p><dfn class="term" data-term="lightmap-uvs">Lightmap UVs</dfn> are a second set of coordinates in which every face has its own space, nothing overlaps, and each <a class="term" data-term="uv-island" href="glossary.html#uv-island">UV island</a> has a margin of empty texels around it. Unity stores them in the mesh's second UV channel, <code>Mesh.uv2</code>, which its documentation also calls UV1. Unreal reads the channel named by the mesh's <strong>Lightmap Coordinate Index</strong>; Godot calls it UV2. All three engines can generate them on import.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="A crate in the middle. Left: its material UVs, where all six faces are stacked on the same square of a tiling wood texture, so they overlap completely. Right: its lightmap UVs, where the six faces are laid out as six separate islands with gaps between them, so each face has its own texels for light.">
+                    <text class="t-caps" x="20" y="22">MATERIAL UVS: OVERLAP ALLOWED</text>
+                    <rect class="f-geo-soft s-geo w2" x="40" y="44" width="170" height="170"/>
+                    <rect class="s-geo" x="44" y="48" width="170" height="170"/>
+                    <rect class="s-geo" x="48" y="52" width="170" height="170"/>
+                    <g class="s-line">
+                      <line x1="40" y1="86" x2="210" y2="86"/><line x1="40" y1="128" x2="210" y2="128"/><line x1="40" y1="170" x2="210" y2="170"/>
+                    </g>
+                    <text class="t-small t-geo t-strong" x="60" y="110">all 6 faces</text>
+                    <text class="t-small t-geo" x="60" y="126">on one square</text>
+                    <text class="t-small t-muted" x="20" y="246">Every face reads the same wood planks.</text>
+
+                    <text class="t-caps" x="360" y="22">THE CRATE</text>
+                    <polygon class="f-surface s-ink" points="360,110 470,110 510,80 400,80"/>
+                    <polygon class="f-solid s-ink" points="360,110 470,110 470,210 360,210"/>
+                    <polygon class="f-strong s-ink" points="470,110 510,80 510,180 470,210"/>
+                    <polygon class="f-shade" fill-opacity="0.18" points="360,190 470,190 470,210 360,210"/>
+                    <text class="t-small mid" x="415" y="165">front</text>
+                    <text class="t-small mid" x="436" y="99">top</text>
+                    <text class="t-small t-muted" x="360" y="246">Lit differently on every face:</text>
+                    <text class="t-small t-muted" x="360" y="262">bright top, dark base, shaded side.</text>
+
+                    <text class="t-caps" x="580" y="22">LIGHTMAP UVS: UNIQUE, WITH GAPS</text>
+                    <rect class="f-buf-lo" x="580" y="40" width="200" height="200"/>
+                    <rect class="f-buf-hi s-geo w15" x="592" y="52" width="56" height="56"/>
+                    <rect class="f-buf-hi s-geo w15" x="660" y="52" width="56" height="56"/>
+                    <rect class="f-buf-hi s-geo w15" x="728" y="52" width="40" height="56"/>
+                    <rect class="f-buf-hi s-geo w15" x="592" y="120" width="56" height="56"/>
+                    <rect class="f-buf-hi s-geo w15" x="660" y="120" width="56" height="56"/>
+                    <rect class="f-buf-hi s-geo w15" x="728" y="120" width="40" height="56"/>
+                    <rect class="f-buf-lo" fill-opacity="0.15" x="592" y="52" width="56" height="56"/>
+                    <rect class="f-buf-lo" fill-opacity="0.4" x="660" y="52" width="56" height="56"/>
+                    <rect class="f-buf-lo" fill-opacity="0.6" x="728" y="52" width="40" height="56"/>
+                    <rect class="f-buf-lo" fill-opacity="0.55" x="592" y="120" width="56" height="56"/>
+                    <rect class="f-buf-lo" fill-opacity="0.45" x="660" y="120" width="56" height="56"/>
+                    <rect class="f-buf-lo" fill-opacity="0.7" x="728" y="120" width="40" height="56"/>
+                    <line class="s-acc w15" x1="648" y1="196" x2="660" y2="196"/>
+                    <text class="t-small t-acc" x="664" y="200">gap: a few texels</text>
+                    <text class="t-small t-muted" x="800" y="80">each face</text>
+                    <text class="t-small t-muted" x="800" y="96">its own</text>
+                    <text class="t-small t-muted" x="800" y="112">texels</text>
+                    <text class="t-small t-muted" x="580" y="262">Islands never share texels, and never touch.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Two UV sets for two jobs.</b> The material UVs (6.1) can stack every face of the crate on one wood texture. The lightmap UVs give each face its own island, with empty texels between islands. Without the gap, a texel at the edge of one island would be blended, by texture filtering, with its neighbour from a different face: a bright top would bleed onto a dark side.</figcaption>
+              </figure>
+              <p>The gap, or padding, is a real requirement. Epic's lightmapping guide says a minimum of four texels between islands is usually needed to avoid all bleeding, and that lightmap UVs should be split where there are deep recesses or crevices, accepting that every split risks a visible seam. Unity's default <strong>Lightmap Padding</strong> is 2 texels; Godot generates UV2 when a mesh is imported with <strong>Light Baking</strong> set to Static Lightmaps.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="resolution"><span class="step-num">3</span> Lightmap resolution: texels per metre</h3>
+              <p><dfn class="term" data-term="lightmap-resolution">Lightmap resolution</dfn> is the lightmap's <a class="term" data-term="texel-density" href="glossary.html#texel-density">texel density</a>: how many texels cover each metre of surface. It decides how sharp baked shadows can be and how much memory the lightmaps take. Because surfaces are two-dimensional, memory grows with the square: double the density and the texel count quadruples, as Unity's documentation warns.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 316" role="img" aria-label="The same 2.4 by 1.4 metre patch of floor seen from above, with a crate and its sun shadow, baked at three lightmap resolutions. At 2 texels per metre the shadow is a few grey blocks and its shape is lost. At 8 texels per metre the shadow is recognisable but its edges are steps. At 32 texels per metre the edge and the contact darkening are clean. Each step multiplies texels by 16: for 20,000 square metres of surface, 80 thousand, 1.28 million and 20.5 million texels.">
+<text class="t-caps" x="20" y="22">ONE FLOOR PATCH, THREE LIGHTMAP RESOLUTIONS (DRAWN UNFILTERED)</text>
+<rect class="f-buf-hi" x="20" y="40" width="270" height="157.5"/>
+<g shape-rendering="crispEdges">
+<rect class="f-buf-lo" fill-opacity="0.13" x="20" y="92.5" width="54" height="52.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="74" y="92.5" width="108" height="52.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="182" y="92.5" width="54" height="52.5"/>
+<rect class="f-buf-lo" fill-opacity="0.63" x="128" y="145" width="108" height="52.5"/>
+</g><rect class="f-solid s-ink" x="53.8" y="79.4" width="67.5" height="67.5"/>
+<rect class="s-strong" x="20" y="40" width="270" height="157.5"/>
+<text class="t-head" x="20" y="223.5">2 texels per metre</text>
+<text class="t-small t-muted" x="20" y="241.5">4 texels per square metre</text>
+<text class="t-small" x="20" y="259.5">20,000 m² of surface: 80 thousand texels</text>
+<text class="t-small t-acc t-strong" x="20" y="277.5">78 KB at 1 byte per texel (BC6H)</text>
+<rect class="f-buf-hi" x="312" y="40" width="270" height="157.5"/>
+<g shape-rendering="crispEdges">
+
+<rect class="f-buf-lo" fill-opacity="0.25" x="340.4" y="68.6" width="71.1" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.13" x="411.5" y="68.6" width="14.2" height="14.3"/>
+<rect class="f-buf-lo" fill-opacity="0.75" x="340.4" y="83" width="85.3" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.63" x="425.7" y="83" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.25" x="439.9" y="83" width="14.2" height="14.3"/>
+<rect class="f-buf-lo" fill-opacity="0.75" x="340.4" y="97.3" width="127.9" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.63" x="468.3" y="97.3" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.38" x="482.5" y="97.3" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.13" x="496.7" y="97.3" width="14.2" height="14.3"/>
+<rect class="f-buf-lo" fill-opacity="0.75" x="340.4" y="111.6" width="156.3" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.63" x="496.7" y="111.6" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.50" x="510.9" y="111.6" width="14.2" height="14.3"/>
+<rect class="f-buf-lo" fill-opacity="0.75" x="340.4" y="125.9" width="170.5" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.50" x="510.9" y="125.9" width="14.2" height="14.3"/>
+<rect class="f-buf-lo" fill-opacity="0.38" x="340.4" y="140.2" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.75" x="354.6" y="140.2" width="156.3" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.50" x="510.9" y="140.2" width="14.2" height="14.3"/>
+<rect class="f-buf-lo" fill-opacity="0.38" x="383.1" y="154.5" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.50" x="397.3" y="154.5" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.63" x="411.5" y="154.5" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.75" x="425.7" y="154.5" width="85.3" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.50" x="510.9" y="154.5" width="14.2" height="14.3"/>
+<rect class="f-buf-lo" fill-opacity="0.25" x="425.7" y="168.9" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.38" x="439.9" y="168.9" width="14.2" height="14.3"/><rect class="f-buf-lo" fill-opacity="0.50" x="454.1" y="168.9" width="71.1" height="14.3"/>
+
+</g><rect class="f-solid s-ink" x="345.8" y="79.4" width="67.5" height="67.5"/>
+<rect class="s-strong" x="312" y="40" width="270" height="157.5"/>
+<text class="t-head" x="312" y="223.5">8 texels per metre</text>
+<text class="t-small t-muted" x="312" y="241.5">64 texels per square metre</text>
+<text class="t-small" x="312" y="259.5">20,000 m² of surface: 1.28 million texels</text>
+<text class="t-small t-acc t-strong" x="312" y="277.5">1.2 MB at 1 byte per texel (BC6H)</text>
+<rect class="f-buf-hi" x="604" y="40" width="270" height="157.5"/>
+<g shape-rendering="crispEdges">
+
+
+
+
+
+
+
+<rect class="f-buf-lo" fill-opacity="0.13" x="628.5" y="68" width="84.2" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="628.5" y="71.5" width="87.7" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="75" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="635.6" y="75" width="73.6" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="709.2" y="75" width="7" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="78.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="78.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="78.5" width="66.6" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="705.7" y="78.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="709.2" y="78.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="712.7" y="78.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="82" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="82" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="82" width="70.1" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="709.2" y="82" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="712.7" y="82" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="719.7" y="82" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="723.2" y="82" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="85.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="85.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="85.5" width="77.1" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="716.2" y="85.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="723.2" y="85.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="726.7" y="85.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="733.7" y="85.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="89" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="89" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="89" width="84.2" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="723.2" y="89" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="730.2" y="89" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="737.2" y="89" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="740.8" y="89" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="747.8" y="89" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="92.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="92.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="92.5" width="94.7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="733.7" y="92.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="737.2" y="92.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="744.3" y="92.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="751.3" y="92.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="758.3" y="92.5" width="7" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="96" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="96" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="96" width="101.7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="740.8" y="96" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="751.3" y="96" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="758.3" y="96" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="765.3" y="96" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="768.8" y="96" width="14" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="99.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="99.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="99.5" width="108.7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="747.8" y="99.5" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="761.8" y="99.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="765.3" y="99.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="772.3" y="99.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="782.8" y="99.5" width="14" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="103" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="103" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="103" width="119.2" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="758.3" y="103" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="768.8" y="103" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="775.8" y="103" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="786.3" y="103" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="796.9" y="103" width="14" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="106.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="106.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="106.5" width="126.2" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="765.3" y="106.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="775.8" y="106.5" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="789.8" y="106.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="800.4" y="106.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="807.4" y="106.5" width="10.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="110" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="110" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="110" width="133.2" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="772.3" y="110" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="786.3" y="110" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="796.9" y="110" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="807.4" y="110" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="110" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="113.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="113.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="113.5" width="143.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="782.8" y="113.5" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="796.9" y="113.5" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="113.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="113.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="117" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="117" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="117" width="150.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="789.8" y="117" width="17.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="117" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="117" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="117" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="120.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="120.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="120.5" width="157.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="796.9" y="120.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="120.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="120.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="120.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="124" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="124" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="124" width="164.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="124" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="124" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="124" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="124" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="127.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="127.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="127.5" width="164.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="127.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="127.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="127.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="127.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="131" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="131" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="131" width="164.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="131" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="131" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="131" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="131" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="134.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="134.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="134.5" width="164.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="134.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="134.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="134.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="134.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="138" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="138" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="138" width="164.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="138" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="138" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="138" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="138" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="141.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="141.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="639.1" y="141.5" width="164.8" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="141.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="141.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="141.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="141.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="145" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="635.6" y="145" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="639.1" y="145" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="642.6" y="145" width="161.3" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="145" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="145" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="145" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="145" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="625" y="148.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="635.6" y="148.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="646.1" y="148.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="649.6" y="148.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="653.1" y="148.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="656.6" y="148.5" width="147.3" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="148.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="148.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="148.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="148.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="628.5" y="152" width="24.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="653.1" y="152" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="660.1" y="152" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="667.1" y="152" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="677.6" y="152" width="126.2" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="152" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="152" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="152" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="152" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="632.1" y="155.5" width="31.6" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="663.6" y="155.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="667.1" y="155.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="674.1" y="155.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="681.1" y="155.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="691.7" y="155.5" width="112.2" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="155.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="155.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="155.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="155.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="670.6" y="159" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="677.6" y="159" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="681.1" y="159" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="688.2" y="159" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="695.2" y="159" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="705.7" y="159" width="98.2" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="159" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="159" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="159" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="159" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="677.6" y="162.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="684.6" y="162.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="691.7" y="162.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="702.2" y="162.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="709.2" y="162.5" width="17.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="726.7" y="162.5" width="77.1" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="162.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="162.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="162.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="162.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="688.2" y="166" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="698.7" y="166" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="702.2" y="166" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="709.2" y="166" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="723.2" y="166" width="21" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.75" x="744.3" y="166" width="59.6" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="803.9" y="166" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="166" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="166" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="166" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="698.7" y="169.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="705.7" y="169.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="712.7" y="169.5" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="723.2" y="169.5" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="737.2" y="169.5" width="70.1" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="169.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="169.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="169.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="709.2" y="173" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="716.2" y="173" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="726.7" y="173" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="737.2" y="173" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.63" x="751.3" y="173" width="56.1" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="807.4" y="173" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="173" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="173" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="719.7" y="176.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="726.7" y="176.5" width="7" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="733.7" y="176.5" width="14" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.50" x="747.8" y="176.5" width="63.1" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.38" x="810.9" y="176.5" width="3.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="176.5" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="726.7" y="180" width="10.5" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.25" x="737.2" y="180" width="77.1" height="3.5"/><rect class="f-buf-lo" fill-opacity="0.13" x="814.4" y="180" width="3.5" height="3.5"/>
+<rect class="f-buf-lo" fill-opacity="0.13" x="737.2" y="183.5" width="80.6" height="3.5"/>
+
+
+
+</g><rect class="f-solid s-ink" x="637.8" y="79.4" width="67.5" height="67.5"/>
+<rect class="s-strong" x="604" y="40" width="270" height="157.5"/>
+<text class="t-head" x="604" y="223.5">32 texels per metre</text>
+<text class="t-small t-muted" x="604" y="241.5">1024 texels per square metre</text>
+<text class="t-small" x="604" y="259.5">20,000 m² of surface: 20.48 million texels</text>
+<text class="t-small t-acc t-strong" x="604" y="277.5">19.5 MB at 1 byte per texel (BC6H)</text>
+<text class="t-small t-muted" x="20" y="306">Seen from above; the square is the crate. Real lightmaps are filtered between texels, so low resolution reads as blotches rather than blocks.</text>
+</svg>
+                </div>
+                <figcaption><b>Sharper shadows cost the square of the density.</b> The same patch of floor next to a crate, its shadow from the sun baked in. At 2 texels per metre the shadow's shape is gone; at 32 it is crisp, and a level of that size needs 256 times the texels. Memory is shown at 1 byte per texel, the size of the BC6H format chapter 6.3 recommends for lightmaps; directional lightmaps, described below, double it.</figcaption>
+              </figure>
+              <p>Each engine sets density differently. Unity's Lighting window has <strong>Lightmap Resolution</strong> in texels per unit, scaled per object by <strong>Scale In Lightmap</strong>. Unreal sets a <strong>Light Map Resolution</strong> per static mesh, the size of the texture area its whole UV layout gets, so the density on screen depends on the mesh's size; the <strong>Lightmap Density</strong> view mode colours every mesh by its actual density so mismatches stand out. Godot's import option <strong>Lightmap Texel Size</strong> defaults to 0.2 m per texel, five texels per metre, which its documentation suits to small and medium scenes and suggests raising to 0.5 or more for large ones.</p>
+              <p>Unity also stores, by default, a second texture with the main direction light arrives from at each texel, called <strong>Directional</strong> mode. Normal maps can then catch baked light from the right side. Unity says it takes about twice the memory of non-directional lightmaps; Godot's LightmapGI offers the same as <strong>Directional</strong>, off by default.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="mobility"><span class="step-num">4</span> Light mobility: how much of each light is baked</h3>
+              <p>Chapter <a class="xref" data-ch="7.1">7.1</a> introduced <a class="term" data-term="static-light" href="glossary.html#static-light">static</a> and <a class="term" data-term="dynamic-light" href="glossary.html#dynamic-light">dynamic</a> lights. <dfn class="term" data-term="light-mobility">Light mobility</dfn> is the setting on each light that picks between them, with a middle option that bakes some of the light and computes the rest every frame. It is the main switch between quality, speed and freedom.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 296" role="img" aria-label="Left: a table of the three mobility settings. Static, called Baked in Unity and Static bake mode in Godot: direct light, bounced light and shadows all baked. Stationary or Mixed: bounced light and static objects' shadows baked, direct light computed every frame, and moving objects cast real-time shadows. Movable, Realtime or Godot's Disabled bake mode: nothing baked. Godot's default Dynamic bake mode bakes only the bounce. Right: a floor plan with four stationary lights whose ranges overlap in one area, which is allowed, and a fifth overlapping them, marked with a cross: in Unreal it falls back to fully dynamic shadows at a considerable cost.">
+                    <text class="t-caps" x="200" y="24">DIRECT LIGHT</text>
+                    <text class="t-caps" x="300" y="24">BOUNCE</text>
+                    <text class="t-caps" x="380" y="24">STATIC SHADOWS</text>
+                    <text class="t-caps" x="500" y="24">MOVING CASTERS</text>
+                    <text class="t-head" x="20" y="62">Static</text>
+                    <text class="t-small t-muted" x="20" y="78">Unity Baked · Godot Static</text>
+                    <rect class="f-acc-soft s-acc" x="200" y="50" width="80" height="26" rx="5"/><text class="t-small mid" x="240" y="67">baked</text>
+                    <rect class="f-acc-soft s-acc" x="300" y="50" width="70" height="26" rx="5"/><text class="t-small mid" x="335" y="67">baked</text>
+                    <rect class="f-acc-soft s-acc" x="380" y="50" width="100" height="26" rx="5"/><text class="t-small mid" x="430" y="67">baked</text>
+                    <rect class="f-sunken s-strong" x="500" y="50" width="96" height="26" rx="5"/><text class="t-small t-muted mid" x="548" y="67">none</text>
+
+                    <text class="t-head" x="20" y="122">Stationary</text>
+                    <text class="t-small t-muted" x="20" y="138">Unity Mixed</text>
+                    <rect class="f-lit-soft s-lit" x="200" y="110" width="80" height="26" rx="5"/><text class="t-small mid" x="240" y="127">every frame</text>
+                    <rect class="f-acc-soft s-acc" x="300" y="110" width="70" height="26" rx="5"/><text class="t-small mid" x="335" y="127">baked</text>
+                    <rect class="f-acc-soft s-acc" x="380" y="110" width="100" height="26" rx="5"/><text class="t-small mid" x="430" y="127">shadow mask</text>
+                    <rect class="f-lit-soft s-lit" x="500" y="110" width="96" height="26" rx="5"/><text class="t-small mid" x="548" y="127">every frame</text>
+
+                    <text class="t-head" x="20" y="182">Movable</text>
+                    <text class="t-small t-muted" x="20" y="198">Unity Realtime</text>
+                    <text class="t-small t-muted" x="20" y="212">Godot Disabled</text>
+                    <rect class="f-lit-soft s-lit" x="200" y="170" width="80" height="26" rx="5"/><text class="t-small mid" x="240" y="187">every frame</text>
+                    <rect class="f-sunken s-strong" x="300" y="170" width="70" height="26" rx="5"/><text class="t-small t-muted mid" x="335" y="187">real-time</text>
+                    <rect class="f-lit-soft s-lit" x="380" y="170" width="100" height="26" rx="5"/><text class="t-small mid" x="430" y="187">every frame</text>
+                    <rect class="f-lit-soft s-lit" x="500" y="170" width="96" height="26" rx="5"/><text class="t-small mid" x="548" y="187">every frame</text>
+                    <text class="t-small t-muted" x="300" y="214">GI only</text>
+
+                    <text class="t-small t-muted" x="20" y="252">Godot's default bake mode, Dynamic, bakes only the bounce;</text>
+                    <text class="t-small t-muted" x="20" y="268">direct light and its shadows stay real time.</text>
+
+                    <text class="t-caps" x="640" y="24">UNREAL: AT MOST 4 OVERLAP</text>
+                    <rect class="f-sunken s-strong" x="640" y="40" width="240" height="200"/>
+                    <circle class="f-lit-soft s-lit" fill-opacity="0.55" cx="715" cy="115" r="62"/>
+                    <circle class="f-lit-soft s-lit" fill-opacity="0.55" cx="805" cy="115" r="62"/>
+                    <circle class="f-lit-soft s-lit" fill-opacity="0.55" cx="715" cy="185" r="62"/>
+                    <circle class="f-lit-soft s-lit" fill-opacity="0.55" cx="805" cy="185" r="62"/>
+                    <circle class="s-pix w2 dash" cx="760" cy="150" r="40"/>
+                    <circle class="f-lit" cx="715" cy="115" r="5"/><circle class="f-lit" cx="805" cy="115" r="5"/><circle class="f-lit" cx="715" cy="185" r="5"/><circle class="f-lit" cx="805" cy="185" r="5"/>
+                    <path class="s-pix w3" d="M752,142 L768,158 M768,142 L752,158"/>
+                    <text class="t-small t-pix t-strong" x="640" y="262">a fifth overlapping Stationary light:</text>
+                    <text class="t-small t-pix" x="640" y="278">fully dynamic shadows, at a high cost</text>
+                  </svg>
+                </div>
+                <figcaption><b>Three settings, each a different split of the work.</b> Static bakes everything and frees the GPU, but the light can never change. The middle setting bakes the bounce and the shadows of static objects while computing direct light every frame, so the light's colour and brightness can change and moving objects cast proper shadows. Movable bakes nothing. Unreal limits shadow-casting Stationary lights to four overlapping one another; the editor marks a fifth with a red cross.</figcaption>
+              </figure>
+              <p>The middle setting stores baked shadows from static objects separately from the light itself, in a <dfn class="term" data-term="shadowmask">shadow mask</dfn>: a texture that records, per texel, how much each light is blocked. The light's direct contribution is computed every frame and multiplied by it. Unreal's Stationary lights bake distance field shadow maps for static objects and give moving objects per-object dynamic shadows. Unity's Mixed lights take one of three Lighting Modes chosen in the Lighting window: <strong>Baked Indirect</strong> (only the bounce baked, real-time shadows), <strong>Shadowmask</strong> (baked shadows from static objects, with a Distance Shadowmask variant) and <strong>Subtractive</strong> (direct light baked too, cheapest, and not available in HDRP). Unity's own comparison rates their iteration time as slowest for Baked, slow for Mixed and fast for Realtime.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="probes"><span class="step-num">5</span> Light probes: baked light for things that move</h3>
+              <p>A character cannot use a lightmap: it moves, and its shape changes. Instead the bake records light at points in the air. A <dfn class="term" data-term="light-probe">light probe</dfn> stores the light arriving at one point from every direction. At run time, a moving object finds the probes around it and blends them, weighted by how close each one is.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 360" role="img" aria-label="Side view of a room with a window on the left. Eight light probes hang in the air in a grid two high and four across; probes near the window are bright, those to the right darker. A character walks from left to right. At its middle position it lies inside the cell formed by four probes, and its lighting is a blend of them: weights of 0.12, 0.08, 0.48 and 0.32, giving a brightness between the bright and dark probes. The two other positions show the character lit brighter near the window and darker at the far end.">
+<defs><linearGradient id="pr-room" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-buf-lo" stop-opacity="0"/><stop offset="1" class="stop-buf-lo" stop-opacity="0.55"/></linearGradient></defs>
+<text class="t-caps" x="40" y="22">LIGHT PROBES: BAKED LIGHT IN EMPTY SPACE, BLENDED FOR MOVING OBJECTS</text>
+<rect class="f-buf-hi" x="40" y="76.79999999999998" width="496" height="223.20000000000002"/>
+<rect x="40" y="76.79999999999998" width="496" height="223.20000000000002" fill="url(#pr-room)"/>
+<rect class="f-solid s-ink" x="21.400000000000002" y="76.79999999999998" width="18.599999999999998" height="223.20000000000002"/>
+<rect class="f-paint-sky s-ink" x="21.400000000000002" y="114" width="18.599999999999998" height="99.2"/>
+<line class="s-ink w2" x1="21.400000000000002" y1="300" x2="536" y2="300"/>
+<text class="t-small t-muted" x="21.400000000000002" y="70.79999999999998">window in the left wall</text>
+<line class="s-acc dash" x1="244.6" y1="244.2" x2="195" y2="269"/>
+<line class="s-acc dash" x1="244.6" y1="244.2" x2="319" y2="269"/>
+<line class="s-acc dash" x1="244.6" y1="244.2" x2="195" y2="145"/>
+<line class="s-acc dash" x1="244.6" y1="244.2" x2="319" y2="145"/>
+<circle class="f-buf-hi s-ink" cx="71" cy="269" r="13"/><circle class="f-buf-lo" fill-opacity="0.00" cx="71" cy="269" r="13"/>
+<circle class="f-buf-hi s-ink" cx="71" cy="145" r="13"/><circle class="f-buf-lo" fill-opacity="0.00" cx="71" cy="145" r="13"/>
+<circle class="f-buf-hi s-ink" cx="195" cy="269" r="13"/><circle class="f-buf-lo" fill-opacity="0.26" cx="195" cy="269" r="13"/>
+<circle class="f-buf-hi s-ink" cx="195" cy="145" r="13"/><circle class="f-buf-lo" fill-opacity="0.22" cx="195" cy="145" r="13"/>
+<circle class="f-buf-hi s-ink" cx="319" cy="269" r="13"/><circle class="f-buf-lo" fill-opacity="0.52" cx="319" cy="269" r="13"/>
+<circle class="f-buf-hi s-ink" cx="319" cy="145" r="13"/><circle class="f-buf-lo" fill-opacity="0.48" cx="319" cy="145" r="13"/>
+<circle class="f-buf-hi s-ink" cx="443" cy="269" r="13"/><circle class="f-buf-lo" fill-opacity="0.78" cx="443" cy="269" r="13"/>
+<circle class="f-buf-hi s-ink" cx="443" cy="145" r="13"/><circle class="f-buf-lo" fill-opacity="0.74" cx="443" cy="145" r="13"/>
+<rect class="f-surface s-acc" x="139" y="263" width="42" height="15" rx="4"/><text class="t-small t-acc t-strong" x="143" y="274">×0.48</text>
+<rect class="f-surface s-acc" x="333" y="263" width="42" height="15" rx="4"/><text class="t-small t-acc t-strong" x="337" y="274">×0.32</text>
+<rect class="f-surface s-acc" x="139" y="116" width="42" height="15" rx="4"/><text class="t-small t-acc t-strong" x="143" y="127">×0.12</text>
+<rect class="f-surface s-acc" x="333" y="116" width="42" height="15" rx="4"/><text class="t-small t-acc t-strong" x="337" y="127">×0.08</text>
+<g class="f-buf-hi s-ink"><circle cx="108.2" cy="202.5" r="11"/><rect x="91.2" y="216.5" width="34" height="83.5" rx="12"/></g><g class="f-buf-lo" fill-opacity="0.07"><circle cx="108.2" cy="202.5" r="11"/><rect x="91.2" y="216.5" width="34" height="83.5" rx="12"/></g>
+<g class="f-buf-hi s-ink"><circle cx="244.6" cy="202.5" r="11"/><rect x="227.6" y="216.5" width="34" height="83.5" rx="12"/></g><g class="f-buf-lo" fill-opacity="0.36"><circle cx="244.6" cy="202.5" r="11"/><rect x="227.6" y="216.5" width="34" height="83.5" rx="12"/></g>
+<g class="f-buf-hi s-ink"><circle cx="405.8" cy="202.5" r="11"/><rect x="388.8" y="216.5" width="34" height="83.5" rx="12"/></g><g class="f-buf-lo" fill-opacity="0.70"><circle cx="405.8" cy="202.5" r="11"/><rect x="388.8" y="216.5" width="34" height="83.5" rx="12"/></g>
+<text class="t-small t-strong mid" x="244.6" y="318">blend of 4 probes</text>
+<text class="t-small t-muted mid" x="108.2" y="318">bright</text>
+<text class="t-small t-muted mid" x="405.8" y="318">dark</text>
+<text class="t-head" x="558" y="60">How engines blend</text>
+<text class="t-small t-muted" x="558" y="75">Drawn in 2D: four probes,</text>
+<text class="t-small t-muted" x="558" y="90">weights by distance.</text>
+<text class="t-small" x="558" y="114">Unity Light Probe Groups:</text>
+<text class="t-small t-muted" x="558" y="129">four probes of a tetrahedron,</text>
+<text class="t-small t-muted" x="558" y="144">one blend per object</text>
+<text class="t-small" x="558" y="168">Unreal volumetric lightmap,</text>
+<text class="t-small" x="558" y="183">Unity APV:</text>
+<text class="t-small t-muted" x="558" y="198">eight surrounding probes,</text>
+<text class="t-small t-muted" x="558" y="213">blended per pixel</text>
+<text class="t-small" x="558" y="237">Godot LightmapGI:</text>
+<text class="t-small t-muted" x="558" y="252">probes it generates, or</text>
+<text class="t-small t-muted" x="558" y="267">LightmapProbe nodes</text>
+</svg>
+                </div>
+                <figcaption><b>A moving object is lit by a weighted mix of the probes around it.</b> In the middle position the character is closest to the lower-left probe, which gets weight 0.48, and furthest from the upper-right one, at 0.08. As it walks, the weights shift smoothly, so it brightens near the window and darkens at the far end without anything being computed per frame beyond the blend.</figcaption>
+              </figure>
+              <p>Engines differ in how probes are placed and blended. Unity's <strong>Light Probe Group</strong> is placed by hand; Unity connects the probes into tetrahedra and blends the four corners of the one containing the object, once per object, a method Robert Cupisz presented at GDC 2012. The probes must form a volume, at least two layers high, and Unity advises placing them densely where light changes quickly and sparsely where it does not. Godot's LightmapGI generates probes automatically, at <strong>Gen Probes Subdiv</strong> 8 by default, and adds hand-placed LightmapProbe nodes. Per-object blending has a limit: a large object gets one blend for its whole body, so half of it can be wrong when it straddles a shadow line.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="sh"><span class="step-num">6</span> Spherical harmonics: light from every direction in nine numbers</h3>
+              <p>A probe needs to hold light from every direction, compactly, so it can be stored by the thousand and blended cheaply. Most engines use <dfn class="term" data-term="spherical-harmonics">spherical harmonics</dfn>, SH: a set of fixed shapes over the sphere, ordered from smooth to detailed, that are added together in different amounts. The probe stores only the amounts. The first shape is the same in every direction and holds the average. The next three, band 1, tilt that average towards one side along each axis. The five of band 2 add a little more shape.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 446" role="img" aria-label="Left: the nine spherical harmonics shapes in three bands. Band 0 is one sphere, the same in every direction. Band 1 is three two-lobed shapes along the three axes, one side positive and one negative. Band 2 is five shapes with four lobes or a ring. Right: a probe's incoming light, a bright window to the upper left over a dim sky, and the lighting a matte surface facing each direction would receive. With 1 number per colour channel the result is the same in every direction; with 4 it gets the main direction right; with 9 it follows the exact curve closely.">
+<text class="t-caps" x="20" y="22">THE BANDS: 1 + 3 + 5 = 9 SHAPES</text>
+<text class="t-small t-muted" x="20" y="40">band 0: 1 number</text>
+<path class="f-acc-soft s-acc" d="M159.7,80 L159.7,78.7 L159.6,77.4 L159.4,76.1 L159.1,74.9 L158.7,73.7 L158.2,72.4 L157.7,71.3 L157.1,70.1 L156.4,69 L155.7,68 L154.8,67 L154,66 L153,65.2 L152,64.3 L151,63.6 L149.9,62.9 L148.7,62.3 L147.6,61.8 L146.3,61.3 L145.1,60.9 L143.9,60.6 L142.6,60.4 L141.3,60.3 L140,60.3 L138.7,60.3 L137.4,60.4 L136.1,60.6 L134.9,60.9 L133.7,61.3 L132.4,61.8 L131.3,62.3 L130.1,62.9 L129,63.6 L128,64.3 L127,65.2 L126,66 L125.2,67 L124.3,68 L123.6,69 L122.9,70.1 L122.3,71.3 L121.8,72.4 L121.3,73.7 L120.9,74.9 L120.6,76.1 L120.4,77.4 L120.3,78.7 L120.3,80 L120.3,81.3 L120.4,82.6 L120.6,83.9 L120.9,85.1 L121.3,86.3 L121.8,87.6 L122.3,88.7 L122.9,89.9 L123.6,91 L124.3,92 L125.2,93 L126,94 L127,94.8 L128,95.7 L129,96.4 L130.1,97.1 L131.3,97.7 L132.4,98.2 L133.7,98.7 L134.9,99.1 L136.1,99.4 L137.4,99.6 L138.7,99.7 L140,99.7 L141.3,99.7 L142.6,99.6 L143.9,99.4 L145.1,99.1 L146.3,98.7 L147.6,98.2 L148.7,97.7 L149.9,97.1 L151,96.4 L152,95.7 L153,94.8 L154,94 L154.8,93 L155.7,92 L156.4,91 L157.1,89.9 L157.7,88.7 L158.2,87.6 L158.7,86.3 L159.1,85.1 L159.4,83.9 L159.6,82.6 L159.7,81.3 L159.7,80 Z"/>
+<path class="f-pix-soft s-pix" d="M140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 L140,80 Z"/>
+<text class="t-small t-mono mid" x="140" y="120">1</text>
+<text class="t-small t-muted" x="20" y="160">band 1: 3 more, 4 in all</text>
+<path class="f-acc-soft s-acc" d="M60,200 L62,199.9 L63.9,199.5 L65.8,198.8 L67.6,198 L69.2,196.9 L70.7,195.6 L72,194.1 L73.1,192.4 L74,190.6 L74.6,188.8 L75,186.8 L75.1,184.9 L75,182.9 L74.6,180.9 L74,179.1 L73.1,177.3 L72,175.6 L70.7,174.1 L69.2,172.8 L67.6,171.7 L65.8,170.9 L63.9,170.2 L62,169.8 L60,169.7 L58,169.8 L56.1,170.2 L54.2,170.9 L52.4,171.7 L50.8,172.8 L49.3,174.1 L48,175.6 L46.9,177.3 L46,179.1 L45.4,180.9 L45,182.9 L44.9,184.9 L45,186.8 L45.4,188.8 L46,190.6 L46.9,192.4 L48,194.1 L49.3,195.6 L50.8,196.9 L52.4,198 L54.2,198.8 L56.1,199.5 L58,199.9 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 Z"/>
+<path class="f-pix-soft s-pix" d="M60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L60,200 L58,200.1 L56.1,200.5 L54.2,201.2 L52.4,202 L50.8,203.1 L49.3,204.4 L48,205.9 L46.9,207.6 L46,209.4 L45.4,211.2 L45,213.2 L44.9,215.1 L45,217.1 L45.4,219.1 L46,220.9 L46.9,222.7 L48,224.4 L49.3,225.9 L50.8,227.2 L52.4,228.3 L54.2,229.1 L56.1,229.8 L58,230.2 L60,230.3 L62,230.2 L63.9,229.8 L65.8,229.1 L67.6,228.3 L69.2,227.2 L70.7,225.9 L72,224.4 L73.1,222.7 L74,220.9 L74.6,219.1 L75,217.1 L75.1,215.1 L75,213.2 L74.6,211.2 L74,209.4 L73.1,207.6 L72,205.9 L70.7,204.4 L69.2,203.1 L67.6,202 L65.8,201.2 L63.9,200.5 L62,200.1 L60,200 Z"/>
+<text class="t-small t-mono mid" x="60" y="240">y</text>
+<path class="f-acc-soft s-acc" d="M140,200 L142,199.9 L143.9,199.5 L145.8,198.8 L147.6,198 L149.2,196.9 L150.7,195.6 L152,194.1 L153.1,192.4 L154,190.6 L154.6,188.8 L155,186.8 L155.1,184.9 L155,182.9 L154.6,180.9 L154,179.1 L153.1,177.3 L152,175.6 L150.7,174.1 L149.2,172.8 L147.6,171.7 L145.8,170.9 L143.9,170.2 L142,169.8 L140,169.7 L138,169.8 L136.1,170.2 L134.2,170.9 L132.4,171.7 L130.8,172.8 L129.3,174.1 L128,175.6 L126.9,177.3 L126,179.1 L125.4,180.9 L125,182.9 L124.9,184.9 L125,186.8 L125.4,188.8 L126,190.6 L126.9,192.4 L128,194.1 L129.3,195.6 L130.8,196.9 L132.4,198 L134.2,198.8 L136.1,199.5 L138,199.9 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 Z"/>
+<path class="f-pix-soft s-pix" d="M140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L140,200 L138,200.1 L136.1,200.5 L134.2,201.2 L132.4,202 L130.8,203.1 L129.3,204.4 L128,205.9 L126.9,207.6 L126,209.4 L125.4,211.2 L125,213.2 L124.9,215.1 L125,217.1 L125.4,219.1 L126,220.9 L126.9,222.7 L128,224.4 L129.3,225.9 L130.8,227.2 L132.4,228.3 L134.2,229.1 L136.1,229.8 L138,230.2 L140,230.3 L142,230.2 L143.9,229.8 L145.8,229.1 L147.6,228.3 L149.2,227.2 L150.7,225.9 L152,224.4 L153.1,222.7 L154,220.9 L154.6,219.1 L155,217.1 L155.1,215.1 L155,213.2 L154.6,211.2 L154,209.4 L153.1,207.6 L152,205.9 L150.7,204.4 L149.2,203.1 L147.6,202 L145.8,201.2 L143.9,200.5 L142,200.1 L140,200 Z"/>
+<text class="t-small t-mono mid" x="140" y="240">z</text>
+<path class="f-acc-soft s-acc" d="M250.3,200 L250.2,198 L249.8,196.1 L249.1,194.2 L248.3,192.4 L247.2,190.8 L245.9,189.3 L244.4,188 L242.7,186.9 L240.9,186 L239.1,185.4 L237.1,185 L235.1,184.9 L233.2,185 L231.2,185.4 L229.4,186 L227.6,186.9 L225.9,188 L224.4,189.3 L223.1,190.8 L222,192.4 L221.2,194.2 L220.5,196.1 L220.1,198 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220.1,202 L220.5,203.9 L221.2,205.8 L222,207.6 L223.1,209.2 L224.4,210.7 L225.9,212 L227.6,213.1 L229.4,214 L231.2,214.6 L233.2,215 L235.1,215.1 L237.1,215 L239.1,214.6 L240.9,214 L242.7,213.1 L244.4,212 L245.9,210.7 L247.2,209.2 L248.3,207.6 L249.1,205.8 L249.8,203.9 L250.2,202 L250.3,200 Z"/>
+<path class="f-pix-soft s-pix" d="M220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L219.9,198 L219.5,196.1 L218.8,194.2 L218,192.4 L216.9,190.8 L215.6,189.3 L214.1,188 L212.4,186.9 L210.6,186 L208.8,185.4 L206.8,185 L204.9,184.9 L202.9,185 L200.9,185.4 L199.1,186 L197.3,186.9 L195.6,188 L194.1,189.3 L192.8,190.8 L191.7,192.4 L190.9,194.2 L190.2,196.1 L189.8,198 L189.7,200 L189.8,202 L190.2,203.9 L190.9,205.8 L191.7,207.6 L192.8,209.2 L194.1,210.7 L195.6,212 L197.3,213.1 L199.1,214 L200.9,214.6 L202.9,215 L204.9,215.1 L206.8,215 L208.8,214.6 L210.6,214 L212.4,213.1 L214.1,212 L215.6,210.7 L216.9,209.2 L218,207.6 L218.8,205.8 L219.5,203.9 L219.9,202 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 L220,200 Z"/>
+<text class="t-small t-mono mid" x="220" y="240">x</text>
+<text class="t-small t-muted" x="20" y="280">band 2: 5 more, 9 in all</text>
+<path class="f-acc-soft s-acc" d="M40,320 L43.1,319.8 L46.2,319.2 L49,318.2 L51.6,316.9 L53.9,315.3 L55.7,313.5 L57.1,311.6 L58,309.6 L58.5,307.7 L58.4,305.9 L57.9,304.3 L57,303 L55.7,302.1 L54.1,301.6 L52.3,301.5 L50.4,302 L48.4,302.9 L46.5,304.3 L44.7,306.1 L43.1,308.4 L41.8,311 L40.8,313.8 L40.2,316.9 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L36.9,320.2 L33.8,320.8 L31,321.8 L28.4,323.1 L26.1,324.7 L24.3,326.5 L22.9,328.4 L22,330.4 L21.5,332.3 L21.6,334.1 L22.1,335.7 L23,337 L24.3,337.9 L25.9,338.4 L27.7,338.5 L29.6,338 L31.6,337.1 L33.5,335.7 L35.3,333.9 L36.9,331.6 L38.2,329 L39.2,326.2 L39.8,323.1 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 Z"/>
+<path class="f-pix-soft s-pix" d="M40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L39.8,316.9 L39.2,313.8 L38.2,311 L36.9,308.4 L35.3,306.1 L33.5,304.3 L31.6,302.9 L29.6,302 L27.7,301.5 L25.9,301.6 L24.3,302.1 L23,303 L22.1,304.3 L21.6,305.9 L21.5,307.7 L22,309.6 L22.9,311.6 L24.3,313.5 L26.1,315.3 L28.4,316.9 L31,318.2 L33.8,319.2 L36.9,319.8 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40,320 L40.2,323.1 L40.8,326.2 L41.8,329 L43.1,331.6 L44.7,333.9 L46.5,335.7 L48.4,337.1 L50.4,338 L52.3,338.5 L54.1,338.4 L55.7,337.9 L57,337 L57.9,335.7 L58.4,334.1 L58.5,332.3 L58,330.4 L57.1,328.4 L55.7,326.5 L53.9,324.7 L51.6,323.1 L49,321.8 L46.2,320.8 L43.1,320.2 L40,320 Z"/>
+<text class="t-small t-mono mid" x="40" y="360">xy</text>
+<path class="f-acc-soft s-acc" d="M100,320 L103.1,319.8 L106.2,319.2 L109,318.2 L111.6,316.9 L113.9,315.3 L115.7,313.5 L117.1,311.6 L118,309.6 L118.5,307.7 L118.4,305.9 L117.9,304.3 L117,303 L115.7,302.1 L114.1,301.6 L112.3,301.5 L110.4,302 L108.4,302.9 L106.5,304.3 L104.7,306.1 L103.1,308.4 L101.8,311 L100.8,313.8 L100.2,316.9 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L96.9,320.2 L93.8,320.8 L91,321.8 L88.4,323.1 L86.1,324.7 L84.3,326.5 L82.9,328.4 L82,330.4 L81.5,332.3 L81.6,334.1 L82.1,335.7 L83,337 L84.3,337.9 L85.9,338.4 L87.7,338.5 L89.6,338 L91.6,337.1 L93.5,335.7 L95.3,333.9 L96.9,331.6 L98.2,329 L99.2,326.2 L99.8,323.1 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 Z"/>
+<path class="f-pix-soft s-pix" d="M100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L99.8,316.9 L99.2,313.8 L98.2,311 L96.9,308.4 L95.3,306.1 L93.5,304.3 L91.6,302.9 L89.6,302 L87.7,301.5 L85.9,301.6 L84.3,302.1 L83,303 L82.1,304.3 L81.6,305.9 L81.5,307.7 L82,309.6 L82.9,311.6 L84.3,313.5 L86.1,315.3 L88.4,316.9 L91,318.2 L93.8,319.2 L96.9,319.8 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100,320 L100.2,323.1 L100.8,326.2 L101.8,329 L103.1,331.6 L104.7,333.9 L106.5,335.7 L108.4,337.1 L110.4,338 L112.3,338.5 L114.1,338.4 L115.7,337.9 L117,337 L117.9,335.7 L118.4,334.1 L118.5,332.3 L118,330.4 L117.1,328.4 L115.7,326.5 L113.9,324.7 L111.6,323.1 L109,321.8 L106.2,320.8 L103.1,320.2 L100,320 Z"/>
+<text class="t-small t-mono mid" x="100" y="360">yz</text>
+<path class="f-acc-soft s-acc" d="M160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L161.2,319.1 L163.2,317.2 L164.9,315.1 L166.4,312.7 L167.5,310.2 L168.3,307.6 L168.7,305 L168.7,302.4 L168.3,300 L167.5,297.8 L166.5,295.9 L165.1,294.3 L163.5,293.2 L161.8,292.5 L160,292.2 L158.2,292.5 L156.5,293.2 L154.9,294.3 L153.5,295.9 L152.5,297.8 L151.7,300 L151.3,302.4 L151.3,305 L151.7,307.6 L152.5,310.2 L153.6,312.7 L155.1,315.1 L156.8,317.2 L158.8,319.1 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L158.8,320.9 L156.8,322.8 L155.1,324.9 L153.6,327.3 L152.5,329.8 L151.7,332.4 L151.3,335 L151.3,337.6 L151.7,340 L152.5,342.2 L153.5,344.1 L154.9,345.7 L156.5,346.8 L158.2,347.5 L160,347.8 L161.8,347.5 L163.5,346.8 L165.1,345.7 L166.5,344.1 L167.5,342.2 L168.3,340 L168.7,337.6 L168.7,335 L168.3,332.4 L167.5,329.8 L166.4,327.3 L164.9,324.9 L163.2,322.8 L161.2,320.9 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 Z"/>
+<path class="f-pix-soft s-pix" d="M173.9,320 L173.7,319.1 L173.1,318.3 L172.1,317.6 L170.7,317.1 L169.1,316.9 L167.2,317 L165.1,317.5 L163,318.3 L160.9,319.4 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L159.1,319.4 L157,318.3 L154.9,317.5 L152.8,317 L150.9,316.9 L149.3,317.1 L147.9,317.6 L146.9,318.3 L146.3,319.1 L146.1,320 L146.3,320.9 L146.9,321.7 L147.9,322.4 L149.3,322.9 L150.9,323.1 L152.8,323 L154.9,322.5 L157,321.7 L159.1,320.6 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160,320 L160.9,320.6 L163,321.7 L165.1,322.5 L167.2,323 L169.1,323.1 L170.7,322.9 L172.1,322.4 L173.1,321.7 L173.7,320.9 L173.9,320 Z"/>
+<text class="t-small t-mono mid" x="160" y="360">3z² − 1</text>
+<path class="f-acc-soft s-acc" d="M220,320 L223.1,319.8 L226.2,319.2 L229,318.2 L231.6,316.9 L233.9,315.3 L235.7,313.5 L237.1,311.6 L238,309.6 L238.5,307.7 L238.4,305.9 L237.9,304.3 L237,303 L235.7,302.1 L234.1,301.6 L232.3,301.5 L230.4,302 L228.4,302.9 L226.5,304.3 L224.7,306.1 L223.1,308.4 L221.8,311 L220.8,313.8 L220.2,316.9 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L216.9,320.2 L213.8,320.8 L211,321.8 L208.4,323.1 L206.1,324.7 L204.3,326.5 L202.9,328.4 L202,330.4 L201.5,332.3 L201.6,334.1 L202.1,335.7 L203,337 L204.3,337.9 L205.9,338.4 L207.7,338.5 L209.6,338 L211.6,337.1 L213.5,335.7 L215.3,333.9 L216.9,331.6 L218.2,329 L219.2,326.2 L219.8,323.1 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 Z"/>
+<path class="f-pix-soft s-pix" d="M220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L219.8,316.9 L219.2,313.8 L218.2,311 L216.9,308.4 L215.3,306.1 L213.5,304.3 L211.6,302.9 L209.6,302 L207.7,301.5 L205.9,301.6 L204.3,302.1 L203,303 L202.1,304.3 L201.6,305.9 L201.5,307.7 L202,309.6 L202.9,311.6 L204.3,313.5 L206.1,315.3 L208.4,316.9 L211,318.2 L213.8,319.2 L216.9,319.8 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220,320 L220.2,323.1 L220.8,326.2 L221.8,329 L223.1,331.6 L224.7,333.9 L226.5,335.7 L228.4,337.1 L230.4,338 L232.3,338.5 L234.1,338.4 L235.7,337.9 L237,337 L237.9,335.7 L238.4,334.1 L238.5,332.3 L238,330.4 L237.1,328.4 L235.7,326.5 L233.9,324.7 L231.6,323.1 L229,321.8 L226.2,320.8 L223.1,320.2 L220,320 Z"/>
+<text class="t-small t-mono mid" x="220" y="360">xz</text>
+<path class="f-acc-soft s-acc" d="M304,320 L303.8,318.4 L303,317 L301.8,315.7 L300.1,314.6 L298.1,313.9 L295.7,313.5 L293.1,313.5 L290.4,314 L287.6,314.9 L284.9,316.2 L282.4,317.9 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L277.6,317.9 L275.1,316.2 L272.4,314.9 L269.6,314 L266.9,313.5 L264.3,313.5 L261.9,313.9 L259.9,314.6 L258.2,315.7 L257,317 L256.2,318.4 L256,320 L256.2,321.6 L257,323 L258.2,324.3 L259.9,325.4 L261.9,326.1 L264.3,326.5 L266.9,326.5 L269.6,326 L272.4,325.1 L275.1,323.8 L277.6,322.1 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L282.4,322.1 L284.9,323.8 L287.6,325.1 L290.4,326 L293.1,326.5 L295.7,326.5 L298.1,326.1 L300.1,325.4 L301.8,324.3 L303,323 L303.8,321.6 L304,320 Z"/>
+<path class="f-pix-soft s-pix" d="M280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L282.1,317.6 L283.8,315.1 L285.1,312.4 L286,309.6 L286.5,306.9 L286.5,304.3 L286.1,301.9 L285.4,299.9 L284.3,298.2 L283,297 L281.6,296.2 L280,296 L278.4,296.2 L277,297 L275.7,298.2 L274.6,299.9 L273.9,301.9 L273.5,304.3 L273.5,306.9 L274,309.6 L274.9,312.4 L276.2,315.1 L277.9,317.6 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L277.9,322.4 L276.2,324.9 L274.9,327.6 L274,330.4 L273.5,333.1 L273.5,335.7 L273.9,338.1 L274.6,340.1 L275.7,341.8 L277,343 L278.4,343.8 L280,344 L281.6,343.8 L283,343 L284.3,341.8 L285.4,340.1 L286.1,338.1 L286.5,335.7 L286.5,333.1 L286,330.4 L285.1,327.6 L283.8,324.9 L282.1,322.4 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 L280,320 Z"/>
+<text class="t-small t-mono mid" x="280" y="360">x² − y²</text>
+<text class="t-small t-muted" x="20" y="414">Blue lobes positive, rose negative;</text>
+<text class="t-small t-muted" x="20" y="430">each a slice through its 3D shape.</text>
+<line class="s-line" x1="330" y1="30" x2="330" y2="436"/>
+<text class="t-caps" x="360" y="22">ONE PROBE: LIGHT IN, AND WHAT A MATTE SURFACE GETS</text>
+<path class="f-lit-soft s-lit" d="M450.6,190 L450.9,189.9 L451.2,189.8 L451.5,189.7 L451.7,189.5 L451.9,189.3 L452.1,189.1 L452.3,188.9 L452.4,188.6 L452.5,188.3 L452.6,188 L452.6,187.7 L452.6,187.4 L452.6,187.1 L452.5,186.8 L452.4,186.5 L452.2,186.2 L452,185.9 L451.8,185.7 L451.5,185.5 L451.3,185.3 L451,185.2 L450.6,185.1 L450.3,185 L450,185 L449.7,185 L449.3,185 L449,184.9 L448.5,184.4 L447.7,183.2 L446.1,180.5 L442.9,175.7 L437.5,168.4 L429.3,159 L418.6,149.1 L407,140.9 L396.9,136.9 L391,138.2 L391,144.7 L397,154.6 L407.1,165.2 L418.8,174.6 L429.4,181.5 L437.6,185.8 L443.1,188.1 L446.3,189.3 L448,189.7 L448.8,189.9 L449.3,190 L449.3,190 L449.2,190.1 L449.1,190.2 L449,190.3 L449,190.4 L448.9,190.5 L448.8,190.6 L448.8,190.7 L448.8,190.8 L448.8,190.9 L448.8,191.1 L448.8,191.2 L448.8,191.3 L448.9,191.4 L449,191.6 L449,191.7 L449.1,191.8 L449.2,191.9 L449.3,191.9 L449.5,192 L449.6,192.1 L449.7,192.1 L449.9,192.1 L450,192.1 L450.1,192.1 L450.3,192.1 L450.4,192.1 L450.5,192 L450.7,191.9 L450.8,191.9 L450.9,191.8 L451,191.7 L451,191.6 L451.1,191.4 L451.2,191.3 L451.2,191.2 L451.2,191.1 L451.2,190.9 L451.2,190.8 L451.2,190.7 L451.2,190.6 L451.1,190.5 L451,190.4 L451,190.3 L450.9,190.2 L450.8,190.1 L450.7,190 L450.6,190 Z"/>
+<circle class="f-ink" cx="450" cy="190" r="3"/>
+<text class="t-small t-mono mid" x="450" y="300">light arriving</text>
+<text class="t-small t-muted mid" x="450" y="316">window up-left, dim sky</text>
+<path class="s-ink dash" d="M613.3,120 L613.8,119.1 L614.2,118.1 L614.5,117.1 L614.9,116 L615.1,114.9 L615.4,113.6 L615.5,112.3 L615.6,111 L615.7,109.5 L615.8,107.9 L615.9,106.1 L616,104 L616.1,101.6 L616.2,98.9 L616.1,95.9 L615.8,92.6 L615.2,89.1 L614.3,85.6 L612.9,82.1 L611.1,78.7 L608.9,75.4 L606.3,72.5 L603.3,69.9 L600,67.7 L596.5,65.9 L592.7,64.5 L588.8,63.7 L584.8,63.3 L580.8,63.4 L576.8,64 L572.9,65 L569.1,66.5 L565.6,68.5 L562.3,70.8 L559.2,73.5 L556.5,76.5 L554.2,79.9 L552.3,83.4 L550.8,87.1 L549.7,90.9 L549,94.8 L548.8,98.8 L549,102.7 L549.6,106.5 L550.6,110.2 L552,113.7 L553.8,117 L555.9,120 L558.2,122.7 L560.8,125.2 L563.6,127.2 L566.6,129 L569.6,130.3 L572.7,131.3 L575.9,131.9 L578.9,132.2 L581.8,132.2 L584.5,131.9 L586.9,131.5 L589,131 L590.7,130.6 L592.1,130.3 L593.2,130.2 L594.1,130.2 L594.9,130.3 L595.6,130.5 L596.3,130.8 L597,131 L597.8,131.2 L598.5,131.4 L599.2,131.5 L600,131.6 L600.8,131.5 L601.5,131.4 L602.2,131.2 L602.9,131 L603.6,130.7 L604.3,130.3 L604.9,130 L605.5,129.5 L606.1,129.1 L606.6,128.6 L607.2,128.2 L607.7,127.7 L608.1,127.1 L608.6,126.6 L609.1,126.1 L609.6,125.5 L610,124.9 L610.5,124.4 L611,123.7 L611.5,123.1 L611.9,122.4 L612.4,121.6 L612.9,120.8 L613.3,120 Z"/>
+<path class="f-acc-soft s-acc w2" fill-opacity="0.6" d="M625.6,120 L625.5,118.3 L625.4,116.7 L625.1,115 L624.7,113.4 L624.2,111.8 L623.6,110.2 L622.9,108.7 L622.2,107.2 L621.3,105.8 L620.3,104.4 L619.2,103.1 L618.1,101.9 L616.9,100.8 L615.6,99.7 L614.2,98.7 L612.8,97.8 L611.3,97.1 L609.8,96.4 L608.2,95.8 L606.6,95.3 L605,94.9 L603.3,94.6 L601.7,94.5 L600,94.4 L598.3,94.5 L596.7,94.6 L595,94.9 L593.4,95.3 L591.8,95.8 L590.2,96.4 L588.7,97.1 L587.2,97.8 L585.8,98.7 L584.4,99.7 L583.1,100.8 L581.9,101.9 L580.8,103.1 L579.7,104.4 L578.7,105.8 L577.8,107.2 L577.1,108.7 L576.4,110.2 L575.8,111.8 L575.3,113.4 L574.9,115 L574.6,116.7 L574.5,118.3 L574.4,120 L574.5,121.7 L574.6,123.3 L574.9,125 L575.3,126.6 L575.8,128.2 L576.4,129.8 L577.1,131.3 L577.8,132.8 L578.7,134.2 L579.7,135.6 L580.8,136.9 L581.9,138.1 L583.1,139.2 L584.4,140.3 L585.8,141.3 L587.2,142.2 L588.7,142.9 L590.2,143.6 L591.8,144.2 L593.4,144.7 L595,145.1 L596.7,145.4 L598.3,145.5 L600,145.6 L601.7,145.5 L603.3,145.4 L605,145.1 L606.6,144.7 L608.2,144.2 L609.8,143.6 L611.3,142.9 L612.8,142.2 L614.2,141.3 L615.6,140.3 L616.9,139.2 L618.1,138.1 L619.2,136.9 L620.3,135.6 L621.3,134.2 L622.2,132.8 L622.9,131.3 L623.6,129.8 L624.2,128.2 L624.7,126.6 L625.1,125 L625.4,123.3 L625.5,121.7 L625.6,120 Z"/>
+<text class="t-small t-strong mid" x="600" y="204">1 number per channel</text>
+<text class="t-small t-muted mid" x="600" y="220">average error 58%</text>
+<path class="s-ink dash" d="M773.3,120 L773.8,119.1 L774.2,118.1 L774.5,117.1 L774.9,116 L775.1,114.9 L775.4,113.6 L775.5,112.3 L775.6,111 L775.7,109.5 L775.8,107.9 L775.9,106.1 L776,104 L776.1,101.6 L776.2,98.9 L776.1,95.9 L775.8,92.6 L775.2,89.1 L774.3,85.6 L772.9,82.1 L771.1,78.7 L768.9,75.4 L766.3,72.5 L763.3,69.9 L760,67.7 L756.5,65.9 L752.7,64.5 L748.8,63.7 L744.8,63.3 L740.8,63.4 L736.8,64 L732.9,65 L729.1,66.5 L725.6,68.5 L722.3,70.8 L719.2,73.5 L716.5,76.5 L714.2,79.9 L712.3,83.4 L710.8,87.1 L709.7,90.9 L709,94.8 L708.8,98.8 L709,102.7 L709.6,106.5 L710.6,110.2 L712,113.7 L713.8,117 L715.9,120 L718.2,122.7 L720.8,125.2 L723.6,127.2 L726.6,129 L729.6,130.3 L732.7,131.3 L735.9,131.9 L738.9,132.2 L741.8,132.2 L744.5,131.9 L746.9,131.5 L749,131 L750.7,130.6 L752.1,130.3 L753.2,130.2 L754.1,130.2 L754.9,130.3 L755.6,130.5 L756.3,130.8 L757,131 L757.8,131.2 L758.5,131.4 L759.2,131.5 L760,131.6 L760.8,131.5 L761.5,131.4 L762.2,131.2 L762.9,131 L763.6,130.7 L764.3,130.3 L764.9,130 L765.5,129.5 L766.1,129.1 L766.6,128.6 L767.2,128.2 L767.7,127.7 L768.1,127.1 L768.6,126.6 L769.1,126.1 L769.6,125.5 L770,124.9 L770.5,124.4 L771,123.7 L771.5,123.1 L771.9,122.4 L772.4,121.6 L772.9,120.8 L773.3,120 Z"/>
+<path class="f-acc-soft s-acc w2" fill-opacity="0.6" d="M770.2,120 L771.5,119.2 L772.8,118.3 L774.2,117.2 L775.4,115.9 L776.6,114.4 L777.7,112.7 L778.6,110.8 L779.4,108.8 L780,106.6 L780.4,104.3 L780.6,101.9 L780.6,99.4 L780.3,96.9 L779.7,94.3 L778.9,91.8 L777.8,89.2 L776.4,86.8 L774.7,84.4 L772.8,82.2 L770.7,80.1 L768.3,78.3 L765.7,76.6 L762.9,75.2 L760,74 L756.9,73.2 L753.8,72.6 L750.5,72.4 L747.3,72.4 L744,72.8 L740.7,73.5 L737.6,74.5 L734.5,75.9 L731.6,77.5 L728.9,79.4 L726.3,81.6 L724,84 L722,86.6 L720.2,89.4 L718.7,92.4 L717.5,95.4 L716.6,98.6 L716,101.8 L715.8,105 L715.8,108.2 L716.2,111.3 L716.9,114.3 L717.8,117.2 L719,120 L720.5,122.6 L722.1,125 L724,127.2 L726,129.1 L728.2,130.8 L730.4,132.3 L732.7,133.4 L735.1,134.4 L737.5,135 L739.9,135.5 L742.2,135.6 L744.4,135.6 L746.5,135.3 L748.6,134.9 L750.4,134.3 L752.2,133.5 L753.8,132.7 L755.2,131.7 L756.4,130.6 L757.4,129.5 L758.3,128.4 L759,127.3 L759.6,126.2 L760,125.2 L760.3,124.2 L760.4,123.3 L760.5,122.5 L760.5,121.8 L760.4,121.3 L760.3,120.8 L760.2,120.4 L760.1,120.2 L760,120.1 L760,120 L760.1,120.1 L760.2,120.2 L760.4,120.4 L760.7,120.6 L761.2,120.8 L761.8,121 L762.5,121.2 L763.3,121.4 L764.2,121.4 L765.2,121.4 L766.4,121.3 L767.6,121 L768.8,120.6 L770.2,120 Z"/>
+<text class="t-small t-strong mid" x="760" y="204">4 numbers per channel</text>
+<text class="t-small t-muted mid" x="760" y="220">average error 21%</text>
+<path class="s-ink dash" d="M693.3,290 L693.8,289.1 L694.2,288.1 L694.5,287.1 L694.9,286 L695.1,284.9 L695.4,283.6 L695.5,282.3 L695.6,281 L695.7,279.5 L695.8,277.9 L695.9,276.1 L696,274 L696.1,271.6 L696.2,268.9 L696.1,265.9 L695.8,262.6 L695.2,259.1 L694.3,255.6 L692.9,252.1 L691.1,248.7 L688.9,245.4 L686.3,242.5 L683.3,239.9 L680,237.7 L676.5,235.9 L672.7,234.5 L668.8,233.7 L664.8,233.3 L660.8,233.4 L656.8,234 L652.9,235 L649.1,236.5 L645.6,238.5 L642.3,240.8 L639.2,243.5 L636.5,246.5 L634.2,249.9 L632.3,253.4 L630.8,257.1 L629.7,260.9 L629,264.8 L628.8,268.8 L629,272.7 L629.6,276.5 L630.6,280.2 L632,283.7 L633.8,287 L635.9,290 L638.2,292.7 L640.8,295.2 L643.6,297.2 L646.6,299 L649.6,300.3 L652.7,301.3 L655.9,301.9 L658.9,302.2 L661.8,302.2 L664.5,301.9 L666.9,301.5 L669,301 L670.7,300.6 L672.1,300.3 L673.2,300.2 L674.1,300.2 L674.9,300.3 L675.6,300.5 L676.3,300.8 L677,301 L677.8,301.2 L678.5,301.4 L679.2,301.5 L680,301.6 L680.8,301.5 L681.5,301.4 L682.2,301.2 L682.9,301 L683.6,300.7 L684.3,300.3 L684.9,300 L685.5,299.5 L686.1,299.1 L686.6,298.6 L687.2,298.2 L687.7,297.7 L688.1,297.1 L688.6,296.6 L689.1,296.1 L689.6,295.5 L690,294.9 L690.5,294.4 L691,293.7 L691.5,293.1 L691.9,292.4 L692.4,291.6 L692.9,290.8 L693.3,290 Z"/>
+<path class="f-acc-soft s-acc w2" fill-opacity="0.6" d="M692.6,290 L692.8,289.2 L693.1,288.3 L693.4,287.3 L693.7,286.3 L694.1,285.2 L694.6,284 L695,282.6 L695.5,281 L696,279.3 L696.4,277.4 L696.8,275.3 L697,273 L697.1,270.5 L697,267.8 L696.7,265 L696.2,262 L695.3,258.9 L694.2,255.8 L692.7,252.7 L690.8,249.6 L688.6,246.7 L686.1,243.8 L683.2,241.3 L680,238.9 L676.5,236.9 L672.8,235.3 L668.9,234.1 L664.8,233.4 L660.7,233.1 L656.6,233.4 L652.5,234.2 L648.5,235.4 L644.7,237.2 L641.2,239.4 L638,242.1 L635.1,245.1 L632.7,248.5 L630.7,252.1 L629.2,256 L628.1,260.1 L627.6,264.2 L627.6,268.3 L628.1,272.4 L629,276.3 L630.4,280.1 L632.1,283.7 L634.2,287 L636.5,290 L639.1,292.7 L641.9,295 L644.8,297 L647.7,298.6 L650.7,300 L653.6,301 L656.4,301.7 L659,302.1 L661.5,302.3 L663.9,302.4 L666,302.3 L668,302 L669.7,301.7 L671.2,301.4 L672.6,301.1 L673.8,300.8 L674.8,300.5 L675.7,300.3 L676.6,300.1 L677.3,300 L678,300 L678.7,300.1 L679.3,300.2 L680,300.3 L680.7,300.4 L681.4,300.6 L682.1,300.7 L682.9,300.9 L683.7,300.9 L684.5,300.9 L685.3,300.8 L686.2,300.7 L686.9,300.4 L687.7,300.1 L688.4,299.6 L689.1,299.1 L689.7,298.5 L690.2,297.9 L690.7,297.1 L691.1,296.4 L691.4,295.6 L691.7,294.8 L691.9,294 L692,293.2 L692.2,292.4 L692.3,291.6 L692.5,290.8 L692.6,290 Z"/>
+<text class="t-small t-strong mid" x="680" y="374">9 numbers per channel</text>
+<text class="t-small t-muted mid" x="680" y="390">average error 4%</text>
+<line class="s-ink dash" x1="790" y1="280" x2="814" y2="280"/><text class="t-small" x="820" y="284">exact</text>
+<line class="s-acc w2" x1="790" y1="300" x2="814" y2="300"/><text class="t-small t-acc" x="820" y="304">from SH</text>
+<text class="t-small t-muted" x="360" y="414">Blue and dashed plots: the light a surface facing each direction</text>
+<text class="t-small t-muted" x="360" y="430">receives, sliced through the vertical plane.</text>
+</svg>
+                </div>
+                <figcaption><b>Nine numbers are enough for soft light.</b> Left: the nine SH shapes, from band 0 to band 2. Right: a probe near a window. The light arriving is sharp, but the light a matte surface receives is a blur of it, because each surface gathers its whole half-sphere (<a class="term" data-term="irradiance" href="glossary.html#irradiance">irradiance</a>, 8.1). One number per channel gives the average from all directions; four get the main direction; nine follow the exact curve to within a few per cent in this example.</figcaption>
+              </figure>
+              <p>That is why three bands, nine numbers per colour channel, became the standard. Ravi Ramamoorthi and Pat Hanrahan showed in 2001 that nine coefficients describe the irradiance from a distant environment with average errors of around 1%. Unity's probes store exactly that: third-order SH, 27 floating-point values per probe, 9 for each of red, green and blue. Unreal's volumetric lightmap stores a third-order SH per sample too. The same trick is the irradiance map of <a class="xref" data-ch="7.6">7.6</a> squeezed into nine numbers.</p>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> What the nine numbers are</summary>
+                <div class="fold-body">
+                  <p>Each SH basis function <code>Y<sub>lm</sub>(ω)</code> is a polynomial in the direction <code>ω = (x, y, z)</code>: a constant for band 0; <code>x</code>, <code>y</code> and <code>z</code> for band 1; <code>xy</code>, <code>yz</code>, <code>xz</code>, <code>x² − y²</code> and <code>3z² − 1</code> for band 2, each times a fixed constant. The bake projects the incoming light <code>L(ω)</code> onto each one:</p>
+                  <p class="formula">c<sub>lm</sub> = ∫ L(ω) Y<sub>lm</sub>(ω) dω</p>
+                  <p>and the shader rebuilds the light a surface with normal <code>n</code> receives as a short sum, with one weight per band for the cosine falloff:</p>
+                  <p class="formula">E(n) ≈ Σ A<sub>l</sub> c<sub>lm</sub> Y<sub>lm</sub>(n), &nbsp; A<sub>0</sub> = π, A<sub>1</sub> = 2π⁄3, A<sub>2</sub> = π⁄4</p>
+                  <p>Because <code>A<sub>l</sub></code> shrinks quickly for higher bands, higher-detail shapes barely affect a matte surface, which is why stopping at band 2 loses so little. Blending probes is just blending their coefficients. Sharp light, like a reflection, would need many more bands, which is why reflections use cubemaps instead. Truncating a sharp light can also undershoot on the opposite side, called ringing; Unity's Light Probe Group has a <strong>Remove Ringing</strong> option, at some cost in accuracy and contrast, and Unreal has a de-ringing smoothing setting for its volumetric lightmap.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="volumes"><span class="step-num">7</span> Irradiance volumes: probes everywhere, automatically</h3>
+              <p>Placing probes by hand does not scale to a large level. An <dfn class="term" data-term="irradiance-volume">irradiance volume</dfn> fills the level with a 3D grid of probes instead, and a point in the air reads the eight probes at the corners of its cell. Grids that adapt put small cells near surfaces, where indirect light changes quickly, and large ones in open air.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 380" role="img" aria-label="Side view of a level slice: ground, a building, a short wall and a post. Over it, a grid of cells that are large in open air and split into smaller and smaller cells near the ground and every object. Probes sit at the cell corners, so there are many close to surfaces, where indirect light changes quickly, and few in open sky. 215 probes in all; a uniform grid at the finest spacing would need about 518.">
+<defs><clipPath id="vol-clip"><rect x="30" y="44" width="792" height="286"/></clipPath></defs>
+<text class="t-caps" x="30" y="22">AN IRRADIANCE VOLUME THAT ADAPTS: SMALL CELLS NEAR GEOMETRY</text>
+<g clip-path="url(#vol-clip)">
+<path class="s-line" d="M30,308h22v22h-22zM52,308h22v22h-22zM30,286h22v22h-22zM52,286h22v22h-22zM74,308h22v22h-22zM96,308h22v22h-22zM74,286h22v22h-22zM96,286h22v22h-22zM30,242h44v44h-44zM74,242h44v44h-44zM118,308h22v22h-22zM140,308h22v22h-22zM118,286h22v22h-22zM140,286h22v22h-22zM162,308h22v22h-22zM184,308h22v22h-22zM162,286h22v22h-22zM184,286h22v22h-22zM118,242h44v44h-44zM162,264h22v22h-22zM184,264h22v22h-22zM162,242h22v22h-22zM184,242h22v22h-22zM30,154h88v88h-88zM118,198h44v44h-44zM162,220h22v22h-22zM184,220h22v22h-22zM162,198h22v22h-22zM184,198h22v22h-22zM118,154h44v44h-44zM162,176h22v22h-22zM184,176h22v22h-22zM162,154h22v22h-22zM184,154h22v22h-22zM206,308h22v22h-22zM228,308h22v22h-22zM206,286h22v22h-22zM228,286h22v22h-22zM250,308h22v22h-22zM272,308h22v22h-22zM250,286h22v22h-22zM272,286h22v22h-22zM206,264h22v22h-22zM228,264h22v22h-22zM206,242h22v22h-22zM228,242h22v22h-22zM250,264h22v22h-22zM272,264h22v22h-22zM250,242h22v22h-22zM272,242h22v22h-22zM294,308h22v22h-22zM316,308h22v22h-22zM294,286h22v22h-22zM316,286h22v22h-22zM338,308h22v22h-22zM360,308h22v22h-22zM338,286h22v22h-22zM360,286h22v22h-22zM294,264h22v22h-22zM316,264h22v22h-22zM294,242h22v22h-22zM316,242h22v22h-22zM338,264h22v22h-22zM360,264h22v22h-22zM338,242h22v22h-22zM360,242h22v22h-22zM206,220h22v22h-22zM228,220h22v22h-22zM206,198h22v22h-22zM228,198h22v22h-22zM250,220h22v22h-22zM272,220h22v22h-22zM250,198h22v22h-22zM272,198h22v22h-22zM206,176h22v22h-22zM228,176h22v22h-22zM206,154h22v22h-22zM228,154h22v22h-22zM250,176h22v22h-22zM272,176h22v22h-22zM250,154h22v22h-22zM272,154h22v22h-22zM294,220h22v22h-22zM316,220h22v22h-22zM294,198h22v22h-22zM316,198h22v22h-22zM338,220h22v22h-22zM360,220h22v22h-22zM338,198h22v22h-22zM360,198h22v22h-22zM294,176h22v22h-22zM316,176h22v22h-22zM294,154h22v22h-22zM316,154h22v22h-22zM338,176h22v22h-22zM360,176h22v22h-22zM338,154h22v22h-22zM360,154h22v22h-22zM30,66h88v88h-88zM118,110h44v44h-44zM162,132h22v22h-22zM184,132h22v22h-22zM162,110h22v22h-22zM184,110h22v22h-22zM118,66h44v44h-44zM162,66h44v44h-44zM30,-22h88v88h-88zM118,-22h88v88h-88zM206,132h22v22h-22zM228,132h22v22h-22zM206,110h22v22h-22zM228,110h22v22h-22zM250,132h22v22h-22zM272,132h22v22h-22zM250,110h22v22h-22zM272,110h22v22h-22zM206,66h44v44h-44zM250,66h44v44h-44zM294,132h22v22h-22zM316,132h22v22h-22zM294,110h22v22h-22zM316,110h22v22h-22zM338,132h22v22h-22zM360,132h22v22h-22zM338,110h22v22h-22zM360,110h22v22h-22zM294,66h44v44h-44zM338,66h44v44h-44zM206,-22h88v88h-88zM294,-22h88v88h-88zM382,308h22v22h-22zM404,308h22v22h-22zM382,286h22v22h-22zM404,286h22v22h-22zM426,308h22v22h-22zM448,308h22v22h-22zM426,286h22v22h-22zM448,286h22v22h-22zM382,264h22v22h-22zM404,264h22v22h-22zM382,242h22v22h-22zM404,242h22v22h-22zM426,242h44v44h-44zM470,308h22v22h-22zM492,308h22v22h-22zM470,286h22v22h-22zM492,286h22v22h-22zM514,308h22v22h-22zM536,308h22v22h-22zM514,286h22v22h-22zM536,286h22v22h-22zM470,242h44v44h-44zM514,242h44v44h-44zM382,220h22v22h-22zM404,220h22v22h-22zM382,198h22v22h-22zM404,198h22v22h-22zM426,198h44v44h-44zM382,176h22v22h-22zM404,176h22v22h-22zM382,154h22v22h-22zM404,154h22v22h-22zM426,154h44v44h-44zM470,154h88v88h-88zM558,308h22v22h-22zM580,308h22v22h-22zM558,286h22v22h-22zM580,286h22v22h-22zM602,308h22v22h-22zM624,308h22v22h-22zM602,286h22v22h-22zM624,286h22v22h-22zM558,264h22v22h-22zM580,264h22v22h-22zM558,242h22v22h-22zM580,242h22v22h-22zM602,264h22v22h-22zM624,264h22v22h-22zM602,242h22v22h-22zM624,242h22v22h-22zM646,308h22v22h-22zM668,308h22v22h-22zM646,286h22v22h-22zM668,286h22v22h-22zM690,308h22v22h-22zM712,308h22v22h-22zM690,286h22v22h-22zM712,286h22v22h-22zM646,264h22v22h-22zM668,264h22v22h-22zM646,242h22v22h-22zM668,242h22v22h-22zM690,264h22v22h-22zM712,264h22v22h-22zM690,242h22v22h-22zM712,242h22v22h-22zM558,154h88v88h-88zM646,220h22v22h-22zM668,220h22v22h-22zM646,198h22v22h-22zM668,198h22v22h-22zM690,220h22v22h-22zM712,220h22v22h-22zM690,198h22v22h-22zM712,198h22v22h-22zM646,154h44v44h-44zM690,154h44v44h-44zM382,132h22v22h-22zM404,132h22v22h-22zM382,110h22v22h-22zM404,110h22v22h-22zM426,110h44v44h-44zM382,66h44v44h-44zM426,66h44v44h-44zM470,66h88v88h-88zM382,-22h88v88h-88zM470,-22h88v88h-88zM558,-22h176v176h-176zM734,308h22v22h-22zM756,308h22v22h-22zM734,286h22v22h-22zM756,286h22v22h-22zM778,308h22v22h-22zM800,308h22v22h-22zM778,286h22v22h-22zM800,286h22v22h-22zM734,242h44v44h-44zM778,242h44v44h-44zM734,154h88v88h-88z"/>
+<rect class="f-solid s-ink" x="30" y="330" width="792" height="22"/><rect class="f-solid s-ink" x="206" y="154" width="198" height="176"/><rect class="f-solid s-ink" x="580" y="264" width="44" height="66"/><rect class="f-solid s-ink" x="690" y="220" width="22" height="110"/>
+<circle class="f-acc" cx="30" cy="330" r="2.2"/><circle class="f-acc" cx="52" cy="330" r="2.2"/><circle class="f-acc" cx="30" cy="308" r="2.2"/><circle class="f-acc" cx="52" cy="308" r="2.2"/><circle class="f-acc" cx="74" cy="330" r="2.2"/><circle class="f-acc" cx="74" cy="308" r="2.2"/><circle class="f-acc" cx="30" cy="286" r="2.2"/><circle class="f-acc" cx="52" cy="286" r="2.2"/><circle class="f-acc" cx="74" cy="286" r="2.2"/><circle class="f-acc" cx="96" cy="330" r="2.2"/><circle class="f-acc" cx="96" cy="308" r="2.2"/><circle class="f-acc" cx="118" cy="330" r="2.2"/><circle class="f-acc" cx="118" cy="308" r="2.2"/><circle class="f-acc" cx="96" cy="286" r="2.2"/><circle class="f-acc" cx="118" cy="286" r="2.2"/><circle class="f-acc" cx="30" cy="242" r="2.2"/><circle class="f-acc" cx="74" cy="242" r="2.2"/><circle class="f-acc" cx="118" cy="242" r="2.2"/><circle class="f-acc" cx="140" cy="330" r="2.2"/><circle class="f-acc" cx="140" cy="308" r="2.2"/><circle class="f-acc" cx="162" cy="330" r="2.2"/><circle class="f-acc" cx="162" cy="308" r="2.2"/><circle class="f-acc" cx="140" cy="286" r="2.2"/><circle class="f-acc" cx="162" cy="286" r="2.2"/><circle class="f-acc" cx="184" cy="330" r="2.2"/><circle class="f-acc" cx="184" cy="308" r="2.2"/><circle class="f-acc" cx="206" cy="330" r="2.2"/><circle class="f-acc" cx="206" cy="308" r="2.2"/><circle class="f-acc" cx="184" cy="286" r="2.2"/><circle class="f-acc" cx="206" cy="286" r="2.2"/><circle class="f-acc" cx="162" cy="242" r="2.2"/><circle class="f-acc" cx="162" cy="264" r="2.2"/><circle class="f-acc" cx="184" cy="264" r="2.2"/><circle class="f-acc" cx="206" cy="264" r="2.2"/><circle class="f-acc" cx="184" cy="242" r="2.2"/><circle class="f-acc" cx="206" cy="242" r="2.2"/><circle class="f-acc" cx="30" cy="154" r="2.2"/><circle class="f-acc" cx="118" cy="154" r="2.2"/><circle class="f-acc" cx="118" cy="198" r="2.2"/><circle class="f-acc" cx="162" cy="198" r="2.2"/><circle class="f-acc" cx="162" cy="220" r="2.2"/><circle class="f-acc" cx="184" cy="220" r="2.2"/><circle class="f-acc" cx="206" cy="220" r="2.2"/><circle class="f-acc" cx="184" cy="198" r="2.2"/><circle class="f-acc" cx="206" cy="198" r="2.2"/><circle class="f-acc" cx="162" cy="154" r="2.2"/><circle class="f-acc" cx="162" cy="176" r="2.2"/><circle class="f-acc" cx="184" cy="176" r="2.2"/><circle class="f-acc" cx="206" cy="176" r="2.2"/><circle class="f-acc" cx="184" cy="154" r="2.2"/><circle class="f-acc" cx="206" cy="154" r="2.2"/><circle class="f-acc" cx="228" cy="330" r="2.2"/><circle class="f-acc" cx="250" cy="330" r="2.2"/><circle class="f-acc" cx="272" cy="330" r="2.2"/><circle class="f-acc" cx="294" cy="330" r="2.2"/><circle class="f-acc" cx="316" cy="330" r="2.2"/><circle class="f-acc" cx="338" cy="330" r="2.2"/><circle class="f-acc" cx="360" cy="330" r="2.2"/><circle class="f-acc" cx="382" cy="330" r="2.2"/><circle class="f-acc" cx="228" cy="154" r="2.2"/><circle class="f-acc" cx="250" cy="154" r="2.2"/><circle class="f-acc" cx="272" cy="154" r="2.2"/><circle class="f-acc" cx="294" cy="154" r="2.2"/><circle class="f-acc" cx="316" cy="154" r="2.2"/><circle class="f-acc" cx="338" cy="154" r="2.2"/><circle class="f-acc" cx="360" cy="154" r="2.2"/><circle class="f-acc" cx="382" cy="154" r="2.2"/><circle class="f-acc" cx="30" cy="66" r="2.2"/><circle class="f-acc" cx="118" cy="66" r="2.2"/><circle class="f-acc" cx="118" cy="110" r="2.2"/><circle class="f-acc" cx="162" cy="110" r="2.2"/><circle class="f-acc" cx="162" cy="132" r="2.2"/><circle class="f-acc" cx="184" cy="132" r="2.2"/><circle class="f-acc" cx="206" cy="132" r="2.2"/><circle class="f-acc" cx="184" cy="110" r="2.2"/><circle class="f-acc" cx="206" cy="110" r="2.2"/><circle class="f-acc" cx="162" cy="66" r="2.2"/><circle class="f-acc" cx="206" cy="66" r="2.2"/><circle class="f-acc" cx="228" cy="132" r="2.2"/><circle class="f-acc" cx="250" cy="132" r="2.2"/><circle class="f-acc" cx="228" cy="110" r="2.2"/><circle class="f-acc" cx="250" cy="110" r="2.2"/><circle class="f-acc" cx="272" cy="132" r="2.2"/><circle class="f-acc" cx="294" cy="132" r="2.2"/><circle class="f-acc" cx="272" cy="110" r="2.2"/><circle class="f-acc" cx="294" cy="110" r="2.2"/><circle class="f-acc" cx="250" cy="66" r="2.2"/><circle class="f-acc" cx="294" cy="66" r="2.2"/><circle class="f-acc" cx="316" cy="132" r="2.2"/><circle class="f-acc" cx="338" cy="132" r="2.2"/><circle class="f-acc" cx="316" cy="110" r="2.2"/><circle class="f-acc" cx="338" cy="110" r="2.2"/><circle class="f-acc" cx="360" cy="132" r="2.2"/><circle class="f-acc" cx="382" cy="132" r="2.2"/><circle class="f-acc" cx="360" cy="110" r="2.2"/><circle class="f-acc" cx="382" cy="110" r="2.2"/><circle class="f-acc" cx="338" cy="66" r="2.2"/><circle class="f-acc" cx="382" cy="66" r="2.2"/><circle class="f-acc" cx="404" cy="330" r="2.2"/><circle class="f-acc" cx="404" cy="308" r="2.2"/><circle class="f-acc" cx="426" cy="330" r="2.2"/><circle class="f-acc" cx="426" cy="308" r="2.2"/><circle class="f-acc" cx="404" cy="286" r="2.2"/><circle class="f-acc" cx="426" cy="286" r="2.2"/><circle class="f-acc" cx="448" cy="330" r="2.2"/><circle class="f-acc" cx="448" cy="308" r="2.2"/><circle class="f-acc" cx="470" cy="330" r="2.2"/><circle class="f-acc" cx="470" cy="308" r="2.2"/><circle class="f-acc" cx="448" cy="286" r="2.2"/><circle class="f-acc" cx="470" cy="286" r="2.2"/><circle class="f-acc" cx="404" cy="264" r="2.2"/><circle class="f-acc" cx="426" cy="264" r="2.2"/><circle class="f-acc" cx="404" cy="242" r="2.2"/><circle class="f-acc" cx="426" cy="242" r="2.2"/><circle class="f-acc" cx="470" cy="242" r="2.2"/><circle class="f-acc" cx="492" cy="330" r="2.2"/><circle class="f-acc" cx="492" cy="308" r="2.2"/><circle class="f-acc" cx="514" cy="330" r="2.2"/><circle class="f-acc" cx="514" cy="308" r="2.2"/><circle class="f-acc" cx="492" cy="286" r="2.2"/><circle class="f-acc" cx="514" cy="286" r="2.2"/><circle class="f-acc" cx="536" cy="330" r="2.2"/><circle class="f-acc" cx="536" cy="308" r="2.2"/><circle class="f-acc" cx="558" cy="330" r="2.2"/><circle class="f-acc" cx="558" cy="308" r="2.2"/><circle class="f-acc" cx="536" cy="286" r="2.2"/><circle class="f-acc" cx="558" cy="286" r="2.2"/><circle class="f-acc" cx="514" cy="242" r="2.2"/><circle class="f-acc" cx="558" cy="242" r="2.2"/><circle class="f-acc" cx="404" cy="220" r="2.2"/><circle class="f-acc" cx="426" cy="220" r="2.2"/><circle class="f-acc" cx="404" cy="198" r="2.2"/><circle class="f-acc" cx="426" cy="198" r="2.2"/><circle class="f-acc" cx="470" cy="198" r="2.2"/><circle class="f-acc" cx="404" cy="176" r="2.2"/><circle class="f-acc" cx="426" cy="176" r="2.2"/><circle class="f-acc" cx="404" cy="154" r="2.2"/><circle class="f-acc" cx="426" cy="154" r="2.2"/><circle class="f-acc" cx="470" cy="154" r="2.2"/><circle class="f-acc" cx="558" cy="154" r="2.2"/><circle class="f-acc" cx="580" cy="330" r="2.2"/><circle class="f-acc" cx="580" cy="308" r="2.2"/><circle class="f-acc" cx="602" cy="330" r="2.2"/><circle class="f-acc" cx="580" cy="286" r="2.2"/><circle class="f-acc" cx="624" cy="330" r="2.2"/><circle class="f-acc" cx="624" cy="308" r="2.2"/><circle class="f-acc" cx="646" cy="330" r="2.2"/><circle class="f-acc" cx="646" cy="308" r="2.2"/><circle class="f-acc" cx="624" cy="286" r="2.2"/><circle class="f-acc" cx="646" cy="286" r="2.2"/><circle class="f-acc" cx="558" cy="264" r="2.2"/><circle class="f-acc" cx="580" cy="264" r="2.2"/><circle class="f-acc" cx="602" cy="264" r="2.2"/><circle class="f-acc" cx="580" cy="242" r="2.2"/><circle class="f-acc" cx="602" cy="242" r="2.2"/><circle class="f-acc" cx="624" cy="264" r="2.2"/><circle class="f-acc" cx="646" cy="264" r="2.2"/><circle class="f-acc" cx="624" cy="242" r="2.2"/><circle class="f-acc" cx="646" cy="242" r="2.2"/><circle class="f-acc" cx="668" cy="330" r="2.2"/><circle class="f-acc" cx="668" cy="308" r="2.2"/><circle class="f-acc" cx="690" cy="330" r="2.2"/><circle class="f-acc" cx="690" cy="308" r="2.2"/><circle class="f-acc" cx="668" cy="286" r="2.2"/><circle class="f-acc" cx="690" cy="286" r="2.2"/><circle class="f-acc" cx="712" cy="330" r="2.2"/><circle class="f-acc" cx="712" cy="308" r="2.2"/><circle class="f-acc" cx="734" cy="330" r="2.2"/><circle class="f-acc" cx="734" cy="308" r="2.2"/><circle class="f-acc" cx="712" cy="286" r="2.2"/><circle class="f-acc" cx="734" cy="286" r="2.2"/><circle class="f-acc" cx="668" cy="264" r="2.2"/><circle class="f-acc" cx="690" cy="264" r="2.2"/><circle class="f-acc" cx="668" cy="242" r="2.2"/><circle class="f-acc" cx="690" cy="242" r="2.2"/><circle class="f-acc" cx="712" cy="264" r="2.2"/><circle class="f-acc" cx="734" cy="264" r="2.2"/><circle class="f-acc" cx="712" cy="242" r="2.2"/><circle class="f-acc" cx="734" cy="242" r="2.2"/><circle class="f-acc" cx="646" cy="154" r="2.2"/><circle class="f-acc" cx="646" cy="220" r="2.2"/><circle class="f-acc" cx="668" cy="220" r="2.2"/><circle class="f-acc" cx="690" cy="220" r="2.2"/><circle class="f-acc" cx="646" cy="198" r="2.2"/><circle class="f-acc" cx="668" cy="198" r="2.2"/><circle class="f-acc" cx="690" cy="198" r="2.2"/><circle class="f-acc" cx="712" cy="220" r="2.2"/><circle class="f-acc" cx="734" cy="220" r="2.2"/><circle class="f-acc" cx="712" cy="198" r="2.2"/><circle class="f-acc" cx="734" cy="198" r="2.2"/><circle class="f-acc" cx="690" cy="154" r="2.2"/><circle class="f-acc" cx="734" cy="154" r="2.2"/><circle class="f-acc" cx="404" cy="132" r="2.2"/><circle class="f-acc" cx="426" cy="132" r="2.2"/><circle class="f-acc" cx="404" cy="110" r="2.2"/><circle class="f-acc" cx="426" cy="110" r="2.2"/><circle class="f-acc" cx="470" cy="110" r="2.2"/><circle class="f-acc" cx="426" cy="66" r="2.2"/><circle class="f-acc" cx="470" cy="66" r="2.2"/><circle class="f-acc" cx="558" cy="66" r="2.2"/><circle class="f-acc" cx="756" cy="330" r="2.2"/><circle class="f-acc" cx="756" cy="308" r="2.2"/><circle class="f-acc" cx="778" cy="330" r="2.2"/><circle class="f-acc" cx="778" cy="308" r="2.2"/><circle class="f-acc" cx="756" cy="286" r="2.2"/><circle class="f-acc" cx="778" cy="286" r="2.2"/><circle class="f-acc" cx="800" cy="330" r="2.2"/><circle class="f-acc" cx="800" cy="308" r="2.2"/><circle class="f-acc" cx="822" cy="330" r="2.2"/><circle class="f-acc" cx="822" cy="308" r="2.2"/><circle class="f-acc" cx="800" cy="286" r="2.2"/><circle class="f-acc" cx="822" cy="286" r="2.2"/><circle class="f-acc" cx="778" cy="242" r="2.2"/><circle class="f-acc" cx="822" cy="242" r="2.2"/><circle class="f-acc" cx="822" cy="154" r="2.2"/>
+</g>
+<rect class="s-strong" x="30" y="44" width="792" height="286"/>
+<text class="t-small mid" x="305" y="242">building</text>
+<text class="t-small t-muted" x="30" y="370">Cells split near surfaces, where indirect light changes fastest. Blue dots: probes at cell corners, 215 here; a uniform grid at the finest spacing would need 518.</text>
+</svg>
+                </div>
+                <figcaption><b>Detail where light changes, little in open sky.</b> Cells split in half again and again near the ground, the building, the wall and the post, and stay large in the air above. Every corner holds a probe. Sampling the eight corners around each pixel, rather than once per object, also removes the seam where a large object straddles a change in light.</figcaption>
+              </figure>
+              <p>Unreal's version is the <strong>volumetric lightmap</strong>, which replaced its older Indirect Lighting Cache. It places samples in bricks of 4 × 4 × 4 cells, densely around static geometry and over the whole Lightmass Importance Volume, and interpolates them for every pixel of a moving object. <strong>Volumetric Lightmap Detail Cell Size</strong> sets the finest spacing; Epic warns that halving it can raise memory up to eight times.</p>
+              <p>Unity's is <dfn class="term" data-term="adaptive-probe-volumes">Adaptive Probe Volumes</dfn>, APV, in URP and HDRP. It fills each volume with bricks of 64 probes in a 4 × 4 × 4 grid, uses smaller bricks where there is more geometry, with default probe spacings of 1, 3, 9 or 27 m, and lets each pixel sample the eight closest probes. APV can also blend between several baked Lighting Scenarios, for example day and night or lights on and off, stream probe data for large worlds, and update sky light at run time with sky occlusion.</p>
+              <p>Godot's <dfn class="term" data-term="lightmapgi">LightmapGI</dfn> node bakes both lightmaps and an automatically generated set of probes on the GPU, inside the editor only. Its documentation recommends it for low-end hardware, including integrated graphics and phones, and notes that it is the only Godot GI method that supports more than two bounces.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="iteration"><span class="step-num">8</span> Bake time and the cost of iteration</h3>
+              <p>A bake's quality is mostly a matter of samples. More samples per texel means less noise, but the noise falls slowly: to halve it, the bake needs four times the samples, and so about four times the time. Denoisers, OptiX or Open Image Denoise in Unity, Open Image Denoise by default in GPU Lightmass, JNLM or OIDN in Godot, let bakes stop earlier, at the risk of smearing detail.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left: four bakes of the same scene with 64, 256, 1024 and 4096 samples per texel. Bake time grows four times with each step, 1, 4, 16 and 64 units, while noise only halves: 1, one half, one quarter and one eighth. Right: an example eight-hour day of lighting work with ten minutes of review after each bake. With 45-minute bakes it fits 8 iterations; with 5-minute bakes it fits 32.">
+<text class="t-caps" x="20" y="22">QUALITY: FOUR TIMES THE SAMPLES, HALF THE NOISE</text>
+<text class="t-mono t-small end" x="110" y="58">64</text>
+<rect class="f-lit" x="120" y="46" width="4.7" height="14"/>
+<text class="t-small" x="130.7" y="58">time ×1</text>
+<rect class="f-pix" x="120" y="64" width="120" height="10"/>
+<text class="t-small t-muted" x="246" y="74">noise ×1</text>
+<text class="t-mono t-small end" x="110" y="110">256</text>
+<rect class="f-lit" x="120" y="98" width="18.8" height="14"/>
+<text class="t-small" x="144.8" y="110">time ×4</text>
+<rect class="f-pix" x="120" y="116" width="60" height="10"/>
+<text class="t-small t-muted" x="186" y="126">noise ×1/2</text>
+<text class="t-mono t-small end" x="110" y="162">1024</text>
+<rect class="f-lit" x="120" y="150" width="75" height="14"/>
+<text class="t-small" x="201" y="162">time ×16</text>
+<rect class="f-pix" x="120" y="168" width="30" height="10"/>
+<text class="t-small t-muted" x="156" y="178">noise ×1/4</text>
+<text class="t-mono t-small end" x="110" y="214">4096</text>
+<rect class="f-lit" x="120" y="202" width="300" height="14"/>
+<text class="t-small" x="426" y="214">time ×64</text>
+<rect class="f-pix" x="120" y="220" width="15" height="10"/>
+<text class="t-small t-muted" x="141" y="230">noise ×1/8</text>
+<text class="t-small t-muted" x="20" y="262">samples per texel</text>
+<text class="t-small t-muted" x="20" y="282">Monte Carlo: noise falls with the square root of the sample count.</text>
+<text class="t-caps" x="500" y="22">ITERATION: ONE 8-HOUR DAY, EXAMPLE</text>
+<text class="t-head" x="500" y="70">45-minute production bakes</text>
+<rect class="f-lit" x="500" y="82" width="35.6" height="22"/><rect class="f-acc" x="535.6" y="82" width="7.9" height="22"/><rect class="f-lit" x="543.5" y="82" width="35.6" height="22"/><rect class="f-acc" x="579.2" y="82" width="7.9" height="22"/><rect class="f-lit" x="587.1" y="82" width="35.6" height="22"/><rect class="f-acc" x="622.7" y="82" width="7.9" height="22"/><rect class="f-lit" x="630.6" y="82" width="35.6" height="22"/><rect class="f-acc" x="666.3" y="82" width="7.9" height="22"/><rect class="f-lit" x="674.2" y="82" width="35.6" height="22"/><rect class="f-acc" x="709.8" y="82" width="7.9" height="22"/><rect class="f-lit" x="717.7" y="82" width="35.6" height="22"/><rect class="f-acc" x="753.3" y="82" width="7.9" height="22"/><rect class="f-lit" x="761.3" y="82" width="35.6" height="22"/><rect class="f-acc" x="796.9" y="82" width="7.9" height="22"/><rect class="f-lit" x="804.8" y="82" width="35.6" height="22"/><rect class="f-acc" x="840.4" y="82" width="7.9" height="22"/>
+<rect class="s-strong" x="500" y="82" width="380" height="22"/>
+<text class="t-small" x="500" y="120">8 looks at the result a day</text>
+<text class="t-head" x="500" y="150">5-minute preview bakes</text>
+<rect class="f-lit" x="500" y="162" width="4" height="22"/><rect class="f-acc" x="504" y="162" width="7.9" height="22"/><rect class="f-lit" x="511.9" y="162" width="4" height="22"/><rect class="f-acc" x="515.8" y="162" width="7.9" height="22"/><rect class="f-lit" x="523.8" y="162" width="4" height="22"/><rect class="f-acc" x="527.7" y="162" width="7.9" height="22"/><rect class="f-lit" x="535.6" y="162" width="4" height="22"/><rect class="f-acc" x="539.6" y="162" width="7.9" height="22"/><rect class="f-lit" x="547.5" y="162" width="4" height="22"/><rect class="f-acc" x="551.5" y="162" width="7.9" height="22"/><rect class="f-lit" x="559.4" y="162" width="4" height="22"/><rect class="f-acc" x="563.3" y="162" width="7.9" height="22"/><rect class="f-lit" x="571.3" y="162" width="4" height="22"/><rect class="f-acc" x="575.2" y="162" width="7.9" height="22"/><rect class="f-lit" x="583.1" y="162" width="4" height="22"/><rect class="f-acc" x="587.1" y="162" width="7.9" height="22"/><rect class="f-lit" x="595" y="162" width="4" height="22"/><rect class="f-acc" x="599" y="162" width="7.9" height="22"/><rect class="f-lit" x="606.9" y="162" width="4" height="22"/><rect class="f-acc" x="610.8" y="162" width="7.9" height="22"/><rect class="f-lit" x="618.8" y="162" width="4" height="22"/><rect class="f-acc" x="622.7" y="162" width="7.9" height="22"/><rect class="f-lit" x="630.6" y="162" width="4" height="22"/><rect class="f-acc" x="634.6" y="162" width="7.9" height="22"/><rect class="f-lit" x="642.5" y="162" width="4" height="22"/><rect class="f-acc" x="646.5" y="162" width="7.9" height="22"/><rect class="f-lit" x="654.4" y="162" width="4" height="22"/><rect class="f-acc" x="658.3" y="162" width="7.9" height="22"/><rect class="f-lit" x="666.3" y="162" width="4" height="22"/><rect class="f-acc" x="670.2" y="162" width="7.9" height="22"/><rect class="f-lit" x="678.1" y="162" width="4" height="22"/><rect class="f-acc" x="682.1" y="162" width="7.9" height="22"/><rect class="f-lit" x="690" y="162" width="4" height="22"/><rect class="f-acc" x="694" y="162" width="7.9" height="22"/><rect class="f-lit" x="701.9" y="162" width="4" height="22"/><rect class="f-acc" x="705.8" y="162" width="7.9" height="22"/><rect class="f-lit" x="713.8" y="162" width="4" height="22"/><rect class="f-acc" x="717.7" y="162" width="7.9" height="22"/><rect class="f-lit" x="725.6" y="162" width="4" height="22"/><rect class="f-acc" x="729.6" y="162" width="7.9" height="22"/><rect class="f-lit" x="737.5" y="162" width="4" height="22"/><rect class="f-acc" x="741.5" y="162" width="7.9" height="22"/><rect class="f-lit" x="749.4" y="162" width="4" height="22"/><rect class="f-acc" x="753.3" y="162" width="7.9" height="22"/><rect class="f-lit" x="761.3" y="162" width="4" height="22"/><rect class="f-acc" x="765.2" y="162" width="7.9" height="22"/><rect class="f-lit" x="773.1" y="162" width="4" height="22"/><rect class="f-acc" x="777.1" y="162" width="7.9" height="22"/><rect class="f-lit" x="785" y="162" width="4" height="22"/><rect class="f-acc" x="789" y="162" width="7.9" height="22"/><rect class="f-lit" x="796.9" y="162" width="4" height="22"/><rect class="f-acc" x="800.8" y="162" width="7.9" height="22"/><rect class="f-lit" x="808.8" y="162" width="4" height="22"/><rect class="f-acc" x="812.7" y="162" width="7.9" height="22"/><rect class="f-lit" x="820.6" y="162" width="4" height="22"/><rect class="f-acc" x="824.6" y="162" width="7.9" height="22"/><rect class="f-lit" x="832.5" y="162" width="4" height="22"/><rect class="f-acc" x="836.5" y="162" width="7.9" height="22"/><rect class="f-lit" x="844.4" y="162" width="4" height="22"/><rect class="f-acc" x="848.3" y="162" width="7.9" height="22"/><rect class="f-lit" x="856.3" y="162" width="4" height="22"/><rect class="f-acc" x="860.2" y="162" width="7.9" height="22"/><rect class="f-lit" x="868.1" y="162" width="4" height="22"/><rect class="f-acc" x="872.1" y="162" width="7.9" height="22"/>
+<rect class="s-strong" x="500" y="162" width="380" height="22"/>
+<text class="t-small" x="500" y="200">32 looks at the result a day</text>
+<rect class="f-lit" x="500" y="236" width="14" height="10"/><text class="t-small t-muted" x="520" y="245">baking</text>
+<rect class="f-acc" x="580" y="236" width="14" height="10"/><text class="t-small t-muted" x="600" y="245">10 minutes to review and change</text>
+<text class="t-small t-muted" x="500" y="270">Illustrative numbers. Real bake times range from seconds</text>
+<text class="t-small t-muted" x="500" y="286">to hours with scene size, quality and hardware.</text>
+</svg>
+                </div>
+                <figcaption><b>Bake time is people time.</b> Left: each quadrupling of samples halves the noise and quadruples the bake. Right: what that means for an artist. In an example day with ten minutes of review per change, 45-minute bakes allow 8 looks at the result; 5-minute bakes allow 32. That is why every engine offers fast preview bakes, and why teams bake for final quality on build machines.</figcaption>
+              </figure>
+              <p>The engines attack bake time in three ways. Faster hardware: GPU Lightmass, a Beta feature in Unreal 5.8 that needs DirectX 12 and a ray-tracing GPU, is described by Epic as comparable in speed to CPU Lightmass spread over many machines, and Godot bakes on the GPU. Previews: Unity can bake interactively while you work, GPU Lightmass has a <strong>Bake What You See</strong> mode, and Godot recommends low quality while iterating and a high-quality final bake before export. Distribution: CPU Lightmass can spread a build across machines with Swarm, which GPU Lightmass does not support.</p>
+              <p>Baked data is also a build artefact. Lightmaps and probe data are generated files that must be rebuilt whenever lights or static geometry change, kept in version control or regenerated on build machines, and checked so nobody ships a level with stale lighting. Unreal's viewport warns when lighting needs to be rebuilt; the review list in section 7 has the questions to ask.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>At run time baked lighting costs almost nothing: a lightmap read per pixel of static geometry, and a probe blend per moving object or per pixel. The bill arrives as memory, disk space and bake time. A worked example: 20,000 m² of lightmapped surface at 8 texels per metre is 20,000 × 64 = 1,280,000 texels. In BC6H, at 1 byte per texel, that is about 1.2 MB; directional lightmaps double it; uncompressed half-float RGBA, at 8 bytes per texel, would be about 9.8 MB. Raise the density to 32 texels per metre and every one of those numbers grows sixteen times.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">×4</span><span class="what">texels, and roughly memory and bake time, each time lightmap resolution doubles</span></div>
+              <div class="stat"><span class="value">108 bytes</span><span class="what">one L2 SH probe: 27 floats of 4 bytes, before any compression</span></div>
+              <div class="stat"><span class="value">×2</span><span class="what">memory for directional lightmaps over non-directional, per Unity</span></div>
+              <div class="stat"><span class="value">up to ×8</span><span class="what">memory when Unreal's volumetric lightmap cell size is halved</span></div>
+            </div>
+            <p class="stamp">Memory figures are arithmetic from the formats; engine multipliers from Unity 6.6 and Unreal Engine 5.8 documentation. Disabling lightmap compression in Unreal's Lightmass settings costs about four times the memory and disk size, by Epic's account.</p>
+            <ul class="grows">
+              <li><strong>Texel density</strong><span>Memory and bake time grow with its square. Most of the budget goes to the few surfaces that need sharp shadows.</span></li>
+              <li><strong>Surface area</strong><span>Every lightmapped square metre costs texels, including backs of buildings nobody sees. Exclude what the player cannot reach, or give it low density.</span></li>
+              <li><strong>Samples and bounces</strong><span>Samples set noise; bounces matter most in bright, closed interiors. Both lengthen bakes far more than they change memory.</span></li>
+              <li><strong>Lighting scenarios</strong><span>Day and night, or lights on and off, each need their own full set of baked data.</span></li>
+              <li><strong>Probe density</strong><span>Probe volumes grow with the cube of their resolution: halving the spacing can mean eight times the probes.</span></li>
+              <li><strong>Iteration</strong><span>Every change to lights or static geometry means another bake. Slow bakes mean fewer ideas tried per day.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Budget both kinds of cost</p>
+              <p>Set a lightmap memory budget per level and platform, a target texel density per surface type, and a bake time target for preview and final builds. If a bake takes all night, artists get one try a day; if a preview bake takes two minutes, they get dozens. Measuring bake time per level is as important as measuring frame time.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Baked lighting fails in the bake, in the UVs, or at the boundary between baked and moving things.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wall made of two panels; the left panel's baked lighting is brighter than the right's, leaving a hard line down the middle where they meet.">
+                    <rect class="f-buf-hi" x="20" y="10" width="100" height="110"/>
+                    <rect class="f-buf-hi" x="120" y="10" width="100" height="110"/>
+                    <rect class="f-buf-lo" fill-opacity="0.25" x="20" y="10" width="100" height="110"/>
+                    <rect class="f-buf-lo" fill-opacity="0.45" x="120" y="10" width="100" height="110"/>
+                    <line class="s-pix w2" x1="120" y1="10" x2="120" y2="120"/>
+                    <text class="t-small t-pix" x="126" y="24">seam</text>
+                  </svg>
+                </div>
+                <h4>Hard lines across smooth surfaces</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A <dfn class="term" data-term="lightmap-seam">lightmap seam</dfn>: two neighbouring faces whose UV islands sit apart in the lightmap, so their edge texels were baked and filtered separately and disagree.</dd></div>
+                  <div><dt>Ask for</dt><dd>Fewer splits in the lightmap UVs on smooth surfaces, matched texel density across the seam, and the engine's seam-stitching option where it has one.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dark interior room whose floor has a bright band along the base of the wall that faces the sunny outside.">
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-lo" fill-opacity="0.65" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-solid s-ink" x="0" y="0" width="22" height="130"/>
+                    <defs><filter id="sy-bleed" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter></defs>
+                    <rect class="f-buf-hi" fill-opacity="0.85" x="22" y="40" width="16" height="90" filter="url(#sy-bleed)"/>
+                  </svg>
+                </div>
+                <h4>Light or shadow bleeding at edges</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Texels bigger than the wall, so one texel spans inside and outside; or too little padding, so filtering blends neighbouring islands. Epic advises at least four texels of padding.</dd></div>
+                  <div><dt>Ask for</dt><dd>More padding, higher density on thin walls, and thick geometry for walls between bright and dark spaces. Probe and voxel <a class="term" data-term="light-leaking" data-forward href="glossary.html#light-leaking">light leaking</a> is covered in 8.5.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A floor whose baked light is covered in soft grey blotches instead of a smooth gradient.">
+                    <defs><filter id="sy-blotch" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="4"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.2 0 0 0 -0.9"/></filter></defs>
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect x="0" y="0" width="240" height="130" filter="url(#sy-blotch)" opacity="0.6"/>
+                  </svg>
+                </div>
+                <h4>Blotchy or noisy baked light</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too few samples, a denoiser smoothing noise into blobs, or a lightmap resolution too low for the light's detail.</dd></div>
+                  <div><dt>Ask for</dt><dd>A final bake at higher sample counts, denoiser settings checked on a test scene, and density raised only where the detail is visible.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A crate whose faces show scrambled patches of light and shadow that do not match its shape.">
+                    <rect class="f-buf-hi s-ink" x="60" y="20" width="120" height="100"/>
+                    <rect class="f-buf-lo" fill-opacity="0.7" x="60" y="20" width="60" height="40"/>
+                    <rect class="f-buf-lo" fill-opacity="0.7" x="120" y="60" width="60" height="30"/>
+                    <rect class="f-buf-lo" fill-opacity="0.35" x="80" y="90" width="60" height="30"/>
+                    <text class="t-small t-pix" x="186" y="40">wrong</text>
+                    <text class="t-small t-pix" x="186" y="54">patches</text>
+                  </svg>
+                </div>
+                <h4>Patches of light in the wrong places</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Overlapping lightmap UVs, often the material UVs used by mistake: two faces share texels, so each shows the other's light.</dd></div>
+                  <div><dt>Ask for</dt><dd>Generated or hand-made lightmap UVs on every static mesh, and the engine's overlap warnings treated as errors in the asset pipeline.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dark corner of a room with a character standing in it who is lit as brightly as if it stood in the sunny middle of the room.">
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-lo" fill-opacity="0.7" x="0" y="0" width="240" height="130"/>
+                    <path class="f-buf-hi s-ink" d="M120,22 C132,22 134,34 131,40 C140,44 143,58 141,120 L99,120 C97,58 100,44 109,40 C106,34 108,22 120,22 Z"/>
+                  </svg>
+                </div>
+                <h4>Moving objects lit wrongly for where they stand</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Probes too sparse, missing from an area, or buried inside walls, so a character picks up light from the wrong side; or a large object blending one set of probes for its whole body.</dd></div>
+                  <div><dt>Ask for</dt><dd>Probe coverage checked in the probe debug view, probes added where light changes, per-pixel probe volumes for large objects, and leak controls such as APV's Probe Adjustment Volume.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wall that has been moved, while its old baked shadow is still drawn on the floor where the wall used to be.">
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-lo" fill-opacity="0.2" x="0" y="0" width="240" height="130"/>
+                    <polygon class="f-buf-lo" fill-opacity="0.5" points="40,80 90,80 150,120 100,120"/>
+                    <rect class="f-solid s-ink" x="160" y="20" width="22" height="80"/>
+                    <rect class="s-pix w2 dash" x="40" y="20" width="22" height="60"/>
+                    <text class="t-small t-pix" x="70" y="30">wall was here</text>
+                  </svg>
+                </div>
+                <h4>Shadows and light that do not match the level</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Stale bake: static geometry or lights changed after the last bake, or an object marked static is moved at run time.</dd></div>
+                  <div><dt>Ask for</dt><dd>A rebake step in the build pipeline, a check that fails builds with stale lighting, and objects that move at run time marked as movable.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To find the cause, look at the lighting on its own. Unreal's Lighting Only and Lightmap Density view modes, and Unity's Baked Lightmap and UV Overlap scene views, separate a bake problem from a material problem.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All three engines bake lightmaps and probes. They differ in how much the editor automates, and in how baking fits next to their real-time GI.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Lightmapper</th>
+                    <td>CPU Lightmass, distributable with Swarm; GPU Lightmass plugin (Beta), DirectX 12 and a ray-tracing GPU, with Open Image Denoise.</td>
+                    <td colspan="2">Progressive GPU; Progressive CPU (deprecated); Unity Compute Light Baker, hardware ray tracing or compute emulation. Denoisers: OptiX, Open Image Denoise.</td>
+                    <td>LightmapGI node, baked on the GPU in the editor; JNLM or OIDN denoiser.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Light mobility</th>
+                    <td>Static, Stationary (at most four overlapping with shadows), Movable.</td>
+                    <td>Baked, Mixed, Realtime. Mixed modes: Baked Indirect, Shadowmask, Distance Shadowmask, Subtractive.</td>
+                    <td>Baked, Mixed, Realtime. Mixed: Baked Indirect, Shadow Mask and Distance Shadowmask per light; no Subtractive.</td>
+                    <td>Light3D Bake Mode: Disabled, Static, Dynamic (default: bounce only).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Lightmap UVs</th>
+                    <td>Generate Lightmap UVs on import; Lightmap Coordinate Index; Min Lightmap Resolution sets padding.</td>
+                    <td colspan="2">Model Import Settings, <strong>Generate Lightmap UVs</strong>, into <code>Mesh.uv2</code> (UV1).</td>
+                    <td>Import, Meshes, Light Baking: <strong>Static Lightmaps</strong> generates UV2.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Resolution</th>
+                    <td>Light Map Resolution per static mesh; Lightmap Density view mode.</td>
+                    <td colspan="2">Lightmap Resolution (texels per unit), Scale In Lightmap per renderer; Max Lightmap Size default 1024; Lightmap Padding default 2.</td>
+                    <td>Lightmap Texel Size on import, default 0.2 m; Texel Scale on the node; Max Texture Size default 16384.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Probes for moving objects</th>
+                    <td>Volumetric lightmap: third-order SH in bricks of 4 × 4 × 4, per pixel; Volumetric Lightmap Detail Cell Size.</td>
+                    <td colspan="2">Light Probe Groups (L2 SH, tetrahedral blend per object) or Adaptive Probe Volumes (bricks of 64 probes, per pixel, Lighting Scenarios, sky occlusion).</td>
+                    <td>Probes generated by LightmapGI (Gen Probes Subdiv, default 8) and LightmapProbe nodes.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Quality and bounces</th>
+                    <td>Build, Lighting Quality: Preview, Medium, High, Production. Num Indirect Lighting Bounces in World Settings.</td>
+                    <td colspan="2">Max Bounces default 2; Direct and Indirect Samples; Directional Mode default Directional.</td>
+                    <td>Quality: Low, Medium (default), High, Ultra; Bounces default 3; Directional off by default.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">With real-time GI</th>
+                    <td>With Lumen GI on, static lighting is disabled and lightmaps are hidden; Lumen Reflections can still use lightmap GI.</td>
+                    <td colspan="2">Enlighten Realtime GI adds real-time bounce from changing lights; Unity says its support ends after Unity 6.</td>
+                    <td>SDFGI and VoxelGI are the real-time options; LightmapGI is the one that runs in every renderer.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Names and defaults checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) with URP and HDRP 17.6, and Godot 4.7 in November 2026. Lightmapper back ends change between versions; check the Lighting window or project settings in your version.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Baking briefs need the engine and lightmapper, what moves in the level, the memory and bake-time budgets, and the platforms. Ask for settings with numbers, and for checks you can run.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when setting up baked lighting for a level</span></div>
+              <pre class="prompt-body">Unity 6.6, URP, targets: Nintendo Switch 2 and PC. Indoor level, about 6,000 m² of floor and walls, fixed lights, doors that open, NPCs walking through.
+Budgets: lightmaps 24 MB on Switch 2; preview bake under 5 minutes on our workstations; final bake overnight on the build machine.
+
+1. Recommend light modes per light type and a Mixed Lighting Mode, with reasons.
+2. Propose texel densities per surface type (floors, walls, small props) and show the lightmap memory they imply, with and without Directional mode.
+3. Recommend Adaptive Probe Volumes or Light Probe Groups for the NPCs, with probe spacing, and how to avoid leaks through the walls.
+4. Give preview and final Lighting settings (samples, bounces, denoiser) and how to measure bake time per level.</pre>
+              <ul class="prompt-why">
+                <li>Saying what moves, doors and NPCs, decides what can be baked and where probes are needed.</li>
+                <li>Memory and bake-time budgets turn density and sample counts into numbers that can be checked.</li>
+                <li>Asking for both preview and final settings protects the artists' iteration time.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when a bake shows seams and bright edges</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Lumen off, static lighting with CPU Lightmass, Production quality.
+After the last bake: hard lines across the curved concrete wall in the atrium, and bright strips along the floor at the base of the walls that face the sunlit courtyard. Walls are 10 cm thick single meshes. Light Map Resolution 64 on the wall mesh.
+
+1. For each problem, list the likely causes in order, using our settings: UV islands, padding, resolution, wall thickness.
+2. Tell us what to check in the Lightmap Density view and in the mesh's lightmap UV channel, and what "good" looks like.
+3. Propose fixes, starting with the cheapest, and say what each one costs in memory or bake time.</pre>
+              <ul class="prompt-why">
+                <li>Naming the lightmapper, quality and resolution rules out guesses about settings.</li>
+                <li>Describing where each fault appears separates the seam from the bleeding.</li>
+                <li>Asking what to look for in the debug views lets you verify the diagnosis yourself.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing baked-lighting work</h3>
+            <ol class="review-list">
+              <li>Which lights are baked, which mixed and which real time, and why?<span class="why">Mobility decides the run-time cost and what can change in the game.</span></li>
+              <li>What texel density does each kind of surface get, and what is the lightmap memory per level?<span class="why">Density sets both sharpness and memory, which grows with its square.</span></li>
+              <li>Do all static meshes have non-overlapping lightmap UVs with enough padding?<span class="why">Overlaps scramble light; thin padding bleeds it across islands.</span></li>
+              <li>How do moving objects get baked light, and has probe coverage been checked where they go?<span class="why">Missing or buried probes light characters from the wrong side.</span></li>
+              <li>How long do preview and final bakes take, and who runs the final bake?<span class="why">Bake time sets how fast artists can iterate, and stale bakes ship bugs.</span></li>
+              <li>What happens when a door opens, a wall breaks or the time of day changes?<span class="why">Baked light cannot follow; it needs lighting scenarios, mixed lights or real-time GI.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Why can't a static mesh use its material UVs for its lightmap?</p>
+                <details><summary>Show answer</summary><p>Material UVs may overlap or repeat, so several faces share the same texels of the texture. Each spot on a surface receives different light, so the lightmap needs every face to have its own texels, with padding so filtering does not blend neighbouring islands.</p></details>
+              </li>
+              <li>
+                <p class="q">A level's lightmaps are 6 MB at 10 texels per metre. The art director wants shadows twice as sharp. What happens to memory and bake time?</p>
+                <details><summary>Show answer</summary><p>Twice as sharp means twice the density, 20 texels per metre, which is four times the texels: about 24 MB, and roughly four times the bake time. Raising density only on the surfaces where the shadows matter keeps most of the saving.</p></details>
+              </li>
+              <li>
+                <p class="q">A character crossing from a sunlit courtyard into a dark corridor is lit brightly inside the corridor. The walls are lightmapped correctly. Where do you look?</p>
+                <details><summary>Show answer</summary><p>At the probes: their density and placement near the doorway, whether any are buried in walls or missing inside the corridor, and whether the character blends probes per object or per pixel. Moving objects get baked light from probes, not lightmaps.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#baked-lighting">baked lighting</a></li>
+              <li><a class="chip" href="glossary.html#lightmap">lightmap</a></li>
+              <li><a class="chip" href="glossary.html#lightmapper">lightmapper</a></li>
+              <li><a class="chip" href="glossary.html#lightmap-uvs">lightmap UVs</a></li>
+              <li><a class="chip" href="glossary.html#lightmap-resolution">lightmap resolution</a></li>
+              <li><a class="chip" href="glossary.html#light-mobility">light mobility</a></li>
+              <li><a class="chip" href="glossary.html#shadowmask">shadow mask</a></li>
+              <li><a class="chip" href="glossary.html#light-probe">light probe</a></li>
+              <li><a class="chip" href="glossary.html#spherical-harmonics">spherical harmonics</a></li>
+              <li><a class="chip" href="glossary.html#irradiance-volume">irradiance volume</a></li>
+              <li><a class="chip" href="glossary.html#adaptive-probe-volumes">Adaptive Probe Volumes</a></li>
+              <li><a class="chip" href="glossary.html#lightmapgi">LightmapGI</a></li>
+              <li><a class="chip" href="glossary.html#lightmap-seam">lightmap seam</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="8.3"></a> covers the darkening in corners and under objects that bakes capture for static geometry, and how renderers estimate it every frame for everything else.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Ravi Ramamoorthi and Pat Hanrahan, <a href="https://graphics.stanford.edu/papers/envmap/envmap.pdf">An Efficient Representation for Irradiance Environment Maps</a>, SIGGRAPH 2001. Nine spherical harmonics coefficients for irradiance.</li>
+              <li>Robert Cupisz, <a href="https://gdcvault.com/play/1015312/Light-Probe-Interpolation-Using-Tetrahedral">Light Probe Interpolation Using Tetrahedral Tessellations</a>, GDC 2012, Unity Technologies.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/understanding-lightmapping-in-unreal-engine?application_version=5.8">Understanding Lightmapping</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lightmass-basics-in-unreal-engine?application_version=5.8">Lightmass Basics</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/gpu-lightmass-global-illumination-in-unreal-engine?application_version=5.8">GPU Lightmass Global Illumination</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/volumetric-lightmaps-in-unreal-engine?application_version=5.8">Volumetric Lightmaps</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/static-light-mobility-in-unreal-engine?application_version=5.8">Static Light Mobility</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/stationary-light-mobility-in-unreal-engine?application_version=5.8">Stationary Light Mobility</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/python-api/class/LightmassWorldInfoSettings?application_version=5.8">LightmassWorldInfoSettings</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-technical-details-in-unreal-engine?application_version=5.8">Lumen Technical Details</a>.</li>
+              <li>Unity 6.6 manual: <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/lightmapping/baking-before-runtime/lightmaps-reference">Lighting settings reference</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/lighting-light-sources/components/configuring/light-modes/choose">Choose a light mode</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/lightmapping/lighting-gi-uvs/generating-lightmapping-uvs">Generating lightmap UVs</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/light-probes/light-probes">Light Probes</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/light-probes/class-light-probe-group">Light Probe Group</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/lightmap-data/light-probes-technical-information">Light Probes technical information</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/lighting/probevolumes/concept">Introduction to Adaptive Probe Volumes</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/lighting/probevolumes/fixissues/troubleshoot-light-leaks">Fix light leaks in Adaptive Probe Volumes</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>.</li>
+              <li>Godot 4.7 documentation: <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/global_illumination/using_lightmap_gi.html">Using lightmap global illumination</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_lightmapgi.html">LightmapGI</a> and <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/global_illumination/introduction_to_global_illumination.html">Introduction to global illumination</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>

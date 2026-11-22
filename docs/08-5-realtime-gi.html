@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>8.5 Real-time GI families · Graphics Handbook</title>
+  <meta name="description" content="How light propagation volumes, voxel cone tracing, DDGI probes, SDFGI, Lumen's surface cache and screen probes, radiance cascades and Enlighten compute bounced light every frame, what each costs, where each leaks light, which engines ship them, and how to choose.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="8.5">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <h1><span class="ch-num">8.5</span> Real-time GI families</h1>
+            <p class="lead">Every method that computes bounced light while the game runs does three things: it traces light against a simplified copy of the scene, stores the result in some shape, and reuses it over many frames. The shape it chooses, a grid, voxels, probes, a cache on surfaces or a stack of cascades, decides what it costs, how fast it reacts and where light leaks through walls.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="8.1">8.1 Direct and indirect light</a>, <a class="xref" data-ch="8.2">8.2 Baked lighting</a>, <a class="xref" data-ch="8.4">8.4 Screen-space tricks</a>, <a class="xref" data-ch="7.5">7.5 Shadows at scale</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.6">8.6 Ray tracing</a>, <a class="xref" data-ch="8.7">8.7 Path tracing and denoising</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 40 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 594" role="img" aria-label="A board of six cards, one per family of real-time global illumination. Light propagation volumes store a coarse grid of spherical harmonics and leak through anything thinner than a cell. Voxel cone tracing stores voxels with blurred coarser copies and leaks where a voxel holds both sides of a wall. Probes with visibility, DDGI, store light and distances per probe and leak far less. Lumen's surface cache stores light on cards around each mesh, gathered by screen probes, and leaks through walls under 10 centimetres. Radiance cascades store stacked probe grids, sparser with longer rays at each level. Precomputed real-time GI, Enlighten, stores precomputed visibility between surface patches and cannot let geometry move. Each card also gives a published cost and which engines ship it.">
+                  <defs>
+                    <marker id="bd-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+                  <text class="t-caps" x="10" y="22">SIX WAYS TO STORE BOUNCED LIGHT, AND WHAT EACH ONE COSTS</text>
+
+                  <!-- Card 1: LPV -->
+                  <g transform="translate(10,36)">
+                    <rect class="f-surface s-strong" x="0" y="0" width="286" height="270" rx="8"/>
+                    <text class="t-head" x="12" y="22">Light propagation volumes</text>
+                    <g class="s-line">
+                      <path d="M40,36 H244 M40,70 H244 M40,104 H244 M40,36 V104 M74,36 V104 M108,36 V104 M142,36 V104 M176,36 V104 M210,36 V104 M244,36 V104"/>
+                    </g>
+                    <circle class="f-lit" cx="57" cy="53" r="9"/><circle class="f-lit" fill-opacity="0.7" cx="91" cy="53" r="8"/><circle class="f-lit" fill-opacity="0.5" cx="125" cy="53" r="7"/><circle class="f-lit" fill-opacity="0.32" cx="159" cy="53" r="6"/><circle class="f-lit" fill-opacity="0.2" cx="193" cy="53" r="5"/><circle class="f-lit" fill-opacity="0.12" cx="227" cy="53" r="4"/>
+                    <circle class="f-lit" fill-opacity="0.7" cx="57" cy="87" r="8"/><circle class="f-lit" fill-opacity="0.5" cx="91" cy="87" r="7"/><circle class="f-lit" fill-opacity="0.32" cx="125" cy="87" r="6"/><circle class="f-lit" fill-opacity="0.2" cx="159" cy="87" r="5"/><circle class="f-lit" fill-opacity="0.12" cx="193" cy="87" r="4"/><circle class="f-lit" fill-opacity="0.08" cx="227" cy="87" r="3"/>
+                    <line class="s-lit w15" x1="66" y1="53" x2="80" y2="53" marker-end="url(#bd-arr)"/><line class="s-lit w15" x1="100" y1="53" x2="115" y2="53" marker-end="url(#bd-arr)"/><line class="s-lit w15" x1="57" y1="62" x2="57" y2="77" marker-end="url(#bd-arr)"/>
+                    <rect class="f-solid s-ink" x="138" y="32" width="6" height="76"/>
+                    <text class="t-small t-muted" x="40" y="124">light spreads cell to cell, wall or not</text>
+                    <text class="t-caps" x="12" y="150">STORES</text><text class="t-small" x="74" y="150">a coarse 3D grid; 4 SH numbers</text><text class="t-small" x="74" y="164">per colour in each cell</text>
+                    <text class="t-caps" x="12" y="186">COSTS</text><text class="t-small" x="74" y="186">3.5 ms, Xbox 360, 720p, for a</text><text class="t-small" x="74" y="200">32³ grid (Crytek, 2009)</text>
+                    <text class="t-caps" x="12" y="222">LEAKS</text><text class="t-small" x="74" y="222">through anything thinner</text><text class="t-small" x="74" y="236">than a cell</text>
+                    <text class="t-caps" x="12" y="258">SHIPS</text><text class="t-small" x="74" y="258">CryEngine 3</text>
+                  </g>
+
+                  <!-- Card 2: voxel cone tracing -->
+                  <g transform="translate(307,36)">
+                    <rect class="f-surface s-strong" x="0" y="0" width="286" height="270" rx="8"/>
+                    <text class="t-head" x="12" y="22">Voxel cone tracing</text>
+                    <rect class="f-geo-soft s-geo" x="20" y="84" width="10" height="10"/><rect class="f-geo-soft s-geo" x="30" y="84" width="10" height="10"/><rect class="f-geo-soft s-geo" x="40" y="84" width="10" height="10"/><rect class="f-geo-soft s-geo" x="50" y="84" width="10" height="10"/>
+                    <rect class="f-geo-soft s-geo" x="72" y="74" width="20" height="20"/><rect class="f-geo-soft s-geo" x="92" y="74" width="20" height="20"/>
+                    <rect class="f-geo-soft s-geo" x="124" y="54" width="40" height="40"/>
+                    <text class="t-small t-geo" x="20" y="108">mip 0</text><text class="t-small t-geo" x="76" y="108">mip 1</text><text class="t-small t-geo" x="128" y="108">mip 2</text>
+                    <polygon class="f-acc-soft s-acc" points="186,100 262,40 262,96"/>
+                    <circle class="f-acc" cx="186" cy="100" r="4"/>
+                    <text class="t-small t-muted" x="20" y="124">a cone reads coarser voxels as it widens</text>
+                    <text class="t-caps" x="12" y="150">STORES</text><text class="t-small" x="74" y="150">voxels of the lit scene, with</text><text class="t-small" x="74" y="164">blurred, coarser copies</text>
+                    <text class="t-caps" x="12" y="186">COSTS</text><text class="t-small" x="74" y="186">VXGI Medium: 7.4 ms, GTX 770,</text><text class="t-small" x="74" y="200">1080p (NVIDIA, 2014)</text>
+                    <text class="t-caps" x="12" y="222">LEAKS</text><text class="t-small" x="74" y="222">where one voxel holds both</text><text class="t-small" x="74" y="236">sides of a thin wall</text>
+                    <text class="t-caps" x="12" y="258">SHIPS</text><text class="t-small" x="74" y="258">NVIDIA VXGI; Godot VoxelGI</text>
+                  </g>
+
+                  <!-- Card 3: probes with visibility -->
+                  <g transform="translate(604,36)">
+                    <rect class="f-surface s-strong" x="0" y="0" width="286" height="270" rx="8"/>
+                    <text class="t-head" x="12" y="22">Probes with visibility (DDGI)</text>
+                    <path class="f-acc-soft s-acc" fill-opacity="0.45" d="M140,44 A24,24 0 1,0 140,68 Z"/>
+                    <path class="f-acc-soft s-acc" fill-opacity="0.45" d="M140,80 A24,24 0 1,0 140,104 Z"/>
+                    <circle class="f-acc-soft s-acc" fill-opacity="0.45" cx="196" cy="56" r="22"/>
+                    <circle class="f-acc-soft s-acc" fill-opacity="0.45" cx="196" cy="92" r="22"/>
+                    <rect class="f-solid s-ink" x="140" y="32" width="6" height="80"/>
+                    <circle class="f-lit s-ink" cx="119" cy="56" r="5"/><circle class="f-lit s-ink" cx="119" cy="92" r="5"/><circle class="f-sunken s-ink" cx="196" cy="56" r="5"/><circle class="f-sunken s-ink" cx="196" cy="92" r="5"/>
+                    <text class="t-small t-muted" x="40" y="124">each probe also stores how far it can see</text>
+                    <text class="t-caps" x="12" y="150">STORES</text><text class="t-small" x="74" y="150">a probe grid; light (8 × 8) and</text><text class="t-small" x="74" y="164">distances (16 × 16) per probe</text>
+                    <text class="t-caps" x="12" y="186">COSTS</text><text class="t-small" x="74" y="186">2.6 ms: 8,192 probes, 64 rays</text><text class="t-small" x="74" y="200">each, RTX 2080 Ti (2019)</text>
+                    <text class="t-caps" x="12" y="222">LEAKS</text><text class="t-small" x="74" y="222">far less: distances reject</text><text class="t-small" x="74" y="236">probes behind walls</text>
+                    <text class="t-caps" x="12" y="258">SHIPS</text><text class="t-small" x="74" y="258">NVIDIA RTXGI; Godot SDFGI</text>
+                  </g>
+
+                  <!-- Card 4: Lumen -->
+                  <g transform="translate(10,316)">
+                    <rect class="f-surface s-strong" x="0" y="0" width="286" height="270" rx="8"/>
+                    <text class="t-head" x="12" y="22">Surface cache (Lumen)</text>
+                    <rect class="f-solid s-ink" x="52" y="54" width="60" height="44"/>
+                    <rect class="f-lit-soft s-lit" x="46" y="38" width="72" height="10"/><rect class="f-lit-soft s-lit" x="36" y="54" width="10" height="44"/><rect class="f-lit-soft s-lit" x="118" y="54" width="10" height="44"/>
+                    <text class="t-small t-lit" x="38" y="114">cards around a mesh</text>
+                    <rect class="f-pix-soft s-pix" x="160" y="36" width="104" height="66"/>
+                    <path class="s-line" d="M186,36 V102 M212,36 V102 M238,36 V102 M160,58 H264 M160,80 H264"/>
+                    <circle class="f-acc" cx="173" cy="47" r="3"/><circle class="f-acc" cx="199" cy="47" r="3"/><circle class="f-acc" cx="225" cy="47" r="3"/><circle class="f-acc" cx="251" cy="47" r="3"/><circle class="f-acc" cx="173" cy="69" r="3"/><circle class="f-acc" cx="199" cy="69" r="3"/><circle class="f-acc" cx="225" cy="69" r="3"/><circle class="f-acc" cx="251" cy="69" r="3"/><circle class="f-acc" cx="173" cy="91" r="3"/><circle class="f-acc" cx="199" cy="91" r="3"/><circle class="f-acc" cx="225" cy="91" r="3"/><circle class="f-acc" cx="251" cy="91" r="3"/>
+                    <text class="t-small t-acc" x="160" y="114">screen probes</text>
+                    <text class="t-caps" x="12" y="150">STORES</text><text class="t-small" x="74" y="150">light on cards around meshes;</text><text class="t-small" x="74" y="164">probes every 16 × 16 pixels</text>
+                    <text class="t-caps" x="12" y="186">COSTS</text><text class="t-small" x="74" y="186">target 4 ms at 60 fps, 8 ms at</text><text class="t-small" x="74" y="200">30 fps, consoles, 1080p</text>
+                    <text class="t-caps" x="12" y="222">LEAKS</text><text class="t-small" x="74" y="222">through walls under 10 cm;</text><text class="t-small" x="74" y="236">poorly covered meshes go dark</text>
+                    <text class="t-caps" x="12" y="258">SHIPS</text><text class="t-small" x="74" y="258">Unreal Engine 5, the default</text>
+                  </g>
+
+                  <!-- Card 5: radiance cascades -->
+                  <g transform="translate(307,316)">
+                    <rect class="f-surface s-strong" x="0" y="0" width="286" height="270" rx="8"/>
+                    <text class="t-head" x="12" y="22">Radiance cascades</text>
+                    <rect class="f-sunken" x="20" y="36" width="70" height="70"/><rect class="f-sunken" x="108" y="36" width="70" height="70"/><rect class="f-sunken" x="196" y="36" width="70" height="70"/>
+                    <path class="s-acc" d="M37,53 l-7,-7 m7,7 l7,-7 m-7,7 l-7,7 m7,-7 l7,7 M72,53 l-7,-7 m7,7 l7,-7 m-7,7 l-7,7 m7,-7 l7,7 M37,89 l-7,-7 m7,7 l7,-7 m-7,7 l-7,7 m7,-7 l7,7 M72,89 l-7,-7 m7,7 l7,-7 m-7,7 l-7,7 m7,-7 l7,7"/>
+                    <circle class="f-ink" cx="37" cy="53" r="2"/><circle class="f-ink" cx="72" cy="53" r="2"/><circle class="f-ink" cx="37" cy="89" r="2"/><circle class="f-ink" cx="72" cy="89" r="2"/>
+                    <path class="s-acc" d="M143,71 m10,0 l12,0 m-22,0 m-10,0 l-12,0 M143,71 m0,10 l0,12 M143,71 m0,-10 l0,-12 M143,71 m7,7 l9,9 M143,71 m-7,-7 l-9,-9 M143,71 m7,-7 l9,-9 M143,71 m-7,7 l-9,9"/>
+                    <circle class="f-ink" cx="143" cy="71" r="2.5"/>
+                    <path class="s-acc" d="M231,71 m16,0 l18,0 M231,71 m-16,0 l-18,0 M231,71 m0,16 l0,18 M231,71 m0,-16 l0,-18 M231,71 m11,11 l12,12 M231,71 m-11,-11 l-12,-12 M231,71 m11,-11 l12,-12 M231,71 m-11,11 l-12,12 M231,71 m15,6 l17,7 M231,71 m-15,-6 l-17,-7 M231,71 m6,15 l7,17 M231,71 m-6,-15 l-7,-17 M231,71 m15,-6 l17,-7 M231,71 m-15,6 l-17,7 M231,71 m6,-15 l7,-17 M231,71 m-6,15 l-7,17"/>
+                    <circle class="f-ink" cx="231" cy="71" r="2.5"/>
+                    <text class="t-small t-muted" x="20" y="124">dense and short · sparser, longer, finer angles</text>
+                    <text class="t-caps" x="12" y="150">STORES</text><text class="t-small" x="74" y="150">stacked probe grids; each level</text><text class="t-small" x="74" y="164">sparser, longer reach, more angles</text>
+                    <text class="t-caps" x="12" y="186">COSTS</text><text class="t-small" x="74" y="186">fixed per frame; clean in one</text><text class="t-small" x="74" y="200">frame in 2D, without a denoiser</text>
+                    <text class="t-caps" x="12" y="222">LEAKS</text><text class="t-small" x="74" y="222">screen-space versions share</text><text class="t-small" x="74" y="236">8.4's blind spots</text>
+                    <text class="t-caps" x="12" y="258">SHIPS</text><text class="t-small" x="74" y="258">Path of Exile 2, screen space</text>
+                  </g>
+
+                  <!-- Card 6: precomputed real-time GI -->
+                  <g transform="translate(604,316)">
+                    <rect class="f-surface s-strong" x="0" y="0" width="286" height="270" rx="8"/>
+                    <text class="t-head" x="12" y="22">Precomputed real-time GI</text>
+                    <line class="s-ink w2" x1="30" y1="104" x2="260" y2="104"/>
+                    <rect class="f-solid s-ink" x="30" y="36" width="10" height="68"/>
+                    <rect class="f-lit-soft s-lit" x="50" y="98" width="34" height="6"/><rect class="f-lit-soft s-lit" x="96" y="98" width="34" height="6"/><rect class="f-lit-soft s-lit" x="142" y="98" width="34" height="6"/><rect class="f-lit-soft s-lit" x="188" y="98" width="34" height="6"/>
+                    <rect class="f-lit-soft s-lit" x="40" y="44" width="6" height="22"/><rect class="f-lit-soft s-lit" x="40" y="72" width="6" height="22"/>
+                    <path class="s-acc dash" d="M67,98 L46,55 M113,98 L46,83 M159,98 L46,55 M205,98 L113,98"/>
+                    <circle class="f-lit" cx="240" cy="44" r="8"/>
+                    <text class="t-small t-muted" x="20" y="124">which patches see which: precomputed</text>
+                    <text class="t-caps" x="12" y="150">STORES</text><text class="t-small" x="74" y="150">visibility between surface</text><text class="t-small" x="74" y="164">patches; light in lightmaps</text>
+                    <text class="t-caps" x="12" y="186">COSTS</text><text class="t-small" x="74" y="186">CPU, spread over several</text><text class="t-small" x="74" y="200">frames; a long precompute</text>
+                    <text class="t-caps" x="12" y="222">LEAKS</text><text class="t-small" x="74" y="222">like lightmaps; but static</text><text class="t-small" x="74" y="236">geometry can never move</text>
+                    <text class="t-caps" x="12" y="258">SHIPS</text><text class="t-small" x="74" y="258">Enlighten; Unity, to Unity 6</text>
+                  </g>
+                </svg>
+              </div>
+              <figcaption><b>The storage shape is the method.</b> Each family keeps bounced light in a different structure. Coarse volumes, a grid or voxels, are cheap and fully dynamic but smear light across thin walls. Probes that also store distances, and caches tied to surfaces, leak far less at a higher cost. Precomputing visibility makes light dynamic and geometry fixed. Costs are as published, on the hardware named, so compare their order of magnitude rather than the exact numbers.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Baked lighting (<a class="xref" data-ch="8.2">8.2</a>) computes bounced light once, in the editor. Screen-space GI (<a class="xref" data-ch="8.4">8.4</a>) computes it every frame, but only from what is on screen. The families in this chapter sit between them: they compute bounced light while the game runs, from the whole scene around the camera, so it follows moving lights, opening doors and the time of day.</p>
+            <p>None of them can afford to trace rays against every triangle for every pixel. Instead each one keeps a cheaper version of the scene to trace against, stores the light it finds in a structure that is much coarser than the screen, and refreshes only part of it each frame. Every pixel then looks up nearby stored light.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="A loop of four steps. Something changes: a light moves, a door opens, the sun sets. Trace rays against a simplified scene: a grid, voxels, distance fields or ray-tracing hardware. Store the light in a structure: grid cells, voxels, probes or cards. Every pixel looks up the stored light near it. The loop repeats every frame, updating only part of the store each time, so the lighting catches up over several frames.">
+                  <defs><marker id="lp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <rect class="f-lit-soft s-lit" x="20" y="40" width="190" height="80" rx="8"/>
+                  <text class="t-strong" x="34" y="66">1 · Something changes</text>
+                  <text class="t-small t-muted" x="34" y="86">a light moves, a door opens,</text>
+                  <text class="t-small t-muted" x="34" y="101">the sun goes down</text>
+                  <rect class="f-geo-soft s-geo" x="246" y="40" width="190" height="80" rx="8"/>
+                  <text class="t-strong" x="260" y="66">2 · Trace a cheap scene</text>
+                  <text class="t-small t-muted" x="260" y="86">grid, voxels, distance fields,</text>
+                  <text class="t-small t-muted" x="260" y="101">or ray-tracing hardware</text>
+                  <rect class="f-acc-soft s-acc" x="472" y="40" width="190" height="80" rx="8"/>
+                  <text class="t-strong" x="486" y="66">3 · Store the light</text>
+                  <text class="t-small t-muted" x="486" y="86">in cells, voxels, probes or</text>
+                  <text class="t-small t-muted" x="486" y="101">cards, far coarser than pixels</text>
+                  <rect class="f-pix-soft s-pix" x="698" y="40" width="182" height="80" rx="8"/>
+                  <text class="t-strong" x="712" y="66">4 · Pixels look it up</text>
+                  <text class="t-small t-muted" x="712" y="86">blend the nearest stored</text>
+                  <text class="t-small t-muted" x="712" y="101">light, cheaply</text>
+                  <line class="s-muted" x1="212" y1="80" x2="242" y2="80" marker-end="url(#lp-arr)"/>
+                  <line class="s-muted" x1="438" y1="80" x2="468" y2="80" marker-end="url(#lp-arr)"/>
+                  <line class="s-muted" x1="664" y1="80" x2="694" y2="80" marker-end="url(#lp-arr)"/>
+                  <path class="s-muted dash" d="M790,122 V170 H340 V124" marker-end="url(#lp-arr)"/>
+                  <text class="t-small t-muted" x="400" y="190">every frame: refresh part of the store, keep the rest</text>
+                  <text class="t-small t-muted" x="400" y="206">so the light catches up over several frames</text>
+                </svg>
+              </div>
+              <figcaption><b>Trace, store, reuse.</b> Every family in this chapter is this loop. The simplified scene sets what can be traced fast; the store sets the detail and the leaks; the refresh rate sets how quickly light reacts. When you meet a new GI method, ask which of these three it changed.</figcaption>
+            </figure>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>To know how warm every spot in a building is, you could hang thermometers on a grid through the rooms, or stick a note on every wall saying how warm it is there. The grid is easy to set up and cheap to read, but a thermometer next to a thin wall cannot tell which room it belongs to. The notes are tied to the right side of each wall, but you need one for every wall, kept up to date.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Baked light cannot follow change, and screen-space light forgets what leaves the screen. Games with day-night cycles, destructible or player-built levels, or lights the player carries need bounced light that is computed live, for the whole space around the camera, within a few milliseconds a frame.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>The choice of GI family is made early and is hard to undo. It sets a GPU budget of several milliseconds, platform limits (most of these methods need a desktop or current-console GPU), content rules such as minimum wall thickness and how big emissive surfaces may be, and the look of interiors. It also replaces or reduces the bake step of 8.2, which changes how artists work every day.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>The families are covered roughly in the order they appeared, because each one answered a problem in the one before: blur, then leaks, then cost and coverage.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="lpv"><span class="step-num">1</span> Light propagation volumes: spread light through a grid</h3>
+              <p><dfn class="term" data-term="light-propagation-volumes">Light propagation volumes</dfn>, LPV, were presented by Anton Kaplanyan of Crytek in 2009 for CryEngine 3, then extended with Carsten Dachsbacher in 2010. The method has three steps. Render the scene from each light into a reflective shadow map, which records the lit surfaces as small points of light. Inject those points into a coarse 3D grid, each cell holding light as <a class="term" data-term="spherical-harmonics" href="glossary.html#spherical-harmonics">spherical harmonics</a> with two bands, four numbers per colour. Then spread the light: in each iteration every cell passes light to its six neighbours, like a ripple.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Three side views of the same grid of cells over a floor with a thin wall. Inject: the sunlit floor patch puts light into the cells just above it. Propagate: over four iterations, light spreads outward cell by cell, including into the cells on the far side of the thin wall, because cells are bigger than the wall. Sample: each pixel reads the light from the cell it is in, blended with its neighbours, so a point behind the wall gets light it should not.">
+                    <defs><marker id="lpv-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                    <text class="t-head" x="20" y="24">1 · Inject</text>
+                    <text class="t-head" x="320" y="24">2 · Propagate</text>
+                    <text class="t-head" x="620" y="24">3 · Sample</text>
+                    <g class="s-line">
+                      <path d="M20,40 H280 M20,80 H280 M20,120 H280 M20,160 H280 M20,200 H280 M20,40 V200 M72,40 V200 M124,40 V200 M176,40 V200 M228,40 V200 M280,40 V200"/>
+                      <path d="M320,40 H580 M320,80 H580 M320,120 H580 M320,160 H580 M320,200 H580 M320,40 V200 M372,40 V200 M424,40 V200 M476,40 V200 M528,40 V200 M580,40 V200"/>
+                      <path d="M620,40 H880 M620,80 H880 M620,120 H880 M620,160 H880 M620,200 H880 M620,40 V200 M672,40 V200 M724,40 V200 M776,40 V200 M828,40 V200 M880,40 V200"/>
+                    </g>
+                    <line class="s-ink w2" x1="20" y1="200" x2="280" y2="200"/><line class="s-ink w2" x1="320" y1="200" x2="580" y2="200"/><line class="s-ink w2" x1="620" y1="200" x2="880" y2="200"/>
+                    <rect class="f-solid s-ink" x="146" y="60" width="6" height="140"/><rect class="f-solid s-ink" x="446" y="60" width="6" height="140"/><rect class="f-solid s-ink" x="746" y="60" width="6" height="140"/>
+                    <line class="s-lit w3" x1="30" y1="200" x2="120" y2="200"/>
+                    <circle class="f-lit" cx="46" cy="190" r="4"/><circle class="f-lit" cx="64" cy="190" r="4"/><circle class="f-lit" cx="82" cy="190" r="4"/><circle class="f-lit" cx="100" cy="190" r="4"/>
+                    <circle class="f-lit" cx="46" cy="180" r="9"/><circle class="f-lit" cx="98" cy="180" r="9"/>
+                    <text class="t-small t-lit" x="24" y="222">lit floor patch</text>
+                    <circle class="f-lit" cx="346" cy="180" r="9"/><circle class="f-lit" cx="398" cy="180" r="9"/>
+                    <circle class="f-lit" fill-opacity="0.6" cx="346" cy="140" r="8"/><circle class="f-lit" fill-opacity="0.6" cx="398" cy="140" r="8"/><circle class="f-lit" fill-opacity="0.6" cx="450" cy="180" r="8"/>
+                    <circle class="f-lit" fill-opacity="0.35" cx="346" cy="100" r="7"/><circle class="f-lit" fill-opacity="0.35" cx="398" cy="100" r="7"/><circle class="f-lit" fill-opacity="0.35" cx="450" cy="140" r="7"/><circle class="f-lit" fill-opacity="0.35" cx="502" cy="180" r="7"/>
+                    <circle class="f-lit" fill-opacity="0.18" cx="502" cy="140" r="6"/><circle class="f-lit" fill-opacity="0.18" cx="554" cy="180" r="6"/>
+                    <line class="s-lit w15" x1="409" y1="180" x2="437" y2="180" marker-end="url(#lpv-arr)"/>
+                    <line class="s-lit w15" x1="461" y1="180" x2="489" y2="180" marker-end="url(#lpv-arr)"/>
+                    <text class="t-small t-pix" x="460" y="222">crosses the wall</text>
+                    <circle class="f-lit" fill-opacity="0.5" cx="646" cy="180" r="8"/><circle class="f-lit" fill-opacity="0.5" cx="698" cy="180" r="8"/><circle class="f-lit" fill-opacity="0.45" cx="750" cy="180" r="8"/><circle class="f-lit" fill-opacity="0.3" cx="802" cy="180" r="7"/>
+                    <circle class="f-pix" cx="770" cy="196" r="5"/>
+                    <text class="t-small t-pix" x="760" y="222">lit, though behind the wall</text>
+                    <text class="t-small t-muted" x="20" y="244">Each cell holds 4 SH numbers per colour.</text>
+                    <text class="t-small t-muted" x="320" y="244">Each iteration moves light one cell.</text>
+                    <text class="t-small t-muted" x="620" y="244">Pixels blend the nearest cells.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Cheap, dynamic and blurry.</b> Light moves one cell per iteration, so a few iterations give soft bounce from any light without baking. The original volumes had 32 × 32 × 32 cells and cost about 3.5 ms in total on Xbox 360 and PlayStation 3 at 720p. Cells are tens of centimetres to metres across, so light crosses thin walls; Kaplanyan's notes show light bleeding through thin double-sided geometry, and the 2010 paper adds a coarse occlusion grid to block some of it.</figcaption>
+              </figure>
+              <p>Kaplanyan's notes also describe nested cascades of volumes around the camera, fine near it and coarse further away, an idea most later methods reuse. LPV gives only soft, low-detail bounce, and later families exist largely to fix its leaks.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="voxels"><span class="step-num">2</span> Voxel cone tracing: voxels with blurred copies</h3>
+              <p><dfn class="term" data-term="voxel-cone-tracing">Voxel cone tracing</dfn> stores the scene itself, not just the light, as voxels: small cubes recording each region's colour, how opaque it is and how brightly it is lit. Like a texture's <a class="term" data-term="mipmap" href="glossary.html#mipmap">mipmaps</a>, coarser levels hold blurred averages of the levels below. To gather light, a pixel sends a few cones instead of many rays. Each cone steps outward and, at each step, reads a voxel from the level whose size matches the cone's width there, so one read stands for a whole bundle of rays.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="A point on a floor sends five wide cones over the half circle above it, and one narrow cone towards the mirror direction for glossy reflections. Along one wide cone, three sample circles double in size with distance; each reads one voxel from the level of the voxel mip chain whose size matches the circle: mip 0, mip 1 and mip 2.">
+<defs><clipPath id="vc-clip"><rect x="0" y="34" width="580" height="270"/></clipPath></defs>
+<text class="t-caps" x="20" y="22">VOXEL CONE TRACING: FEW CONES, COARSER VOXELS FURTHER OUT</text>
+<g clip-path="url(#vc-clip)">
+<polygon class="f-acc-soft" fill-opacity="0.3" points="150,300 -44.2,158.9 -90,300"/>
+<polygon class="f-acc-soft" fill-opacity="0.3" points="150,300 75.8,71.7 -44.2,158.9"/>
+<polygon class="f-acc-soft" fill-opacity="0.3" points="150,300 224.2,71.7 75.8,71.7"/>
+<polygon class="f-acc-soft s-acc" fill-opacity="0.9" points="150,300 344.2,158.9 224.2,71.7"/>
+<polygon class="f-acc-soft" fill-opacity="0.3" points="150,300 390,300 344.2,158.9"/>
+<rect class="f-geo-soft s-geo" fill-opacity="0.7" x="163.8" y="257.9" width="19.5" height="19.5"/>
+<circle class="s-acc w15" cx="173.5" cy="267.6" r="13"/>
+<text class="t-small t-geo t-strong" x="192.5" y="271.6">mip 0</text>
+<rect class="f-geo-soft s-geo" fill-opacity="0.7" x="177.5" y="215.8" width="39" height="39"/>
+<circle class="s-acc w15" cx="197" cy="235.3" r="26"/>
+<text class="t-small t-geo t-strong" x="229" y="239.3">mip 1</text>
+<rect class="f-geo-soft s-geo" fill-opacity="0.7" x="205.1" y="131.6" width="78" height="78"/>
+<circle class="s-acc w15" cx="244" cy="170.6" r="52"/>
+<text class="t-small t-geo t-strong" x="302" y="174.6">mip 2</text>
+<polygon class="f-lit-soft s-lit" points="150,300 -12.6,137.4 -38.4,168.1"/>
+</g>
+<line class="s-ink w2" x1="20" y1="300" x2="560" y2="300"/>
+<text class="t-small t-lit" x="12" y="96">narrow cone:</text><text class="t-small t-lit" x="12" y="110">glossy reflection</text>
+<circle class="f-acc" cx="150" cy="300" r="5"/>
+<text class="t-small t-muted" x="160" y="318">five wide cones cover the half-sphere</text>
+<text class="t-head" x="600" y="60">Why it is fast</text>
+<text class="t-small t-muted" x="600" y="80">The scene is stored as voxels with</text>
+<text class="t-small t-muted" x="600" y="95">pre-blurred coarser copies, like a</text>
+<text class="t-small t-muted" x="600" y="110">texture's mipmaps (6.2). A cone reads</text>
+<text class="t-small t-muted" x="600" y="125">one voxel per step, from the level</text>
+<text class="t-small t-muted" x="600" y="140">whose voxel matches its width, so one</text>
+<text class="t-small t-muted" x="600" y="155">read stands for many rays.</text>
+<text class="t-head" x="600" y="185">Crassin et al., 2011</text>
+<text class="t-small t-muted" x="600" y="205">about 5 wide cones for diffuse light,</text>
+<text class="t-small t-muted" x="600" y="220">one narrow cone for glossy, two</text>
+<text class="t-small t-muted" x="600" y="235">bounces, 25 to 70 fps on a GTX 480.</text>
+</svg>
+                </div>
+                <figcaption><b>A handful of cones instead of hundreds of rays.</b> Cyril Crassin and colleagues published the method in 2011, storing voxels in a sparse octree rebuilt as objects move, and reported two bounces of diffuse and glossy light at interactive rates. NVIDIA's VXGI stored voxels in a 3D clipmap instead, 64 to 256 voxels across with 3 to 5 levels, which is simpler to update as the camera moves.</figcaption>
+              </figure>
+              <p>Godot's <dfn class="term" data-term="voxelgi">VoxelGI</dfn> node uses voxels in a box you place around an area: 20 m by default, divided 128 times. Baking voxelizes the static meshes inside, which takes 5 to 20 seconds in most scenes and also works in exported games; after that, lights left in the default Dynamic bake mode can move and change, and their bounce updates in real time. It runs only on the Forward+ renderer, Godot renders at most 8 VoxelGI nodes at once and blends at most 2 at any pixel, and its documentation describes it as fairly demanding on the GPU.</p>
+              <p>Voxels have the same weakness as LPV cells. A voxel that contains a thin wall holds both its lit side and its dark side, averaged together. Epic's Lumen team reports trying voxel cone tracing and rejecting it because merging geometry into a volume caused a lot of leaking.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="leaking"><span class="step-num">3</span> Light leaking: the family weakness</h3>
+              <p><dfn class="term" data-term="light-leaking">Light leaking</dfn> is light appearing where it cannot reach, most often inside a room through a wall. It happens whenever a method stores light more coarsely than the geometry that should block it. The reverse also happens: darkness leaks into lit areas, for example when a probe ends up inside a wall and reports black.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Two side views of a 10 centimetre wall between a sunlit outside and a dark room. Left: a voxel grid with 50 centimetre cells; the column of voxels containing the wall also contains its sunlit face, so those voxels hold sunlight and pass it to the room's floor, which glows near the wall. Right: two light probes, A outside in the sun and B inside; a pixel on the room's floor 40 centimetres from the wall blends them by distance and takes 45 percent of its light from probe A, outside.">
+<g transform="translate(0,0)"><text class="t-head" x="0" y="24">Voxels: the wall is thinner than a cell</text><rect class="f-lit-soft" x="10" y="50" width="160" height="200"/><rect class="f-sunken" x="178" y="50" width="232" height="200"/><rect class="f-solid s-ink" x="170" y="50" width="8" height="200"/><line class="s-ink w2" x1="10" y1="250" x2="410" y2="250"/><text class="t-small t-lit t-strong" x="18" y="70">sunlit outside</text><text class="t-small t-muted" x="218" y="70">dark room</text><text class="t-small t-muted mid" x="174" y="266">wall, 10 cm</text><line class="s-line" x1="10" y1="250" x2="10" y2="50"/><line class="s-line" x1="50" y1="250" x2="50" y2="50"/><line class="s-line" x1="90" y1="250" x2="90" y2="50"/><line class="s-line" x1="130" y1="250" x2="130" y2="50"/><line class="s-line" x1="170" y1="250" x2="170" y2="50"/><line class="s-line" x1="210" y1="250" x2="210" y2="50"/><line class="s-line" x1="250" y1="250" x2="250" y2="50"/><line class="s-line" x1="290" y1="250" x2="290" y2="50"/><line class="s-line" x1="330" y1="250" x2="330" y2="50"/><line class="s-line" x1="370" y1="250" x2="370" y2="50"/><line class="s-line" x1="410" y1="250" x2="410" y2="50"/><line class="s-line" x1="10" y1="250" x2="410" y2="250"/><line class="s-line" x1="10" y1="210" x2="410" y2="210"/><line class="s-line" x1="10" y1="170" x2="410" y2="170"/><line class="s-line" x1="10" y1="130" x2="410" y2="130"/><line class="s-line" x1="10" y1="90" x2="410" y2="90"/><line class="s-line" x1="10" y1="50" x2="410" y2="50"/><rect class="f-lit" fill-opacity="0.45" x="170" y="210" width="40" height="40"/><rect class="f-lit" fill-opacity="0.45" x="170" y="170" width="40" height="40"/><rect class="f-lit" fill-opacity="0.45" x="170" y="130" width="40" height="40"/><rect class="f-lit" fill-opacity="0.45" x="170" y="90" width="40" height="40"/><rect class="f-lit" fill-opacity="0.45" x="170" y="50" width="40" height="40"/><rect class="s-pix w2" x="170" y="50" width="40" height="200"/><ellipse class="f-lit" fill-opacity="0.35" cx="218" cy="246.8" rx="36" ry="7"/><text class="t-small t-pix" x="214" y="150">each voxel in this</text><text class="t-small t-pix" x="214" y="164">column holds the sunlit</text><text class="t-small t-pix" x="214" y="178">face and the dark one</text><text class="t-small t-lit" x="214" y="234">glow inside</text></g><g transform="translate(460,0)"><text class="t-head" x="0" y="24">Probes: blending ignores the wall</text><rect class="f-lit-soft" x="10" y="50" width="160" height="200"/><rect class="f-sunken" x="178" y="50" width="232" height="200"/><rect class="f-solid s-ink" x="170" y="50" width="8" height="200"/><line class="s-ink w2" x1="10" y1="250" x2="410" y2="250"/><text class="t-small t-lit t-strong" x="18" y="70">sunlit outside</text><text class="t-small t-muted" x="218" y="70">dark room</text><text class="t-small t-muted mid" x="174" y="266">wall, 10 cm</text><line class="s-acc dash" x1="202" y1="250" x2="122" y2="154"/><line class="s-acc dash" x1="202" y1="250" x2="242" y2="154"/><circle class="f-lit s-ink" cx="122" cy="154" r="12"/><circle class="f-sunken s-ink" cx="242" cy="154" r="12"/><rect class="f-lit" fill-opacity="0.52" x="195" y="236" width="14" height="14"/><text class="t-small t-strong" x="92" y="136">probe A</text><text class="t-small t-strong" x="224" y="136">probe B</text><text class="t-small t-pix" x="226" y="200.4">this pixel blends A and B</text><text class="t-small t-pix" x="226" y="214.4">by distance: 45% from A,</text><text class="t-small t-pix" x="226" y="228.4">which is outside</text></g>
+<text class="t-small t-muted" x="10" y="282">Voxels 50 cm, probes 1.5 m apart: common sizes, far coarser than a 10 cm wall.</text>
+</svg>
+                </div>
+                <figcaption><b>Coarse storage cannot see a thin wall.</b> Left: half-metre voxels are five times thicker than the wall, so the column that contains it mixes sunlight and shade and passes the light into the room. Right: plain probes are blended by distance, so a pixel 40 cm inside the room still takes about half its light from the probe outside. Moving the probe or thickening the wall helps; the next method stops the blend from crossing the wall at all.</figcaption>
+              </figure>
+              <p>Every family has a leak rule. Epic says walls should be no thinner than 10 cm for Lumen. Godot's documentation says walls and floors should be at least one voxel thick for VoxelGI, and offers <strong>Use Occlusion</strong> and a smaller <strong>Y Scale</strong> against leaks in SDFGI. Unity's Adaptive Probe Volumes (8.2) add leak reduction and probe adjustment volumes. For an art team this becomes a modelling rule: no single-plane walls between bright and dark spaces.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ddgi"><span class="step-num">4</span> DDGI: probes that know how far they can see</h3>
+              <p><dfn class="term" data-term="ddgi">DDGI</dfn>, dynamic diffuse global illumination, was published in 2019 by Zander Majercik, Jean-Philippe Guertin, Derek Nowrouzezahrai and Morgan McGuire. It is a grid of <a class="term" data-term="light-probe" href="glossary.html#light-probe">light probes</a>, as in 8.2, with two changes. The probes are updated every frame: each one traces rays into the scene, usually with <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray-tracing</a> hardware, and blends the new light into what it had. And alongside its light, stored at 8 × 8 directions, each probe stores how far its rays went before hitting something, at 16 × 16 directions.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="A DDGI probe 30 centimetres outside a wall. Around it, a ring shows how far it saw in each direction: far in open air, a short way towards the wall. A pixel on the floor inside the room is 1.44 metres from the probe. In that direction the probe's stored distance says the nearest surface is 0.54 metres away, so the pixel must be hidden from the probe, and its weight drops to 0.003. The pixel takes its light from probes inside the room instead.">
+<text class="t-caps" x="40" y="22">DDGI: EACH PROBE KNOWS HOW FAR IT CAN SEE</text>
+<rect class="f-lit-soft" x="40" y="54" width="180" height="216"/><rect class="f-sunken" x="229" y="54" width="216" height="216"/><rect class="f-solid s-ink" x="220" y="54" width="9" height="216"/><line class="s-ink w2" x1="40" y1="270" x2="445" y2="270"/>
+<path class="f-acc-soft s-acc" fill-opacity="0.6" d="M220,162 L220,159.3 L220,156.6 L220,153.8 L220,150.8 L220,147.6 L220,144 L220,139.8 L220,135 L220,129.1 L220,121.6 L220,111.5 L220,96.8 L219.1,75.9 L210.6,73.7 L201.8,72.4 L193,72 L184.2,72.4 L175.4,73.7 L166.9,75.9 L158.6,78.9 L150.6,82.6 L143,87.2 L135.9,92.4 L129.4,98.4 L123.4,104.9 L118.2,112 L113.6,119.6 L109.9,127.6 L106.9,135.9 L104.7,144.4 L103.4,153.2 L103,162 L103.4,170.8 L104.7,179.6 L106.9,188.1 L109.9,196.4 L113.6,204.4 L118.2,212 L123.4,219.1 L129.4,225.6 L135.9,231.6 L143,236.8 L150.6,241.4 L158.6,245.1 L166.9,248.1 L175.4,250.3 L184.2,251.6 L193,252 L201.8,251.6 L210.6,250.3 L219.1,248.1 L220,227.2 L220,212.5 L220,202.4 L220,194.9 L220,189 L220,184.2 L220,180 L220,176.4 L220,173.2 L220,170.2 L220,167.4 L220,164.7 L220,162 Z"/>
+<line class="s-pix w2 dash" x1="193" y1="162" x2="265" y2="270"/>
+<line class="s-acc w3" x1="193" y1="162" x2="220" y2="202.5"/>
+<circle class="f-lit s-ink" cx="193" cy="162" r="11"/>
+<circle class="f-pix" cx="265" cy="270" r="6"/>
+<circle class="f-sunken s-ink" cx="364" cy="162" r="11"/>
+<text class="t-small t-strong" x="133" y="144">outside probe</text>
+<text class="t-small t-strong" x="334" y="144">inside probe</text>
+<text class="t-small t-acc" x="246.99999999999997" y="76.5">blue: how far the outside probe saw</text>
+<text class="t-small t-acc" x="246.99999999999997" y="90.5">in each direction (stored as a</text>
+<text class="t-small t-acc" x="246.99999999999997" y="104.5">16 × 16 distance map)</text>
+<text class="t-small t-pix t-strong" x="275" y="262">pixel</text>
+<text class="t-head" x="520" y="70">The visibility test, for this pixel</text>
+<text class="t-small" x="520" y="88">distance from probe to pixel: 1.44 m</text>
+<text class="t-small" x="520" y="106">probe's mean distance that way: 0.54 m</text>
+<text class="t-small" x="520" y="124">spread of that distance (σ): 0.05 m</text>
+<text class="t-small t-muted" x="520" y="150">The pixel is much further than anything the</text>
+<text class="t-small t-muted" x="520" y="168">probe saw in its direction: it must be behind</text>
+<text class="t-small t-muted" x="520" y="186">a surface. Chebyshev's bound gives its weight:</text>
+<text class="t-small t-mono" x="520" y="212">σ² ÷ (σ² + (distance − mean)²)</text>
+<text class="t-head t-acc" x="520" y="238">weight 0.003, down from 1</text>
+<text class="t-small t-muted" x="520" y="268">Probes inside the room see the pixel directly,</text>
+<text class="t-small t-muted" x="520" y="284">keep full weight and supply its light.</text>
+</svg>
+                </div>
+                <figcaption><b>Distance turns a blind blend into a visibility test.</b> Before a pixel uses a probe, it checks whether the probe could have seen it. Here the probe's rays towards the pixel stopped at the wall, much nearer than the pixel, so the pixel must be behind something and the probe's weight drops almost to zero. Storing the average distance and its spread, as variance shadow maps do, lets the test fade smoothly instead of snapping on and off.</figcaption>
+              </figure>
+              <p>The paper's timings, on a GeForce RTX 2080 Ti, are 2.6 ms for the indirect lighting of a scene with 32 × 8 × 32 probes and 64 rays per probe, updating every probe every frame. Light reacts within a few frames, set by a <strong>hysteresis</strong> value that controls how much old light each update keeps. A 2021 follow-up by Majercik, Marrs, Spjut and McGuire describes the changes needed for production: moving probes out of walls automatically, switching off probes that cannot affect the image, and cascaded volumes for large worlds. It reports integrations in NVIDIA's RTXGI SDK, in Unity and in Unreal Engine 4, and in several commercial games.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="sdfgi"><span class="step-num">5</span> SDFGI: Godot's probes in distance-field cascades</h3>
+              <p><dfn class="term" data-term="sdfgi">SDFGI</dfn>, signed distance field global illumination, is Godot's semi-real-time GI. It builds <a class="term" data-term="signed-distance-field" href="glossary.html#signed-distance-field">signed distance fields</a> (7.5) of the static geometry around the camera, in cascades like a <a class="term" data-term="clipmap" href="glossary.html#clipmap">clipmap</a>: each cascade twice the size of the one inside it, with cells twice as big. Probes in that volume trace the distance fields to gather light, with occlusion data between probes to reduce leaks.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 380" role="img" aria-label="Four nested squares centred on the camera, seen from above. Each is twice the width of the one inside it and its cells are twice the size: 0.2, 0.4, 0.8 and 1.6 metres by default. The outermost reaches 204.8 metres from the camera by default. As the camera moves, the cascades move with it and are updated.">
+<text class="t-caps" x="20" y="22">SDFGI: DISTANCE-FIELD CASCADES CENTRED ON THE CAMERA (TOP VIEW)</text>
+<rect class="f-surface s-acc w15" x="70" y="30" width="320" height="320"/>
+<path class="s-line" d="M110,30V350M70,70H390M150,30V350M70,110H390M190,30V350M70,150H390M230,30V350M70,190H390M270,30V350M70,230H390M310,30V350M70,270H390M350,30V350M70,310H390"/>
+<rect class="f-surface s-acc w15" x="150" y="110" width="160" height="160"/>
+<path class="s-line" d="M170,110V270M150,130H310M190,110V270M150,150H310M210,110V270M150,170H310M230,110V270M150,190H310M250,110V270M150,210H310M270,110V270M150,230H310M290,110V270M150,250H310"/>
+<rect class="f-surface s-acc w15" x="190" y="150" width="80" height="80"/>
+<path class="s-line" d="M200,150V230M190,160H270M210,150V230M190,170H270M220,150V230M190,180H270M230,150V230M190,190H270M240,150V230M190,200H270M250,150V230M190,210H270M260,150V230M190,220H270"/>
+<rect class="f-acc-soft s-acc w15" x="210" y="170" width="40" height="40"/>
+<path class="s-line" d="M215,170V210M210,175H250M220,170V210M210,180H250M225,170V210M210,185H250M230,170V210M210,190H250M235,170V210M210,195H250M240,170V210M210,200H250M245,170V210M210,205H250"/>
+<polygon class="f-ink" points="230,183 236,195 224,195"/>
+<text class="t-small t-acc t-strong" x="213" y="181">0</text>
+<text class="t-small" x="420" y="64">cascade 0: cells 0.2 m</text>
+<text class="t-small t-acc t-strong" x="193" y="161">1</text>
+<text class="t-small" x="420" y="98">cascade 1: cells 0.4 m</text>
+<text class="t-small t-acc t-strong" x="153" y="121">2</text>
+<text class="t-small" x="420" y="132">cascade 2: cells 0.8 m</text>
+<text class="t-small t-acc t-strong" x="73" y="41">3</text>
+<text class="t-small" x="420" y="166">cascade 3: cells 1.6 m, reaches 204.8 m</text>
+<text class="t-small t-muted" x="420" y="220">Defaults in Godot 4.7: 4 cascades (up to 8), smallest cell</text>
+<text class="t-small t-muted" x="420" y="236">0.2 m, maximum distance 204.8 m. Each cascade is a signed</text>
+<text class="t-small t-muted" x="420" y="252">distance field of the static geometry inside it, lit by probes.</text>
+<text class="t-small t-muted" x="420" y="276">Drawn with 8 cells across each cascade; real ones are finer.</text>
+<text class="t-small t-muted" x="420" y="300">Near the camera: small cells, accurate light. Far away:</text>
+<text class="t-small t-muted" x="420" y="316">big cells, coarse light, and thin walls that leak.</text>
+</svg>
+                </div>
+                <figcaption><b>Detail near the camera, reach far away.</b> Four cascades by default cover up to 204.8 m. Nothing is baked: the cascades follow the camera and update as it moves. Juan Linietsky's 2020 announcement calls SDFGI mostly leak-free compared with voxel cone tracing, while noting that walls thin relative to a cascade's cells can still leak.</figcaption>
+              </figure>
+              <p>Its limits are set out in Godot's documentation. It runs only on the Forward+ renderer. It supports dynamic lights but not dynamic occluders or emissive surfaces: moving objects receive its light but do not block or bounce it. It takes 30 frames by default to converge, and cascade shifts can be visible when the camera moves quickly. Its <strong>Bounce Feedback</strong>, 0.5 by default, adds further bounces, and higher values risk feedback loops. Godot recommends it as the first GI method to try for desktop games, because it needs the least setup.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="lumen"><span class="step-num">6</span> Lumen: a cache on surfaces, gathered by screen probes</h3>
+              <p><dfn class="term" data-term="lumen">Lumen</dfn> is Unreal Engine 5's real-time global illumination and reflection system, on by default in new projects. Its design, presented by Daniel Wright, Krzysztof Narkowicz and Patrick Kelly at SIGGRAPH 2022, combines ideas from this whole Part: screen traces from <a class="xref" data-ch="8.4">8.4</a>, distance fields from 7.5, probes, and caching over frames.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 360" role="img" aria-label="Lumen's pipeline as Epic documents it. The Lumen Scene: a simplified copy of the world, as mesh distance fields merged into a global distance field for software ray tracing, or the triangles themselves for hardware ray tracing. The surface cache: cards captured around each mesh, holding material and lighting, updated over several frames and fed back into itself for multiple bounces. Rays are traced first in screen space, then against the Lumen Scene, then the sky. The final gather: screen probes, one per 16 by 16 pixels with 8 by 8 directions, plus a world-space radiance cache for light beyond about 2 metres, then a temporal filter and short-range ambient occlusion, give each pixel its indirect light. Reflections reuse the same tracing.">
+                    <defs><marker id="lu-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                    <text class="t-caps" x="20" y="22">LUMEN, AS EPIC DOCUMENTS IT</text>
+                    <rect class="f-geo-soft s-geo" x="20" y="40" width="260" height="120" rx="8"/>
+                    <text class="t-strong" x="34" y="64">Lumen Scene</text>
+                    <text class="t-small" x="34" y="84">a simplified world around the camera</text>
+                    <text class="t-small t-muted" x="34" y="104">software: mesh distance fields,</text>
+                    <text class="t-small t-muted" x="34" y="119">merged into a global distance field</text>
+                    <text class="t-small t-muted" x="34" y="139">hardware: the triangles, via ray tracing</text>
+
+                    <rect class="f-lit-soft s-lit" x="20" y="190" width="260" height="140" rx="8"/>
+                    <text class="t-strong" x="34" y="214">Surface cache</text>
+                    <text class="t-small" x="34" y="234">cards captured around each mesh</text>
+                    <text class="t-small t-muted" x="34" y="254">material and light for the scene's</text>
+                    <text class="t-small t-muted" x="34" y="269">surfaces, updated a slice per frame;</text>
+                    <text class="t-small t-muted" x="34" y="289">reads itself to add each next bounce</text>
+                    <path class="s-lit w15" d="M240,300 C268,300 268,318 240,318" marker-end="url(#lu-arr)"/>
+                    <text class="t-small t-lit" x="196" y="314">feedback</text>
+
+                    <rect class="f-pix-soft s-pix" x="330" y="40" width="250" height="120" rx="8"/>
+                    <text class="t-strong" x="344" y="64">Tracing, in order</text>
+                    <text class="t-small" x="344" y="86">1 · screen trace (8.4)</text>
+                    <text class="t-small" x="344" y="106">2 · Lumen Scene: software or hardware</text>
+                    <text class="t-small" x="344" y="126">3 · sky, if nothing is hit</text>
+                    <text class="t-small t-muted" x="344" y="146">hits read their light from the cache</text>
+
+                    <rect class="f-acc-soft s-acc" x="330" y="190" width="250" height="140" rx="8"/>
+                    <text class="t-strong" x="344" y="214">Final gather</text>
+                    <text class="t-small" x="344" y="234">screen probes: 1 per 16 × 16 pixels,</text>
+                    <text class="t-small" x="344" y="249">8 × 8 directions each</text>
+                    <text class="t-small t-muted" x="344" y="269">world radiance cache: light beyond ~2 m</text>
+                    <text class="t-small t-muted" x="344" y="289">temporal filter, then short-range AO</text>
+                    <text class="t-small t-muted" x="344" y="309">interpolated to every pixel</text>
+
+                    <rect class="f-surface s-strong" x="630" y="190" width="250" height="140" rx="8"/>
+                    <text class="t-strong" x="644" y="214">Out</text>
+                    <text class="t-small" x="644" y="234">indirect diffuse light per pixel</text>
+                    <text class="t-small" x="644" y="254">reflections, reusing the tracing</text>
+                    <text class="t-small t-muted" x="644" y="274">plus light on volumetric fog</text>
+                    <text class="t-small t-muted" x="644" y="294">and translucency</text>
+
+                    <rect class="f-surface s-strong" x="630" y="40" width="250" height="120" rx="8"/>
+                    <text class="t-strong" x="644" y="64">Budget</text>
+                    <text class="t-small" x="644" y="86">4 ms at 60 fps, 8 ms at 30 fps</text>
+                    <text class="t-small t-muted" x="644" y="106">consoles, 1080p internal resolution,</text>
+                    <text class="t-small t-muted" x="644" y="121">upscaled by TSR; GI, reflections</text>
+                    <text class="t-small t-muted" x="644" y="136">and fog together</text>
+
+                    <line class="s-muted" x1="282" y1="100" x2="326" y2="100" marker-end="url(#lu-arr)"/>
+                    <line class="s-muted" x1="282" y1="250" x2="326" y2="140" marker-end="url(#lu-arr)"/>
+                    <line class="s-muted" x1="455" y1="162" x2="455" y2="186" marker-end="url(#lu-arr)"/>
+                    <line class="s-muted" x1="582" y1="260" x2="626" y2="260" marker-end="url(#lu-arr)"/>
+                  </svg>
+                </div>
+                <figcaption><b>A cache on surfaces, read by probes on the screen.</b> Rays find hits in the cheap Lumen Scene, but read the light there from the surface cache instead of shading each hit, so material and lighting work is shared between rays. The final gather traces from a few probes per screen region instead of from every pixel, then spreads their light to the pixels around them. Summarised from Epic's SIGGRAPH 2022 talk and the Unreal Engine 5.8 documentation.</figcaption>
+              </figure>
+              <p>The <dfn class="term" data-term="surface-cache">surface cache</dfn> is the core idea. At import, Lumen places cards around each mesh, 12 by default, like cameras photographing it from several sides. At run time those cards capture the mesh's material and are lit, direct light first, then light gathered from the cache itself, so each update adds another bounce. Surfaces the cards do not cover cannot bounce light and show black in reflections; Epic notes that only meshes with simple interiors are supported well.</p>
+              <p><dfn class="term" data-term="screen-probes">Screen probes</dfn> are Lumen's final gather. Rather than trace from every pixel, it places probes on the visible surfaces, about one per 16 × 16 pixels and more where geometry is detailed, and traces 8 × 8 directions from each. Light from further than about two metres comes from a world-space radiance cache, with fewer probes but more directions per probe. The talk is frank about the cost of stability: the temporal filter reacts slowly to lighting changes, which shows as ghosting behind moving objects.</p>
+              <p>Lumen traces the Lumen Scene in software or hardware. Software ray tracing works on any GPU with Shader Model 6, but represents only static meshes, instanced meshes and landscape, so skinned characters appear only through screen traces. Hardware ray tracing needs a ray-tracing GPU, an RTX 2000 or Radeon RX 6000 or newer on Windows, or a PlayStation 5, Xbox Series or Switch 2; new projects in Unreal 5.8 enable it and use it where supported. Epic warns that its scene updates get expensive above about 100,000 instances. Lumen does not support the Mobile renderer, forward shading or VR, and it cannot be combined with baked lightmaps.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="cascades"><span class="step-num">7</span> Radiance cascades: spend directions where they matter</h3>
+              <p><dfn class="term" data-term="radiance-cascades">Radiance cascades</dfn> come from Alexander Sannikov at Grinding Gear Games, who describes them in a self-published paper. The observation behind them: to capture light from something close by, you need probes close together but only a few directions; to capture light from far away, you need many directions, but the probes can be far apart. So the light field is split into ranges. Each cascade covers a range of distances twice as long as the one below it, with probes twice as far apart and finer directions.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 346" role="img" aria-label="Three panels of the same square region. Cascade 0: probes close together, each with 4 short rays covering distances 0 to 1. Cascade 1: probes twice as far apart, each with 8 rays covering distances 1 to 3. Cascade 2: probes four times as far apart, 16 rays each, covering distances 3 to 7. Near a probe, light needs fine positions and few directions; far away, few positions and many directions. The cascades are merged from the coarsest down, so cascade 0 ends up holding light from every distance.">
+<text class="t-caps" x="20" y="22">RADIANCE CASCADES: EACH LEVEL TRADES POSITIONS FOR DIRECTIONS</text>
+<defs><clipPath id="rc-clip-0"><rect x="20" y="46" width="260" height="200"/></clipPath></defs><rect class="f-sunken" x="20" y="46" width="260" height="200"/><g clip-path="url(#rc-clip-0)"><path class="s-acc" d="M36,62L44.5,70.5M36,62L27.5,70.5M36,62L27.5,53.5M36,62L44.5,53.5M68,62L76.5,70.5M68,62L59.5,70.5M68,62L59.5,53.5M68,62L76.5,53.5M100,62L108.5,70.5M100,62L91.5,70.5M100,62L91.5,53.5M100,62L108.5,53.5M132,62L140.5,70.5M132,62L123.5,70.5M132,62L123.5,53.5M132,62L140.5,53.5M164,62L172.5,70.5M164,62L155.5,70.5M164,62L155.5,53.5M164,62L172.5,53.5M196,62L204.5,70.5M196,62L187.5,70.5M196,62L187.5,53.5M196,62L204.5,53.5M228,62L236.5,70.5M228,62L219.5,70.5M228,62L219.5,53.5M228,62L236.5,53.5M260,62L268.5,70.5M260,62L251.5,70.5M260,62L251.5,53.5M260,62L268.5,53.5M292,62L300.5,70.5M292,62L283.5,70.5M292,62L283.5,53.5M292,62L300.5,53.5M36,94L44.5,102.5M36,94L27.5,102.5M36,94L27.5,85.5M36,94L44.5,85.5M68,94L76.5,102.5M68,94L59.5,102.5M68,94L59.5,85.5M68,94L76.5,85.5M100,94L108.5,102.5M100,94L91.5,102.5M100,94L91.5,85.5M100,94L108.5,85.5M132,94L140.5,102.5M132,94L123.5,102.5M132,94L123.5,85.5M132,94L140.5,85.5M164,94L172.5,102.5M164,94L155.5,102.5M164,94L155.5,85.5M164,94L172.5,85.5M196,94L204.5,102.5M196,94L187.5,102.5M196,94L187.5,85.5M196,94L204.5,85.5M228,94L236.5,102.5M228,94L219.5,102.5M228,94L219.5,85.5M228,94L236.5,85.5M260,94L268.5,102.5M260,94L251.5,102.5M260,94L251.5,85.5M260,94L268.5,85.5M292,94L300.5,102.5M292,94L283.5,102.5M292,94L283.5,85.5M292,94L300.5,85.5M36,126L44.5,134.5M36,126L27.5,134.5M36,126L27.5,117.5M36,126L44.5,117.5M68,126L76.5,134.5M68,126L59.5,134.5M68,126L59.5,117.5M68,126L76.5,117.5M100,126L108.5,134.5M100,126L91.5,134.5M100,126L91.5,117.5M100,126L108.5,117.5M132,126L140.5,134.5M132,126L123.5,134.5M132,126L123.5,117.5M132,126L140.5,117.5M164,126L172.5,134.5M164,126L155.5,134.5M164,126L155.5,117.5M164,126L172.5,117.5M196,126L204.5,134.5M196,126L187.5,134.5M196,126L187.5,117.5M196,126L204.5,117.5M228,126L236.5,134.5M228,126L219.5,134.5M228,126L219.5,117.5M228,126L236.5,117.5M260,126L268.5,134.5M260,126L251.5,134.5M260,126L251.5,117.5M260,126L268.5,117.5M292,126L300.5,134.5M292,126L283.5,134.5M292,126L283.5,117.5M292,126L300.5,117.5M36,158L44.5,166.5M36,158L27.5,166.5M36,158L27.5,149.5M36,158L44.5,149.5M68,158L76.5,166.5M68,158L59.5,166.5M68,158L59.5,149.5M68,158L76.5,149.5M100,158L108.5,166.5M100,158L91.5,166.5M100,158L91.5,149.5M100,158L108.5,149.5M132,158L140.5,166.5M132,158L123.5,166.5M132,158L123.5,149.5M132,158L140.5,149.5M164,158L172.5,166.5M164,158L155.5,166.5M164,158L155.5,149.5M164,158L172.5,149.5M196,158L204.5,166.5M196,158L187.5,166.5M196,158L187.5,149.5M196,158L204.5,149.5M228,158L236.5,166.5M228,158L219.5,166.5M228,158L219.5,149.5M228,158L236.5,149.5M260,158L268.5,166.5M260,158L251.5,166.5M260,158L251.5,149.5M260,158L268.5,149.5M292,158L300.5,166.5M292,158L283.5,166.5M292,158L283.5,149.5M292,158L300.5,149.5M36,190L44.5,198.5M36,190L27.5,198.5M36,190L27.5,181.5M36,190L44.5,181.5M68,190L76.5,198.5M68,190L59.5,198.5M68,190L59.5,181.5M68,190L76.5,181.5M100,190L108.5,198.5M100,190L91.5,198.5M100,190L91.5,181.5M100,190L108.5,181.5M132,190L140.5,198.5M132,190L123.5,198.5M132,190L123.5,181.5M132,190L140.5,181.5M164,190L172.5,198.5M164,190L155.5,198.5M164,190L155.5,181.5M164,190L172.5,181.5M196,190L204.5,198.5M196,190L187.5,198.5M196,190L187.5,181.5M196,190L204.5,181.5M228,190L236.5,198.5M228,190L219.5,198.5M228,190L219.5,181.5M228,190L236.5,181.5M260,190L268.5,198.5M260,190L251.5,198.5M260,190L251.5,181.5M260,190L268.5,181.5M292,190L300.5,198.5M292,190L283.5,198.5M292,190L283.5,181.5M292,190L300.5,181.5M36,222L44.5,230.5M36,222L27.5,230.5M36,222L27.5,213.5M36,222L44.5,213.5M68,222L76.5,230.5M68,222L59.5,230.5M68,222L59.5,213.5M68,222L76.5,213.5M100,222L108.5,230.5M100,222L91.5,230.5M100,222L91.5,213.5M100,222L108.5,213.5M132,222L140.5,230.5M132,222L123.5,230.5M132,222L123.5,213.5M132,222L140.5,213.5M164,222L172.5,230.5M164,222L155.5,230.5M164,222L155.5,213.5M164,222L172.5,213.5M196,222L204.5,230.5M196,222L187.5,230.5M196,222L187.5,213.5M196,222L204.5,213.5M228,222L236.5,230.5M228,222L219.5,230.5M228,222L219.5,213.5M228,222L236.5,213.5M260,222L268.5,230.5M260,222L251.5,230.5M260,222L251.5,213.5M260,222L268.5,213.5M292,222L300.5,230.5M292,222L283.5,230.5M292,222L283.5,213.5M292,222L300.5,213.5M36,254L44.5,262.5M36,254L27.5,262.5M36,254L27.5,245.5M36,254L44.5,245.5M68,254L76.5,262.5M68,254L59.5,262.5M68,254L59.5,245.5M68,254L76.5,245.5M100,254L108.5,262.5M100,254L91.5,262.5M100,254L91.5,245.5M100,254L108.5,245.5M132,254L140.5,262.5M132,254L123.5,262.5M132,254L123.5,245.5M132,254L140.5,245.5M164,254L172.5,262.5M164,254L155.5,262.5M164,254L155.5,245.5M164,254L172.5,245.5M196,254L204.5,262.5M196,254L187.5,262.5M196,254L187.5,245.5M196,254L204.5,245.5M228,254L236.5,262.5M228,254L219.5,262.5M228,254L219.5,245.5M228,254L236.5,245.5M260,254L268.5,262.5M260,254L251.5,262.5M260,254L251.5,245.5M260,254L268.5,245.5M292,254L300.5,262.5M292,254L283.5,262.5M292,254L283.5,245.5M292,254L300.5,245.5"/><circle class="f-ink" cx="36" cy="62" r="2.5"/><circle class="f-ink" cx="68" cy="62" r="2.5"/><circle class="f-ink" cx="100" cy="62" r="2.5"/><circle class="f-ink" cx="132" cy="62" r="2.5"/><circle class="f-ink" cx="164" cy="62" r="2.5"/><circle class="f-ink" cx="196" cy="62" r="2.5"/><circle class="f-ink" cx="228" cy="62" r="2.5"/><circle class="f-ink" cx="260" cy="62" r="2.5"/><circle class="f-ink" cx="292" cy="62" r="2.5"/><circle class="f-ink" cx="36" cy="94" r="2.5"/><circle class="f-ink" cx="68" cy="94" r="2.5"/><circle class="f-ink" cx="100" cy="94" r="2.5"/><circle class="f-ink" cx="132" cy="94" r="2.5"/><circle class="f-ink" cx="164" cy="94" r="2.5"/><circle class="f-ink" cx="196" cy="94" r="2.5"/><circle class="f-ink" cx="228" cy="94" r="2.5"/><circle class="f-ink" cx="260" cy="94" r="2.5"/><circle class="f-ink" cx="292" cy="94" r="2.5"/><circle class="f-ink" cx="36" cy="126" r="2.5"/><circle class="f-ink" cx="68" cy="126" r="2.5"/><circle class="f-ink" cx="100" cy="126" r="2.5"/><circle class="f-ink" cx="132" cy="126" r="2.5"/><circle class="f-ink" cx="164" cy="126" r="2.5"/><circle class="f-ink" cx="196" cy="126" r="2.5"/><circle class="f-ink" cx="228" cy="126" r="2.5"/><circle class="f-ink" cx="260" cy="126" r="2.5"/><circle class="f-ink" cx="292" cy="126" r="2.5"/><circle class="f-ink" cx="36" cy="158" r="2.5"/><circle class="f-ink" cx="68" cy="158" r="2.5"/><circle class="f-ink" cx="100" cy="158" r="2.5"/><circle class="f-ink" cx="132" cy="158" r="2.5"/><circle class="f-ink" cx="164" cy="158" r="2.5"/><circle class="f-ink" cx="196" cy="158" r="2.5"/><circle class="f-ink" cx="228" cy="158" r="2.5"/><circle class="f-ink" cx="260" cy="158" r="2.5"/><circle class="f-ink" cx="292" cy="158" r="2.5"/><circle class="f-ink" cx="36" cy="190" r="2.5"/><circle class="f-ink" cx="68" cy="190" r="2.5"/><circle class="f-ink" cx="100" cy="190" r="2.5"/><circle class="f-ink" cx="132" cy="190" r="2.5"/><circle class="f-ink" cx="164" cy="190" r="2.5"/><circle class="f-ink" cx="196" cy="190" r="2.5"/><circle class="f-ink" cx="228" cy="190" r="2.5"/><circle class="f-ink" cx="260" cy="190" r="2.5"/><circle class="f-ink" cx="292" cy="190" r="2.5"/><circle class="f-ink" cx="36" cy="222" r="2.5"/><circle class="f-ink" cx="68" cy="222" r="2.5"/><circle class="f-ink" cx="100" cy="222" r="2.5"/><circle class="f-ink" cx="132" cy="222" r="2.5"/><circle class="f-ink" cx="164" cy="222" r="2.5"/><circle class="f-ink" cx="196" cy="222" r="2.5"/><circle class="f-ink" cx="228" cy="222" r="2.5"/><circle class="f-ink" cx="260" cy="222" r="2.5"/><circle class="f-ink" cx="292" cy="222" r="2.5"/><circle class="f-ink" cx="36" cy="254" r="2.5"/><circle class="f-ink" cx="68" cy="254" r="2.5"/><circle class="f-ink" cx="100" cy="254" r="2.5"/><circle class="f-ink" cx="132" cy="254" r="2.5"/><circle class="f-ink" cx="164" cy="254" r="2.5"/><circle class="f-ink" cx="196" cy="254" r="2.5"/><circle class="f-ink" cx="228" cy="254" r="2.5"/><circle class="f-ink" cx="260" cy="254" r="2.5"/><circle class="f-ink" cx="292" cy="254" r="2.5"/></g><rect class="s-strong" x="20" y="46" width="260" height="200"/>
+<text class="t-head" x="20" y="270">Cascade 0</text>
+<text class="t-small t-muted" x="20" y="288">probes every 32 px · 4 rays · reach 0 to 1</text>
+<defs><clipPath id="rc-clip-1"><rect x="312" y="46" width="260" height="200"/></clipPath></defs><rect class="f-sunken" x="312" y="46" width="260" height="200"/><g clip-path="url(#rc-clip-1)"><path class="s-acc" d="M355.1,82.6L377.3,91.8M348.6,89.1L357.8,111.3M339.4,89.1L330.2,111.3M332.9,82.6L310.7,91.8M332.9,73.4L310.7,64.2M339.4,66.9L330.2,44.7M348.6,66.9L357.8,44.7M355.1,73.4L377.3,64.2M419.1,82.6L441.3,91.8M412.6,89.1L421.8,111.3M403.4,89.1L394.2,111.3M396.9,82.6L374.7,91.8M396.9,73.4L374.7,64.2M403.4,66.9L394.2,44.7M412.6,66.9L421.8,44.7M419.1,73.4L441.3,64.2M483.1,82.6L505.3,91.8M476.6,89.1L485.8,111.3M467.4,89.1L458.2,111.3M460.9,82.6L438.7,91.8M460.9,73.4L438.7,64.2M467.4,66.9L458.2,44.7M476.6,66.9L485.8,44.7M483.1,73.4L505.3,64.2M547.1,82.6L569.3,91.8M540.6,89.1L549.8,111.3M531.4,89.1L522.2,111.3M524.9,82.6L502.7,91.8M524.9,73.4L502.7,64.2M531.4,66.9L522.2,44.7M540.6,66.9L549.8,44.7M547.1,73.4L569.3,64.2M611.1,82.6L633.3,91.8M604.6,89.1L613.8,111.3M595.4,89.1L586.2,111.3M588.9,82.6L566.7,91.8M588.9,73.4L566.7,64.2M595.4,66.9L586.2,44.7M604.6,66.9L613.8,44.7M611.1,73.4L633.3,64.2M355.1,146.6L377.3,155.8M348.6,153.1L357.8,175.3M339.4,153.1L330.2,175.3M332.9,146.6L310.7,155.8M332.9,137.4L310.7,128.2M339.4,130.9L330.2,108.7M348.6,130.9L357.8,108.7M355.1,137.4L377.3,128.2M419.1,146.6L441.3,155.8M412.6,153.1L421.8,175.3M403.4,153.1L394.2,175.3M396.9,146.6L374.7,155.8M396.9,137.4L374.7,128.2M403.4,130.9L394.2,108.7M412.6,130.9L421.8,108.7M419.1,137.4L441.3,128.2M483.1,146.6L505.3,155.8M476.6,153.1L485.8,175.3M467.4,153.1L458.2,175.3M460.9,146.6L438.7,155.8M460.9,137.4L438.7,128.2M467.4,130.9L458.2,108.7M476.6,130.9L485.8,108.7M483.1,137.4L505.3,128.2M547.1,146.6L569.3,155.8M540.6,153.1L549.8,175.3M531.4,153.1L522.2,175.3M524.9,146.6L502.7,155.8M524.9,137.4L502.7,128.2M531.4,130.9L522.2,108.7M540.6,130.9L549.8,108.7M547.1,137.4L569.3,128.2M611.1,146.6L633.3,155.8M604.6,153.1L613.8,175.3M595.4,153.1L586.2,175.3M588.9,146.6L566.7,155.8M588.9,137.4L566.7,128.2M595.4,130.9L586.2,108.7M604.6,130.9L613.8,108.7M611.1,137.4L633.3,128.2M355.1,210.6L377.3,219.8M348.6,217.1L357.8,239.3M339.4,217.1L330.2,239.3M332.9,210.6L310.7,219.8M332.9,201.4L310.7,192.2M339.4,194.9L330.2,172.7M348.6,194.9L357.8,172.7M355.1,201.4L377.3,192.2M419.1,210.6L441.3,219.8M412.6,217.1L421.8,239.3M403.4,217.1L394.2,239.3M396.9,210.6L374.7,219.8M396.9,201.4L374.7,192.2M403.4,194.9L394.2,172.7M412.6,194.9L421.8,172.7M419.1,201.4L441.3,192.2M483.1,210.6L505.3,219.8M476.6,217.1L485.8,239.3M467.4,217.1L458.2,239.3M460.9,210.6L438.7,219.8M460.9,201.4L438.7,192.2M467.4,194.9L458.2,172.7M476.6,194.9L485.8,172.7M483.1,201.4L505.3,192.2M547.1,210.6L569.3,219.8M540.6,217.1L549.8,239.3M531.4,217.1L522.2,239.3M524.9,210.6L502.7,219.8M524.9,201.4L502.7,192.2M531.4,194.9L522.2,172.7M540.6,194.9L549.8,172.7M547.1,201.4L569.3,192.2M611.1,210.6L633.3,219.8M604.6,217.1L613.8,239.3M595.4,217.1L586.2,239.3M588.9,210.6L566.7,219.8M588.9,201.4L566.7,192.2M595.4,194.9L586.2,172.7M604.6,194.9L613.8,172.7M611.1,201.4L633.3,192.2M355.1,274.6L377.3,283.8M348.6,281.1L357.8,303.3M339.4,281.1L330.2,303.3M332.9,274.6L310.7,283.8M332.9,265.4L310.7,256.2M339.4,258.9L330.2,236.7M348.6,258.9L357.8,236.7M355.1,265.4L377.3,256.2M419.1,274.6L441.3,283.8M412.6,281.1L421.8,303.3M403.4,281.1L394.2,303.3M396.9,274.6L374.7,283.8M396.9,265.4L374.7,256.2M403.4,258.9L394.2,236.7M412.6,258.9L421.8,236.7M419.1,265.4L441.3,256.2M483.1,274.6L505.3,283.8M476.6,281.1L485.8,303.3M467.4,281.1L458.2,303.3M460.9,274.6L438.7,283.8M460.9,265.4L438.7,256.2M467.4,258.9L458.2,236.7M476.6,258.9L485.8,236.7M483.1,265.4L505.3,256.2M547.1,274.6L569.3,283.8M540.6,281.1L549.8,303.3M531.4,281.1L522.2,303.3M524.9,274.6L502.7,283.8M524.9,265.4L502.7,256.2M531.4,258.9L522.2,236.7M540.6,258.9L549.8,236.7M547.1,265.4L569.3,256.2M611.1,274.6L633.3,283.8M604.6,281.1L613.8,303.3M595.4,281.1L586.2,303.3M588.9,274.6L566.7,283.8M588.9,265.4L566.7,256.2M595.4,258.9L586.2,236.7M604.6,258.9L613.8,236.7M611.1,265.4L633.3,256.2"/><circle class="f-ink" cx="344" cy="78" r="2.5"/><circle class="f-ink" cx="408" cy="78" r="2.5"/><circle class="f-ink" cx="472" cy="78" r="2.5"/><circle class="f-ink" cx="536" cy="78" r="2.5"/><circle class="f-ink" cx="600" cy="78" r="2.5"/><circle class="f-ink" cx="344" cy="142" r="2.5"/><circle class="f-ink" cx="408" cy="142" r="2.5"/><circle class="f-ink" cx="472" cy="142" r="2.5"/><circle class="f-ink" cx="536" cy="142" r="2.5"/><circle class="f-ink" cx="600" cy="142" r="2.5"/><circle class="f-ink" cx="344" cy="206" r="2.5"/><circle class="f-ink" cx="408" cy="206" r="2.5"/><circle class="f-ink" cx="472" cy="206" r="2.5"/><circle class="f-ink" cx="536" cy="206" r="2.5"/><circle class="f-ink" cx="600" cy="206" r="2.5"/><circle class="f-ink" cx="344" cy="270" r="2.5"/><circle class="f-ink" cx="408" cy="270" r="2.5"/><circle class="f-ink" cx="472" cy="270" r="2.5"/><circle class="f-ink" cx="536" cy="270" r="2.5"/><circle class="f-ink" cx="600" cy="270" r="2.5"/></g><rect class="s-strong" x="312" y="46" width="260" height="200"/>
+<text class="t-head" x="312" y="270">Cascade 1</text>
+<text class="t-small t-muted" x="312" y="288">every 64 px · 8 rays · reach 1 to 3</text>
+<defs><clipPath id="rc-clip-2"><rect x="604" y="46" width="260" height="200"/></clipPath></defs><rect class="f-sunken" x="604" y="46" width="260" height="200"/><g clip-path="url(#rc-clip-2)"><path class="s-acc" d="M703.3,117L750.4,126.4M697.9,130L737.8,156.7M688,139.9L714.7,179.8M675,145.3L684.4,192.4M661,145.3L651.6,192.4M648,139.9L621.3,179.8M638.1,130L598.2,156.7M632.7,117L585.6,126.4M632.7,103L585.6,93.6M638.1,90L598.2,63.3M648,80.1L621.3,40.2M661,74.7L651.6,27.6M675,74.7L684.4,27.6M688,80.1L714.7,40.2M697.9,90L737.8,63.3M703.3,103L750.4,93.6M831.3,117L878.4,126.4M825.9,130L865.8,156.7M816,139.9L842.7,179.8M803,145.3L812.4,192.4M789,145.3L779.6,192.4M776,139.9L749.3,179.8M766.1,130L726.2,156.7M760.7,117L713.6,126.4M760.7,103L713.6,93.6M766.1,90L726.2,63.3M776,80.1L749.3,40.2M789,74.7L779.6,27.6M803,74.7L812.4,27.6M816,80.1L842.7,40.2M825.9,90L865.8,63.3M831.3,103L878.4,93.6M959.3,117L1006.4,126.4M953.9,130L993.8,156.7M944,139.9L970.7,179.8M931,145.3L940.4,192.4M917,145.3L907.6,192.4M904,139.9L877.3,179.8M894.1,130L854.2,156.7M888.7,117L841.6,126.4M888.7,103L841.6,93.6M894.1,90L854.2,63.3M904,80.1L877.3,40.2M917,74.7L907.6,27.6M931,74.7L940.4,27.6M944,80.1L970.7,40.2M953.9,90L993.8,63.3M959.3,103L1006.4,93.6M703.3,245L750.4,254.4M697.9,258L737.8,284.7M688,267.9L714.7,307.8M675,273.3L684.4,320.4M661,273.3L651.6,320.4M648,267.9L621.3,307.8M638.1,258L598.2,284.7M632.7,245L585.6,254.4M632.7,231L585.6,221.6M638.1,218L598.2,191.3M648,208.1L621.3,168.2M661,202.7L651.6,155.6M675,202.7L684.4,155.6M688,208.1L714.7,168.2M697.9,218L737.8,191.3M703.3,231L750.4,221.6M831.3,245L878.4,254.4M825.9,258L865.8,284.7M816,267.9L842.7,307.8M803,273.3L812.4,320.4M789,273.3L779.6,320.4M776,267.9L749.3,307.8M766.1,258L726.2,284.7M760.7,245L713.6,254.4M760.7,231L713.6,221.6M766.1,218L726.2,191.3M776,208.1L749.3,168.2M789,202.7L779.6,155.6M803,202.7L812.4,155.6M816,208.1L842.7,168.2M825.9,218L865.8,191.3M831.3,231L878.4,221.6M959.3,245L1006.4,254.4M953.9,258L993.8,284.7M944,267.9L970.7,307.8M931,273.3L940.4,320.4M917,273.3L907.6,320.4M904,267.9L877.3,307.8M894.1,258L854.2,284.7M888.7,245L841.6,254.4M888.7,231L841.6,221.6M894.1,218L854.2,191.3M904,208.1L877.3,168.2M917,202.7L907.6,155.6M931,202.7L940.4,155.6M944,208.1L970.7,168.2M953.9,218L993.8,191.3M959.3,231L1006.4,221.6M703.3,373L750.4,382.4M697.9,386L737.8,412.7M688,395.9L714.7,435.8M675,401.3L684.4,448.4M661,401.3L651.6,448.4M648,395.9L621.3,435.8M638.1,386L598.2,412.7M632.7,373L585.6,382.4M632.7,359L585.6,349.6M638.1,346L598.2,319.3M648,336.1L621.3,296.2M661,330.7L651.6,283.6M675,330.7L684.4,283.6M688,336.1L714.7,296.2M697.9,346L737.8,319.3M703.3,359L750.4,349.6M831.3,373L878.4,382.4M825.9,386L865.8,412.7M816,395.9L842.7,435.8M803,401.3L812.4,448.4M789,401.3L779.6,448.4M776,395.9L749.3,435.8M766.1,386L726.2,412.7M760.7,373L713.6,382.4M760.7,359L713.6,349.6M766.1,346L726.2,319.3M776,336.1L749.3,296.2M789,330.7L779.6,283.6M803,330.7L812.4,283.6M816,336.1L842.7,296.2M825.9,346L865.8,319.3M831.3,359L878.4,349.6M959.3,373L1006.4,382.4M953.9,386L993.8,412.7M944,395.9L970.7,435.8M931,401.3L940.4,448.4M917,401.3L907.6,448.4M904,395.9L877.3,435.8M894.1,386L854.2,412.7M888.7,373L841.6,382.4M888.7,359L841.6,349.6M894.1,346L854.2,319.3M904,336.1L877.3,296.2M917,330.7L907.6,283.6M931,330.7L940.4,283.6M944,336.1L970.7,296.2M953.9,346L993.8,319.3M959.3,359L1006.4,349.6"/><circle class="f-ink" cx="668" cy="110" r="2.5"/><circle class="f-ink" cx="796" cy="110" r="2.5"/><circle class="f-ink" cx="924" cy="110" r="2.5"/><circle class="f-ink" cx="668" cy="238" r="2.5"/><circle class="f-ink" cx="796" cy="238" r="2.5"/><circle class="f-ink" cx="924" cy="238" r="2.5"/><circle class="f-ink" cx="668" cy="366" r="2.5"/><circle class="f-ink" cx="796" cy="366" r="2.5"/><circle class="f-ink" cx="924" cy="366" r="2.5"/></g><rect class="s-strong" x="604" y="46" width="260" height="200"/>
+<text class="t-head" x="604" y="270">Cascade 2</text>
+<text class="t-small t-muted" x="604" y="288">every 128 px · 16 rays · reach 3 to 7</text>
+<text class="t-small t-muted" x="20" y="318">Reach in units of cascade 0's rays. Each level: probes twice as far apart, rays covering a range twice as long, twice the directions.</text>
+<text class="t-small t-muted" x="20" y="334">Merging runs from the top level down: each ray's light is extended by the matching rays of the level above.</text>
+</svg>
+                </div>
+                <figcaption><b>Each level does the work that suits it.</b> Cascade 0 has many probes with a few short rays; cascade 2 has few probes with many long ones. Merging from the top level down extends each short ray with the light the levels above found beyond it, so the bottom level ends with light from every distance. The paper argues this behaves like casting a huge number of rays at a fixed cost.</figcaption>
+              </figure>
+              <p>Path of Exile 2 uses radiance cascades as its GI. Its version works in screen space and fills the cascades by marching the depth buffer, which the paper says was chosen because the game's camera is fixed. That puts it in 8.4's territory, with the same blind spots, softened by a camera that never looks at the horizon. The paper also describes world-space versions in 2D and 3D.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="precomputed"><span class="step-num">8</span> Precomputed real-time GI: fixed walls, live light</h3>
+              <p><dfn class="term" data-term="precomputed-realtime-gi">Precomputed real-time GI</dfn> splits the work differently. Unity's documentation describes Enlighten, the best-known version: in the editor it divides static surfaces into small patches, works out how much each patch can see each other one, and groups patches that see each other into systems. At run time it uses that visibility to bounce light from real-time lights between patches, writes the result into low-resolution lightmaps, and spreads the update over several frames.</p>
+              <p>Lights can move, change colour and switch off, and the sun can cross the sky, at a modest CPU cost. Geometry cannot move, because the visibility was precomputed, and updates take several frames, which Unity says suits slowly changing light and not effects or flickering lamps. Unity supports Enlighten Realtime GI until the end of Unity 6. Silicon Studio, which sells Enlighten, offers integrations for Unreal Engine 4 and 5 and lists titles from Hellblade: Senua's Sacrifice to Infinity Nikki.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="choosing"><span class="step-num">9</span> Choosing a family</h3>
+              <p>Most projects do not choose an algorithm; they choose an engine feature and accept its family. The questions are what changes at run time, which platforms must run it, and what the art needs.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 400" role="img" aria-label="A decision map. First question: does lighting or geometry change at run time? If not, bake it, with lightmaps and probes, chapter 8.2. If only lights change and geometry is fixed: precomputed real-time GI such as Enlighten, or baked lighting scenarios. If both change, the platform decides. On phones and Switch-class hardware: baked lighting with probes, screen-space AO, and few real-time bounces. On current consoles and desktops, by engine: Unreal, Lumen, software or hardware; Godot, SDFGI for open spaces or VoxelGI for bounded areas; Unity, baked Adaptive Probe Volumes with lighting scenarios, plus HDRP's SSGI or ray-traced GI. Art style adds two branches: a fixed top-down camera suits screen-space methods such as radiance cascades; ray-tracing hardware on every target opens DDGI-style probes and path tracing, chapters 8.6 and 8.7.">
+                    <defs><marker id="dm-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                    <rect class="f-surface s-strong" x="20" y="150" width="170" height="76" rx="8"/>
+                    <text class="t-strong" x="34" y="176">Does lighting or</text>
+                    <text class="t-strong" x="34" y="194">geometry change</text>
+                    <text class="t-strong" x="34" y="212">at run time?</text>
+
+                    <line class="s-muted" x1="192" y1="165" x2="252" y2="72" marker-end="url(#dm-arr)"/>
+                    <text class="t-small t-muted" x="226" y="104">no</text>
+                    <rect class="f-acc-soft s-acc" x="256" y="40" width="200" height="56" rx="8"/>
+                    <text class="t-strong" x="270" y="64">Bake it (8.2)</text>
+                    <text class="t-small t-muted" x="270" y="82">lightmaps and probes</text>
+
+                    <line class="s-muted" x1="192" y1="188" x2="252" y2="156" marker-end="url(#dm-arr)"/>
+                    <text class="t-small t-muted" x="196" y="203">lights only</text>
+                    <rect class="f-acc-soft s-acc" x="256" y="116" width="200" height="72" rx="8"/>
+                    <text class="t-strong" x="270" y="140">Precomputed real-time GI</text>
+                    <text class="t-small t-muted" x="270" y="158">Enlighten; or baked lighting</text>
+                    <text class="t-small t-muted" x="270" y="174">scenarios blended (APV)</text>
+
+                    <line class="s-muted" x1="192" y1="211" x2="252" y2="262" marker-end="url(#dm-arr)"/>
+                    <text class="t-small t-muted" x="198" y="262">both</text>
+                    <rect class="f-surface s-strong" x="256" y="226" width="200" height="72" rx="8"/>
+                    <text class="t-strong" x="270" y="250">Which platforms?</text>
+                    <text class="t-small t-muted" x="270" y="268">the weakest target decides</text>
+                    <text class="t-small t-muted" x="270" y="284">what is possible</text>
+
+                    <line class="s-muted" x1="458" y1="250" x2="494" y2="226" marker-end="url(#dm-arr)"/>
+                    <rect class="f-lit-soft s-lit" x="498" y="182" width="380" height="64" rx="8"/>
+                    <text class="t-strong" x="512" y="204">Phones, Switch-class, low-end PC</text>
+                    <text class="t-small t-muted" x="512" y="222">bake what you can, probes for moving things, SSAO;</text>
+                    <text class="t-small t-muted" x="512" y="237">Lumen and SDFGI do not run on mobile renderers</text>
+
+                    <line class="s-muted" x1="458" y1="276" x2="494" y2="300" marker-end="url(#dm-arr)"/>
+                    <rect class="f-geo-soft s-geo" x="498" y="262" width="380" height="96" rx="8"/>
+                    <text class="t-strong" x="512" y="284">Current consoles and desktop: by engine</text>
+                    <text class="t-small" x="512" y="304">Unreal: Lumen, software or hardware tracing</text>
+                    <text class="t-small" x="512" y="320">Godot: SDFGI for open spaces, VoxelGI for rooms</text>
+                    <text class="t-small" x="512" y="336">Unity: APV scenarios, plus HDRP SSGI or ray-traced GI</text>
+
+                    <rect class="f-pix-soft s-pix" x="498" y="40" width="380" height="58" rx="8"/>
+                    <text class="t-strong" x="512" y="62">Art style: fixed top-down camera</text>
+                    <text class="t-small t-muted" x="512" y="80">screen-space GI, even radiance cascades (Path of Exile 2)</text>
+                    <rect class="f-surface s-strong" x="498" y="108" width="380" height="58" rx="8"/>
+                    <text class="t-strong" x="512" y="130">Ray-tracing hardware on every target</text>
+                    <text class="t-small t-muted" x="512" y="148">DDGI-style probes, ray-traced GI, path tracing (8.6, 8.7)</text>
+                    <text class="t-small t-muted" x="20" y="386">A map of common choices, not rules. Mixed answers are normal: baked interiors with real-time GI outdoors, or Lumen with baked fallbacks on low settings.</text>
+                  </svg>
+                </div>
+                <figcaption><b>What changes, and where it must run, decide most of it.</b> Baking is still right whenever nothing changes. Moving lights over fixed geometry suit precomputed GI. Fully dynamic scenes need one of the live families, and the weakest target platform rules most of them out. Art direction adds its own branches: a fixed camera makes screen-space methods much safer, and hardware ray tracing everywhere opens the methods of the next two chapters.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Real-time GI is one of the biggest single items in a modern frame. Epic budgets Lumen at 4 ms of a 16.7 ms <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a> at 60 fps, for GI, reflections and fog together. The costs come from rays traced, the size of the store, and how much of it is refreshed each frame.</p>
+            <p>Two worked numbers show why these methods trace from a few thousand points rather than from every pixel. DDGI with 32 × 8 × 32 = 8,192 probes at 64 rays each traces 524,288 rays a frame. Lumen's screen probes at 1080p, one per 16 × 16 pixels, come to 120 × 67.5 ≈ 8,100 probes before adaptive extras; at 8 × 8 = 64 directions each, about 518,400 rays. One ray per pixel would be 2,073,600. Storage is modest by comparison: DDGI's 8,192 probes, at 64 texels of 4-byte light and 256 texels of 4-byte distance each, take 8,192 × 1,280 bytes = 10 MB before the gutters around each probe.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">4 / 8 ms</span><span class="what">Lumen's targets at 60 and 30 fps on consoles, 1080p internal, GI, reflections and fog</span></div>
+              <div class="stat"><span class="value">2.6 ms</span><span class="what">DDGI indirect lighting, 8,192 probes, 64 rays each, RTX 2080 Ti (2019)</span></div>
+              <div class="stat"><span class="value">7.4 ms</span><span class="what">VXGI at Medium, GTX 770, 1920 × 1080 (2014)</span></div>
+              <div class="stat"><span class="value">3.5 ms</span><span class="what">LPV total on Xbox 360 at 1280 × 720, one 32³ volume (2009)</span></div>
+            </div>
+            <p class="stamp">Published figures from Epic's Lumen documentation, the DDGI paper (JCGT 2019), NVIDIA's GTC 2014 VXGI talk and Crytek's SIGGRAPH 2009 course notes. Each was measured on different hardware, at a different time, for a different scene; profile on your own target.</p>
+            <ul class="grows">
+              <li><strong>Rays per frame</strong><span>Probes times rays per probe, or screen probes times directions. Quality presets mostly change these two numbers.</span></li>
+              <li><strong>Scene complexity for tracing</strong><span>Distance fields cost disk space and memory per mesh; hardware ray tracing pays per instance, and Epic warns above about 100,000.</span></li>
+              <li><strong>Reach and resolution</strong><span>Every extra cascade or larger volume adds cells or probes; finer cells near the camera multiply them.</span></li>
+              <li><strong>Update rate</strong><span>Refreshing more of the store each frame reacts faster to change and costs more. Lumen and DDGI both trade lag for time.</span></li>
+              <li><strong>Reflections</strong><span>Glossy reflections need far more directional detail than diffuse light; Lumen's cost grows with the share of smooth surfaces on screen.</span></li>
+              <li><strong>Internal resolution</strong><span>Per-pixel gathering scales with pixels, which is why Lumen's budget assumes 1080p upscaled.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">What you trade for the milliseconds</p>
+              <p>Real-time GI buys you no bake step, lighting that follows change, and faster iteration for lighting artists. It costs GPU time on every frame of every player, minimum hardware requirements, and content rules about wall thickness and emissives. Many shipped games keep both: real-time GI on capable hardware, baked or simpler lighting on the lowest settings.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Real-time GI goes wrong in space, where light lands in the wrong place, and in time, where it arrives late or flickers.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dark room next to a sunny exterior, with a bright glow on the inside of the wall at floor level where light has leaked through.">
+                    <defs><filter id="sy5-leak" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter></defs>
+                    <rect class="f-lit-soft" x="0" y="0" width="100" height="130"/>
+                    <rect class="f-sunken" x="106" y="0" width="134" height="130"/>
+                    <rect class="f-solid s-ink" x="100" y="0" width="6" height="130"/>
+                    <ellipse class="f-lit" fill-opacity="0.6" cx="122" cy="116" rx="18" ry="12" filter="url(#sy5-leak)"/>
+                    <text class="t-small t-muted" x="140" y="40">inside</text>
+                  </svg>
+                </div>
+                <h4>Light leaking through walls</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Walls thinner than the method's cells, voxels or probe spacing, or single-plane walls. Epic's minimum for Lumen is 10 cm.</dd></div>
+                  <div><dt>Ask for</dt><dd>Wall thickness checks against the method's rule, the method's leak settings, and probe placement kept out of walls.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A bright room with an unnaturally dark blotch on the floor near one wall.">
+                    <defs><filter id="sy5-dark" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter></defs>
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-lo" fill-opacity="0.15" x="0" y="0" width="240" height="130"/>
+                    <ellipse class="f-buf-lo" fill-opacity="0.6" cx="70" cy="100" rx="34" ry="18" filter="url(#sy5-dark)"/>
+                    <circle class="s-pix w15 dash" cx="70" cy="100" r="30"/>
+                  </svg>
+                </div>
+                <h4>Dark blotches in lit areas</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Darkness leaking: a probe buried inside geometry reports black and is blended into nearby pixels, or a mesh the surface cache covers badly bounces no light.</dd></div>
+                  <div><dt>Ask for</dt><dd>Probe relocation or invalidation where the method has it, and the method's debug view of its scene, such as Lumen's surface cache view, where uncovered areas show pink.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Three frames after a lamp switches on: the area right around the lamp lights at once, but the room's bounced light builds up gradually over the frames.">
+                    <rect class="f-sunken" x="0" y="0" width="76" height="130"/><rect class="f-sunken" x="82" y="0" width="76" height="130"/><rect class="f-sunken" x="164" y="0" width="76" height="130"/>
+                    <rect class="f-lit-soft" fill-opacity="0.3" x="82" y="0" width="76" height="130"/><rect class="f-lit-soft" fill-opacity="0.85" x="164" y="0" width="76" height="130"/>
+                    <circle class="f-lit" cx="38" cy="40" r="6"/><circle class="f-lit" cx="120" cy="40" r="6"/><circle class="f-lit" cx="202" cy="40" r="6"/>
+                    <text class="t-small t-muted mid" x="38" y="120">frame 1</text><text class="t-small t-muted mid" x="120" y="120">frame 10</text><text class="t-small t-muted mid" x="202" y="120">frame 30</text>
+                  </svg>
+                </div>
+                <h4>Bounced light lags behind changes</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Stores refreshed a slice per frame and blended over time: DDGI's hysteresis, Lumen's temporal filter, SDFGI's 30 frames to converge, Enlighten's multi-frame updates.</dd></div>
+                  <div><dt>Ask for</dt><dd>The method's update-speed settings, such as Lumen's Lighting Update Speed controls, and a recording of sudden changes at the target frame rate.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A corridor whose indirect light changes in visible bands as the camera moves forward, with a step in brightness across the floor.">
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-lo" fill-opacity="0.45" x="0" y="0" width="120" height="130"/>
+                    <rect class="f-buf-lo" fill-opacity="0.3" x="120" y="0" width="120" height="130"/>
+                    <line class="s-pix w2 dash" x1="120" y1="0" x2="120" y2="130"/>
+                    <text class="t-small t-pix" x="126" y="20">step moves with</text><text class="t-small t-pix" x="126" y="34">the camera</text>
+                  </svg>
+                </div>
+                <h4>Popping and shifting as the camera moves</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Cascades or caches centred on the camera move and are rebuilt: SDFGI's documentation notes visible cascade shifts with fast movement; Lumen's scene can lag when the camera moves fast.</dd></div>
+                  <div><dt>Ask for</dt><dd>Captures of fast traversal and camera cuts, more cascades or reach where shifts land in view, and pre-warming after cuts.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A small, very bright emissive sign on a wall surrounded by a blotchy, flickering speckle of light on the nearby floor.">
+                    <defs><filter id="sy5-boil" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.12" numOctaves="2" seed="8"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.4 0 0 0 -1.1"/></filter></defs>
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-lit-soft" x="20" y="60" width="200" height="70"/>
+                    <rect x="20" y="60" width="200" height="70" filter="url(#sy5-boil)" opacity="0.55"/>
+                    <rect class="f-lit" x="104" y="20" width="32" height="10"/>
+                  </svg>
+                </div>
+                <h4>Blotchy, boiling indirect light</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too few rays for a small, very bright source: Epic's Lumen talk notes a limit to how small and bright emissive areas can be without noise. Low quality presets make it worse.</dd></div>
+                  <div><dt>Ask for</dt><dd>Real lights for small bright sources, larger and dimmer emissive areas, and the GI quality setting per platform reviewed in motion.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A character standing next to a red wall: the wall's red bounce reaches the floor, but the character casts no bounce or occlusion onto the floor around it.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-paint-red" x="0" y="0" width="30" height="130"/>
+                    <rect class="f-paint-red" fill-opacity="0.25" x="30" y="90" width="100" height="40"/>
+                    <path class="f-solid s-ink" d="M160,28 C172,28 174,40 171,46 C180,50 183,64 181,120 L139,120 C137,64 140,50 149,46 C146,40 148,28 160,28 Z"/>
+                    <text class="t-small t-pix" x="150" y="20">not in the GI scene</text>
+                  </svg>
+                </div>
+                <h4>Moving objects missing from the bounce</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The method's scene leaves them out: SDFGI ignores dynamic occluders and emissives, Lumen's software tracing does not represent skinned meshes, VoxelGI only includes baked or Dynamic-mode meshes.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which objects each method's scene includes, screen-space AO or traces for the rest, and hardware ray tracing where characters must bounce light.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To diagnose, view the method's own data: Lumen's visualisation modes for its scene and surface cache, Godot's SDFGI and VoxelGI debug views, and probe visualisations for probe grids. Most GI bugs are visible there before they are visible in the final image.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Each engine ships different families, with different limits on what contributes and where they run.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Real-time GI</th>
+                    <td>Lumen, on by default in new projects. Software tracing (distance fields, Global Tracing by default) or hardware tracing, enabled in new projects where supported.</td>
+                    <td>Enlighten Realtime GI, support ending after Unity 6. Surface Cache GI previewed in 2026, diffuse only, aimed at Unity 6.7.</td>
+                    <td>Screen Space Global Illumination (8.4), Ray-Traced Global Illumination (DirectX 12, ray-tracing GPU), Enlighten to Unity 6.</td>
+                    <td>SDFGI and VoxelGI; SSIL on top (8.4).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Stores light in</th>
+                    <td>Surface cache cards; screen probes and a world radiance cache.</td>
+                    <td colspan="2">Enlighten: precomputed patch visibility, real-time lightmaps. Baked: lightmaps and Adaptive Probe Volumes (8.2).</td>
+                    <td>SDFGI: distance-field cascades and probes. VoxelGI: a voxel box, default 20 m, 128 subdivisions.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">What contributes</th>
+                    <td>Software: static meshes, instances, landscape; skinned meshes only via screen traces. Hardware: also skinned, at a per-frame cost.</td>
+                    <td colspan="2">Enlighten: static geometry; lights can change.</td>
+                    <td>SDFGI: static geometry; dynamic lights, not dynamic occluders. VoxelGI: baked meshes, plus Dynamic-mode meshes at a high cost.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Leak controls</th>
+                    <td>Walls at least 10 cm; Lumen Scene Detail; Max Trace Distance.</td>
+                    <td colspan="2">APV: Leak Reduction Mode, Probe Adjustment Volumes, Rendering Layers (8.2).</td>
+                    <td>SDFGI: Use Occlusion, Y Scale. VoxelGI: walls one voxel thick.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Platforms</th>
+                    <td>Not on the Mobile renderer, with forward shading, in VR or on previous-generation consoles.</td>
+                    <td>Enlighten: mid to high-end PC and consoles, some high-end mobiles.</td>
+                    <td>Ray-traced GI: Windows, DirectX 12, ray-tracing hardware.</td>
+                    <td>SDFGI and VoxelGI: Forward+ only, not Mobile or Compatibility.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Cost guidance</th>
+                    <td>4 ms at 60 fps, 8 ms at 30 fps on consoles; Final Gather Quality and update-speed settings trade time for quality.</td>
+                    <td colspan="2">Enlighten: CPU, several frames per update.</td>
+                    <td>SDFGI: cascades and rays per frame; half resolution option. VoxelGI: subdivisions; half resolution option.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) with HDRP 17.6, and Godot 4.7, plus Unity's Surface Cache GI preview announcement (May 2026), in November 2026. Previews and Beta features change quickly; confirm their status in your version.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>GI briefs need what changes in the game, every target platform and its budget, the kinds of spaces, and the content rules the team can live with. Ask for the method's failure cases as well as its settings.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when choosing a real-time GI method</span></div>
+              <pre class="prompt-body">Engine: Unreal Engine 5.8. Targets: PlayStation 5 and Xbox Series X at 60 fps, Xbox Series S at 30 fps, PC down to an RTX 2060.
+Game: a city at night with a day-night cycle, enterable shops, destructible facades, lots of neon signs.
+
+1. Recommend Lumen software or hardware ray tracing per platform, with reasons, and the scalability level for each.
+2. List content rules our artists must follow: wall thickness, emissive sign sizes, mesh setup for the surface cache.
+3. Name the failure cases to expect (leaks, lag after destruction, noise from small neon, skinned characters) and how to test each.
+4. Give a GPU budget for GI and reflections per platform, and the profiling steps to confirm it.</pre>
+              <ul class="prompt-why">
+                <li>Per-platform targets force per-platform answers instead of one setting for all.</li>
+                <li>Asking for content rules turns the method's limits into instructions artists can follow.</li>
+                <li>Naming the expected failures gets a test plan, not just a configuration.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when light leaks or lags in a real-time GI method</span></div>
+              <pre class="prompt-body">Godot 4.7, Forward+, SDFGI with default cascades. Interior scenes in an open town.
+1. Sunlight leaks onto the floor inside houses along the base of walls that face the street. Walls are 15 cm thick.
+2. When a door opens, the room takes about a second to brighten.
+
+For each problem, explain the cause in terms of SDFGI's cascades, cell sizes and convergence, using our settings. Propose fixes in order of cost: SDFGI settings (Use Occlusion, Y Scale, Min Cell Size, cascades), geometry changes, or adding a VoxelGI node or LightmapGI for interiors. Give a test route through three houses to compare before and after.</pre>
+              <ul class="prompt-why">
+                <li>Giving the wall thickness lets the AI compare it with the cell sizes, the root of the leak.</li>
+                <li>A measured lag points at convergence rather than a bug.</li>
+                <li>Allowing a change of method for interiors keeps the answer from being only settings tweaks.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing real-time GI work</h3>
+            <ol class="review-list">
+              <li>What does the method store light in, and how big are its cells, voxels or probe spacing?<span class="why">That size sets the thinnest wall that will not leak.</span></li>
+              <li>What in the scene contributes to the GI, and what only receives it?<span class="why">Moving objects are often left out, so they cast no bounce or occlusion.</span></li>
+              <li>How long does the lighting take to catch up after a sudden change?<span class="why">Every method here trades update speed for cost.</span></li>
+              <li>What is the GI cost on the weakest target, and what replaces it on low settings?<span class="why">The fallback is what many players will see.</span></li>
+              <li>Have the content rules been written down and checked in the levels?<span class="why">Wall thickness and emissive size decide whether the method behaves.</span></li>
+              <li>Have the method's debug views been reviewed, not just the final image?<span class="why">Leaks, gaps and stale data show there first.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Why do grid and voxel methods leak light through thin walls, and what does DDGI add to stop it?</p>
+                <details><summary>Show answer</summary><p>Their cells or voxels are larger than the wall, so one cell holds both sides, or a probe outside the wall is blended into pixels inside it by distance alone. DDGI stores how far each probe can see in every direction; a pixel further away than the nearest surface in its direction must be hidden from that probe, so the probe's weight drops close to zero.</p></details>
+              </li>
+              <li>
+                <p class="q">Lumen traces only a few thousand screen probes rather than every pixel. What does that save, and what does it cost?</p>
+                <details><summary>Show answer</summary><p>About one probe per 16 × 16 pixels at 64 directions is around half a million rays a frame at 1080p, far fewer than many rays per pixel, and each hit reads its light from the surface cache instead of being shaded. The cost is detail between probes, made up by interpolation, a temporal filter and short-range AO, and a slower reaction to change, which shows as lag or ghosting.</p></details>
+              </li>
+              <li>
+                <p class="q">A game has a day-night cycle but its levels never change shape, and it must run on Switch-class hardware. Which family fits, and why not Lumen or SDFGI?</p>
+                <details><summary>Show answer</summary><p>Precomputed real-time GI such as Enlighten, or several baked lighting scenarios blended over the day, because only the lights change. Lumen does not support mobile-class renderers and SDFGI needs Godot's Forward+ renderer and a desktop-class GPU.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#light-propagation-volumes">light propagation volumes</a></li>
+              <li><a class="chip" href="glossary.html#voxel-cone-tracing">voxel cone tracing</a></li>
+              <li><a class="chip" href="glossary.html#voxelgi">VoxelGI</a></li>
+              <li><a class="chip" href="glossary.html#light-leaking">light leaking</a></li>
+              <li><a class="chip" href="glossary.html#ddgi">DDGI</a></li>
+              <li><a class="chip" href="glossary.html#sdfgi">SDFGI</a></li>
+              <li><a class="chip" href="glossary.html#lumen">Lumen</a></li>
+              <li><a class="chip" href="glossary.html#surface-cache">surface cache</a></li>
+              <li><a class="chip" href="glossary.html#screen-probes">screen probes</a></li>
+              <li><a class="chip" href="glossary.html#radiance-cascades">radiance cascades</a></li>
+              <li><a class="chip" href="glossary.html#precomputed-realtime-gi">precomputed real-time GI</a></li>
+            </ul>
+            <h3>All the families side by side</h3>
+            <div class="table-wrap">
+              <table class="is-wide">
+                <thead><tr><th scope="col">Family</th><th scope="col">Stores light in</th><th scope="col">Moving lights</th><th scope="col">Moving geometry</th><th scope="col">Leaks</th><th scope="col">Shipped in</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Baked lightmaps and probes (8.2)</th><td>Textures on surfaces, probes in air</td><td>No</td><td>Receives only</td><td>Low, with padding and density</td><td>Every engine</td></tr>
+                  <tr><th scope="row">Precomputed real-time GI</th><td>Patch visibility, real-time lightmaps</td><td>Yes, over several frames</td><td>No</td><td>As lightmaps</td><td>Enlighten; Unity to Unity 6</td></tr>
+                  <tr><th scope="row">Light propagation volumes</th><td>Coarse grid of 4-number SH</td><td>Yes</td><td>Yes</td><td>High</td><td>CryEngine 3</td></tr>
+                  <tr><th scope="row">Voxel cone tracing</th><td>Voxels with blurred mips</td><td>Yes</td><td>Re-voxelized; VoxelGI: baked</td><td>High near thin walls</td><td>NVIDIA VXGI, Godot VoxelGI</td></tr>
+                  <tr><th scope="row">Probes with visibility (DDGI)</th><td>Probes: light and distances</td><td>Yes</td><td>Yes, with ray tracing</td><td>Low</td><td>NVIDIA RTXGI; Unity, UE4 integrations</td></tr>
+                  <tr><th scope="row">SDFGI</th><td>Distance-field cascades, probes</td><td>Yes</td><td>Receives only</td><td>Low near, more far away</td><td>Godot 4</td></tr>
+                  <tr><th scope="row">Lumen</th><td>Surface cache, screen probes</td><td>Yes</td><td>Yes; skinned via screen or hardware traces</td><td>Low, walls 10 cm or more</td><td>Unreal Engine 5</td></tr>
+                  <tr><th scope="row">Screen-space GI (8.4)</th><td>Nothing: the screen</td><td>Yes</td><td>Yes, if on screen</td><td>Off-screen and hidden light missing</td><td>Unreal, HDRP, Godot (SSIL)</td></tr>
+                  <tr><th scope="row">Radiance cascades</th><td>Stacked probe grids</td><td>Yes</td><td>Yes (screen-space version)</td><td>As screen space, in that version</td><td>Path of Exile 2</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="8.6"></a> covers the tracing that DDGI and Lumen's hardware mode rely on: rays against the real triangles, accelerated by GPU hardware.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Anton Kaplanyan, <a href="https://advances.realtimerendering.com/s2009/Light_Propagation_Volumes.pdf">Light Propagation Volumes in CryEngine 3</a>, SIGGRAPH 2009 Advances in Real-Time Rendering course notes, Crytek; and Anton Kaplanyan and Carsten Dachsbacher, Cascaded Light Propagation Volumes for Real-Time Indirect Illumination, I3D 2010, summarised in <a href="https://cgg.mff.cuni.cz/~jaroslav/gicourse2010/giai2010-07-anton_kaplanyan-slides.pdf">Kaplanyan's 2010 global illumination course slides</a>.</li>
+              <li>Cyril Crassin, Fabrice Neyret, Miguel Sainz, Simon Green and Elmar Eisemann, <a href="https://research.nvidia.com/publication/2011-09_interactive-indirect-illumination-using-voxel-cone-tracing">Interactive Indirect Illumination Using Voxel Cone Tracing</a>, Pacific Graphics 2011.</li>
+              <li>Alexey Panteleev, <a href="https://cgvr.cs.uni-bremen.de/theses/finishedtheses/VoxelConeTracing/S4552-rt-voxel-based-global-illumination-gpus.pdf">Practical Real-Time Voxel-Based Global Illumination for Current GPUs</a>, GTC 2014, NVIDIA; <a href="https://archive.docs.nvidia.com/gameworks/content/gameworkslibrary/visualfx/vxgi/product.html">NVIDIA VXGI documentation</a> (archived).</li>
+              <li>Zander Majercik, Jean-Philippe Guertin, Derek Nowrouzezahrai and Morgan McGuire, <a href="https://jcgt.org/published/0008/02/01/">Dynamic Diffuse Global Illumination with Ray-Traced Irradiance Fields</a>, JCGT 8(2), 2019; Zander Majercik, Adam Marrs, Josef Spjut and Morgan McGuire, <a href="https://jcgt.org/published/0010/02/01/">Scaling Probe-Based Real-Time Dynamic Global Illumination for Production</a>, JCGT 10(2), 2021.</li>
+              <li>Daniel Wright, Krzysztof Narkowicz and Patrick Kelly, <a href="https://advances.realtimerendering.com/s2022/index.html#Lumen">Lumen: Real-time Global Illumination in Unreal Engine 5</a>, SIGGRAPH 2022 Advances in Real-Time Rendering course, Epic Games.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-global-illumination-and-reflections-in-unreal-engine?application_version=5.8">Lumen Global Illumination and Reflections</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-technical-details-in-unreal-engine?application_version=5.8">Lumen Technical Details</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-performance-guide-for-unreal-engine?application_version=5.8">Lumen Performance Guide</a>.</li>
+              <li>Alexander Sannikov, <a href="https://github.com/Raikiri/RadianceCascadesPaper">Radiance Cascades: A Novel Approach to Calculating Global Illumination</a>, self-published work in progress, Grinding Gear Games.</li>
+              <li>Godot 4.7 documentation: <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/global_illumination/introduction_to_global_illumination.html">Introduction to global illumination</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/global_illumination/using_sdfgi.html">Signed distance field global illumination</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/global_illumination/using_voxel_gi.html">Using VoxelGI</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_voxelgi.html">VoxelGI</a> and <a href="https://docs.godotengine.org/en/4.7/classes/class_environment.html">Environment</a>; Juan Linietsky, <a href="https://godotengine.org/article/godot-40-gets-sdf-based-real-time-global-illumination/">Godot 4.0 gets SDF based real-time global illumination</a>, 2020.</li>
+              <li>Unity: <a href="https://docs.unity.com/en-us/engine/6000.6/manual/lighting-overview/direct-and-indirect-lighting/lightmapping/realtime-gi-using-enlighten/enlighten">Realtime Global Illumination using Enlighten</a> and <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>, Unity 6.6 manual; <a href="https://discussions.unity.com/t/surface-cache-gi-preview/1720494">Surface Cache GI Preview</a>, Unity lighting team, May 2026. Silicon Studio, <a href="https://www.siliconstudio.co.jp/middleware/enlighten/en/">Enlighten</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>

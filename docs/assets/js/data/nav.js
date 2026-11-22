@@ -106,10 +106,10 @@
       n: 8, title: "Global illumination and ambient occlusion", blurb: "Bounced light and contact darkening: the home of most graphics acronyms.",
       chapters: [
         { num: "8.1", slug: "indirect-light", title: "Direct and indirect light", terms: "bounce, colour bleeding, the rendering equation in pictures, diffuse and specular GI", core: true, status: "published" },
-        { num: "8.2", slug: "baked-lighting", title: "Baked lighting", terms: "lightmap, lightmap UVs, light probes, spherical harmonics, irradiance volume; static, stationary, movable", core: false, status: "planned" },
+        { num: "8.2", slug: "baked-lighting", title: "Baked lighting", terms: "lightmap, lightmap UVs, light probes, spherical harmonics, irradiance volume; static, stationary, movable", core: false, status: "published" },
         { num: "8.3", slug: "ambient-occlusion", title: "Ambient occlusion: SSAO to GTAO", terms: "AO, SSAO, HBAO, GTAO, horizon angle, bent normal, multi-bounce, specular occlusion, RTAO", core: true, status: "published" },
-        { num: "8.4", slug: "screen-space", title: "Screen-space tricks and their blind spots", terms: "ray marching, Hi-Z tracing, SSR, SSGI, thickness, off-screen misses, fallbacks", core: true, status: "planned" },
-        { num: "8.5", slug: "realtime-gi", title: "Real-time GI families", terms: "LPV, VXGI, SDFGI, DDGI probes, Lumen surface cache, radiance cascades, light leaking", core: true, status: "planned" },
+        { num: "8.4", slug: "screen-space", title: "Screen-space tricks and their blind spots", terms: "ray marching, Hi-Z tracing, SSR, SSGI, thickness, off-screen misses, fallbacks", core: true, status: "published" },
+        { num: "8.5", slug: "realtime-gi", title: "Real-time GI families", terms: "LPV, VXGI, SDFGI, DDGI probes, Lumen surface cache, radiance cascades, light leaking", core: true, status: "published" },
         { num: "8.6", slug: "ray-tracing", title: "Ray tracing", terms: "ray, BVH, BLAS and TLAS, DXR, hybrid rendering; ray-traced shadows, reflections and GI", core: false, status: "planned" },
         { num: "8.7", slug: "path-tracing", title: "Path tracing and denoising", terms: "samples per pixel, noise, fireflies, importance sampling, ReSTIR, SVGF, ray reconstruction", core: false, status: "planned" }
       ]

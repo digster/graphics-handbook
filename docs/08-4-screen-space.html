@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>8.4 Screen-space tricks and their blind spots · Graphics Handbook</title>
+  <meta name="description" content="How SSR, SSGI and contact shadows march rays through the depth buffer, how Hi-Z makes the march fast, the four blind spots every screen-space effect shares, what engines fall back on, and how to brief and review the work.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="8.4">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <h1><span class="ch-num">8.4</span> Screen-space tricks and their blind spots</h1>
+            <p class="lead">Screen-space reflections, screen-space global illumination and contact shadows all do the same thing: they march rays through the depth buffer the frame has already drawn. That makes them cheap, sharp and fully dynamic. It also gives all of them the same four blind spots, and every engine pairs them with something else to answer when the screen cannot.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="8.3">8.3 Ambient occlusion</a>, <a class="xref" data-ch="7.6">7.6 Reflections</a>, <a class="xref" data-ch="5.5">5.5 Depth</a>, <a class="xref" data-ch="4.4">4.4 Culling</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.5">8.5 Real-time GI families</a>, <a class="xref" data-ch="9.2">9.2 Temporal techniques</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 35 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Screen ray lab</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 366" role="img" aria-label="Side view of a camera on the left looking at a floor, a crate, a thin red banner and a back wall. A rose stepped line follows the surfaces the camera can see: that is all the depth buffer holds. Three rays leave the floor and are marched in steps through it. Ray A meets the crate and finds a real hit. Ray B passes into the region hidden behind the banner, where the depth buffer has only the banner, so it never finds the wall it really reaches. Ray C climbs out of the top of the screen, where there is no data at all.">
+<text class="t-caps" x="20" y="18">ONE MARCH THROUGH THE DEPTH BUFFER, THREE ENDINGS</text>
+<defs><clipPath id="pic-clip"><rect x="20" y="30" width="728.0" height="302.4"/></clipPath></defs>
+<g clip-path="url(#pic-clip)">
+<polygon class="f-sunken" points="53.6,175.6 1683.7,-230.8 2293.6,-1930 -2186.4,-1930 -2186.4,2550 1377.5,1209.9"/>
+<rect class="f-solid" x="-36.0" y="310.0" width="840.0" height="56.0"/>
+<rect class="f-strong s-ink" x="288.8" y="265.2" width="56.0" height="44.8"/>
+<rect class="f-paint-red s-ink" x="389.6" y="164.4" width="2.8" height="61.6"/>
+<rect class="f-solid s-ink" x="669.6" y="86.0" width="33.6" height="224.0"/>
+<line class="s-ink" x1="20" y1="310.0" x2="748.0" y2="310.0"/>
+<line class="s-pix w3 round" x1="225.6" y1="310.0" x2="230.1" y2="310.0"/>
+<line class="s-pix w3 round" x1="230.1" y1="310.0" x2="234.8" y2="310.0"/>
+<line class="s-pix w3 round" x1="234.8" y1="310.0" x2="239.6" y2="310.0"/>
+<line class="s-pix w3 round" x1="239.6" y1="310.0" x2="244.8" y2="310.0"/>
+<line class="s-pix w3 round" x1="244.8" y1="310.0" x2="250.1" y2="310.0"/>
+<line class="s-pix w3 round" x1="250.1" y1="310.0" x2="255.8" y2="310.0"/>
+<line class="s-pix w3 round" x1="255.8" y1="310.0" x2="261.7" y2="310.0"/>
+<line class="s-pix w3 round" x1="261.7" y1="310.0" x2="267.9" y2="310.0"/>
+<line class="s-pix w3 round" x1="267.9" y1="310.0" x2="274.5" y2="310.0"/>
+<line class="s-pix w3 round" x1="274.5" y1="310.0" x2="281.4" y2="310.0"/>
+<line class="s-pix w3 round" x1="281.4" y1="310.0" x2="288.8" y2="310.0"/>
+<line class="s-pix w3 round" x1="288.8" y1="307.9" x2="288.8" y2="305.7"/>
+<line class="s-pix w3 round" x1="288.8" y1="305.7" x2="288.8" y2="301.5"/>
+<line class="s-pix w3 round" x1="288.8" y1="301.5" x2="288.8" y2="297.2"/>
+<line class="s-pix w3 round" x1="288.8" y1="297.2" x2="288.8" y2="293.0"/>
+<line class="s-pix w3 round" x1="288.8" y1="293.0" x2="288.8" y2="288.8"/>
+<line class="s-pix w3 round" x1="288.8" y1="288.8" x2="288.8" y2="284.7"/>
+<line class="s-pix w3 round" x1="288.8" y1="284.7" x2="288.8" y2="280.5"/>
+<line class="s-pix w3 round" x1="288.8" y1="280.5" x2="288.8" y2="276.4"/>
+<line class="s-pix w3 round" x1="288.8" y1="276.4" x2="288.8" y2="272.4"/>
+<line class="s-pix w3 round" x1="288.8" y1="272.4" x2="288.8" y2="268.3"/>
+<line class="s-pix w3 round" x1="288.8" y1="268.3" x2="288.8" y2="266.3"/>
+<line class="s-pix w3 round" x1="291.1" y1="265.2" x2="302.3" y2="265.2"/>
+<line class="s-pix w3 round" x1="302.3" y1="265.2" x2="314.5" y2="265.2"/>
+<line class="s-pix w3 round" x1="314.5" y1="265.2" x2="327.9" y2="265.2"/>
+<line class="s-pix w3 round" x1="327.9" y1="265.2" x2="342.6" y2="265.2"/>
+<line class="s-pix w3 round" x1="499.0" y1="310.0" x2="511.5" y2="310.0"/>
+<line class="s-pix w3 round" x1="511.5" y1="310.0" x2="538.6" y2="310.0"/>
+<line class="s-pix w3 round" x1="538.6" y1="310.0" x2="568.9" y2="310.0"/>
+<line class="s-pix w3 round" x1="568.9" y1="310.0" x2="603.0" y2="310.0"/>
+<line class="s-pix w3 round" x1="603.0" y1="310.0" x2="641.7" y2="310.0"/>
+<line class="s-pix w3 round" x1="641.7" y1="310.0" x2="663.0" y2="310.0"/>
+<line class="s-pix w3 round" x1="669.6" y1="306.5" x2="669.6" y2="296.8"/>
+<line class="s-pix w3 round" x1="669.6" y1="296.8" x2="669.6" y2="287.0"/>
+<line class="s-pix w3 round" x1="669.6" y1="287.0" x2="669.6" y2="277.4"/>
+<line class="s-pix w3 round" x1="669.6" y1="277.4" x2="669.6" y2="272.6"/>
+<line class="s-pix w3 round" x1="389.6" y1="225.9" x2="389.6" y2="220.7"/>
+<line class="s-pix w3 round" x1="389.6" y1="220.7" x2="389.6" y2="215.5"/>
+<line class="s-pix w3 round" x1="389.6" y1="215.5" x2="389.6" y2="210.4"/>
+<line class="s-pix w3 round" x1="389.6" y1="210.4" x2="389.6" y2="205.3"/>
+<line class="s-pix w3 round" x1="389.6" y1="205.3" x2="389.6" y2="200.2"/>
+<line class="s-pix w3 round" x1="389.6" y1="200.2" x2="389.6" y2="195.2"/>
+<line class="s-pix w3 round" x1="389.6" y1="195.2" x2="389.6" y2="190.2"/>
+<line class="s-pix w3 round" x1="389.6" y1="190.2" x2="389.6" y2="185.2"/>
+<line class="s-pix w3 round" x1="389.6" y1="185.2" x2="389.6" y2="180.2"/>
+<line class="s-pix w3 round" x1="389.6" y1="180.2" x2="389.6" y2="175.3"/>
+<line class="s-pix w3 round" x1="389.6" y1="175.3" x2="389.6" y2="170.5"/>
+<line class="s-pix w3 round" x1="389.6" y1="170.5" x2="389.6" y2="165.6"/>
+<line class="s-pix w3 round" x1="669.6" y1="152.8" x2="669.6" y2="148.4"/>
+<line class="s-pix w3 round" x1="669.6" y1="148.4" x2="669.6" y2="139.6"/>
+<line class="s-pix w3 round" x1="669.6" y1="139.6" x2="669.6" y2="130.9"/>
+<line class="s-pix w3 round" x1="669.6" y1="130.9" x2="669.6" y2="122.2"/>
+<line class="s-pix w3 round" x1="669.6" y1="122.2" x2="669.6" y2="113.6"/>
+<line class="s-pix w3 round" x1="669.6" y1="113.6" x2="669.6" y2="105.0"/>
+<line class="s-pix w3 round" x1="669.6" y1="105.0" x2="669.6" y2="96.5"/>
+<line class="s-pix w3 round" x1="669.6" y1="96.5" x2="669.6" y2="88.0"/>
+<line class="s-strong dash" x1="53.6" y1="175.6" x2="1683.7" y2="-230.8"/>
+<line class="s-strong dash" x1="53.6" y1="175.6" x2="1377.5" y2="1209.9"/>
+<polygon class="f-ink" points="53.6,175.6 31.0,160.5 26.9,180.2"/>
+<line class="s-acc w2" x1="252.9" y1="309.4" x2="289.5" y2="284.9"/>
+<circle class="f-surface s-acc" cx="266.8" cy="300.1" r="2.6"/>
+<circle class="f-surface s-acc" cx="280.8" cy="290.7" r="2.6"/>
+<circle class="f-acc" cx="289.5" cy="284.9" r="2.6"/>
+<circle class="f-strong s-ink w15" cx="289.5" cy="284.9" r="6.5"/>
+<line class="s-pix w2" x1="499.0" y1="309.4" x2="1271.3" y2="77.4"/>
+<circle class="f-surface s-acc" cx="515.1" cy="304.6" r="2.6"/>
+<circle class="f-surface s-acc" cx="531.2" cy="299.8" r="2.6"/>
+<circle class="f-surface s-acc" cx="547.3" cy="294.9" r="2.6"/>
+<circle class="f-surface s-acc" cx="563.3" cy="290.1" r="2.6"/>
+<circle class="f-surface s-acc" cx="579.4" cy="285.3" r="2.6"/>
+<circle class="f-surface s-acc" cx="595.5" cy="280.4" r="2.6"/>
+<circle class="f-surface s-acc" cx="611.6" cy="275.6" r="2.6"/>
+<circle class="f-surface s-acc" cx="627.7" cy="270.8" r="2.6"/>
+<circle class="f-surface s-acc" cx="643.8" cy="265.9" r="2.6"/>
+<circle class="f-pix" cx="659.9" cy="261.1" r="2.6"/>
+<circle class="f-pix" cx="676.0" cy="256.3" r="2.6"/>
+<circle class="f-pix" cx="692.1" cy="251.4" r="2.6"/>
+<circle class="f-pix" cx="708.1" cy="246.6" r="2.6"/>
+<circle class="f-pix" cx="724.2" cy="241.8" r="2.6"/>
+<circle class="f-pix" cx="740.3" cy="236.9" r="2.6"/>
+<circle class="f-pix" cx="756.4" cy="232.1" r="2.6"/>
+<circle class="f-pix" cx="772.5" cy="227.2" r="2.6"/>
+<circle class="f-pix" cx="788.6" cy="222.4" r="2.6"/>
+<circle class="f-pix" cx="804.7" cy="217.6" r="2.6"/>
+<circle class="f-pix" cx="820.8" cy="212.7" r="2.6"/>
+<circle class="f-pix" cx="836.9" cy="207.9" r="2.6"/>
+<circle class="f-pix" cx="852.9" cy="203.1" r="2.6"/>
+<circle class="f-pix" cx="869.0" cy="198.2" r="2.6"/>
+<circle class="f-pix" cx="885.1" cy="193.4" r="2.6"/>
+<circle class="f-pix" cx="901.2" cy="188.6" r="2.6"/>
+<circle class="f-pix" cx="917.3" cy="183.7" r="2.6"/>
+<circle class="f-pix" cx="933.4" cy="178.9" r="2.6"/>
+<circle class="f-pix" cx="949.5" cy="174.1" r="2.6"/>
+<circle class="f-pix" cx="965.6" cy="169.2" r="2.6"/>
+<circle class="f-pix" cx="981.7" cy="164.4" r="2.6"/>
+<circle class="f-pix" cx="997.7" cy="159.6" r="2.6"/>
+<circle class="f-pix" cx="1013.8" cy="154.7" r="2.6"/>
+<circle class="f-pix" cx="1029.9" cy="149.9" r="2.6"/>
+<circle class="f-pix" cx="1046.0" cy="145.1" r="2.6"/>
+<circle class="f-pix" cx="1062.1" cy="140.2" r="2.6"/>
+<circle class="f-pix" cx="1078.2" cy="135.4" r="2.6"/>
+<circle class="f-pix" cx="1094.3" cy="130.5" r="2.6"/>
+<circle class="f-pix" cx="1110.4" cy="125.7" r="2.6"/>
+<circle class="f-pix" cx="1126.5" cy="120.9" r="2.6"/>
+<circle class="f-pix" cx="1142.6" cy="116.0" r="2.6"/>
+<circle class="f-pix" cx="1158.6" cy="111.2" r="2.6"/>
+<circle class="f-pix" cx="1174.7" cy="106.4" r="2.6"/>
+<circle class="f-pix" cx="1190.8" cy="101.5" r="2.6"/>
+<circle class="f-pix" cx="1206.9" cy="96.7" r="2.6"/>
+<circle class="f-pix" cx="1223.0" cy="91.9" r="2.6"/>
+<circle class="f-pix" cx="1239.1" cy="87.0" r="2.6"/>
+<circle class="f-pix" cx="1255.2" cy="82.2" r="2.6"/>
+<circle class="f-pix" cx="1271.3" cy="77.4" r="2.6"/>
+<line class="s-ink dot-dash" x1="499.0" y1="309.4" x2="669.6" y2="258.2"/>
+<circle class="s-ink w15" cx="669.6" cy="258.2" r="6"/>
+<line class="s-muted w2" x1="553.3" y1="309.4" x2="646.8" y2="21.8"/>
+<circle class="f-surface s-acc" cx="558.5" cy="293.5" r="2.6"/>
+<circle class="f-surface s-acc" cx="563.7" cy="277.5" r="2.6"/>
+<circle class="f-surface s-acc" cx="568.9" cy="261.5" r="2.6"/>
+<circle class="f-pix" cx="574.1" cy="245.5" r="2.6"/>
+<circle class="f-pix" cx="579.3" cy="229.6" r="2.6"/>
+<circle class="f-pix" cx="584.5" cy="213.6" r="2.6"/>
+<circle class="f-pix" cx="589.7" cy="197.6" r="2.6"/>
+<circle class="f-pix" cx="594.8" cy="181.6" r="2.6"/>
+<circle class="f-pix" cx="600.0" cy="165.6" r="2.6"/>
+<circle class="f-surface s-acc" cx="605.2" cy="149.7" r="2.6"/>
+<circle class="f-surface s-acc" cx="610.4" cy="133.7" r="2.6"/>
+<circle class="f-surface s-acc" cx="615.6" cy="117.7" r="2.6"/>
+<circle class="f-surface s-acc" cx="620.8" cy="101.7" r="2.6"/>
+<circle class="f-surface s-acc" cx="626.0" cy="85.8" r="2.6"/>
+<circle class="f-surface s-acc" cx="631.2" cy="69.8" r="2.6"/>
+<circle class="f-surface s-acc" cx="636.4" cy="53.8" r="2.6"/>
+<circle class="f-surface s-acc" cx="641.6" cy="37.8" r="2.6"/>
+</g>
+<rect class="s-strong" x="20" y="30" width="728.0" height="302.4"/>
+<text class="t-small t-muted" x="60.3" y="144.8">camera</text>
+<text class="t-small mid" x="316.8" y="292.1">crate</text>
+<text class="t-small t-muted" x="396.3" y="156.6">banner</text>
+<text class="t-small t-muted mid" x="686.4" y="75.9">wall</text>
+<text class="t-caps" x="277.6" y="49.0">OFF SCREEN</text>
+<text class="t-caps" x="104.0" y="324.0">OFF SCREEN</text>
+<text class="t-strong t-acc" x="238.9" y="326.0">A</text>
+<text class="t-strong t-pix" x="495.0" y="326.0">B</text>
+<text class="t-strong t-muted" x="549.3" y="326.0">C</text>
+<text class="t-small t-pix t-strong" x="529.6" y="251.2">depth buffer</text>
+<text class="t-head t-acc" x="762" y="92">A · hit</text>
+<text class="t-small t-muted" x="762" y="110">lands just behind the</text>
+<text class="t-small t-muted" x="762" y="124">crate's stored surface</text>
+<text class="t-head t-pix" x="762" y="160">B · behind</text>
+<text class="t-small t-muted" x="762" y="178">only the banner is stored</text>
+<text class="t-small t-muted" x="762" y="192">there; the wall it really</text>
+<text class="t-small t-muted" x="762" y="206">hits (circle) is unknown</text>
+<text class="t-head" x="762" y="242">C · off screen</text>
+<text class="t-small t-muted" x="762" y="260">no pixels above the top</text>
+<text class="t-small t-muted" x="762" y="274">edge: a fallback answers</text>
+<circle class="f-surface s-acc" cx="766" cy="310" r="3"/><text class="t-small t-muted" x="774" y="314">read, in front</text>
+<circle class="f-pix" cx="766" cy="328" r="3"/><text class="t-small t-muted" x="774" y="332">read, behind</text>
+</svg>
+              </div>
+              <figcaption><b>Every screen-space effect is this march.</b> The rose line is everything the depth buffer knows: the nearest surface along each pixel's view. A ray is stepped through it, and each step asks one question: is this point behind the stored surface? Ray A gets a good answer. Ray B wanders into space the camera never saw, behind the banner, and the wall it really reaches is not there to find. Ray C leaves the screen, where nothing is known at all. The scene and every dot come from the interactive in section 3.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>By the middle of a frame the renderer has already drawn every visible surface. It knows, for each pixel, how far away that surface is, which way it faces and, a little later, what colour it is once lit. Screen-space effects reuse that picture. To find a reflection, a bounce of light or a small shadow, they follow a ray across the screen and look up the depth buffer at each step, instead of testing the ray against the real triangles of the scene.</p>
+            <p>That is a huge saving. Testing a ray against millions of triangles needs special data structures and, for speed, ray-tracing hardware. Looking up a depth value is one texture read. The price is that the depth buffer is only a photograph. It holds one surface per pixel, seen from one place, inside one frame.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 272" role="img" aria-label="Three small side views of the same floor, red wall and crate. Screen-space reflections: one ray per pixel along the mirror direction of the camera's view, taking the colour of what it hits on the crate. Screen-space global illumination: a fan of seven rays over the half circle; three hit the red wall, two the crate and two leave the screen; their colours are averaged into bounced light. Contact shadows: one short ray towards the sun from each pixel; near the crate it hits, so the pixel is in shadow; further away the short ray finds nothing, so the pixel stays lit.">
+                  <defs>
+                    <marker id="use-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+                  <text class="t-head" x="20" y="24">SSR: reflections</text>
+                  <rect class="f-paint-red s-ink" x="20" y="70" width="18" height="130"/>
+                  <rect class="f-strong s-ink" x="180" y="120" width="70" height="80"/>
+                  <line class="s-ink w2" x1="20" y1="200" x2="280" y2="200"/>
+                  <polygon class="f-ink" points="64,146 52,140 52,152"/>
+                  <line class="s-muted dash" x1="64" y1="146" x2="113" y2="193" marker-end="url(#use-arr)"/>
+                  <line class="s-acc w2" x1="120" y1="200" x2="180" y2="140"/>
+                  <circle class="f-surface s-acc" cx="135" cy="185" r="3"/><circle class="f-surface s-acc" cx="150" cy="170" r="3"/><circle class="f-surface s-acc" cx="165" cy="155" r="3"/>
+                  <circle class="f-strong s-ink w15" cx="180" cy="140" r="6"/>
+                  <circle class="f-acc" cx="120" cy="200" r="5"/>
+                  <text class="t-small t-muted" x="20" y="228">One ray per pixel, the mirror of the view.</text>
+                  <text class="t-small t-muted" x="20" y="244">It takes the colour of what it hits.</text>
+
+                  <text class="t-head" x="320" y="24">SSGI: bounced light</text>
+                  <rect class="f-paint-red s-ink" x="320" y="70" width="18" height="130"/>
+                  <rect class="f-strong s-ink" x="500" y="120" width="70" height="80"/>
+                  <line class="s-ink w2" x1="320" y1="200" x2="590" y2="200"/>
+                  <line class="s-acc w15" x1="430" y1="200" x2="338" y2="167"/>
+                  <line class="s-acc w15" x1="430" y1="200" x2="338" y2="108"/>
+                  <line class="s-acc w15" x1="430" y1="200" x2="353" y2="70"/>
+                  <line class="s-muted w15 dash" x1="430" y1="200" x2="414" y2="50"/>
+                  <line class="s-muted w15 dash" x1="430" y1="200" x2="470" y2="50"/>
+                  <line class="s-acc w15" x1="430" y1="200" x2="500" y2="130"/>
+                  <line class="s-acc w15" x1="430" y1="200" x2="500" y2="175"/>
+                  <circle class="f-paint-red s-ink" cx="338" cy="167" r="4.5"/><circle class="f-paint-red s-ink" cx="338" cy="108" r="4.5"/><circle class="f-paint-red s-ink" cx="353" cy="70" r="4.5"/>
+                  <circle class="f-strong s-ink" cx="500" cy="130" r="4.5"/><circle class="f-strong s-ink" cx="500" cy="175" r="4.5"/>
+                  <rect class="f-lit-soft s-lit" x="408" y="42" width="12" height="12" rx="2"/><rect class="f-lit-soft s-lit" x="464" y="42" width="12" height="12" rx="2"/>
+                  <circle class="f-acc" cx="430" cy="200" r="5"/>
+                  <text class="t-small t-lit" x="484" y="52">off screen: probe</text>
+                  <text class="t-small t-muted" x="320" y="228">Several rays over the half circle; their</text>
+                  <text class="t-small t-muted" x="320" y="244">colours, averaged, are one bounce of light.</text>
+
+                  <text class="t-head" x="620" y="24">Contact shadows</text>
+                  <circle class="f-lit" cx="860" cy="58" r="13"/>
+                  <line class="s-lit dash" x1="842" y1="70" x2="806" y2="94"/>
+                  <rect class="f-strong s-ink" x="780" y="120" width="70" height="80"/>
+                  <line class="s-ink w2" x1="620" y1="200" x2="880" y2="200"/>
+                  <ellipse class="f-shade" fill-opacity="0.35" cx="760" cy="203" rx="22" ry="4"/>
+                  <line class="s-acc w2" x1="756" y1="200" x2="780" y2="184"/>
+                  <circle class="f-surface s-acc" cx="764" cy="195" r="3"/><circle class="f-surface s-acc" cx="772" cy="189" r="3"/>
+                  <circle class="f-pix" cx="780" cy="184" r="4"/>
+                  <circle class="f-acc" cx="756" cy="200" r="5"/>
+                  <line class="s-acc w2" x1="660" y1="200" x2="702" y2="172"/>
+                  <circle class="f-surface s-acc" cx="674" cy="191" r="3"/><circle class="f-surface s-acc" cx="688" cy="181" r="3"/><circle class="f-surface s-acc" cx="702" cy="172" r="3"/>
+                  <circle class="f-acc" cx="660" cy="200" r="5"/>
+                  <text class="t-small" x="640" y="160">nothing hit: lit</text>
+                  <text class="t-small" x="704" y="226">hit: in shadow</text>
+                  <text class="t-small t-muted" x="620" y="244">One short ray towards the light.</text>
+                  <text class="t-small t-muted" x="620" y="260">Any hit means the pixel is shadowed.</text>
+                </svg>
+              </div>
+              <figcaption><b>One march, three uses.</b> The stepping is identical in all three; what changes is where the rays point, how many there are and what is done with the answer. SSR wants a colour along one direction. SSGI wants the average colour over many directions. Contact shadows only want to know whether anything is in the way.</figcaption>
+            </figure>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>Imagine finding your way around a town using only a single photograph taken from one street corner. You can trace a line across the picture and see which building front it reaches. You cannot see the yard behind the first row of houses, anything outside the edges of the photo, or the back of any building.</p>
+                <p>For most questions the photo is good enough, and it is far quicker than walking every street.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Reflections, bounced light and fine contact shadows all need to know what a ray from each pixel meets. Answering that against the real scene is the job of <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a>, which is expensive. Screen-space tracing answers it from data the frame already has, for a few milliseconds, on any GPU.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Screen-space effects are in nearly every shipped game, often on top of baked or real-time GI. Their failures are among the most familiar visual bugs: reflections that vanish when the camera tilts down, smears behind characters, lighting that changes as the camera moves. All of them come from four blind spots. Knowing them lets you tell an unavoidable limit from a fixable bug, and decide what the fallback should be.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>The steps below follow one ray from start to finish: marching, deciding what counts as a hit, going faster with Hi-Z, failing, and handing over to something that can answer instead.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="marching"><span class="step-num">1</span> Marching a ray through the depth buffer</h3>
+              <p><dfn class="term" data-term="ray-marching">Ray marching</dfn> means following a ray in steps and testing each step. In screen space each test has three parts. Move the point a little further along the ray. Project it onto the screen to find which pixel it falls in and how deep it is. Compare that depth with the one the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a> stores for the pixel. Nearer than the stored surface means the ray is still in open air; further means it has gone behind something.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="A zoomed side view of ray A from the previous figure, leaving the floor towards the crate, with the camera ray through each sample drawn faintly. Beside it, a table of the three reads: at steps one and two the ray is nearer than the stored depth, so it is in front; at step three it is 0.11 metres behind the crate's stored surface, within the thickness, so it is a hit. Five halving steps then pin the crossing down.">
+<defs><clipPath id="mt-clip"><rect x="20" y="34" width="273.0" height="145.6"/></clipPath></defs>
+<g clip-path="url(#mt-clip)">
+<rect class="f-surface" x="20" y="34" width="273.0" height="145.6"/>
+<rect class="f-solid" x="20" y="164.0" width="273.0" height="26.0"/>
+<rect class="f-strong s-ink" x="182.5" y="60.0" width="130.0" height="104.0"/>
+<line class="s-ink" x1="20" y1="164.0" x2="293.0" y2="164.0"/>
+<line class="s-line" x1="-542.1" y1="-252.2" x2="300.0" y2="239.3"/>
+<line class="s-line" x1="-531.9" y1="-233.3" x2="337.9" y2="207.3"/>
+<line class="s-line" x1="-518.0" y1="-215.8" x2="374.9" y2="175.8"/>
+<circle class="f-pix" cx="173.8" cy="164.0" r="4"/>
+<circle class="f-pix" cx="182.5" cy="129.4" r="4"/>
+<circle class="f-pix" cx="182.5" cy="90.8" r="4"/>
+<line class="s-acc w2" x1="99.2" y1="162.7" x2="196.3" y2="97.5"/>
+<circle class="f-surface s-acc w15" cx="131.5" cy="141.0" r="5"/>
+<text class="t-small t-strong" x="138.5" y="156.0">1</text>
+<circle class="f-surface s-acc w15" cx="163.9" cy="119.2" r="5"/>
+<text class="t-small t-strong" x="170.9" y="134.2">2</text>
+<circle class="f-acc" cx="196.3" cy="97.5" r="5"/>
+<text class="t-small t-strong" x="203.3" y="112.5">3</text>
+</g>
+<rect class="s-strong" x="20" y="34" width="273.0" height="145.6"/>
+<text class="t-caps" x="20" y="22">RAY A, ZOOMED IN · 0.3 M STEPS</text>
+<text class="t-small t-muted" x="20" y="197.6">faint lines: the camera ray through each step</text>
+<text class="t-small t-pix" x="20" y="213.6">rose dots: the surface stored for that pixel</text>
+<text class="t-small mid" x="247.5" y="112.0">crate</text>
+<text class="t-small t-strong" x="95.2" y="179.0">P</text>
+<text class="t-caps" x="330" y="60">STEP</text>
+<text class="t-caps" x="390" y="60">PIXEL</text>
+<text class="t-caps" x="480" y="60">RAY DEPTH</text>
+<text class="t-caps" x="600" y="60">STORED DEPTH</text>
+<text class="t-caps" x="720" y="60">VERDICT</text>
+<line class="s-line" x1="330" y1="68" x2="880" y2="68"/>
+<text class="t-mono" x="330" y="92">1</text>
+<text class="t-mono" x="390" y="92">10</text>
+<text class="t-mono" x="480" y="92">4.19 m</text>
+<text class="t-mono" x="600" y="92">4.54 m</text>
+<text class="" x="720" y="92">in front by 0.35 m</text>
+<text class="t-mono" x="330" y="118">2</text>
+<text class="t-mono" x="390" y="118">14</text>
+<text class="t-mono" x="480" y="118">4.40 m</text>
+<text class="t-mono" x="600" y="118">4.55 m</text>
+<text class="" x="720" y="118">in front by 0.16 m</text>
+<text class="t-mono" x="330" y="144">3</text>
+<text class="t-mono" x="390" y="144">18</text>
+<text class="t-mono" x="480" y="144">4.60 m</text>
+<text class="t-mono" x="600" y="144">4.49 m</text>
+<text class="t-acc t-strong" x="720" y="144">behind by 0.11 m: hit</text>
+<line class="s-line" x1="330" y1="162" x2="880" y2="162"/>
+<text class="t-small t-muted" x="330" y="180">Step 3 is less than the 0.5 m thickness behind the stored surface, so it counts as a hit.</text>
+<text class="t-small t-muted" x="330" y="196">Five halving steps between steps 2 and 3 then find the crossing: 8 reads in all, against 12 pixels crossed.</text>
+<text class="t-small t-muted" x="330" y="212">Depths are distances along the camera's view axis, as the depth buffer stores them.</text>
+</svg>
+                </div>
+                <figcaption><b>Three reads, three comparisons.</b> Ray A from the picture, zoomed in. The ray never touches the crate's triangles: each step only compares two numbers. The first step that lands behind the stored surface, by less than the thickness the tracer allows, is the hit. Real tracers then halve the last step a few times to place the hit precisely, as the courtyard's SSR does with five halving steps (7.6).</figcaption>
+              </figure>
+              <p>The answer at a hit is the pixel itself. Its colour in the lit image becomes the reflection or the bounce, and its position tells the effect how far the ray went. <a class="term" data-term="ssr" href="glossary.html#ssr">SSR</a>, introduced in <a class="xref" data-ch="7.6">7.6 Reflections</a>, is this march along the mirror direction. The rest of this chapter is about what goes wrong with it, and what else uses it.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="thickness"><span class="step-num">2</span> Step length and thickness: two guesses</h3>
+              <p>Two settings decide whether a march finds the right surface. The step length decides how often the ray is tested. The thickness decides how far behind a stored surface a step may land and still count as hitting it. Both are guesses about the scene, because the depth buffer records where each surface starts and nothing about how deep it is.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Three side views, each with the camera off to the left. Left: steps too long. A thin plank floats in the air; the ray's steps land just before and just after it, both in open air, so the march jumps over the plank. Middle: thickness too small. A solid crate has only a thin rose band behind its front face counted as solid; a step lands inside the crate beyond the band, so the march decides it passed behind and carries on through the crate. Right: thickness too large. A thin banner has a deep rose band behind it; a ray passing well behind the banner lands in the band and is wrongly reported as hitting the banner.">
+                    <defs>
+                      <marker id="th-cam" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-head" x="20" y="24">Steps too long</text>
+                    <line class="s-muted" x1="20" y1="44" x2="62" y2="44" marker-end="url(#th-cam)"/>
+                    <text class="t-small t-muted" x="68" y="48">camera looks this way</text>
+                    <line class="s-ink w2" x1="20" y1="210" x2="280" y2="210"/>
+                    <rect class="f-solid s-ink" x="160" y="118" width="9" height="56"/>
+                    <rect class="f-pix-soft" x="169" y="118" width="14" height="56"/>
+                    <line class="s-pix w2" x1="160" y1="118" x2="160" y2="174"/>
+                    <line class="s-acc w2" x1="60" y1="210" x2="250" y2="90"/>
+                    <circle class="f-surface s-acc w15" cx="92" cy="190" r="4"/>
+                    <circle class="f-surface s-acc w15" cx="150" cy="153" r="4"/>
+                    <circle class="f-surface s-acc w15" cx="208" cy="116" r="4"/>
+                    <circle class="f-acc" cx="60" cy="210" r="5"/>
+                    <text class="t-small t-pix" x="186" y="150">plank</text>
+                    <text class="t-small t-muted" x="20" y="236">Both steps either side of the plank are</text>
+                    <text class="t-small t-muted" x="20" y="252">in open air, so it is skipped.</text>
+
+                    <text class="t-head" x="320" y="24">Thickness too small</text>
+                    <line class="s-ink w2" x1="320" y1="210" x2="580" y2="210"/>
+                    <rect class="f-strong s-ink" x="440" y="110" width="110" height="100"/>
+                    <rect class="f-pix-soft" x="440" y="110" width="16" height="100"/>
+                    <line class="s-pix w2" x1="440" y1="110" x2="440" y2="210"/>
+                    <line class="s-acc w2" x1="360" y1="210" x2="470" y2="150"/>
+                    <line class="s-pix w2 dash" x1="470" y1="150" x2="570" y2="95"/>
+                    <circle class="f-surface s-acc w15" cx="398" cy="189" r="4"/>
+                    <circle class="f-pix" cx="470" cy="150" r="4.5"/>
+                    <circle class="f-acc" cx="360" cy="210" r="5"/>
+                    <text class="t-small t-pix" x="460" y="128">band: 0.2 m</text>
+                    <text class="t-small t-muted" x="320" y="236">The step is inside the crate but past the</text>
+                    <text class="t-small t-muted" x="320" y="252">band: "behind it", so the ray tunnels on.</text>
+
+                    <text class="t-head" x="620" y="24">Thickness too large</text>
+                    <line class="s-ink w2" x1="620" y1="210" x2="880" y2="210"/>
+                    <rect class="f-paint-red s-ink" x="700" y="70" width="6" height="70"/>
+                    <rect class="f-pix-soft" x="706" y="70" width="120" height="70"/>
+                    <line class="s-pix w2" x1="700" y1="70" x2="700" y2="140"/>
+                    <rect class="f-solid s-ink" x="862" y="60" width="18" height="150"/>
+                    <line class="s-ink dot-dash" x1="660" y1="210" x2="862" y2="98"/>
+                    <line class="s-acc w2" x1="660" y1="210" x2="768" y2="150"/>
+                    <circle class="f-surface s-acc w15" cx="714" cy="180" r="4"/>
+                    <circle class="f-pix" cx="768" cy="150" r="4.5"/>
+                    <circle class="s-ink w15" cx="862" cy="98" r="5"/>
+                    <circle class="f-acc" cx="660" cy="210" r="5"/>
+                    <text class="t-small t-pix" x="740" y="64">band: 2 m</text>
+                    <text class="t-small" x="790" y="182">really goes on</text>
+                    <text class="t-small" x="790" y="196">to the wall</text>
+                    <text class="t-small t-muted" x="620" y="236">The step lands in the band behind the</text>
+                    <text class="t-small t-muted" x="620" y="252">banner: a false hit on the banner.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Every setting trades one wrong answer for another.</b> The rose band is what the tracer treats as solid behind each surface it can see. Long steps skip thin objects. A thin band lets rays tunnel through solid ones; a deep band stops rays that should pass behind thin ones. Lumen's authors show exactly the first problem, linear steps skipping tables, doors and walkways, and use the Hi-Z walk of step 3 instead.</figcaption>
+              </figure>
+              <p>The guess about depth is the same <a class="term" data-term="thickness-heuristic" href="glossary.html#thickness-heuristic">thickness heuristic</a> that screen-space AO uses to avoid dark halos (<a class="xref" data-ch="8.3">8.3</a>). Engines expose it under different names: HDRP's SSR has <strong>Object Thickness</strong>, its SSGI has <strong>Depth Tolerance</strong>, Godot's SSR has <strong>Depth Tolerance</strong> (default 0.5). McGuire and Mara's widely used tracer gives every depth-buffer sample a thickness and recommends matching it to the objects in the scene.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="hi-z"><span class="step-num">3</span> Hi-Z: skipping empty space</h3>
+              <p>A ray across a 1080p screen can cross hundreds of pixels. Reading every one is slow, and skipping some misses thin things. <dfn class="term" data-term="hi-z-tracing">Hi-Z tracing</dfn> gets both speed and accuracy from a depth pyramid: the chain of ever smaller copies of the depth buffer you met in <a class="term" data-term="hi-z" href="glossary.html#hi-z">Hi-Z occlusion culling</a> (4.4), built so that each texel keeps the <em>nearest</em> depth of the texels below it. Culling keeps the farthest, because it asks whether an object is hidden; tracing keeps the nearest, because it asks whether a ray could hit anything.</p>
+              <p>The walk is simple. If the ray stays nearer than a cell's nearest surface all the way across the cell, nothing in that cell can stop it, so the ray jumps to the cell's far edge and moves up to a coarser mip, with bigger cells. If the ray reaches that nearest depth inside the cell, it moves to that point and drops to a finer mip. At the finest mip, one pixel, it applies the thickness test. Epic describes Lumen's screen traces as "a stackless walk of the Closest HZB mips", citing Uludag's 2014 method; AMD's FidelityFX SSSR walks a mip chain the same way.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 376" role="img" aria-label="A plot with screen position across and distance from the camera down the page. The depth buffer is a rose stepped line. The ray from the floor climbs across the screen towards the banner, drawn as a blue curve. Hi-Z reads are bars at the nearest depth of the cell read: short bars are single pixels, long bars are cells of 2 to 16 pixels from coarser mips. The ray skips whole cells while it stays nearer than their nearest surface, and drops to finer mips near the crate and the banner. It finds the banner in 17 reads; a march that read every pixel would need 44.">
+<text class="t-caps" x="70" y="20">HI-Z: ONE RAY ACROSS THE SCREEN, DEPTH DOWNWARDS</text>
+<rect class="f-sunken" x="70" y="44" width="760" height="230"/>
+<line class="s-line" x1="70" y1="69.0" x2="830" y2="69.0"/>
+<text class="t-mono t-muted t-small end" x="64" y="73.0">4 m</text>
+<line class="s-line" x1="70" y1="119.0" x2="830" y2="119.0"/>
+<text class="t-mono t-muted t-small end" x="64" y="123.0">6 m</text>
+<line class="s-line" x1="70" y1="169.0" x2="830" y2="169.0"/>
+<text class="t-mono t-muted t-small end" x="64" y="173.0">8 m</text>
+<line class="s-line" x1="70" y1="219.0" x2="830" y2="219.0"/>
+<text class="t-mono t-muted t-small end" x="64" y="223.0">10 m</text>
+<line class="s-line" x1="70" y1="269.0" x2="830" y2="269.0"/>
+<text class="t-mono t-muted t-small end" x="64" y="273.0">12 m</text>
+<text class="t-small t-muted" x="8" y="52">near</text>
+<text class="t-small t-muted" x="8" y="274">far</text>
+<path class="s-pix w2" d="M70.0,57.6 L81.9,57.6 L81.9,59.5 L93.8,59.5 L93.8,61.6 L105.6,61.6 L105.6,63.8 L117.5,63.8 L117.5,66.1 L129.4,66.1 L129.4,68.5 L141.3,68.5 L141.3,71.0 L153.1,71.0 L153.1,73.7 L165.0,73.7 L165.0,76.5 L176.9,76.5 L176.9,79.4 L188.8,79.4 L188.8,82.5 L200.6,82.5 L200.6,84.0 L212.5,84.0 L212.5,83.6 L224.4,83.6 L224.4,83.2 L236.3,83.2 L236.3,82.8 L248.1,82.8 L248.1,82.4 L260.0,82.4 L260.0,82.0 L271.9,82.0 L271.9,81.6 L283.8,81.6 L283.8,81.3 L295.6,81.3 L295.6,80.9 L307.5,80.9 L307.5,80.5 L319.4,80.5 L319.4,80.1 L331.3,80.1 L331.3,83.4 L343.1,83.4 L343.1,88.5 L355.0,88.5 L355.0,94.1 L366.9,94.1 L366.9,100.2 L378.8,100.2 L378.8,176.0 L390.6,176.0 L390.6,187.2 L402.5,187.2 L402.5,199.7 L414.4,199.7 L414.4,213.7 L426.3,213.7 L426.3,229.6 L438.1,229.6 L438.1,247.6 L450.0,247.6 L450.0,249.7 L461.9,249.7 L461.9,248.8 L473.8,248.8 L473.8,247.9 L485.6,247.9 L485.6,247.0 L497.5,247.0 L497.5,120.1 L509.4,120.1 L509.4,119.7 L521.3,119.7 L521.3,119.2 L533.1,119.2 L533.1,118.7 L545.0,118.7 L545.0,118.2 L556.9,118.2 L556.9,117.8 L568.8,117.8 L568.8,117.3 L580.6,117.3 L580.6,116.8 L592.5,116.8 L592.5,116.4 L604.4,116.4 L604.4,115.9 L616.3,115.9 L616.3,115.5 L628.1,115.5 L628.1,115.0 L640.0,115.0 L640.0,235.9 L651.9,235.9 L651.9,235.1 L663.8,235.1 L663.8,234.2 L675.6,234.2 L675.6,233.4 L687.5,233.4 L687.5,232.6 L699.4,232.6 L699.4,231.8 L711.3,231.8 L711.3,231.0 L723.1,231.0 L723.1,230.3 L735.0,230.3 L735.0,274.0 L746.9,274.0 L746.9,274.0 L758.8,274.0 L758.8,274.0 L770.6,274.0 L770.6,274.0 L782.5,274.0 L782.5,274.0 L794.4,274.0 L794.4,274.0 L806.3,274.0 L806.3,274.0 L818.1,274.0 L818.1,274.0 L830.0,274.0 "/>
+<path class="s-acc w15" d="M82.6,57.8 L84.9,58.0 L87.2,58.2 L89.5,58.3 L91.9,58.5 L94.2,58.6 L96.4,58.8 L98.7,59.0 L101.0,59.1 L103.3,59.3 L105.5,59.5 L107.8,59.6 L110.0,59.8 L112.3,59.9 L114.5,60.1 L116.7,60.3 L118.9,60.4 L121.1,60.6 L123.3,60.7 L125.5,60.9 L127.7,61.1 L129.9,61.2 L132.0,61.4 L134.2,61.6 L136.4,61.7 L138.5,61.9 L140.6,62.0 L142.8,62.2 L144.9,62.4 L147.0,62.5 L149.1,62.7 L151.2,62.9 L153.3,63.0 L155.4,63.2 L157.5,63.3 L159.5,63.5 L161.6,63.7 L163.6,63.8 L165.7,64.0 L167.7,64.2 L169.8,64.3 L171.8,64.5 L173.8,64.6 L175.8,64.8 L177.8,65.0 L179.8,65.1 L181.8,65.3 L183.8,65.5 L185.8,65.6 L187.8,65.8 L189.7,65.9 L191.7,66.1 L193.7,66.3 L195.6,66.4 L197.5,66.6 L199.5,66.8 L201.4,66.9 L203.3,67.1 L205.2,67.2 L207.2,67.4 L209.1,67.6 L211.0,67.7 L212.8,67.9 L214.7,68.1 L216.6,68.2 L218.5,68.4 L220.3,68.5 L222.2,68.7 L224.1,68.9 L225.9,69.0 L227.8,69.2 L229.6,69.3 L231.4,69.5 L233.2,69.7 L235.1,69.8 L236.9,70.0 L238.7,70.2 L240.5,70.3 L242.3,70.5 L244.1,70.6 L245.8,70.8 L247.6,71.0 L249.4,71.1 L251.2,71.3 L252.9,71.5 L254.7,71.6 L256.4,71.8 L258.2,71.9 L259.9,72.1 L261.7,72.3 L263.4,72.4 L265.1,72.6 L266.8,72.8 L268.5,72.9 L270.2,73.1 L271.9,73.2 L273.6,73.4 L275.3,73.6 L277.0,73.7 L278.7,73.9 L280.4,74.1 L282.0,74.2 L283.7,74.4 L285.4,74.5 L287.0,74.7 L288.7,74.9 L290.3,75.0 L291.9,75.2 L293.6,75.4 L295.2,75.5 L296.8,75.7 L298.5,75.8 L300.1,76.0 L301.7,76.2 L303.3,76.3 L304.9,76.5 L306.5,76.7 L308.1,76.8 L309.7,77.0 L311.2,77.1 L312.8,77.3 L314.4,77.5 L316.0,77.6 L317.5,77.8 L319.1,77.9 L320.6,78.1 L322.2,78.3 L323.7,78.4 L325.3,78.6 L326.8,78.8 L328.3,78.9 L329.8,79.1 L331.4,79.2 L332.9,79.4 L334.4,79.6 L335.9,79.7 L337.4,79.9 L338.9,80.1 L340.4,80.2 L341.9,80.4 L343.4,80.5 L344.9,80.7 L346.3,80.9 L347.8,81.0 L349.3,81.2 L350.7,81.4 L352.2,81.5 L353.7,81.7 L355.1,81.8 L356.6,82.0 L358.0,82.2 L359.4,82.3 L360.9,82.5 L362.3,82.7 L363.7,82.8 L365.1,83.0 L366.6,83.1 L368.0,83.3 L369.4,83.5 L370.8,83.6 L372.2,83.8 L373.6,84.0 L375.0,84.1 L376.4,84.3 L377.8,84.4 L379.2,84.6 L380.5,84.8 L381.9,84.9 L383.3,85.1 L384.7,85.3 L386.0,85.4 L387.4,85.6 L388.7,85.7 L390.1,85.9 L391.4,86.1 L392.8,86.2 L394.1,86.4 L395.5,86.5 L396.8,86.7 L398.1,86.9 L399.4,87.0 L400.8,87.2 L402.1,87.4 L403.4,87.5 L404.7,87.7 L406.0,87.8 L407.3,88.0 L408.6,88.2 L409.9,88.3 L411.2,88.5 L412.5,88.7 L413.8,88.8 L415.1,89.0 L416.4,89.1 L417.6,89.3 L418.9,89.5 L420.2,89.6 L421.5,89.8 L422.7,90.0 L424.0,90.1 L425.2,90.3 L426.5,90.4 L427.7,90.6 L429.0,90.8 L430.2,90.9 L431.5,91.1 L432.7,91.3 L433.9,91.4 L435.2,91.6 L436.4,91.7 L437.6,91.9 L438.8,92.1 L440.1,92.2 L441.3,92.4 L442.5,92.6 L443.7,92.7 L444.9,92.9 L446.1,93.0 L447.3,93.2 L448.5,93.4 L449.7,93.5 L450.9,93.7 L452.1,93.9 L453.2,94.0 L454.4,94.2 L455.6,94.3 L456.8,94.5 L457.9,94.7 L459.1,94.8 L460.3,95.0 L461.4,95.1 L462.6,95.3 L463.7,95.5 L464.9,95.6 L466.0,95.8 L467.2,96.0 L468.3,96.1 L469.5,96.3 L470.6,96.4 L471.8,96.6 L472.9,96.8 L474.0,96.9 L475.1,97.1 L476.3,97.3 L477.4,97.4 L478.5,97.6 L479.6,97.7 L480.7,97.9 L481.8,98.1 L482.9,98.2 L484.0,98.4 L485.2,98.6 L486.2,98.7 L487.3,98.9 L488.4,99.0 L489.5,99.2 L490.6,99.4 L491.7,99.5 L492.8,99.7 L493.9,99.9 L494.9,100.0 L496.0,100.2 L497.1,100.3 L498.2,100.5 L499.2,100.7 L500.3,100.8 L501.3,101.0 L502.4,101.2 L503.5,101.3 L504.5,101.5 L505.6,101.6 L506.6,101.8 L507.7,102.0 L508.7,102.1 L509.7,102.3 L510.8,102.5 L511.8,102.6 L512.8,102.8 L513.9,102.9 L514.9,103.1 L515.9,103.3 L516.9,103.4 L518.0,103.6 L519.0,103.7 L520.0,103.9 L521.0,104.1 L522.0,104.2 L523.0,104.4 L524.0,104.6 L525.0,104.7 L526.0,104.9 L527.0,105.0 L528.0,105.2 L529.0,105.4 L530.0,105.5 L531.0,105.7 L532.0,105.9 L533.0,106.0 L534.0,106.2 L534.9,106.3 L535.9,106.5 L536.9,106.7 L537.9,106.8 L538.8,107.0 L539.8,107.2 L540.8,107.3 L541.7,107.5 L542.7,107.6 L543.7,107.8 L544.6,108.0 L545.6,108.1 L546.5,108.3 L547.5,108.5 L548.4,108.6 L549.4,108.8 L550.3,108.9 L551.3,109.1 L552.2,109.3 L553.1,109.4 L554.1,109.6 L555.0,109.8 L555.9,109.9 L556.9,110.1 L557.8,110.2 L558.7,110.4 L559.6,110.6 L560.5,110.7 L561.5,110.9 L562.4,111.1 L563.3,111.2 L564.2,111.4 L565.1,111.5 L566.0,111.7 L566.9,111.9 L567.8,112.0 L568.7,112.2 L569.6,112.3 L570.5,112.5 L571.4,112.7 L572.3,112.8 L573.2,113.0 L574.1,113.2 L575.0,113.3 L575.9,113.5 L576.8,113.6 L577.6,113.8 L578.5,114.0 L579.4,114.1 L580.3,114.3 L581.1,114.5 L582.0,114.6 L582.9,114.8 L583.7,114.9 L584.6,115.1 L585.5,115.3 L586.3,115.4 L587.2,115.6 L588.1,115.8 L588.9,115.9 L589.8,116.1 L590.6,116.2 L591.5,116.4 L592.3,116.6 "/>
+<line class="s-acc w3" x1="82.9" y1="59.5" x2="92.8" y2="59.5"/>
+<line class="s-acc w3" x1="94.8" y1="61.6" x2="116.5" y2="61.6"/>
+<line class="s-acc w3" x1="118.5" y1="66.1" x2="164.0" y2="66.1"/>
+<line class="s-acc w3" x1="166.0" y1="76.5" x2="259.0" y2="76.5"/>
+<line class="s-muted w3" x1="261.0" y1="80.1" x2="449.0" y2="80.1"/>
+<line class="s-muted w3" x1="261.0" y1="80.1" x2="354.0" y2="80.1"/>
+<line class="s-muted w3" x1="308.5" y1="80.1" x2="354.0" y2="80.1"/>
+<line class="s-acc w3" x1="332.3" y1="83.4" x2="354.0" y2="83.4"/>
+<line class="s-acc w3" x1="356.0" y1="94.1" x2="401.5" y2="94.1"/>
+<line class="s-acc w3" x1="356.0" y1="94.1" x2="449.0" y2="94.1"/>
+<line class="s-muted w3" x1="451.0" y1="115.0" x2="639.0" y2="115.0"/>
+<line class="s-muted w3" x1="546.0" y1="115.0" x2="639.0" y2="115.0"/>
+<line class="s-acc w3" x1="546.0" y1="116.8" x2="591.5" y2="116.8"/>
+<line class="s-muted w3" x1="546.0" y1="115.0" x2="639.0" y2="115.0"/>
+<line class="s-muted w3" x1="593.5" y1="115.0" x2="639.0" y2="115.0"/>
+<line class="s-muted w3" x1="593.5" y1="115.9" x2="615.3" y2="115.9"/>
+<line class="s-acc w3" x1="593.5" y1="116.4" x2="603.4" y2="116.4"/>
+<circle class="f-acc" cx="592.5" cy="116.6" r="5"/>
+<rect class="s-strong" x="70" y="44" width="760" height="230"/>
+<text class="t-small t-muted" x="70" y="290">← bottom of the screen</text>
+<text class="t-small t-muted end" x="830" y="290">top of the screen →</text>
+<text class="t-small t-pix t-strong" x="93.8" y="85.0">floor</text>
+<text class="t-small t-pix t-strong" x="212.5" y="111.5">crate</text>
+<text class="t-small t-pix t-strong" x="390.6" y="212.5">floor beyond</text>
+<text class="t-small t-pix t-strong" x="454.8" y="265.0">wall</text>
+<text class="t-small t-pix t-strong" x="521.3" y="146.5">banner</text>
+<text class="t-small t-pix t-strong" x="651.9" y="250.0">wall</text>
+<text class="t-small t-pix t-strong" x="752.8" y="268.0">sky</text>
+<line class="s-acc w3" x1="70" y1="318" x2="96" y2="318"/><text class="t-small" x="102" y="322">read, ray in front of the cell's nearest surface: skip the cell, climb a mip</text>
+<line class="s-muted w3" x1="70" y1="338" x2="96" y2="338"/><text class="t-small" x="102" y="342">read, ray reaches that depth inside the cell: drop to a finer mip</text>
+<text class="t-head t-acc end" x="830" y="322">17 reads</text>
+<text class="t-small t-muted end" x="830" y="340">every pixel crossed: 44 reads</text>
+<text class="t-small t-muted" x="70" y="366">Reads per mip, 0 (single pixels) to 4 (16 pixels): 2, 3, 5, 5, 2.</text>
+</svg>
+                </div>
+                <figcaption><b>Big cells over empty space, single pixels near surfaces.</b> The same scene as the picture, laid out as the march sees it: screen position across, distance from the camera downwards. Each bar is one read, at the nearest depth of the cell read. Over the open floor the ray clears cells of 1, 2, 4 and then 8 pixels in four reads. Where a 16-pixel cell holds something nearer, first the crate's edge and then the banner, it drops back down until it reaches single pixels. Because it never steps past a surface, it cannot skip a thin one.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The lab's depth buffer is one column of 64 pixels, so each pyramid level halves one dimension. A real pyramid halves both, and a real screen is over a thousand pixels tall, so the saving grows: each extra level doubles the stride in both directions. Hi-Z cannot help once a ray is behind a surface, though; there it has to go pixel by pixel until the ray comes out again or gives up.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="lab"><span class="step-num">4</span> Try it: the screen ray lab</h3>
+              <p>The lab is the scene from the picture. Drag P to any visible surface and it fires the reflection SSR would trace from there, or nine SSGI rays. The rose band shows the thickness. The strip underneath is the depth buffer and its pyramid, with the cells each ray reads outlined. The readout compares the result with the truth, the same ray cast against the real boxes.</p>
+              <figure>
+                <div class="demo" data-demo="screen-ray-lab">
+                  <p class="demo-hint">The screen ray lab needs JavaScript. It marches reflection and bounce rays through a 64-pixel depth buffer of a floor, a crate, a thin banner and a wall, with linear or Hi-Z stepping, and compares each result with the real scene.</p>
+                </div>
+                <figcaption><b>Screen ray lab.</b> It opens on a floor point whose reflection really hits the wall behind the banner. The depth buffer has only the banner there, so the march passes behind it and gives up, and the reflection comes from the fallback. Use the buttons to see a clean hit, the thickness trade-off and a ray that leaves the screen.</figcaption>
+              </figure>
+              <ul>
+                <li>Pick <strong>Thick or thin?</strong>. With a 2.5 m thickness the reflection off the crate top shows the red banner; the ray really passes under it. Lower the thickness to 0.5 m and the reflection finds the wall.</li>
+                <li>Switch to <strong>Hi-Z</strong> and watch the outlined cells: wide ones over open space, narrow ones near surfaces. Compare the three read counts.</li>
+                <li>Choose <strong>Bounce, 9 rays</strong> on the floor. Most rays that climb steeply leave the top of the screen. That is why SSGI on its own cannot light a room.</li>
+                <li>Drag P onto the banner. Its reflection points back towards the camera, which can never see what is behind it.</li>
+              </ul>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="blind-spots"><span class="step-num">5</span> The four blind spots</h3>
+              <p>Every failure of a screen-space effect comes down to one of four gaps in the depth buffer. The lab shows all four.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Four small side views. Behind objects: a pillar hides a region from the camera, hatched in rose; a ray heading into it towards a ball behind the pillar finds only the pillar's stored front. Off screen: a ray leaves the camera's frustum, where there are no pixels to read. Thin objects: a thin pole with a band of assumed thickness behind it; whether a ray passing behind it counts as a hit depends on that guess. Back faces: a ray from the far side of a crate truly hits its back face, which the camera never drew; the depth buffer only has the front face, with the front's colour.">
+                    <defs>
+                      <pattern id="bs-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="s-pix" x1="0" y1="0" x2="0" y2="6" stroke-width="1.2"/></pattern>
+                    </defs>
+                    <text class="t-head" x="12" y="24">1 · Behind objects</text>
+                    <polygon class="f-ink" points="30,90 18,84 18,96"/>
+                    <polygon fill="url(#bs-hatch)" points="96,62 96,200 205,200 205,40"/>
+                    <rect class="f-solid s-ink" x="84" y="62" width="12" height="138"/>
+                    <line class="s-pix w2" x1="84" y1="62" x2="84" y2="200"/>
+                    <line class="s-muted dash" x1="30" y1="90" x2="84" y2="70"/>
+                    <line class="s-muted dash" x1="30" y1="90" x2="84" y2="190"/>
+                    <circle class="f-solid s-ink" cx="150" cy="184" r="16"/>
+                    <line class="s-ink w2" x1="12" y1="200" x2="215" y2="200"/>
+                    <line class="s-acc w2" x1="196" y1="200" x2="150" y2="168"/>
+                    <circle class="f-pix" cx="172" cy="183" r="3.5"/>
+                    <text class="t-strong t-pix" x="128" y="140">?</text>
+                    <text class="t-small t-muted" x="12" y="228">Whatever the camera cannot see</text>
+                    <text class="t-small t-muted" x="12" y="244">is missing: the ball is not stored.</text>
+
+                    <text class="t-head" x="238" y="24">2 · Off screen</text>
+                    <polygon class="f-sunken" points="252,150 440,42 440,34 238,34 238,150"/>
+                    <polygon class="f-sunken" points="252,150 339,200 238,200 238,150"/>
+                    <line class="s-strong dash" x1="252" y1="150" x2="440" y2="42"/>
+                    <line class="s-strong dash" x1="252" y1="150" x2="339" y2="200"/>
+                    <polygon class="f-ink" points="252,150 240,144 240,156"/>
+                    <line class="s-ink w2" x1="238" y1="200" x2="440" y2="200"/>
+                    <line class="s-acc w2" x1="360" y1="200" x2="411" y2="59"/>
+                    <line class="s-muted w2 dash" x1="411" y1="59" x2="421" y2="31"/>
+                    <circle class="f-surface s-acc w15" cx="372" cy="167" r="3.5"/><circle class="f-surface s-acc w15" cx="384" cy="134" r="3.5"/><circle class="f-surface s-acc w15" cx="396" cy="101" r="3.5"/>
+                    <rect class="f-lit-soft s-lit" x="415" y="16" width="12" height="12" rx="2"/>
+                    <circle class="f-acc" cx="360" cy="200" r="5"/>
+                    <text class="t-caps" x="262" y="62">OFF SCREEN</text>
+                    <text class="t-small t-lit" x="356" y="26">probe</text>
+                    <text class="t-small t-muted" x="238" y="228">No pixels outside the frame, and</text>
+                    <text class="t-small t-muted" x="238" y="244">nothing behind the camera.</text>
+
+                    <text class="t-head" x="464" y="24">3 · Thin objects</text>
+                    <polygon class="f-ink" points="482,110 470,104 470,116"/>
+                    <rect class="f-pix-soft" x="560" y="70" width="70" height="80"/>
+                    <rect class="f-solid s-ink" x="554" y="70" width="6" height="80"/>
+                    <line class="s-pix w2" x1="554" y1="70" x2="554" y2="150"/>
+                    <line class="s-ink w2" x1="464" y1="200" x2="666" y2="200"/>
+                    <line class="s-acc w2" x1="520" y1="200" x2="655" y2="80"/>
+                    <circle class="f-surface s-acc w15" cx="546" cy="177" r="3.5"/>
+                    <circle class="f-pix" cx="590" cy="138" r="3.5"/>
+                    <text class="t-small t-pix" x="568" y="64">how thick?</text>
+                    <text class="t-small t-muted" x="464" y="228">The buffer stores where a surface</text>
+                    <text class="t-small t-muted" x="464" y="244">starts, never how deep it is.</text>
+
+                    <text class="t-head" x="690" y="24">4 · Back faces</text>
+                    <polygon class="f-ink" points="708,100 696,94 696,106"/>
+                    <rect class="f-strong s-ink" x="760" y="130" width="70" height="70"/>
+                    <line class="s-pix w2" x1="760" y1="130" x2="760" y2="200"/>
+                    <line class="s-pix w2" x1="760" y1="130" x2="830" y2="130"/>
+                    <line class="s-acc w3" x1="830" y1="131" x2="830" y2="200"/>
+                    <line class="s-ink w2" x1="690" y1="200" x2="892" y2="200"/>
+                    <line class="s-acc w2" x1="884" y1="200" x2="830" y2="164"/>
+                    <circle class="f-acc" cx="884" cy="200" r="5"/>
+                    <circle class="s-ink w15" cx="830" cy="164" r="5"/>
+                    <text class="t-small t-acc" x="836" y="124">back face</text>
+                    <text class="t-small t-pix" x="700" y="122">stored: front, top</text>
+                    <text class="t-small t-muted" x="690" y="228">A ray that hits the far side finds</text>
+                    <text class="t-small t-muted" x="690" y="244">only the front's depth and colour.</text>
+                    <text class="t-small t-muted" x="12" y="276">Rose lines and hatching: what the depth buffer holds, or does not. Camera on the left in each panel.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Four ways a screen runs out of information.</b> Behind objects and off screen, there is simply no data. For thin objects and back faces there is data, but it describes a different surface from the one the ray meets. Ambient occlusion in <a class="xref" data-ch="8.3">8.3</a> met the first two; reflections and bounced light meet all four, because their rays travel much further.</figcaption>
+              </figure>
+              <p>A ray that leaves the frame is an <dfn class="term" data-term="off-screen-miss">off-screen miss</dfn>. It is the most common of the four for reflections, because the mirror of a downward-looking camera points up, out of the top of the screen, and the mirror of a surface facing the camera points back behind it. To hide the moment a reflection loses its data, tracers apply a <dfn class="term" data-term="screen-edge-fade">screen edge fade</dfn>: hits close to the border are blended away. HDRP calls it <strong>Screen Edge Fade Distance</strong>. It turns a hard pop into a soft fade, but the information is still gone.</p>
+              <p>Rays that pass behind objects, or into the hidden area under a thin object, sometimes reappear when the camera moves and the space becomes visible. That makes the effect view-dependent: the same spot reflects or bounces differently depending on where the camera is.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ssgi"><span class="step-num">6</span> SSGI: the same march for bounced light</h3>
+              <p><dfn class="term" data-term="ssgi">SSGI</dfn>, screen-space global illumination, uses the march for <a class="term" data-term="diffuse-gi" href="glossary.html#diffuse-gi">diffuse GI</a>. Each pixel sends rays over the half-sphere above its surface, takes the lit colour wherever they hit, and averages it, weighting rays near the <a class="term" data-term="normal" href="glossary.html#normal">normal</a> more, as in <a class="xref" data-ch="8.3">8.3</a>. The average is one <a class="term" data-term="bounce" href="glossary.html#bounce">bounce</a> of light from what is on screen, including <a class="term" data-term="colour-bleeding" href="glossary.html#colour-bleeding">colour bleeding</a> from a red wall onto a white floor and light from <a class="term" data-term="emissive" href="glossary.html#emissive">emissive</a> screens and signs. Godot's version is called SSIL, screen-space indirect lighting, and works the same way.</p>
+              <p>A full hemisphere needs many directions, and a frame can afford very few per pixel. HDRP's SSGI with <strong>Full Resolution</strong> on traces one ray per pixel per frame, and one ray per four pixels with it off. Unreal's standalone SSGI quality levels 1 to 4 use 8 to 12 ray steps and 4 to 32 rays. The result is noisy, so SSGI always comes with a denoiser and with reuse of earlier frames, the subject of step 8.</p>
+              <p>The colour it picks up is the lit image itself, so a second bounce appears only if last frame's image already contained the first. And it inherits all four blind spots, which matter more for diffuse light than for reflections: a bounce needs rays in every direction, and most of those leave the screen or go behind something. Epic recommends its SSGI as a way to improve indirect lighting but not as a sole indirect lighting method; Godot says SSIL is meant to be used with a proper GI method such as SDFGI or VoxelGI.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="screen-shadows"><span class="step-num">7</span> Screen-space shadows</h3>
+              <p>The same march aimed at a light gives <a class="term" data-term="contact-shadows" href="glossary.html#contact-shadows">contact shadows</a>, introduced in <a class="xref" data-ch="7.5">7.5 Shadows at scale</a>. The ray is short, a few centimetres to a few tens of centimetres, and the question is only whether anything is in the way. Short rays rarely leave the screen and rarely pass far behind anything, so contact shadows suffer least from the blind spots. Their typical failure is the thin-object one: a pole or a finger can cast a shadow that is too long behind it, because the tracer cannot tell how thick it is.</p>
+              <p>Unreal sets them per light with <strong>Contact Shadow Length</strong>; HDRP has a <strong>Contact Shadows</strong> override; URP in Unity 6.6 and Godot 4.7 have none.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="reuse"><span class="step-num">8</span> Few rays, many frames: denoising and reprojection</h3>
+              <p>One ray per pixel, or one per four, gives a speckled result. Two things clean it up. A spatial <a class="term" data-term="denoising" data-forward href="glossary.html#denoising">denoiser</a> blends each pixel with neighbours at a similar depth and normal, like the <a class="term" data-term="bilateral-filter" href="glossary.html#bilateral-filter">bilateral filter</a> of 8.3. Temporal reprojection reuses the traced results of earlier frames: each pixel looks up where it was last frame using motion vectors, fetches the result stored there, and blends in a little of this frame's new rays. Over a dozen frames, a dozen rays per pixel add up. This is <a class="term" data-term="temporal-accumulation" data-forward href="glossary.html#temporal-accumulation">temporal accumulation</a>, which chapter 9.2 covers in full.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Two frames of an SSGI result. Last frame: a crate on the left half of the screen, the floor around it smoothly lit after many frames of accumulation. This frame: the crate has moved right. Arrows show most pixels fetching last frame's result through motion vectors. The strip of floor the crate has just uncovered has no history, so it shows the raw, grainy result of a single frame's rays.">
+                    <defs>
+                      <filter id="rp-noise" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="11"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -1.15"/>
+                      </filter>
+                      <linearGradient id="rp-ramp" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0" class="stop-buf-lo" stop-opacity="0"/>
+                        <stop offset="1" class="stop-buf-lo" stop-opacity="0.35"/>
+                      </linearGradient>
+                      <marker id="rp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">LAST FRAME · ACCUMULATED</text>
+                    <rect class="f-buf-hi" x="20" y="32" width="380" height="180"/>
+                    <rect x="20" y="32" width="380" height="180" fill="url(#rp-ramp)"/>
+                    <rect class="f-buf-lo" fill-opacity="0.55" x="90" y="92" width="90" height="90"/>
+                    <ellipse class="f-buf-lo" fill-opacity="0.25" cx="135" cy="186" rx="64" ry="8"/>
+                    <rect class="s-strong" x="20" y="32" width="380" height="180"/>
+                    <text class="t-caps" x="480" y="20">THIS FRAME · CRATE MOVED RIGHT</text>
+                    <rect class="f-buf-hi" x="480" y="32" width="380" height="180"/>
+                    <rect x="480" y="32" width="380" height="180" fill="url(#rp-ramp)"/>
+                    <rect x="550" y="92" width="90" height="100" filter="url(#rp-noise)" opacity="0.6"/>
+                    <rect class="s-pix w2 dash" x="550" y="92" width="90" height="100"/>
+                    <rect class="f-buf-lo" fill-opacity="0.55" x="660" y="92" width="90" height="90"/>
+                    <ellipse class="f-buf-lo" fill-opacity="0.25" cx="705" cy="186" rx="64" ry="8"/>
+                    <rect class="s-strong" x="480" y="32" width="380" height="180"/>
+                    <line class="s-acc w15" x1="330" y1="70" x2="796" y2="70" marker-end="url(#rp-arr)"/>
+                    <line class="s-acc w15" x1="330" y1="150" x2="796" y2="150" marker-end="url(#rp-arr)"/>
+                    <line class="s-acc w15" x1="150" y1="130" x2="696" y2="130" marker-end="url(#rp-arr)"/>
+                    <text class="t-small t-muted" x="20" y="232">Smooth because many frames of rays are blended together.</text>
+                    <text class="t-small t-pix t-strong" x="480" y="232">Dashed: just uncovered, no history.</text>
+                    <text class="t-small t-muted" x="480" y="248">It shows one frame's rays until it catches up.</text>
+                    <line class="s-acc w15" x1="20" y1="244" x2="44" y2="244"/>
+                    <text class="t-small t-acc" x="50" y="248">history fetched through motion vectors</text>
+                  </svg>
+                </div>
+                <figcaption><b>Reuse works until something new appears.</b> Pixels that were visible last frame inherit many frames of accumulated rays. Pixels that were hidden, here the floor the crate has just moved off, are a <a class="term" data-term="disocclusion" data-forward href="glossary.html#disocclusion">disocclusion</a>: they have no history and show the raw, noisy result for a few frames. If the history is not rejected quickly enough elsewhere, the opposite fault appears as <a class="term" data-term="ghosting" data-forward href="glossary.html#ghosting">ghosting</a>.</figcaption>
+              </figure>
+              <p>HDRP's SSGI exposes its denoiser directly: <strong>Denoise</strong>, <strong>Half Resolution Denoiser</strong>, <strong>Denoiser Radius</strong> and a <strong>Second Denoiser Pass</strong>. Its SSR's <strong>PBR Accumulation</strong> algorithm accumulates several frames, with an <strong>Accumulation Factor</strong> for how fast. Faster accumulation reacts sooner to change and shows more noise.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="fallbacks"><span class="step-num">9</span> Fallbacks: who answers when the screen cannot</h3>
+              <p>A ray that leaves the screen or runs out of steps still needs an answer. A <dfn class="term" data-term="ray-miss-fallback">ray-miss fallback</dfn> supplies it from data that does not depend on the camera: a <a class="term" data-term="reflection-probe" href="glossary.html#reflection-probe">reflection probe</a>, a <a class="term" data-term="light-probe" href="glossary.html#light-probe">light probe</a> or <a class="term" data-term="lightmap" href="glossary.html#lightmap">lightmap</a> baked into the level, the sky, or a world-space GI method that can trace the whole scene. It is the GI version of the <a class="term" data-term="reflection-fallback" href="glossary.html#reflection-fallback">reflection fallback</a> order in 7.6. The screen answers what it can; everything else is handed down the chain.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 318" role="img" aria-label="Fallback chains in four setups. Unreal with Lumen: screen trace first, then the Lumen scene traced with distance fields or hardware ray tracing, then the sky. Unreal's standalone SSGI: a screen trace added on top of baked Lightmass lighting. HDRP's SSGI: ray marching first; in Mixed mode ray tracing for what is off screen; rays that still miss use reflection probes and the sky, the default called Both. Godot: SSIL added on top of SDFGI, VoxelGI or LightmapGI.">
+                    <defs>
+                      <marker id="fb-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">WHAT ANSWERS A RAY THE SCREEN CANNOT</text>
+
+                    <text class="t-head" x="20" y="62">Unreal, Lumen</text>
+                    <text class="t-small t-muted" x="20" y="78">GI and reflections</text>
+                    <rect class="f-pix-soft s-pix" x="190" y="42" width="170" height="48" rx="6"/>
+                    <text class="t-strong" x="202" y="63">Screen trace</text>
+                    <text class="t-small t-muted" x="202" y="80">first, near the pixel</text>
+                    <line class="s-muted" x1="362" y1="66" x2="392" y2="66" marker-end="url(#fb-arr)"/>
+                    <rect class="f-geo-soft s-geo" x="396" y="42" width="250" height="48" rx="6"/>
+                    <text class="t-strong" x="408" y="63">Lumen scene</text>
+                    <text class="t-small t-muted" x="408" y="80">distance fields or hardware ray tracing</text>
+                    <line class="s-muted" x1="648" y1="66" x2="678" y2="66" marker-end="url(#fb-arr)"/>
+                    <rect class="f-surface s-strong" x="682" y="42" width="110" height="48" rx="6"/>
+                    <rect class="f-paint-sky" x="694" y="56" width="20" height="20" rx="3"/>
+                    <text class="t-strong" x="722" y="71">Sky</text>
+
+                    <text class="t-head" x="20" y="132">Unreal, SSGI</text>
+                    <text class="t-small t-muted" x="20" y="148">Screen Space (Beta)</text>
+                    <rect class="f-pix-soft s-pix" x="190" y="112" width="170" height="48" rx="6"/>
+                    <text class="t-strong" x="202" y="133">Screen trace</text>
+                    <text class="t-small t-muted" x="202" y="150">adds bounced light</text>
+                    <text class="t-strong t-muted mid" x="377" y="140">+</text>
+                    <rect class="f-lit-soft s-lit" x="396" y="112" width="250" height="48" rx="6"/>
+                    <text class="t-strong" x="408" y="133">Baked lighting</text>
+                    <text class="t-small t-muted" x="408" y="150">Lightmass lightmaps and probes</text>
+
+                    <text class="t-head" x="20" y="202">HDRP, SSGI</text>
+                    <text class="t-small t-muted" x="20" y="218">Volume override</text>
+                    <rect class="f-pix-soft s-pix" x="190" y="182" width="170" height="48" rx="6"/>
+                    <text class="t-strong" x="202" y="203">Ray Marching</text>
+                    <text class="t-small t-muted" x="202" y="220">on-screen geometry</text>
+                    <line class="s-muted" x1="362" y1="206" x2="392" y2="206" marker-end="url(#fb-arr)"/>
+                    <rect class="f-geo-soft s-geo dash" x="396" y="182" width="160" height="48" rx="6"/>
+                    <text class="t-strong" x="408" y="203">Ray Tracing</text>
+                    <text class="t-small t-muted" x="408" y="220">Mixed mode only</text>
+                    <line class="s-muted" x1="558" y1="206" x2="588" y2="206" marker-end="url(#fb-arr)"/>
+                    <rect class="f-lit-soft s-lit" x="592" y="182" width="150" height="48" rx="6"/>
+                    <text class="t-strong" x="604" y="203">Reflection probes</text>
+                    <text class="t-small t-muted" x="604" y="220">Ray Miss: Both</text>
+                    <line class="s-muted" x1="744" y1="206" x2="774" y2="206" marker-end="url(#fb-arr)"/>
+                    <rect class="f-surface s-strong" x="778" y="182" width="100" height="48" rx="6"/>
+                    <rect class="f-paint-sky" x="790" y="196" width="20" height="20" rx="3"/>
+                    <text class="t-strong" x="818" y="211">Sky</text>
+
+                    <text class="t-head" x="20" y="272">Godot, SSIL</text>
+                    <text class="t-small t-muted" x="20" y="288">Environment, Forward+</text>
+                    <rect class="f-pix-soft s-pix" x="190" y="252" width="170" height="48" rx="6"/>
+                    <text class="t-strong" x="202" y="273">SSIL</text>
+                    <text class="t-small t-muted" x="202" y="290">small-scale bounce</text>
+                    <text class="t-strong t-muted mid" x="377" y="280">+</text>
+                    <rect class="f-geo-soft s-geo" x="396" y="252" width="250" height="48" rx="6"/>
+                    <text class="t-strong" x="408" y="273">SDFGI, VoxelGI or LightmapGI</text>
+                    <text class="t-small t-muted" x="408" y="290">the main source of indirect light</text>
+                  </svg>
+                </div>
+                <figcaption><b>Screen space is the first try or an extra layer, never the whole answer.</b> Rose boxes work from the screen, teal ones from a representation of the whole scene, amber ones from baked data. Arrows show where a missed ray goes next; a plus sign means the screen-space result is added on top of another method's light. Lumen hands over carefully: on a miss it steps back to the last point that was not behind a surface, so the next tracer does not start inside a wall.</figcaption>
+              </figure>
+              <p>The fallback's quality decides what failures look like. If the probe that answers off-screen reflection rays was captured in a different room, the floor reflects the wrong room. If the world-space GI behind SSGI is much darker than the on-screen bounce, lighting visibly jumps when the camera turns and the bright surface leaves the screen. A good pairing makes the two agree, so the screen-space layer adds detail without changing the overall level. The lab's <strong>Misses use</strong> buttons show how much a fallback has to cover.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="courtyard"><span class="step-num">10</span> In a real frame</h3>
+              <p>The Lantern Courtyard's puddle uses SSR. Switch between its reflections view and its depth buffer: the reflection contains only what the depth buffer holds.</p>
+              <figure>
+                <div class="demo" data-demo="courtyard" data-view="ssr" data-views="ssr,depth,final">
+                  <p class="demo-hint">The Lantern Courtyard needs WebGL 2. Its reflections view shows what screen-space reflections add to the puddle: the arch and the foot of the red banner, which are on screen, and the sky's colour where reflected rays leave the top of the frame.</p>
+                </div>
+                <figcaption><b>The courtyard's puddle, reflections only.</b> Everything reflected is something the camera can see: a pillar of the arch, the foot of the banner. Where the reflected rays climb out of the top of the frame there is nothing to find, and the sky's colour stands in as the fallback. Switch to Depth to see the buffer the rays are marched through.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Screen-space tracing costs pixels times rays per pixel times reads per ray. A 1080p frame has 2,073,600 pixels. SSR at half resolution, a common setting, traces 518,400 rays; at 32 reads each that is about 16.6 million depth reads, plus a colour read for each hit. SSGI multiplies by the number of rays per pixel, which is why it runs at low ray counts and leans on denoising and reuse.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">2 ms</span><span class="what">McGuire and Mara's screen-space ray tracer for water reflections, 1080p, GeForce 650M laptop GPU (2014)</span></div>
+              <div class="stat"><span class="value">1 or ¼</span><span class="what">rays per pixel per frame for HDRP's SSGI, with Full Resolution on or off</span></div>
+              <div class="stat"><span class="value">4 to 32</span><span class="what">rays, with 8 to 12 steps, across Unreal's r.SSGI.Quality levels 1 to 4</span></div>
+              <div class="stat"><span class="value">64</span><span class="what">maximum SSR steps by default in Godot 4.7's Environment</span></div>
+            </div>
+            <p class="stamp">Figures from the published paper and the engines' documentation. Measure your own scene in a frame capture; costs move with resolution, settings and how much of the screen reflects.</p>
+            <ul class="grows">
+              <li><strong>Resolution</strong><span>Every pixel that traces costs rays. Half resolution is a quarter of the work, and the usual default for SSGI.</span></li>
+              <li><strong>Rays per pixel</strong><span>SSGI needs many directions; each extra ray per pixel is another full march.</span></li>
+              <li><strong>Reads per ray</strong><span>Long rays and linear steps read more. Hi-Z cuts reads in open space but not once a ray is behind a surface.</span></li>
+              <li><strong>Reflective area</strong><span>SSR only runs on smooth enough surfaces. A wet street that fills the screen costs far more than a few puddles, and rough surfaces need more rays to avoid noise.</span></li>
+              <li><strong>Denoising and history</strong><span>Spatial and temporal passes cost their own time, and temporal reuse needs correct motion vectors for everything that moves.</span></li>
+              <li><strong>Grazing angles</strong><span>Rays travelling almost along a surface cross many pixels before they resolve. Lumen caps iterations for those rays.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Cheap is relative</p>
+              <p>Screen-space effects are cheap compared with tracing the whole scene, but a stack of them is not free: SSR, SSGI, contact shadows and SSAO together can take several milliseconds of a 16.7 ms <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a>. Ask for each one's cost on the target platform, and whether two of them are doing the same job, for example SSGI's occlusion on top of SSAO.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Each of these is one of the four blind spots, or the shortcuts taken to make the march affordable.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wet floor reflecting a row of columns; near the top of the screen the reflections stop abruptly and the floor shows only a flat sky colour.">
+                    <defs><linearGradient id="sy-off-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="stop-white"/><stop offset="0.6" class="stop-black"/></linearGradient><mask id="sy-off-m" maskContentUnits="userSpaceOnUse"><rect x="0" y="64" width="240" height="66" fill="url(#sy-off-g)"/></mask></defs>
+                    <rect class="f-surface" x="0" y="0" width="240" height="64"/>
+                    <rect class="f-solid s-ink" x="30" y="10" width="18" height="54"/><rect class="f-solid s-ink" x="110" y="10" width="18" height="54"/><rect class="f-solid s-ink" x="190" y="10" width="18" height="54"/>
+                    <rect class="f-paint-sky" x="0" y="64" width="240" height="66"/>
+                    <g mask="url(#sy-off-m)"><rect class="f-solid" x="30" y="64" width="18" height="40"/><rect class="f-solid" x="110" y="64" width="18" height="40"/><rect class="f-solid" x="190" y="64" width="18" height="40"/></g>
+                    <line class="s-ink" x1="0" y1="64" x2="240" y2="64"/>
+                  </svg>
+                </div>
+                <h4>Reflections fade or vanish as the camera tilts</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Off-screen misses. Tilting down pushes what the floor should reflect out of the frame; the edge fade then hides the hits that are left.</dd></div>
+                  <div><dt>Ask for</dt><dd>A fallback that matches: box-projected reflection probes captured in each area, or ray-traced or Lumen reflections where it matters.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A character standing on a shiny floor; its reflection is stretched into a long dark smear that continues well past where the reflection should end.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="78"/>
+                    <rect class="f-sunken" x="0" y="78" width="240" height="52"/>
+                    <path class="f-strong s-ink" d="M120,14 C132,14 134,26 131,32 C140,36 143,50 141,78 L99,78 C97,50 100,36 109,32 C106,26 108,14 120,14 Z"/>
+                    <polygon class="f-strong" fill-opacity="0.75" points="99,78 141,78 150,130 90,130"/>
+                    <text class="t-small t-pix" x="152" y="120">smear</text>
+                  </svg>
+                </div>
+                <h4>Smears and streaks behind objects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A thickness setting too large for thin objects: rays passing behind a character or pole are reported as hitting it, so its colour streaks along the reflection.</dd></div>
+                  <div><dt>Ask for</dt><dd>A smaller thickness or depth tolerance, tested against the thinnest common objects, and a fallback for the rays that then pass behind.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A reflection in a floor with a hole: where an object hides the space behind it from the camera, the reflection shows a gap filled with a flat probe colour.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="70"/>
+                    <rect class="f-solid s-ink" x="96" y="18" width="16" height="52"/>
+                    <rect class="f-sunken" x="0" y="70" width="240" height="60"/>
+                    <rect class="f-solid" fill-opacity="0.8" x="0" y="70" width="96" height="40"/>
+                    <rect class="f-solid" fill-opacity="0.8" x="150" y="70" width="90" height="40"/>
+                    <rect class="f-lit-soft" x="112" y="70" width="38" height="40"/>
+                    <rect class="f-strong" x="96" y="70" width="16" height="40"/>
+                    <text class="t-small t-lit" x="116" y="124">gap</text>
+                  </svg>
+                </div>
+                <h4>Holes in reflections or bounced light</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Rays passing behind an object, into space the camera never saw, find nothing and fall back. The gap moves as the camera moves.</dd></div>
+                  <div><dt>Ask for</dt><dd>A fallback that covers the gap plausibly, and an accepted list of views where it shows. Only world-space tracing removes it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two views of the same room corner: in the first a red wall is on screen and the floor glows red; in the second the camera has turned away from the wall and the red glow on the floor is gone.">
+                    <rect class="f-surface" x="0" y="0" width="116" height="130"/>
+                    <rect class="f-paint-red" x="0" y="0" width="28" height="130"/>
+                    <rect class="f-paint-red" fill-opacity="0.3" x="28" y="80" width="88" height="50"/>
+                    <rect class="f-surface" x="124" y="0" width="116" height="130"/>
+                    <rect class="f-sunken" x="124" y="80" width="116" height="50"/>
+                    <line class="s-strong" x1="120" y1="0" x2="120" y2="130"/>
+                    <text class="t-small" x="34" y="20">wall in view</text>
+                    <text class="t-small" x="130" y="20">turned away</text>
+                  </svg>
+                </div>
+                <h4>Bounced light changes as the camera turns</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>SSGI only bounces light from what is on screen. Epic warns that Lumen's screen traces also cause view-dependent lighting when indirect lighting is scaled up.</dd></div>
+                  <div><dt>Ask for</dt><dd>A world-space GI method or bake underneath that already holds most of the bounce, so the screen-space layer only adds detail.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A floor where the bounced light is a crawling grainy speckle instead of a smooth gradient.">
+                    <defs>
+                      <filter id="sy-gi-noise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="1" seed="5"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  3 0 0 0 -1.35"/></filter>
+                    </defs>
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect x="0" y="0" width="240" height="130" filter="url(#sy-gi-noise)"/>
+                  </svg>
+                </div>
+                <h4>Noise, boiling and shimmer</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too few rays for the denoiser to clean, often after dropping to half resolution or a lower quality preset, or a temporal filter that cannot accumulate because the camera never stops.</dd></div>
+                  <div><dt>Ask for</dt><dd>The ray budget per pixel, denoiser settings and a capture of the raw and denoised passes side by side.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A ball moving right across a floor, leaving a grainy patch behind it where the floor has just been uncovered.">
+                    <defs>
+                      <filter id="sy-dis-noise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="9"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -1.2"/></filter>
+                      <marker id="sy-dis-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-hi" x="60" y="56" width="80" height="60"/>
+                    <rect x="60" y="56" width="80" height="60" filter="url(#sy-dis-noise)"/>
+                    <circle class="f-solid s-ink" cx="176" cy="84" r="30"/>
+                    <line class="s-ink w15" x1="40" y1="24" x2="110" y2="24" marker-end="url(#sy-dis-arr)"/>
+                    <text class="t-small t-muted" x="40" y="16">moving</text>
+                  </svg>
+                </div>
+                <h4>Grainy patches behind moving objects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Disocclusion: the newly uncovered pixels have no history, so they show one frame's worth of rays until accumulation catches up.</dd></div>
+                  <div><dt>Ask for</dt><dd>A stronger spatial filter on pixels with little history, and checks that moving objects write motion vectors.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To find which layer is at fault, turn the screen-space effect off for a moment. If the problem disappears and a different, softer problem appears, the fault is in the screen-space layer; if it stays, look at the fallback underneath.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Each engine offers a different mix of screen-space effects, and pairs them with different fallbacks.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Reflections</th>
+                    <td>Post Process Volume, Reflections, Method <strong>Screen Space Reflections</strong>: Intensity, Quality (default 50), Max Roughness. With Lumen on, Lumen Reflections replace SSR.</td>
+                    <td>No SSR in Unity 6.6.</td>
+                    <td><strong>Screen Space Reflection</strong> override. Tracing: Ray Marching, Ray Tracing or Mixed. Algorithm: Approximation or PBR Accumulation.</td>
+                    <td>Environment, <strong>SSR</strong>: Max Steps 64, Fade In 0.15, Fade Out 2.0, Depth Tolerance 0.5.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Bounced light</th>
+                    <td>Post Process Volume, Global Illumination, Method <strong>Screen Space (Beta)</strong>. Quality with <code>r.SSGI.Quality</code> 1 to 4; <code>r.SSGI.HalfRes</code>.</td>
+                    <td>No SSGI.</td>
+                    <td><strong>Screen Space Global Illumination</strong> override: Max Ray Steps, Depth Tolerance, Full Resolution, Ray Miss, denoiser settings.</td>
+                    <td>Environment, <strong>SSIL</strong>: Radius 5.0, Intensity 1.0, Sharpness 0.98, Normal Rejection 1.0. Half resolution by default.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Screen-space shadows</th>
+                    <td>Per light: <strong>Contact Shadow Length</strong>.</td>
+                    <td>None.</td>
+                    <td><strong>Contact Shadows</strong> override.</td>
+                    <td>None in 4.7.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Thickness</th>
+                    <td>Not exposed in the Post Process Volume.</td>
+                    <td></td>
+                    <td>SSR <strong>Object Thickness</strong>; SSGI <strong>Depth Tolerance</strong>.</td>
+                    <td>SSR <strong>Depth Tolerance</strong>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Fallback on a miss</th>
+                    <td>SSR fades to Reflection Captures. Lumen: Lumen scene, then sky. SSGI adds to Lightmass lighting.</td>
+                    <td></td>
+                    <td>SSGI <strong>Ray Miss</strong>: Reflection probes, Sky, Both (default) or Nothing. Mixed tracing uses ray tracing off screen.</td>
+                    <td>SSIL is meant to sit on SDFGI, VoxelGI or LightmapGI. SSR's Fade Out blends into the scene's other reflections.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Renderers</th>
+                    <td>Lumen is not supported by the Mobile Renderer or with Forward Shading; check SSR and SSGI per platform.</td>
+                    <td>Forward and deferred; none of these effects in 6.6.</td>
+                    <td>Mixed SSGI tracing needs Performance mode and the Deferred Lit Shader Mode.</td>
+                    <td>SSR and SSIL: Forward+ only, not Mobile or Compatibility.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Names and defaults checked against the documentation for Unreal Engine 5.7 and 5.8, Unity 6.6 (6000.6) with HDRP 17.6, and Godot 4.7 in November 2026. Unity has previewed SSR for URP; check whether your Unity version ships it.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Screen-space briefs work when they name the effect, the engine and its settings, the exact view where the problem appears, and what sits underneath as a fallback.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when reflections disappear or smear</span></div>
+              <pre class="prompt-body">Unity 6.6, HDRP 17.6. Screen Space Reflection override, Tracing: Ray Marching, Algorithm: PBR Accumulation. Wet street at night.
+1. When the camera tilts down past about 20 degrees, reflections of the shop signs fade out and the street turns grey.
+2. Pedestrians leave a long dark streak in the reflection behind them.
+
+For each problem, say which screen-space blind spot causes it, using our settings. Propose changes to the SSR override and to our reflection probes, ranked by visual risk and cost on PlayStation 5 at 1440p. Describe three fixed camera positions we should capture before and after, including one looking down.</pre>
+              <ul class="prompt-why">
+                <li>Naming the override, tracing mode and algorithm tells the AI exactly what runs.</li>
+                <li>Two symptoms with conditions point at two different blind spots: off screen and thickness.</li>
+                <li>Asking about the probes as well as SSR targets the fallback, which is half the fix.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding screen-space GI on top of an existing method</span></div>
+              <pre class="prompt-body">Godot 4.7, Forward+ renderer, PC only. Interiors use LightmapGI. We want small-scale bounce from moving lights and emissive props with SSIL.
+Budget: 1.0 ms for SSIL at 1440p on our minimum GPU.
+
+1. Recommend SSIL settings (Radius, Intensity, Sharpness, Normal Rejection) for small rooms, with reasons.
+2. Explain what SSIL will not do here: off-screen sources, light behind furniture, view-dependent changes. Say how LightmapGI covers each.
+3. List the test views that would show SSIL's blind spots, and how to measure its GPU time.</pre>
+              <ul class="prompt-why">
+                <li>Saying what lies underneath (LightmapGI) frames SSIL as a layer, not the whole GI.</li>
+                <li>A budget at a resolution on a named GPU makes the answer checkable.</li>
+                <li>Asking for the blind spots up front makes the AI plan tests rather than only settings.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing screen-space work</h3>
+            <ol class="review-list">
+              <li>What answers a ray that leaves the screen or runs out of steps?<span class="why">The fallback decides what every failure looks like.</span></li>
+              <li>What thickness or depth tolerance is set, and was it tested on the thinnest common objects?<span class="why">Too large smears thin objects; too small lets rays tunnel through solid ones.</span></li>
+              <li>Does the march use linear steps or a depth pyramid, and how many reads at most?<span class="why">Long linear steps skip thin objects; the read limit bounds the cost.</span></li>
+              <li>How many rays per pixel, at what resolution, and how is the result denoised?<span class="why">This sets both the cost and how much noise or lag to expect.</span></li>
+              <li>Does the result change when the camera turns, and is that acceptable?<span class="why">View-dependent lighting is built into screen space; a world-space base keeps it small.</span></li>
+              <li>Do all moving objects write motion vectors?<span class="why">Without them, temporal reuse smears history across moving things.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A puddle reflects a street lamp perfectly until the camera looks down at the puddle, when the reflection disappears. Which blind spot is this, and what should the reflection show instead?</p>
+                <details><summary>Show answer</summary><p>An off-screen miss. Looking down pushes the lamp out of the top of the frame, so the reflected ray leaves the screen with nothing to find. The fallback should answer, typically a reflection probe captured nearby, so the puddle still shows a plausible, if less exact, lamp.</p></details>
+              </li>
+              <li>
+                <p class="q">Raising SSR's thickness removed holes in a reflection, but now thin railings leave long streaks. Why do both happen, and what is the trade?</p>
+                <details><summary>Show answer</summary><p>The depth buffer stores where each surface starts but not how deep it is, so the tracer guesses. A larger guess stops rays that were tunnelling through solid objects, which fills the holes, but it also stops rays passing behind thin railings, which are reported as hitting them and smear their colour. The fix is a thickness tuned to the scene plus a fallback for the rays that pass behind.</p></details>
+              </li>
+              <li>
+                <p class="q">Why does Hi-Z make a march both faster and more accurate than long linear steps?</p>
+                <details><summary>Show answer</summary><p>Its pyramid keeps the nearest depth of each region, so while the ray is in front of that depth it can skip the whole region in one read. Near surfaces it drops to single pixels, so it never steps past a surface and cannot skip a thin object, which long linear steps can.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#ray-marching">ray marching</a></li>
+              <li><a class="chip" href="glossary.html#hi-z-tracing">Hi-Z tracing</a></li>
+              <li><a class="chip" href="glossary.html#off-screen-miss">off-screen miss</a></li>
+              <li><a class="chip" href="glossary.html#screen-edge-fade">screen edge fade</a></li>
+              <li><a class="chip" href="glossary.html#ssgi">SSGI</a></li>
+              <li><a class="chip" href="glossary.html#ray-miss-fallback">ray-miss fallback</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="8.5"></a> leaves the screen behind: the families of real-time GI that store light for the whole scene, in grids, voxels, probes and surface caches, and where each one leaks.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Morgan McGuire and Michael Mara, <a href="https://jcgt.org/published/0003/04/04/">Efficient GPU Screen-Space Ray Tracing</a>, Journal of Computer Graphics Techniques 3(4), 2014. Perspective-correct stepping, thickness and stride, with code.</li>
+              <li>Daniel Wright, Krzysztof Narkowicz and Patrick Kelly, <a href="https://advances.realtimerendering.com/s2022/index.html#Lumen">Lumen: Real-time Global Illumination in Unreal Engine 5</a>, SIGGRAPH 2022 Advances in Real-Time Rendering course, Epic Games. Screen traces, the closest-depth HZB walk and the hand-off to other tracers.</li>
+              <li><a href="https://gpuopen.com/manuals/fidelityfx_sdk/techniques/stochastic-screen-space-reflections/">FidelityFX Stochastic Screen-Space Reflections</a>, AMD GPUOpen. Hierarchical depth traversal, confidence and environment-map fallback.</li>
+              <li>Unreal Engine documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/screen-space-global-illumination-in-unreal-engine?application_version=5.7">Screen Space Global Illumination</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/post-process-effects-in-unreal-engine?application_version=5.7">Post Process Effects</a> (5.7); <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-global-illumination-and-reflections-in-unreal-engine?application_version=5.8">Lumen Global Illumination and Reflections</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-technical-details-in-unreal-engine?application_version=5.8">Lumen Technical Details</a> (5.8).</li>
+              <li>Unity documentation: <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-screen-space-global-illumination.html">Screen Space Global Illumination reference</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Override-Screen-Space-GI.html">Use Screen Space Global Illumination</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-screen-space-reflection.html">Screen Space Reflection reference</a>, HDRP 17.6; <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>, Unity 6.6.</li>
+              <li>Godot documentation: <a href="https://docs.godotengine.org/en/4.7/classes/class_environment.html">Environment</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/global_illumination/introduction_to_global_illumination.html">Introduction to global illumination</a> and <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/lights_and_shadows.html">3D lights and shadows</a>, Godot 4.7.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/courtyard-gl.js"></script>
+  <script src="assets/demos/courtyard-shaders.js"></script>
+  <script src="assets/demos/courtyard.js"></script>
+  <script src="assets/demos/screen-ray-lab.js"></script>
+</body>
+</html>

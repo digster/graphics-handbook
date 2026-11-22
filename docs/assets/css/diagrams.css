@@ -91,6 +91,16 @@ svg.dg .t-pix {
   fill: var(--pix);
 }
 
+/* Labels drawn on top of buffer images (f-buf-hi / f-buf-lo), which keep
+   the same colours in both themes, so their labels must too. */
+svg.dg .t-on-buf {
+  fill: var(--buffer-lo);
+}
+
+svg.dg .t-on-buf-dark {
+  fill: var(--buffer-hi);
+}
+
 svg.dg .t-on-acc {
   fill: var(--on-accent);
 }

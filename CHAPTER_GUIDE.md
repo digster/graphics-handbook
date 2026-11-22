@@ -88,7 +88,9 @@ typical chapter has 8 to 12 figures, including the symptom thumbnails.
 - Compute positions that encode numbers (bars to scale, angles, byte
   offsets). Check every number in a figure against the prose.
 - Pictures of GPU buffers (depth images, AO textures) use `f-buf-hi`,
-  `f-buf-lo`, `stop-buf-lo`, which stay the same in both themes.
+  `f-buf-lo`, `stop-buf-lo`, which stay the same in both themes. Label text
+  on top of them with `t-on-buf` (on light buffer areas) or
+  `t-on-buf-dark` (on dark ones), never the theme text colours.
 - Real-world colours shown as content (a red wall, candlelight, daylight,
   blue sky) use `f-paint-red`, `f-paint-green`, `f-paint-candle`,
   `f-paint-tungsten`, `f-paint-daylight`, `f-paint-sky` (and the matching
