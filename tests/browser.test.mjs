@@ -137,9 +137,17 @@ for (const browserName of BROWSERS) {
     await input.fill("horizon");
     const hrefs = await tab.$$eval("#search-results a", (as) => as.map((a) => a.getAttribute("href")));
     assert.ok(hrefs.some((h) => h.startsWith("08-3-")), "a section of chapter 8.3 should match");
+    // Any chapter not written yet must still be findable, linking to its
+    // contents entry. Pick one from the data so the test survives publishing.
+    const unwritten = nav.chapters.find((c) => c.status !== "published");
+    if (unwritten) {
+      await input.fill(unwritten.title);
+      const found = await tab.$$eval("#search-results a", (as) => as.map((a) => a.getAttribute("href")));
+      assert.ok(found.includes(nav.contentsHref(unwritten.num)), `unwritten chapter ${unwritten.num} should be findable`);
+    }
     await input.fill("lumen");
-    const planned = await tab.$$eval("#search-results a", (as) => as.map((a) => a.getAttribute("href")));
-    assert.ok(planned.includes("index.html#ch-8-5"), "unwritten chapters are findable by their terms");
+    const lumen = await tab.$$eval("#search-results a", (as) => as.map((a) => a.getAttribute("href")));
+    assert.ok(lumen.includes("glossary.html#lumen"), "terms are findable by name");
     await input.fill("zzzz-nothing");
     assert.ok(await tab.locator(".search-empty").isVisible(), "empty state shows");
     await tab.keyboard.press("Escape");
