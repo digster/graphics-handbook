@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>9.4 Camera effects · Graphics Handbook</title>
+  <meta name="description" content="Bloom, lens flare, depth of field, bokeh, motion blur, film grain, vignette, chromatic aberration and lens distortion: how each is computed, where it runs in the frame, what it costs, how it breaks, the settings players need, and how to brief the work.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="9.4">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 9 · Post-processing and image quality</p>
+            <h1><span class="ch-num">9.4</span> Camera effects</h1>
+            <p class="lead">A game camera is perfect: no glass, an instant shutter, a flawless sensor. Players read that as artificial, so renderers add back the flaws of real cameras on purpose. This chapter covers bloom, lens flare, depth of field, motion blur and the smaller lens effects: how each is computed from the finished image, in what order, at what cost, and which of them players need to be able to turn off.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="9.1">9.1 HDR, exposure and tone mapping</a>, <a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>, <a class="xref" data-ch="9.3">9.3 Upscaling and frame generation</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="9.5">9.5 Atmosphere</a>, <a class="xref" data-ch="10.1">10.1 A deferred frame, pass by pass</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Lantern Courtyard effect stack</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 326" role="img" aria-label="A night courtyard with eight camera effects marked. 1, bloom: a lantern glows into the air around it. 2, lens flare: faint hexagonal ghosts on a line from the lantern through the centre of the frame. 3, depth of field: the arches behind are blurred. 4, bokeh: a string of distant lights becomes soft hexagons. 5, motion blur: a rolling ball trails a streak. 6, chromatic aberration: a bright window near the right edge has red and blue fringes. 7, vignette: the corners are darker. 8, film grain: fine noise over the whole picture.">
+                <defs>
+                <clipPath id="pic94-clip"><rect x="0" y="20" width="640" height="300"/></clipPath>
+                <filter id="pic94-dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="3.2"/></filter>
+                <filter id="pic94-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="14"/></filter>
+                <filter id="pic94-grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="11"/><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 2.2 -1.25"/></filter>
+                <radialGradient id="pic94-vig" cx="0.5" cy="0.5" r="0.75"><stop offset="0.55" class="stop-buf-lo" stop-opacity="0"/><stop offset="1" class="stop-buf-lo" stop-opacity="0.9"/></radialGradient>
+                <linearGradient id="pic94-streak" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-buf-hi" stop-opacity="0"/><stop offset="1" class="stop-buf-hi" stop-opacity="0.75"/></linearGradient>
+                </defs>
+                <g clip-path="url(#pic94-clip)">
+                <rect class="f-buf-lo" x="0" y="20" width="640" height="300"/>
+                <g filter="url(#pic94-dof)">
+                <path class="f-buf-hi" fill-opacity="0.22" d="M300,250 V130 A60,60 0 0 1 420,130 V250 H400 V138 A40,40 0 0 0 320,138 V250 Z"/>
+                <path class="f-buf-hi" fill-opacity="0.22" d="M440,250 V130 A60,60 0 0 1 560,130 V250 H540 V138 A40,40 0 0 0 460,138 V250 Z"/>
+                <rect class="f-buf-hi" fill-opacity="0.12" x="280" y="250" width="320" height="16"/>
+                </g>
+                <polygon class="f-paint-tungsten" fill-opacity="0.55" points="331.3,96.5 320.0,103.0 308.7,96.5 308.7,83.5 320.0,77.0 331.3,83.5"/>
+                <polygon class="f-paint-tungsten" fill-opacity="0.55" points="373.3,88.5 362.0,95.0 350.7,88.5 350.7,75.5 362.0,69.0 373.3,75.5"/>
+                <polygon class="f-paint-tungsten" fill-opacity="0.55" points="415.3,84.5 404.0,91.0 392.7,84.5 392.7,71.5 404.0,65.0 415.3,71.5"/>
+                <polygon class="f-paint-tungsten" fill-opacity="0.55" points="457.3,84.5 446.0,91.0 434.7,84.5 434.7,71.5 446.0,65.0 457.3,71.5"/>
+                <polygon class="f-paint-tungsten" fill-opacity="0.55" points="499.3,88.5 488.0,95.0 476.7,88.5 476.7,75.5 488.0,69.0 499.3,75.5"/>
+                <polygon class="f-paint-tungsten" fill-opacity="0.55" points="541.3,96.5 530.0,103.0 518.7,96.5 518.7,83.5 530.0,77.0 541.3,83.5"/>
+                <polygon class="f-paint-tungsten" fill-opacity="0.55" points="583.3,106.5 572.0,113.0 560.7,106.5 560.7,93.5 572.0,87.0 583.3,93.5"/>
+                <rect class="f-buf-hi" fill-opacity="0.08" x="0" y="266" width="640" height="54"/>
+                <rect x="330" y="266" width="120" height="30" rx="15" fill="url(#pic94-streak)"/>
+                <circle class="f-buf-hi" cx="452" cy="281" r="15"/>
+                <rect class="f-buf-hi" fill-opacity="0.35" x="120" y="80" width="34" height="240"/>
+                <rect class="f-buf-hi" fill-opacity="0.5" x="112" y="72" width="50" height="10"/>
+                <circle class="f-paint-candle" cx="137" cy="54" r="34" fill-opacity="0.85" filter="url(#pic94-glow)"/>
+                <rect class="f-paint-tungsten" x="128" y="42" width="18" height="26" rx="4"/>
+                <rect class="f-paint-daylight" x="133" y="48" width="8" height="14" rx="2"/>
+                <polygon class="f-paint-candle" fill-opacity="0.35" points="255.8,123.6 251.3,131.4 242.3,131.4 237.8,123.6 242.3,115.8 251.3,115.8"/>
+                <polygon class="f-paint-candle" fill-opacity="0.25" points="381.8,199.0 373.8,212.9 357.8,212.9 349.8,199.0 357.8,185.1 373.8,185.1"/>
+                <polygon class="f-paint-candle" fill-opacity="0.18" points="455.8,239.6 442.8,262.1 416.8,262.1 403.8,239.6 416.8,217.1 442.8,217.1"/>
+                <polygon class="f-paint-candle" fill-opacity="0.3" points="496.7,274.4 490.7,284.8 478.7,284.8 472.7,274.4 478.7,264.0 490.7,264.0"/>
+                <rect class="f-paint-red" fill-opacity="0.8" x="595" y="140" width="40" height="70"/>
+                <rect class="f-paint-sky" fill-opacity="0.8" x="589" y="136" width="40" height="70"/>
+                <rect class="f-paint-daylight" x="592" y="138" width="40" height="70"/>
+                <rect x="0" y="20" width="640" height="300" filter="url(#pic94-grain)" opacity="0.35"/>
+                <rect x="0" y="20" width="640" height="300" fill="url(#pic94-vig)"/>
+                </g>
+                <rect class="s-strong" x="0" y="20" width="640" height="300"/>
+                <circle class="f-acc" cx="186" cy="50" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="186" y="54">1</text>
+                <circle class="f-acc" cx="404" cy="216" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="404" y="220">2</text>
+                <circle class="f-acc" cx="380" cy="170" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="380" y="174">3</text>
+                <circle class="f-acc" cx="446" cy="50" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="446" y="54">4</text>
+                <circle class="f-acc" cx="360" cy="258" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="360" y="262">5</text>
+                <circle class="f-acc" cx="572" cy="170" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="572" y="174">6</text>
+                <circle class="f-acc" cx="28" cy="302" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="28" y="306">7</text>
+                <circle class="f-acc" cx="260" cy="302" r="10"/>
+                <text class="t-small t-strong t-on-acc mid" x="260" y="306">8</text>
+                <circle class="f-acc" cx="677" cy="34" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="38">1</text>
+                <text class="t-small t-strong" x="692" y="37">Bloom</text>
+                <text class="t-small t-muted" x="692" y="51">a bright light spills into its surroundings</text>
+                <circle class="f-acc" cx="677" cy="70" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="74">2</text>
+                <text class="t-small t-strong" x="692" y="73">Lens flare</text>
+                <text class="t-small t-muted" x="692" y="87">ghosts of the light reflected inside the lens</text>
+                <circle class="f-acc" cx="677" cy="106" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="110">3</text>
+                <text class="t-small t-strong" x="692" y="109">Depth of field</text>
+                <text class="t-small t-muted" x="692" y="123">the background is out of focus</text>
+                <circle class="f-acc" cx="677" cy="142" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="146">4</text>
+                <text class="t-small t-strong" x="692" y="145">Bokeh</text>
+                <text class="t-small t-muted" x="692" y="159">out-of-focus lights take the aperture's shape</text>
+                <circle class="f-acc" cx="677" cy="178" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="182">5</text>
+                <text class="t-small t-strong" x="692" y="181">Motion blur</text>
+                <text class="t-small t-muted" x="692" y="195">the rolling ball smears along its path</text>
+                <circle class="f-acc" cx="677" cy="214" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="218">6</text>
+                <text class="t-small t-strong" x="692" y="217">Chromatic aberration</text>
+                <text class="t-small t-muted" x="692" y="231">colour fringes near the frame edge</text>
+                <circle class="f-acc" cx="677" cy="250" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="254">7</text>
+                <text class="t-small t-strong" x="692" y="253">Vignette</text>
+                <text class="t-small t-muted" x="692" y="267">the corners are darker</text>
+                <circle class="f-acc" cx="677" cy="286" r="9"/>
+                <text class="t-small t-strong t-on-acc mid" x="677" y="290">8</text>
+                <text class="t-small t-strong" x="692" y="289">Film grain</text>
+                <text class="t-small t-muted" x="692" y="303">fine noise over the whole picture</text>
+                <text class="t-caps" x="0" y="12">ONE FRAME, EIGHT IMPERFECTIONS OF A REAL CAMERA</text>
+                </svg>
+              </div>
+              <figcaption><b>Camera effects are the flaws of a real camera, added on purpose.</b> None of these would appear in a perfect rendering. Each one tells the eye something: bloom that a light is very bright, depth of field what to look at, motion blur how fast things move, grain and vignette that this was filmed. Each also costs time and hides detail, which is why players often want some of them off.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A rendered frame is a pinhole photograph with an infinitely short exposure. Everything is in focus, nothing moves during the exposure, and light goes exactly where the geometry says. Real cameras and real eyes are messier. Glass scatters and reflects light, an aperture lets only one distance be sharp, a shutter stays open while things move, and film has grain. We have spent a century watching films shot through such lenses, so their flaws read as cinematic and as physically real.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="A side view of a real camera: light from the scene passes through lens glass, which causes lens flare, chromatic aberration, distortion and glare; then the aperture, which sets depth of field, the shape of bokeh and vignetting; then the shutter, whose open time causes motion blur; then the sensor or film, which adds grain and bloom from glare. A game camera is a pinhole with an instant shutter and a perfect sensor, so camera effects add these flaws back as post-processing.">
+                <defs><marker id="cam-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-lit" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                <text class="t-caps" x="10" y="20">A REAL CAMERA, FROM SCENE TO SENSOR</text>
+                <line class="s-lit w2" x1="10" y1="81" x2="150" y2="96" marker-end="url(#cam-arr)"/>
+                <line class="s-lit w2" x1="10" y1="120" x2="150" y2="120" marker-end="url(#cam-arr)"/>
+                <line class="s-lit w2" x1="10" y1="159" x2="150" y2="144" marker-end="url(#cam-arr)"/>
+                <text class="t-small t-lit" x="10" y="190">light from the scene</text>
+                <ellipse class="f-acc-soft s-acc w2" cx="200" cy="120" rx="16" ry="62"/>
+                <ellipse class="f-acc-soft s-acc w2" cx="240" cy="120" rx="12" ry="56"/>
+                <path class="f-solid s-ink" d="M320,50 h10 v48 h-10 Z M320,142 h10 v48 h-10 Z"/>
+                <rect class="f-strong s-ink" x="420" y="50" width="10" height="140"/>
+                <rect class="f-surface" x="419" y="106" width="12" height="28"/>
+                <rect class="f-pix-soft s-pix w2" x="520" y="54" width="14" height="132"/>
+                <path class="s-lit" d="M256,90 L320,108 M256,150 L320,132 M330,108 L420,114 M330,132 L420,126 M430,114 L520,120 M430,126 L520,120"/>
+                <text class="t-small t-strong mid" x="220" y="216">Lens glass</text>
+                <text class="t-small t-acc mid" x="220" y="233">lens flare</text>
+                <text class="t-small t-acc mid" x="220" y="248">chromatic aberration</text>
+                <text class="t-small t-acc mid" x="220" y="263">distortion, glare</text>
+                <text class="t-small t-strong mid" x="325" y="216">Aperture</text>
+                <text class="t-small t-acc mid" x="325" y="233">depth of field</text>
+                <text class="t-small t-acc mid" x="325" y="248">bokeh shape</text>
+                <text class="t-small t-acc mid" x="325" y="263">vignette</text>
+                <text class="t-small t-strong mid" x="425" y="216">Shutter</text>
+                <text class="t-small t-acc mid" x="425" y="233">motion blur</text>
+                <text class="t-small t-strong mid" x="527" y="216">Sensor or film</text>
+                <text class="t-small t-acc mid" x="527" y="233">grain</text>
+                <text class="t-small t-acc mid" x="527" y="248">bloom from glare</text>
+                <text class="t-caps" x="610" y="20">A GAME CAMERA</text>
+                <text class="t-small" x="610" y="70">A pinhole: no glass, no aperture</text>
+                <text class="t-small" x="610" y="86">to speak of, an instant shutter,</text>
+                <text class="t-small" x="610" y="102">a perfect sensor. Everything is</text>
+                <text class="t-small" x="610" y="118">sharp, frozen and clean.</text>
+                <text class="t-small t-muted" x="610" y="150">Camera effects add the flaws back,</text>
+                <text class="t-small t-muted" x="610" y="166">as post-processing on the finished</text>
+                <text class="t-small t-muted" x="610" y="182">image, because we read them as</text>
+                <text class="t-small t-muted" x="610" y="198">filmed, and as very bright.</text>
+                </svg>
+              </div>
+              <figcaption><b>Each part of a real camera leaves its own mark.</b> Games do not simulate the optics. They add each effect as a separate image filter on the finished frame, using the depth buffer and motion vectors to know where and how much.</figcaption>
+            </figure>
+            <p>All of these effects are <dfn class="term" data-term="post-processing">post-processing</dfn>: full-screen passes that run after the scene is lit, reading the lit image and the buffers made with it, such as depth and <a class="term" data-term="motion-vectors" href="glossary.html#motion-vectors">motion vectors</a>, and writing a new image. Artists usually set them through a <dfn class="term" data-term="post-process-volume">post-process volume</dfn>: a box in the level, or a global setting, holding values for bloom, exposure, depth of field and the rest, blended as the camera moves from one volume into another. That is how a cave can have stronger bloom and a different grade from the valley outside.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">An everyday comparison</span>
+                <p>A phone photo of a street at night: street lamps glow into the haze, the camera focused on your friend so the shop signs behind are soft discs, a passing car is a streak. Nobody calls those mistakes; they are how the scene looked through that camera. Remove them and the photo looks like a render.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>A screen cannot show how bright a lamp is, so bloom borrows the eye's own reaction to glare to say it. Depth of field steers attention in cutscenes. Motion blur makes 30 or 60 frames a second look smoother. Grain hides colour banding.</p>
+                <p>The cost is detail, milliseconds, and for some players nausea or eye strain.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Camera effects set much of a game's look and are cheap to change late, which makes them a frequent source of argument between art direction, performance and accessibility. Together they cost a few milliseconds a frame, mostly in depth of field and motion blur. They interact with the <a class="term" data-term="temporal-upscaling" href="glossary.html#temporal-upscaling">upscaler</a>, since most run at full display resolution after it. And motion blur, camera shake and flashing effects are accessibility issues: Microsoft's Xbox Accessibility Guidelines ask games to let players turn several of them off.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Every effect here is a filter on the finished image. They differ in what extra information they read (brightness, depth, motion) and in how far each pixel reaches across the screen, which is what makes some cheap and others expensive.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="bloom"><span class="step-num">1</span> Bloom: very bright light spills over</h3>
+              <p><dfn class="term" data-term="bloom">Bloom</dfn> spreads very bright light into the pixels around it, as glare does in an eye or a lens. It runs on the <a class="term" data-term="scene-referred" href="glossary.html#scene-referred">scene-referred</a> image, before the <a class="term" data-term="tone-curve" href="glossary.html#tone-curve">tone curve</a> (9.1), because only there is a flame at 20 still twenty times brighter than a wall at 1. After tone mapping both would be near white, and bloom could not tell them apart.</p>
+              <p>A blur wide enough to look like glare would be far too slow at full resolution, so bloom uses a pyramid. Keep only the light above a threshold. Halve the image several times, blurring at each step. Then come back up, adding each level to the one above it, so that tight and wide glows sum together. Finally add a small fraction of the result to the scene.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 370" role="img" aria-label="Top: the bloom chain. The HDR frame goes through a bright pass that keeps only light above 2.5, is shrunk and blurred four times to half, a quarter, an eighth and a sixteenth of the size, summed back up into tight and wide glows, and added to the frame at 10 percent before the tone curve. Bottom: brightness across a lantern on a log scale. The scene is a wall at 0.4 with a flame at 20; the bloom adds a skirt of light that makes the wall 1.9 times as bright 12 pixels from the flame.">
+                  <defs><marker id="bl-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  <filter id="bl-b1" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2"/></filter>
+                  <filter id="bl-b2" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
+                  <filter id="bl-b3" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="7"/></filter></defs>
+                  <text class="t-caps" x="0" y="16">THE BLOOM CHAIN, AS IN THE LANTERN COURTYARD</text>
+                  <rect class="f-buf-lo" x="0" y="46" width="150" height="84" rx="2"/>
+                  <rect class="f-buf-hi" fill-opacity="0.25" x="20" y="80" width="110" height="46"/>
+                  <circle class="f-paint-candle" cx="60" cy="70" r="6"/>
+                  <circle class="f-paint-daylight" cx="60" cy="70" r="2.5"/>
+                  <text class="t-small t-strong mid" x="75" y="156">HDR frame</text>
+                  <text class="t-small t-muted mid" x="75" y="171">after lighting</text>
+                  <line class="s-muted" x1="154" y1="88" x2="176" y2="88" marker-end="url(#bl-arr)"/>
+                  <rect class="f-buf-lo" x="180" y="54" width="120" height="68" rx="2"/>
+                  <circle class="f-paint-candle" cx="220" cy="80" r="5"/>
+                  <text class="t-small t-strong mid" x="240" y="156">Bright pass</text>
+                  <text class="t-small t-muted mid" x="240" y="171">only above 2.5</text>
+                  <line class="s-muted" x1="304" y1="88" x2="326" y2="88" marker-end="url(#bl-arr)"/>
+                  <rect class="f-buf-lo" x="330" y="71" width="60" height="34" rx="2"/>
+                  <circle class="f-paint-candle" cx="350" cy="82.33333333333333" r="4" filter="url(#bl-b1)"/>
+                  <text class="t-small t-strong mid" x="360" y="156">½</text>
+                  <rect class="f-buf-lo" x="400" y="76.5" width="40" height="23" rx="2"/>
+                  <circle class="f-paint-candle" cx="413.3333333333333" cy="84.16666666666667" r="3" filter="url(#bl-b1)"/>
+                  <text class="t-small t-strong mid" x="420" y="156">¼</text>
+                  <rect class="f-buf-lo" x="450" y="79.5" width="30" height="17" rx="2"/>
+                  <circle class="f-paint-candle" cx="460" cy="85.16666666666667" r="3" filter="url(#bl-b2)"/>
+                  <text class="t-small t-strong mid" x="465" y="156">⅛</text>
+                  <rect class="f-buf-lo" x="490" y="82" width="22" height="12" rx="2"/>
+                  <circle class="f-paint-candle" cx="497.3333333333333" cy="86" r="3" filter="url(#bl-b3)"/>
+                  <text class="t-small t-strong mid" x="501" y="156">1⁄16</text>
+                  <text class="t-small t-muted" x="330" y="171">shrink and blur, 4 levels</text>
+                  <line class="s-muted" x1="518" y1="88" x2="540" y2="88" marker-end="url(#bl-arr)"/>
+                  <rect class="f-buf-lo" x="544" y="54" width="120" height="68" rx="2"/>
+                  <circle class="f-paint-candle" cx="584" cy="80" r="18" filter="url(#bl-b3)"/>
+                  <circle class="f-paint-candle" cx="584" cy="80" r="8" filter="url(#bl-b2)"/>
+                  <circle class="f-paint-candle" cx="584" cy="80" r="3"/>
+                  <text class="t-small t-strong mid" x="604" y="156">Sum back up</text>
+                  <text class="t-small t-muted mid" x="604" y="171">wide and tight glows</text>
+                  <line class="s-muted" x1="668" y1="88" x2="690" y2="88" marker-end="url(#bl-arr)"/>
+                  <rect class="f-buf-lo" x="694" y="46" width="150" height="84" rx="2"/>
+                  <rect class="f-buf-hi" fill-opacity="0.25" x="714" y="80" width="110" height="46"/>
+                  <circle class="f-paint-candle" cx="754" cy="70" r="22" filter="url(#bl-b3)"/>
+                  <circle class="f-paint-candle" cx="754" cy="70" r="6"/>
+                  <circle class="f-paint-daylight" cx="754" cy="70" r="2.5"/>
+                  <text class="t-small t-strong mid" x="769" y="156">Add at 10%</text>
+                  <text class="t-small t-muted mid" x="769" y="171">before the tone curve</text>
+                  <text class="t-caps" x="70" y="198">BRIGHTNESS ACROSS THE LANTERN, LOG SCALE</text>
+                  <line class="s-line" x1="70" y1="330" x2="630" y2="330"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="334">0.1</text>
+                  <line class="s-line" x1="70" y1="283.8826927895856" x2="630" y2="283.8826927895856"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="287.8826927895856">1</text>
+                  <line class="s-line" x1="70" y1="237.7653855791711" x2="630" y2="237.7653855791711"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="241.7653855791711">10</text>
+                  <line class="s-pix dash" x1="70" y1="265.5307711583422" x2="630" y2="265.5307711583422"/>
+                  <text class="t-small t-pix" x="76" y="260.5307711583422">threshold 2.5</text>
+                  <polyline class="s-ink w2" points="70.0,302.2 72.3,302.2 74.7,302.2 77.0,302.2 79.3,302.2 81.7,302.2 84.0,302.2 86.3,302.2 88.7,302.2 91.0,302.2 93.3,302.2 95.7,302.2 98.0,302.2 100.3,302.2 102.7,302.2 105.0,302.2 107.3,302.2 109.7,302.2 112.0,302.2 114.3,302.2 116.7,302.2 119.0,302.2 121.3,302.2 123.7,302.2 126.0,302.2 128.3,302.2 130.7,302.2 133.0,302.2 135.3,302.2 137.7,302.2 140.0,302.2 142.3,302.2 144.7,302.2 147.0,302.2 149.3,302.2 151.7,302.2 154.0,302.2 156.3,302.2 158.7,302.2 161.0,302.2 163.3,302.2 165.7,302.2 168.0,302.2 170.3,302.2 172.7,302.2 175.0,302.2 177.3,302.2 179.7,302.2 182.0,302.2 184.3,302.2 186.7,302.2 189.0,302.2 191.3,302.2 193.7,302.2 196.0,302.2 198.3,302.2 200.7,302.2 203.0,302.2 205.3,302.2 207.7,302.2 210.0,302.2 212.3,302.2 214.7,302.2 217.0,302.2 219.3,302.2 221.7,302.2 224.0,302.2 226.3,302.2 228.7,302.2 231.0,302.2 233.3,302.2 235.7,302.2 238.0,302.2 240.3,302.2 242.7,302.2 245.0,302.2 247.3,302.2 249.7,302.2 252.0,302.2 254.3,302.2 256.7,302.2 259.0,302.2 261.3,302.2 263.7,302.2 266.0,302.2 268.3,302.2 270.7,302.2 273.0,302.2 275.3,302.2 277.7,302.2 280.0,302.2 282.3,302.2 284.7,302.2 287.0,302.2 289.3,302.2 291.7,302.2 294.0,302.2 296.3,302.2 298.7,302.2 301.0,302.2 303.3,302.2 305.7,302.2 308.0,302.2 310.3,302.2 312.7,302.2 315.0,302.2 317.3,302.2 319.7,302.2 322.0,302.2 324.3,302.2 326.7,302.2 329.0,302.2 331.3,302.2 333.7,302.2 336.0,302.2 338.3,223.9 340.7,223.9 343.0,223.9 345.3,223.9 347.7,223.9 350.0,223.9 352.3,223.9 354.7,223.9 357.0,223.9 359.3,223.9 361.7,223.9 364.0,302.2 366.3,302.2 368.7,302.2 371.0,302.2 373.3,302.2 375.7,302.2 378.0,302.2 380.3,302.2 382.7,302.2 385.0,302.2 387.3,302.2 389.7,302.2 392.0,302.2 394.3,302.2 396.7,302.2 399.0,302.2 401.3,302.2 403.7,302.2 406.0,302.2 408.3,302.2 410.7,302.2 413.0,302.2 415.3,302.2 417.7,302.2 420.0,302.2 422.3,302.2 424.7,302.2 427.0,302.2 429.3,302.2 431.7,302.2 434.0,302.2 436.3,302.2 438.7,302.2 441.0,302.2 443.3,302.2 445.7,302.2 448.0,302.2 450.3,302.2 452.7,302.2 455.0,302.2 457.3,302.2 459.7,302.2 462.0,302.2 464.3,302.2 466.7,302.2 469.0,302.2 471.3,302.2 473.7,302.2 476.0,302.2 478.3,302.2 480.7,302.2 483.0,302.2 485.3,302.2 487.7,302.2 490.0,302.2 492.3,302.2 494.7,302.2 497.0,302.2 499.3,302.2 501.7,302.2 504.0,302.2 506.3,302.2 508.7,302.2 511.0,302.2 513.3,302.2 515.7,302.2 518.0,302.2 520.3,302.2 522.7,302.2 525.0,302.2 527.3,302.2 529.7,302.2 532.0,302.2 534.3,302.2 536.7,302.2 539.0,302.2 541.3,302.2 543.7,302.2 546.0,302.2 548.3,302.2 550.7,302.2 553.0,302.2 555.3,302.2 557.7,302.2 560.0,302.2 562.3,302.2 564.7,302.2 567.0,302.2 569.3,302.2 571.7,302.2 574.0,302.2 576.3,302.2 578.7,302.2 581.0,302.2 583.3,302.2 585.7,302.2 588.0,302.2 590.3,302.2 592.7,302.2 595.0,302.2 597.3,302.2 599.7,302.2 602.0,302.2 604.3,302.2 606.7,302.2 609.0,302.2 611.3,302.2 613.7,302.2 616.0,302.2 618.3,302.2 620.7,302.2 623.0,302.2 625.3,302.2 627.7,302.2 630.0,302.2"/>
+                  <polyline class="s-acc w3" points="70.0,302.2 72.3,302.2 74.7,302.2 77.0,302.2 79.3,302.2 81.7,302.2 84.0,302.2 86.3,302.2 88.7,302.2 91.0,302.2 93.3,302.2 95.7,302.2 98.0,302.2 100.3,302.2 102.7,302.2 105.0,302.2 107.3,302.2 109.7,302.2 112.0,302.2 114.3,302.1 116.7,302.1 119.0,302.1 121.3,302.1 123.7,302.1 126.0,302.1 128.3,302.1 130.7,302.1 133.0,302.1 135.3,302.0 137.7,302.0 140.0,302.0 142.3,302.0 144.7,302.0 147.0,301.9 149.3,301.9 151.7,301.9 154.0,301.8 156.3,301.8 158.7,301.8 161.0,301.7 163.3,301.7 165.7,301.7 168.0,301.6 170.3,301.6 172.7,301.5 175.0,301.5 177.3,301.4 179.7,301.3 182.0,301.3 184.3,301.2 186.7,301.1 189.0,301.1 191.3,301.0 193.7,300.9 196.0,300.8 198.3,300.7 200.7,300.6 203.0,300.5 205.3,300.4 207.7,300.3 210.0,300.2 212.3,300.1 214.7,300.0 217.0,299.8 219.3,299.7 221.7,299.6 224.0,299.4 226.3,299.3 228.7,299.1 231.0,298.9 233.3,298.8 235.7,298.6 238.0,298.4 240.3,298.2 242.7,298.0 245.0,297.8 247.3,297.5 249.7,297.3 252.0,297.0 254.3,296.8 256.7,296.5 259.0,296.2 261.3,295.9 263.7,295.5 266.0,295.2 268.3,294.8 270.7,294.4 273.0,294.0 275.3,293.6 277.7,293.2 280.0,292.7 282.3,292.2 284.7,291.7 287.0,291.2 289.3,290.6 291.7,290.1 294.0,289.4 296.3,288.8 298.7,288.0 301.0,287.3 303.3,286.5 305.7,285.6 308.0,284.7 310.3,283.6 312.7,282.6 315.0,281.4 317.3,280.1 319.7,278.6 322.0,277.0 324.3,275.2 326.7,273.3 329.0,271.2 331.3,269.1 333.7,267.0 336.0,265.1 338.3,221.6 340.7,221.4 343.0,221.3 345.3,221.1 347.7,221.1 350.0,221.0 352.3,221.1 354.7,221.1 357.0,221.3 359.3,221.4 361.7,221.6 364.0,265.1 366.3,267.0 368.7,269.1 371.0,271.2 373.3,273.3 375.7,275.2 378.0,277.0 380.3,278.6 382.7,280.1 385.0,281.4 387.3,282.6 389.7,283.6 392.0,284.7 394.3,285.6 396.7,286.5 399.0,287.3 401.3,288.0 403.7,288.8 406.0,289.4 408.3,290.1 410.7,290.6 413.0,291.2 415.3,291.7 417.7,292.2 420.0,292.7 422.3,293.2 424.7,293.6 427.0,294.0 429.3,294.4 431.7,294.8 434.0,295.2 436.3,295.5 438.7,295.9 441.0,296.2 443.3,296.5 445.7,296.8 448.0,297.0 450.3,297.3 452.7,297.5 455.0,297.8 457.3,298.0 459.7,298.2 462.0,298.4 464.3,298.6 466.7,298.8 469.0,298.9 471.3,299.1 473.7,299.3 476.0,299.4 478.3,299.6 480.7,299.7 483.0,299.8 485.3,300.0 487.7,300.1 490.0,300.2 492.3,300.3 494.7,300.4 497.0,300.5 499.3,300.6 501.7,300.7 504.0,300.8 506.3,300.9 508.7,301.0 511.0,301.1 513.3,301.1 515.7,301.2 518.0,301.3 520.3,301.3 522.7,301.4 525.0,301.5 527.3,301.5 529.7,301.6 532.0,301.6 534.3,301.7 536.7,301.7 539.0,301.7 541.3,301.8 543.7,301.8 546.0,301.8 548.3,301.9 550.7,301.9 553.0,301.9 555.3,302.0 557.7,302.0 560.0,302.0 562.3,302.0 564.7,302.0 567.0,302.1 569.3,302.1 571.7,302.1 574.0,302.1 576.3,302.1 578.7,302.1 581.0,302.1 583.3,302.1 585.7,302.1 588.0,302.2 590.3,302.2 592.7,302.2 595.0,302.2 597.3,302.2 599.7,302.2 602.0,302.2 604.3,302.2 606.7,302.2 609.0,302.2 611.3,302.2 613.7,302.2 616.0,302.2 618.3,302.2 620.7,302.2 623.0,302.2 625.3,302.2 627.7,302.2 630.0,302.2"/>
+                  <polyline class="s-acc dash" points="70.0,330.0 72.3,330.0 74.7,330.0 77.0,330.0 79.3,330.0 81.7,330.0 84.0,330.0 86.3,330.0 88.7,330.0 91.0,330.0 93.3,330.0 95.7,330.0 98.0,330.0 100.3,330.0 102.7,330.0 105.0,330.0 107.3,330.0 109.7,330.0 112.0,330.0 114.3,330.0 116.7,330.0 119.0,330.0 121.3,330.0 123.7,330.0 126.0,330.0 128.3,330.0 130.7,330.0 133.0,330.0 135.3,330.0 137.7,330.0 140.0,330.0 142.3,330.0 144.7,330.0 147.0,330.0 149.3,330.0 151.7,330.0 154.0,330.0 156.3,330.0 158.7,330.0 161.0,330.0 163.3,330.0 165.7,330.0 168.0,330.0 170.3,330.0 172.7,330.0 175.0,330.0 177.3,330.0 179.7,330.0 182.0,330.0 184.3,330.0 186.7,330.0 189.0,330.0 191.3,330.0 193.7,330.0 196.0,330.0 198.3,330.0 200.7,330.0 203.0,330.0 205.3,330.0 207.7,330.0 210.0,330.0 212.3,330.0 214.7,330.0 217.0,330.0 219.3,330.0 221.7,330.0 224.0,330.0 226.3,330.0 228.7,330.0 231.0,330.0 233.3,330.0 235.7,330.0 238.0,330.0 240.3,330.0 242.7,330.0 245.0,330.0 247.3,328.8 249.7,327.7 252.0,326.5 254.3,325.4 256.7,324.2 259.0,323.1 261.3,321.9 263.7,320.7 266.0,319.5 268.3,318.3 270.7,317.1 273.0,315.9 275.3,314.7 277.7,313.4 280.0,312.2 282.3,311.0 284.7,309.7 287.0,308.4 289.3,307.1 291.7,305.8 294.0,304.4 296.3,303.1 298.7,301.6 301.0,300.2 303.3,298.6 305.7,297.1 308.0,295.4 310.3,293.7 312.7,291.9 315.0,290.1 317.3,288.1 319.7,285.9 322.0,283.7 324.3,281.2 326.7,278.6 329.0,276.0 331.3,273.3 333.7,270.8 336.0,268.5 338.3,266.4 340.7,264.7 343.0,263.3 345.3,262.3 347.7,261.7 350.0,261.5 352.3,261.7 354.7,262.3 357.0,263.3 359.3,264.7 361.7,266.4 364.0,268.5 366.3,270.8 368.7,273.3 371.0,276.0 373.3,278.6 375.7,281.2 378.0,283.7 380.3,285.9 382.7,288.1 385.0,290.1 387.3,291.9 389.7,293.7 392.0,295.4 394.3,297.1 396.7,298.6 399.0,300.2 401.3,301.6 403.7,303.1 406.0,304.4 408.3,305.8 410.7,307.1 413.0,308.4 415.3,309.7 417.7,311.0 420.0,312.2 422.3,313.4 424.7,314.7 427.0,315.9 429.3,317.1 431.7,318.3 434.0,319.5 436.3,320.7 438.7,321.9 441.0,323.1 443.3,324.2 445.7,325.4 448.0,326.5 450.3,327.7 452.7,328.8 455.0,330.0 457.3,330.0 459.7,330.0 462.0,330.0 464.3,330.0 466.7,330.0 469.0,330.0 471.3,330.0 473.7,330.0 476.0,330.0 478.3,330.0 480.7,330.0 483.0,330.0 485.3,330.0 487.7,330.0 490.0,330.0 492.3,330.0 494.7,330.0 497.0,330.0 499.3,330.0 501.7,330.0 504.0,330.0 506.3,330.0 508.7,330.0 511.0,330.0 513.3,330.0 515.7,330.0 518.0,330.0 520.3,330.0 522.7,330.0 525.0,330.0 527.3,330.0 529.7,330.0 532.0,330.0 534.3,330.0 536.7,330.0 539.0,330.0 541.3,330.0 543.7,330.0 546.0,330.0 548.3,330.0 550.7,330.0 553.0,330.0 555.3,330.0 557.7,330.0 560.0,330.0 562.3,330.0 564.7,330.0 567.0,330.0 569.3,330.0 571.7,330.0 574.0,330.0 576.3,330.0 578.7,330.0 581.0,330.0 583.3,330.0 585.7,330.0 588.0,330.0 590.3,330.0 592.7,330.0 595.0,330.0 597.3,330.0 599.7,330.0 602.0,330.0 604.3,330.0 606.7,330.0 609.0,330.0 611.3,330.0 613.7,330.0 616.0,330.0 618.3,330.0 620.7,330.0 623.0,330.0 625.3,330.0 627.7,330.0 630.0,330.0"/>
+                  <text class="t-mono t-small t-muted mid" x="126" y="346">-48</text>
+                  <text class="t-mono t-small t-muted mid" x="238" y="346">-24</text>
+                  <text class="t-mono t-small t-muted mid" x="350" y="346">0</text>
+                  <text class="t-mono t-small t-muted mid" x="462" y="346">24</text>
+                  <text class="t-mono t-small t-muted mid" x="574" y="346">48</text>
+                  <text class="t-small t-muted mid" x="350" y="362">pixels from the lantern's centre</text>
+                  <line class="s-ink w2" x1="636" y1="252" x2="656" y2="252"/><text class="t-small" x="662" y="256">scene: wall 0.4, flame 20</text>
+                  <line class="s-acc dash" x1="636" y1="272" x2="656" y2="272"/><text class="t-small t-acc" x="662" y="276">bloom alone</text>
+                  <line class="s-acc w3" x1="636" y1="292" x2="656" y2="292"/><text class="t-small t-acc t-strong" x="662" y="296">scene + bloom</text>
+                  <text class="t-small t-muted" x="636" y="320">At 12 px the wall is 1.9×</text>
+                  <text class="t-small t-muted" x="636" y="335">as bright; at 36 px, 1.05×.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Bloom is a sum of blurs at several sizes.</b> The chain is the Lantern Courtyard's: a soft threshold at 2.5 after exposure, four levels from half to a sixteenth of the resolution, and the result added at 10% before the tone curve. The profile below is computed with blurs of 2, 4, 8 and 16 pixels: the flame's glow makes the wall almost twice as bright 12 pixels away and fades out by 36.</figcaption>
+              </figure>
+              <p>The threshold is a choice. A hard threshold makes only lights and hot highlights bloom, which is easy to control. Jorge Jimenez's bloom for Call of Duty: Advanced Warfare used no threshold at all, because scattering in the eye affects all light, and HDRP's bloom is energy-conserving, which its documentation says any threshold above 0 breaks. Small, very bright pixels are the other trap: a highlight one pixel wide may land on a different downsampled texel each frame, so the bloom around it flickers. Jimenez's fix was a wider, 13-tap downsample filter plus reducing the brightest pixels' weight when averaging; HDRP's High Quality Prefiltering likewise uses 13 samples instead of 4. A lens dirt texture, multiplied into the bloom, adds smudges that light up when a bright source is in view.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="lens-flare"><span class="step-num">2</span> Lens flare: reflections inside the lens</h3>
+              <p>A real lens is a stack of glass elements, and a little light reflects between them, producing ghost images of a bright source on a line through the image centre, plus streaks. Games draw <dfn class="term" data-term="lens-flare">lens flares</dfn> in two ways. Sprite flares attach a set of shapes to a specific light, the sun or a lamp, placed along the line from the light through the screen centre and faded when the light is hidden. Screen-space flares take the bright pixels the bloom pass already found and draw them again flipped and stretched, so every bright spot can flare, including emissive surfaces. Unity offers both: the Lens Flare (SRP) component for specific lights, including off-screen ones, and the Screen Space Lens Flare override, which reuses the bloom buffer and works only for what is on screen.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="dof"><span class="step-num">3</span> Depth of field and the circle of confusion</h3>
+              <p>A lens focuses light from one distance onto the sensor. Light from a point nearer or farther converges in front of or behind the sensor and lands as a disc instead of a point. <dfn class="term" data-term="depth-of-field">Depth of field</dfn> is the range of distances that look sharp; the disc is the <dfn class="term" data-term="circle-of-confusion">circle of confusion</dfn>, CoC, and its size for every pixel follows from the pixel's depth with the thin-lens formula.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 276" role="img" aria-label="Left: a thin lens focused at 3 metres. A point at 3 metres converges to a point on the sensor; a farther point converges in front of the sensor and spreads into a disc, the circle of confusion. Right: the disc's diameter in pixels on a 1920 pixel wide image for a 50 millimetre lens on a full-frame sensor, against distance on a log scale. At f/2 it is zero at the 3 metre focus plane, 45 pixels at 1 metre, 16 pixels at 10 metres, and never more than 22.6 pixels however far away. At f/8 every value is four times smaller.">
+                  <defs><clipPath id="coc-clip"><rect x="440" y="34" width="420" height="200"/></clipPath></defs>
+                  <text class="t-caps" x="440" y="20">BLUR DIAMETER ON A 1920-PIXEL-WIDE IMAGE</text>
+                  <line class="s-line" x1="440" y1="234" x2="860" y2="234"/>
+                  <text class="t-mono t-small t-muted end" x="434" y="238">0</text>
+                  <line class="s-line" x1="440" y1="194" x2="860" y2="194"/>
+                  <text class="t-mono t-small t-muted end" x="434" y="198">10</text>
+                  <line class="s-line" x1="440" y1="154" x2="860" y2="154"/>
+                  <text class="t-mono t-small t-muted end" x="434" y="158">20</text>
+                  <line class="s-line" x1="440" y1="114" x2="860" y2="114"/>
+                  <text class="t-mono t-small t-muted end" x="434" y="118">30</text>
+                  <line class="s-line" x1="440" y1="74" x2="860" y2="74"/>
+                  <text class="t-mono t-small t-muted end" x="434" y="78">40</text>
+                  <line class="s-line" x1="440" y1="34" x2="860" y2="34"/>
+                  <text class="t-mono t-small t-muted end" x="434" y="38">50</text>
+                  <text class="t-mono t-small t-muted mid" x="440.0" y="250">0.5</text>
+                  <text class="t-mono t-small t-muted mid" x="511.1" y="250">1</text>
+                  <text class="t-mono t-small t-muted mid" x="582.2" y="250">2</text>
+                  <text class="t-mono t-small t-muted mid" x="623.8" y="250">3</text>
+                  <text class="t-mono t-small t-muted mid" x="676.2" y="250">5</text>
+                  <text class="t-mono t-small t-muted mid" x="747.3" y="250">10</text>
+                  <text class="t-mono t-small t-muted mid" x="818.4" y="250">20</text>
+                  <text class="t-mono t-small t-muted mid" x="860.0" y="250">30</text>
+                  <text class="t-small t-muted mid" x="650" y="266">distance from the camera, metres (log scale)</text>
+                  <text class="t-small t-muted" x="406" y="28">px</text>
+                  <line class="s-geo w2 dash" x1="623.799620583804" y1="34" x2="623.799620583804" y2="234"/>
+                  <text class="t-small t-geo t-strong" x="629.799620583804" y="48">focus plane, 3 m</text>
+                  <g clip-path="url(#coc-clip)"><polyline class="s-acc w3" points="440.0,34.0 441.4,34.0 442.8,34.0 444.2,34.0 445.6,34.0 447.0,34.0 448.4,34.0 449.8,34.0 451.2,34.0 452.6,34.0 454.0,34.0 455.4,34.0 456.8,34.0 458.2,34.0 459.6,34.0 461.0,34.0 462.4,34.0 463.8,34.0 465.2,34.0 466.6,34.0 468.0,34.0 469.4,34.0 470.8,34.0 472.2,34.0 473.6,34.0 475.0,34.0 476.4,34.0 477.8,34.0 479.2,34.0 480.6,34.0 482.0,34.0 483.4,34.0 484.8,34.0 486.2,34.0 487.6,34.0 489.0,34.0 490.4,34.0 491.8,34.0 493.2,34.0 494.6,34.0 496.0,34.0 497.4,34.0 498.8,34.0 500.2,34.0 501.6,34.0 503.0,34.0 504.4,34.9 505.8,38.8 507.2,42.7 508.6,46.5 510.0,50.3 511.4,54.0 512.8,57.7 514.2,61.3 515.6,64.8 517.0,68.4 518.4,71.8 519.8,75.3 521.2,78.6 522.6,82.0 524.0,85.2 525.4,88.5 526.8,91.7 528.2,94.8 529.6,98.0 531.0,101.0 532.4,104.0 533.8,107.0 535.2,110.0 536.6,112.9 538.0,115.8 539.4,118.6 540.8,121.4 542.2,124.1 543.6,126.8 545.0,129.5 546.4,132.2 547.8,134.8 549.2,137.3 550.6,139.9 552.0,142.4 553.4,144.8 554.8,147.3 556.2,149.7 557.6,152.0 559.0,154.4 560.4,156.7 561.8,159.0 563.2,161.2 564.6,163.4 566.0,165.6 567.4,167.7 568.8,169.9 570.2,172.0 571.6,174.0 573.0,176.1 574.4,178.1 575.8,180.1 577.2,182.0 578.6,183.9 580.0,185.9 581.4,187.7 582.8,189.6 584.2,191.4 585.6,193.2 587.0,195.0 588.4,196.7 589.8,198.5 591.2,200.2 592.6,201.9 594.0,203.5 595.4,205.2 596.8,206.8 598.2,208.4 599.6,209.9 601.0,211.5 602.4,213.0 603.8,214.5 605.2,216.0 606.6,217.5 608.0,218.9 609.4,220.4 610.8,221.8 612.2,223.2 613.6,224.5 615.0,225.9 616.4,227.2 617.8,228.6 619.2,229.9 620.6,231.1 622.0,232.4 623.4,233.6 624.8,233.1 626.2,231.9 627.6,230.7 629.0,229.5 630.4,228.4 631.8,227.2 633.2,226.1 634.6,225.0 636.0,223.9 637.4,222.8 638.8,221.7 640.2,220.6 641.6,219.6 643.0,218.6 644.4,217.6 645.8,216.6 647.2,215.6 648.6,214.6 650.0,213.6 651.4,212.7 652.8,211.7 654.2,210.8 655.6,209.9 657.0,209.0 658.4,208.1 659.8,207.2 661.2,206.4 662.6,205.5 664.0,204.7 665.4,203.9 666.8,203.0 668.2,202.2 669.6,201.4 671.0,200.7 672.4,199.9 673.8,199.1 675.2,198.4 676.6,197.6 678.0,196.9 679.4,196.2 680.8,195.5 682.2,194.8 683.6,194.1 685.0,193.4 686.4,192.7 687.8,192.0 689.2,191.4 690.6,190.7 692.0,190.1 693.4,189.5 694.8,188.8 696.2,188.2 697.6,187.6 699.0,187.0 700.4,186.4 701.8,185.9 703.2,185.3 704.6,184.7 706.0,184.2 707.4,183.6 708.8,183.1 710.2,182.5 711.6,182.0 713.0,181.5 714.4,181.0 715.8,180.5 717.2,180.0 718.6,179.5 720.0,179.0 721.4,178.5 722.8,178.0 724.2,177.6 725.6,177.1 727.0,176.7 728.4,176.2 729.8,175.8 731.2,175.3 732.6,174.9 734.0,174.5 735.4,174.1 736.8,173.6 738.2,173.2 739.6,172.8 741.0,172.4 742.4,172.1 743.8,171.7 745.2,171.3 746.6,170.9 748.0,170.5 749.4,170.2 750.8,169.8 752.2,169.5 753.6,169.1 755.0,168.8 756.4,168.4 757.8,168.1 759.2,167.8 760.6,167.4 762.0,167.1 763.4,166.8 764.8,166.5 766.2,166.2 767.6,165.9 769.0,165.6 770.4,165.3 771.8,165.0 773.2,164.7 774.6,164.4 776.0,164.1 777.4,163.8 778.8,163.6 780.2,163.3 781.6,163.0 783.0,162.8 784.4,162.5 785.8,162.2 787.2,162.0 788.6,161.7 790.0,161.5 791.4,161.2 792.8,161.0 794.2,160.8 795.6,160.5 797.0,160.3 798.4,160.1 799.8,159.9 801.2,159.6 802.6,159.4 804.0,159.2 805.4,159.0 806.8,158.8 808.2,158.6 809.6,158.4 811.0,158.2 812.4,158.0 813.8,157.8 815.2,157.6 816.6,157.4 818.0,157.2 819.4,157.0 820.8,156.9 822.2,156.7 823.6,156.5 825.0,156.3 826.4,156.1 827.8,156.0 829.2,155.8 830.6,155.6 832.0,155.5 833.4,155.3 834.8,155.2 836.2,155.0 837.6,154.9 839.0,154.7 840.4,154.5 841.8,154.4 843.2,154.3 844.6,154.1 846.0,154.0 847.4,153.8 848.8,153.7 850.2,153.6 851.6,153.4 853.0,153.3 854.4,153.2 855.8,153.0 857.2,152.9 858.6,152.8 860.0,152.6"/><polyline class="s-acc w15 dash" points="440.0,121.0 441.4,122.8 442.8,124.7 444.2,126.4 445.6,128.2 447.0,129.9 448.4,131.7 449.8,133.4 451.2,135.0 452.6,136.7 454.0,138.3 455.4,139.9 456.8,141.5 458.2,143.0 459.6,144.6 461.0,146.1 462.4,147.6 463.8,149.1 465.2,150.5 466.6,152.0 468.0,153.4 469.4,154.8 470.8,156.2 472.2,157.5 473.6,158.9 475.0,160.2 476.4,161.5 477.8,162.8 479.2,164.1 480.6,165.3 482.0,166.6 483.4,167.8 484.8,169.0 486.2,170.2 487.6,171.3 489.0,172.5 490.4,173.6 491.8,174.8 493.2,175.9 494.6,177.0 496.0,178.0 497.4,179.1 498.8,180.2 500.2,181.2 501.6,182.2 503.0,183.2 504.4,184.2 505.8,185.2 507.2,186.2 508.6,187.1 510.0,188.1 511.4,189.0 512.8,189.9 514.2,190.8 515.6,191.7 517.0,192.6 518.4,193.5 519.8,194.3 521.2,195.2 522.6,196.0 524.0,196.8 525.4,197.6 526.8,198.4 528.2,199.2 529.6,200.0 531.0,200.8 532.4,201.5 533.8,202.3 535.2,203.0 536.6,203.7 538.0,204.4 539.4,205.1 540.8,205.8 542.2,206.5 543.6,207.2 545.0,207.9 546.4,208.5 547.8,209.2 549.2,209.8 550.6,210.5 552.0,211.1 553.4,211.7 554.8,212.3 556.2,212.9 557.6,213.5 559.0,214.1 560.4,214.7 561.8,215.2 563.2,215.8 564.6,216.4 566.0,216.9 567.4,217.4 568.8,218.0 570.2,218.5 571.6,219.0 573.0,219.5 574.4,220.0 575.8,220.5 577.2,221.0 578.6,221.5 580.0,222.0 581.4,222.4 582.8,222.9 584.2,223.4 585.6,223.8 587.0,224.2 588.4,224.7 589.8,225.1 591.2,225.5 592.6,226.0 594.0,226.4 595.4,226.8 596.8,227.2 598.2,227.6 599.6,228.0 601.0,228.4 602.4,228.8 603.8,229.1 605.2,229.5 606.6,229.9 608.0,230.2 609.4,230.6 610.8,230.9 612.2,231.3 613.6,231.6 615.0,232.0 616.4,232.3 617.8,232.6 619.2,233.0 620.6,233.3 622.0,233.6 623.4,233.9 624.8,233.8 626.2,233.5 627.6,233.2 629.0,232.9 630.4,232.6 631.8,232.3 633.2,232.0 634.6,231.7 636.0,231.5 637.4,231.2 638.8,230.9 640.2,230.7 641.6,230.4 643.0,230.1 644.4,229.9 645.8,229.6 647.2,229.4 648.6,229.1 650.0,228.9 651.4,228.7 652.8,228.4 654.2,228.2 655.6,228.0 657.0,227.8 658.4,227.5 659.8,227.3 661.2,227.1 662.6,226.9 664.0,226.7 665.4,226.5 666.8,226.3 668.2,226.1 669.6,225.9 671.0,225.7 672.4,225.5 673.8,225.3 675.2,225.1 676.6,224.9 678.0,224.7 679.4,224.5 680.8,224.4 682.2,224.2 683.6,224.0 685.0,223.8 686.4,223.7 687.8,223.5 689.2,223.3 690.6,223.2 692.0,223.0 693.4,222.9 694.8,222.7 696.2,222.6 697.6,222.4 699.0,222.3 700.4,222.1 701.8,222.0 703.2,221.8 704.6,221.7 706.0,221.5 707.4,221.4 708.8,221.3 710.2,221.1 711.6,221.0 713.0,220.9 714.4,220.7 715.8,220.6 717.2,220.5 718.6,220.4 720.0,220.2 721.4,220.1 722.8,220.0 724.2,219.9 725.6,219.8 727.0,219.7 728.4,219.6 729.8,219.4 731.2,219.3 732.6,219.2 734.0,219.1 735.4,219.0 736.8,218.9 738.2,218.8 739.6,218.7 741.0,218.6 742.4,218.5 743.8,218.4 745.2,218.3 746.6,218.2 748.0,218.1 749.4,218.0 750.8,218.0 752.2,217.9 753.6,217.8 755.0,217.7 756.4,217.6 757.8,217.5 759.2,217.4 760.6,217.4 762.0,217.3 763.4,217.2 764.8,217.1 766.2,217.0 767.6,217.0 769.0,216.9 770.4,216.8 771.8,216.7 773.2,216.7 774.6,216.6 776.0,216.5 777.4,216.5 778.8,216.4 780.2,216.3 781.6,216.3 783.0,216.2 784.4,216.1 785.8,216.1 787.2,216.0 788.6,215.9 790.0,215.9 791.4,215.8 792.8,215.8 794.2,215.7 795.6,215.6 797.0,215.6 798.4,215.5 799.8,215.5 801.2,215.4 802.6,215.4 804.0,215.3 805.4,215.2 806.8,215.2 808.2,215.1 809.6,215.1 811.0,215.0 812.4,215.0 813.8,214.9 815.2,214.9 816.6,214.9 818.0,214.8 819.4,214.8 820.8,214.7 822.2,214.7 823.6,214.6 825.0,214.6 826.4,214.5 827.8,214.5 829.2,214.5 830.6,214.4 832.0,214.4 833.4,214.3 834.8,214.3 836.2,214.3 837.6,214.2 839.0,214.2 840.4,214.1 841.8,214.1 843.2,214.1 844.6,214.0 846.0,214.0 847.4,214.0 848.8,213.9 850.2,213.9 851.6,213.9 853.0,213.8 854.4,213.8 855.8,213.8 857.2,213.7 858.6,213.7 860.0,213.7"/></g>
+                  <line class="s-muted dot-dash" x1="440" y1="143.60479096045196" x2="860" y2="143.60479096045196"/>
+                  <text class="t-small t-muted end" x="860" y="137.60479096045196">limit at infinity: 22.6 px</text>
+                  <text class="t-small t-acc t-strong" x="462.0662374810203" y="50">f/2</text>
+                  <text class="t-small t-acc" x="781.8192760782274" y="208.24374495560937">f/8</text>
+                  <text class="t-small t-acc" x="519.1033991914883" y="57.209039548022616">1 m: 45 px</text>
+                  <circle class="f-acc" cx="511.1033991914882" cy="53.209039548022616" r="3.5"/>
+                  <circle class="f-acc" cx="747.3037786076843" cy="170.72316384180792" r="3.5"/>
+                  <text class="t-small t-acc" x="741.3037786076843" y="188.72316384180792">10 m: 16 px</text>
+                  <text class="t-caps" x="0" y="20">THIN LENS, 50 MM, FOCUSED AT 3 M</text>
+                  <ellipse class="f-acc-soft s-acc w15" cx="130" cy="130" rx="9" ry="58"/>
+                  <rect class="f-pix-soft s-pix w15" x="262" y="66" width="10" height="128"/>
+                  <text class="t-small t-pix mid" x="267" y="212">sensor</text>
+                  <path class="s-geo w15" d="M10,130 L130,80 L262,130 M10,130 L130,180 L262,130"/>
+                  <circle class="f-geo" cx="10" cy="130" r="4"/>
+                  <path class="s-acc w15" d="M130,80 L228,118 L262,148 M130,180 L228,118 L262,88"/>
+                  <line class="s-acc w3" x1="261" y1="88" x2="261" y2="148"/>
+                  <text class="t-small t-geo" x="0" y="68">a point at 3 m</text>
+                  <text class="t-small t-geo" x="0" y="83">is in focus</text>
+                  <text class="t-small t-acc" x="278" y="100">farther point:</text>
+                  <text class="t-small t-acc" x="278" y="115">a disc, the</text>
+                  <text class="t-small t-acc" x="278" y="130">circle of</text>
+                  <text class="t-small t-acc" x="278" y="145">confusion</text>
+                  <text class="t-small t-muted" x="0" y="234">c = (f ÷ N) × |d − 3 m| ÷ d × f ÷ (3 m − f)</text>
+                  <text class="t-small t-muted" x="0" y="250">f = 50 mm, N = f-number, 36 mm sensor</text>
+                  </svg>
+                </div>
+                <figcaption><b>Blur grows fast in front of the focus plane and levels off behind it.</b> Computed for a 50 mm lens at f/2 on a full-frame sensor, focused at 3 m, on a 1920-pixel-wide image. At 1 m a point spreads over 45 pixels, at 10 m over 16, and nothing behind the focus plane ever exceeds 22.6 pixels. Stopping down to f/8 makes every disc four times smaller. Engines with a physical camera, such as Unreal's Cinematic DOF and HDRP's Physical Camera mode, use these same inputs.</figcaption>
+              </figure>
+              <p>In the renderer, a pass computes the CoC of every pixel from the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a>; then each pixel gathers colour from a disc of that radius around it. Two problems make it harder than a blur. A blurred object in the foreground must spread over sharp pixels behind it, which a simple gather around each pixel cannot do, so renderers split the image into a near and a far field, blur each, and blend; Unreal's documentation describes near, focal and far layers composited together. And a disc 45 pixels across holds about 1,600 pixels, far too many to read, so the gather takes a few dozen samples, often at half resolution, and relies on TAA to clean up. Jimenez's Advanced Warfare depth of field used 49 samples.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="bokeh"><span class="step-num">4</span> Bokeh: the shape of out-of-focus light</h3>
+              <p>An out-of-focus point of light takes the shape of the aperture, the opening formed by the lens's blades. That shape and its quality is <dfn class="term" data-term="bokeh">bokeh</dfn>, from a Japanese word for blur. With six straight blades the discs are hexagons; with rounded blades they are circles. Small bright lights in the background, street lamps, candles, sparks, show it most clearly.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 166" role="img" aria-label="Four apertures and the out-of-focus lights they produce. Five blades make pentagon-shaped highlights, six blades hexagons, eight blades octagons, and rounded blades circles.">
+                  <defs><filter id="bk-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="0.8"/></filter></defs>
+                  <text class="t-caps" x="0" y="16">THE APERTURE'S SHAPE BECOMES THE SHAPE OF EVERY OUT-OF-FOCUS LIGHT</text>
+                  <circle class="f-solid s-strong" cx="60" cy="90" r="44"/>
+                  <polygon class="f-surface s-ink w15" points="60.0,60.0 88.5,80.7 77.6,114.3 42.4,114.3 31.5,80.7"/>
+                  <text class="t-small t-strong mid" x="60" y="154">5 blades</text>
+                  <rect class="f-buf-lo" x="116" y="40" width="92" height="100" rx="3"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="140.0,49.0 154.3,59.4 148.8,76.1 131.2,76.1 125.7,59.4" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="178.0,68.0 189.4,76.3 185.1,89.7 170.9,89.7 166.6,76.3" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="152.0,99.0 164.4,108.0 159.6,122.5 144.4,122.5 139.6,108.0" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="190.0,111.0 198.6,117.2 195.3,127.3 184.7,127.3 181.4,117.2" filter="url(#bk-soft)"/>
+                  <text class="t-small t-muted mid" x="162" y="154">pentagons</text>
+                  <circle class="f-solid s-strong" cx="285" cy="90" r="44"/>
+                  <polygon class="f-surface s-ink w15" points="285.0,60.0 311.0,75.0 311.0,105.0 285.0,120.0 259.0,105.0 259.0,75.0"/>
+                  <text class="t-small t-strong mid" x="285" y="154">6 blades</text>
+                  <rect class="f-buf-lo" x="341" y="40" width="92" height="100" rx="3"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="365.0,49.0 378.0,56.5 378.0,71.5 365.0,79.0 352.0,71.5 352.0,56.5" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="403.0,68.0 413.4,74.0 413.4,86.0 403.0,92.0 392.6,86.0 392.6,74.0" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="377.0,99.0 388.3,105.5 388.3,118.5 377.0,125.0 365.7,118.5 365.7,105.5" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="415.0,111.0 422.8,115.5 422.8,124.5 415.0,129.0 407.2,124.5 407.2,115.5" filter="url(#bk-soft)"/>
+                  <text class="t-small t-muted mid" x="387" y="154">hexagons</text>
+                  <circle class="f-solid s-strong" cx="510" cy="90" r="44"/>
+                  <polygon class="f-surface s-ink w15" points="510.0,60.0 531.2,68.8 540.0,90.0 531.2,111.2 510.0,120.0 488.8,111.2 480.0,90.0 488.8,68.8"/>
+                  <text class="t-small t-strong mid" x="510" y="154">8 blades</text>
+                  <rect class="f-buf-lo" x="566" y="40" width="92" height="100" rx="3"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="590.0,49.0 600.6,53.4 605.0,64.0 600.6,74.6 590.0,79.0 579.4,74.6 575.0,64.0 579.4,53.4" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="628.0,68.0 636.5,71.5 640.0,80.0 636.5,88.5 628.0,92.0 619.5,88.5 616.0,80.0 619.5,71.5" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="602.0,99.0 611.2,102.8 615.0,112.0 611.2,121.2 602.0,125.0 592.8,121.2 589.0,112.0 592.8,102.8" filter="url(#bk-soft)"/>
+                  <polygon class="f-paint-candle" fill-opacity="0.7" points="640.0,111.0 646.4,113.6 649.0,120.0 646.4,126.4 640.0,129.0 633.6,126.4 631.0,120.0 633.6,113.6" filter="url(#bk-soft)"/>
+                  <text class="t-small t-muted mid" x="612" y="154">octagons</text>
+                  <circle class="f-solid s-strong" cx="735" cy="90" r="44"/>
+                  <circle class="f-surface s-ink w15" cx="735" cy="90" r="30"/>
+                  <text class="t-small t-strong mid" x="735" y="154">round blades</text>
+                  <rect class="f-buf-lo" x="791" y="40" width="92" height="100" rx="3"/>
+                  <circle class="f-paint-candle" fill-opacity="0.7" cx="815" cy="64" r="15" filter="url(#bk-soft)"/>
+                  <circle class="f-paint-candle" fill-opacity="0.7" cx="853" cy="80" r="12" filter="url(#bk-soft)"/>
+                  <circle class="f-paint-candle" fill-opacity="0.7" cx="827" cy="112" r="13" filter="url(#bk-soft)"/>
+                  <circle class="f-paint-candle" fill-opacity="0.7" cx="865" cy="120" r="9" filter="url(#bk-soft)"/>
+                  <text class="t-small t-muted mid" x="837" y="154">circles</text>
+                  </svg>
+                </div>
+                <figcaption><b>The number of blades sets the shape.</b> Unreal's camera takes 4 to 16 diaphragm blades; URP's Bokeh mode has Blade Count, Blade Curvature and Blade Rotation; Godot offers Box, Hexagon and Circle, where Box is the fastest and Circle the most expensive. Gaussian modes skip the shape altogether, which is cheaper and looks less like a lens.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="motion-blur"><span class="step-num">5</span> Motion blur along motion vectors</h3>
+              <p>A real shutter stays open for a while, so anything that moves during the exposure is smeared along its path. <dfn class="term" data-term="motion-blur">Motion blur</dfn> imitates that by averaging, for each pixel, samples taken along its motion vector, the same per-pixel screen movement TAA uses (9.2). Camera motion blur derives the vectors from depth and the camera's movement, so it blurs everything when the camera turns. Per-object motion blur uses the vectors each moving object writes, so a car blurs while the road under a tracking camera stays sharp.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 238" role="img" aria-label="Left: a ball moving right across a pixel grid. Its pixels carry motion vectors pointing three pixels back along its path, and one pixel behind the ball averages seven samples along that vector, some on the ball and some on the background, producing a streak. Right: the screen split into tiles, each storing the fastest motion inside it; the values are spread to neighbouring tiles so the blur can extend past the object's outline.">
+                  <defs><marker id="mb-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  <linearGradient id="mb-streak" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-ink" stop-opacity="0"/><stop offset="1" class="stop-ink" stop-opacity="0.8"/></linearGradient></defs>
+                  <text class="t-caps" x="20" y="20">EACH PIXEL AVERAGES SAMPLES ALONG ITS MOTION VECTOR</text>
+                  <rect class="f-surface" x="20" y="36" width="360" height="160"/>
+                  <rect x="100" y="76" width="160" height="80" rx="40" fill="url(#mb-streak)"/>
+                  <circle class="f-ink" cx="240" cy="116" r="40"/>
+                  <path class="s-line" d="M20,36V196M40,36V196M60,36V196M80,36V196M100,36V196M120,36V196M140,36V196M160,36V196M180,36V196M200,36V196M220,36V196M240,36V196M260,36V196M280,36V196M300,36V196M320,36V196M340,36V196M360,36V196M380,36V196M20,36H380M20,56H380M20,76H380M20,96H380M20,116H380M20,136H380M20,156H380M20,176H380M20,196H380"/>
+                  <rect class="s-strong" x="20" y="36" width="360" height="160"/>
+                  <line class="s-acc w15" x1="230" y1="106" x2="174" y2="106" marker-end="url(#mb-arr)"/>
+                  <line class="s-acc w15" x1="250" y1="126" x2="194" y2="126" marker-end="url(#mb-arr)"/>
+                  <line class="s-acc w15" x1="230" y1="126" x2="174" y2="126" marker-end="url(#mb-arr)"/>
+                  <line class="s-acc w15" x1="250" y1="106" x2="194" y2="106" marker-end="url(#mb-arr)"/>
+                  <rect class="s-pix w2" x="160" y="116" width="20" height="20"/>
+                  <circle class="f-pix" cx="122" cy="126" r="3"/>
+                  <circle class="f-pix" cx="138" cy="126" r="3"/>
+                  <circle class="f-pix" cx="154" cy="126" r="3"/>
+                  <circle class="f-pix" cx="170" cy="126" r="3"/>
+                  <circle class="f-pix" cx="186" cy="126" r="3"/>
+                  <circle class="f-pix" cx="202" cy="126" r="3"/>
+                  <circle class="f-pix" cx="218" cy="126" r="3"/>
+                  <text class="t-small t-pix t-strong" x="80" y="214">this pixel: 7 samples along the ball's vector, some on the ball</text>
+                  <text class="t-caps" x="450" y="20">TILES REMEMBER THEIR FASTEST MOTION</text>
+                  <rect class="f-acc" fill-opacity="0" x="450" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="490" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.25" x="530" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="570" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="610" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="650" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="690" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.25" x="730" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="770" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="810" y="36" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="450" y="76" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="490" y="76" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="530" y="76" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.75" x="570" y="76" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="590" y="100">1</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="610" y="76" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="630" y="100">2</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="650" y="76" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="670" y="100">2</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="690" y="76" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="710" y="100">1</text>
+                  <rect class="f-acc" fill-opacity="0.5" x="730" y="76" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="770" y="76" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="810" y="76" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="450" y="116" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="490" y="116" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="530" y="116" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.75" x="570" y="116" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="590" y="140">2</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="610" y="116" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="630" y="140">3</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="650" y="116" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="670" y="140">3</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="690" y="116" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="710" y="140">2</text>
+                  <rect class="f-acc" fill-opacity="0.5" x="730" y="116" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="770" y="116" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="810" y="116" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="450" y="156" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="490" y="156" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="530" y="156" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0.75" x="570" y="156" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="590" y="180">1</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="610" y="156" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="630" y="180">2</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="650" y="156" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="670" y="180">2</text>
+                  <rect class="f-acc" fill-opacity="0.75" x="690" y="156" width="40" height="40"/>
+                  <text class="t-small t-strong mid t-on-acc" x="710" y="180">1</text>
+                  <rect class="f-acc" fill-opacity="0.5" x="730" y="156" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="770" y="156" width="40" height="40"/>
+                  <rect class="f-acc" fill-opacity="0" x="810" y="156" width="40" height="40"/>
+                  <path class="s-line" d="M450,36V196M490,36V196M530,36V196M570,36V196M610,36V196M650,36V196M690,36V196M730,36V196M770,36V196M810,36V196M850,36V196M450,36H850M450,76H850M450,116H850M450,156H850M450,196H850"/>
+                  <rect class="s-strong" x="450" y="36" width="400" height="160"/>
+                  <text class="t-small" x="450" y="214">Numbers: fastest motion in each tile. Shading: spread to</text>
+                  <text class="t-small" x="450" y="229">neighbouring tiles, so the blur can reach past the object.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A moving object must blur past its own outline.</b> A pixel just behind the ball has a zero vector of its own, yet should show part of the ball's streak. McGuire and colleagues' 2012 reconstruction filter solves this with tiles: each tile, 20 pixels square in their paper, stores the fastest motion inside it, spread to its neighbours, and each pixel samples along that direction, deciding per sample whether it belongs in front of or behind. Jimenez's Advanced Warfare blur used the same 20 × 20 tiles.</figcaption>
+              </figure>
+              <p>How long the streak is depends on the virtual shutter. Film cameras traditionally expose for half of each frame's time, and engines express the equivalent as an intensity that scales the vectors, as URP and HDRP do, or as an amount and a target frame rate, as in Unreal. Blur length is also clamped, because long vectors need many samples and leave visible steps when they have too few. Blurring heavily on camera rotation is the most common cause of complaints, so engines clamp camera motion separately: HDRP has a Camera Clamp Mode, and URP's Clamp limits blur from camera rotation.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="lens-effects"><span class="step-num">6</span> Grain, vignette, chromatic aberration and distortion</h3>
+              <p>The remaining effects are cheap per-pixel adjustments with no gathering involved. <dfn class="term" data-term="film-grain">Film grain</dfn> adds fresh noise every frame, often with separate strengths for shadows, mid-tones and highlights, as in Unreal; besides the look, it breaks up <a class="term" data-term="colour-banding" href="glossary.html#colour-banding">colour banding</a> the way <a class="term" data-term="dithering" href="glossary.html#dithering">dithering</a> does (3.2). <dfn class="term" data-term="vignette">Vignette</dfn> darkens the corners. <dfn class="term" data-term="chromatic-aberration">Chromatic aberration</dfn> shifts the red and blue channels apart, more towards the edges, as cheap lenses do. <dfn class="term" data-term="lens-distortion">Lens distortion</dfn> bends straight lines, outwards for barrel distortion or inwards for pincushion; URP's Lens Distortion has a Scale setting to zoom in and hide the edges where no image data exists.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 202" role="img" aria-label="Four smaller camera effects. Film grain: a dark-to-light ramp, plain on the left and covered in fine noise on the right. Vignette: a picture whose corners fade darker. Chromatic aberration: white bars on black with red and blue edges that separate more towards the sides of the frame. Lens distortion: a square grid whose straight lines bow outwards, called barrel distortion.">
+                  <defs>
+                  <filter id="fx-grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="1" seed="5"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.6 0 0 0 -1.25"/></filter>
+                  <linearGradient id="fx-ramp" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-buf-lo"/><stop offset="1" class="stop-buf-hi"/></linearGradient>
+                  <radialGradient id="fx-vig" cx="0.5" cy="0.5" r="0.72"><stop offset="0.5" class="stop-buf-lo" stop-opacity="0"/><stop offset="1" class="stop-buf-lo" stop-opacity="0.85"/></radialGradient>
+                  </defs>
+                  <text class="t-caps" x="0" y="18">FILM GRAIN</text>
+                  <text class="t-small" x="0" y="180">Fresh noise every frame, tuned for</text>
+                  <text class="t-small t-muted" x="0" y="195">shadows, mid-tones and highlights.</text>
+                  <rect x="0" y="30" width="210" height="130" fill="url(#fx-ramp)"/>
+                  <rect x="105" y="30" width="105" height="130" filter="url(#fx-grain)" opacity="0.6"/>
+                  <line class="s-strong" x1="105" y1="30" x2="105" y2="160"/>
+                  <rect class="s-strong" x="0" y="30" width="210" height="130"/>
+                  <text class="t-small t-on-buf-dark" x="8" y="46">off</text>
+                  <text class="t-small t-on-buf" x="202" y="46" text-anchor="end">on</text>
+                  <text class="t-caps" x="228" y="18">VIGNETTE</text>
+                  <text class="t-small" x="228" y="180">Corners darkened, as by a lens hood</text>
+                  <text class="t-small t-muted" x="228" y="195">or the lens's own fall-off.</text>
+                  <rect class="f-buf-hi" x="228" y="30" width="210" height="130"/>
+                  <rect class="f-buf-lo" fill-opacity="0.25" x="228" y="116" width="210" height="44"/>
+                  <circle class="f-paint-tungsten" cx="333" cy="86" r="16"/>
+                  <rect x="228" y="30" width="210" height="130" fill="url(#fx-vig)"/>
+                  <rect class="s-strong" x="228" y="30" width="210" height="130"/>
+                  <text class="t-caps" x="456" y="18">CHROMATIC ABERRATION</text>
+                  <text class="t-small" x="456" y="180">Red and blue shifted apart, more</text>
+                  <text class="t-small t-muted" x="456" y="195">towards the edges of the frame.</text>
+                  <rect class="f-buf-lo" x="456" y="30" width="210" height="130"/>
+                  <rect class="f-paint-red" fill-opacity="0.9" x="471" y="50" width="8" height="90"/>
+                  <rect class="f-paint-sky" fill-opacity="0.9" x="481" y="50" width="8" height="90"/>
+                  <rect class="f-paint-daylight" x="476" y="50" width="8" height="90"/>
+                  <rect class="f-paint-red" fill-opacity="0.9" x="524" y="50" width="8" height="90"/>
+                  <rect class="f-paint-sky" fill-opacity="0.9" x="528" y="50" width="8" height="90"/>
+                  <rect class="f-paint-daylight" x="526" y="50" width="8" height="90"/>
+                  <rect class="f-paint-red" fill-opacity="0.9" x="574.5" y="50" width="8" height="90"/>
+                  <rect class="f-paint-sky" fill-opacity="0.9" x="573.5" y="50" width="8" height="90"/>
+                  <rect class="f-paint-daylight" x="574" y="50" width="8" height="90"/>
+                  <rect class="f-paint-red" fill-opacity="0.9" x="619" y="50" width="8" height="90"/>
+                  <rect class="f-paint-sky" fill-opacity="0.9" x="613" y="50" width="8" height="90"/>
+                  <rect class="f-paint-daylight" x="616" y="50" width="8" height="90"/>
+                  <rect class="f-paint-red" fill-opacity="0.9" x="658" y="50" width="8" height="90"/>
+                  <rect class="f-paint-sky" fill-opacity="0.9" x="646" y="50" width="8" height="90"/>
+                  <rect class="f-paint-daylight" x="652" y="50" width="8" height="90"/>
+                  <rect class="s-strong" x="456" y="30" width="210" height="130"/>
+                  <text class="t-caps" x="684" y="18">LENS DISTORTION</text>
+                  <text class="t-small" x="684" y="180">Straight lines bow outwards (barrel)</text>
+                  <text class="t-small t-muted" x="684" y="195">or inwards (pincushion).</text>
+                  <rect class="f-surface s-strong" x="684" y="30" width="210" height="130"/>
+                  <path class="s-acc w15" d="M692.0,38.0L690.2,42.8L688.6,47.8L687.2,53.1L686.0,58.7L685.0,64.4L684.2,70.4L683.5,76.4L683.0,82.5L682.8,88.8L682.7,95.0L682.8,101.2L683.0,107.5L683.5,113.6L684.2,119.6L685.0,125.6L686.0,131.3L687.2,136.9L688.6,142.2L690.2,147.2L692.0,152.0M692.0,38.0L697.7,35.4L704.7,33.1L712.8,31.0L721.8,29.2L731.7,27.7L742.4,26.5L753.5,25.5L765.1,24.8L777.0,24.4L789.0,24.3L801.0,24.4L812.9,24.8L824.5,25.5L835.6,26.5L846.3,27.7L856.2,29.2L865.2,31.0L873.3,33.1L880.3,35.4L886.0,38.0M708.6,32.0L707.3,37.4L706.1,43.0L705.0,48.9L704.1,55.1L703.3,61.4L702.7,68.0L702.2,74.6L701.9,81.3L701.7,88.2L701.6,95.0L701.7,101.8L701.9,108.7L702.2,115.4L702.7,122.0L703.3,128.6L704.1,134.9L705.0,141.1L706.1,147.0L707.3,152.6L708.6,158.0M687.9,50.4L694.0,48.5L701.4,46.7L709.9,45.2L719.4,43.9L729.7,42.7L740.7,41.8L752.3,41.1L764.3,40.6L776.6,40.3L789.0,40.2L801.4,40.3L813.7,40.6L825.7,41.1L837.3,41.8L848.3,42.7L858.6,43.9L868.1,45.2L876.6,46.7L884.0,48.5L890.1,50.4M731.7,27.7L730.9,33.5L730.1,39.6L729.4,45.9L728.8,52.5L728.2,59.3L727.8,66.2L727.5,73.3L727.3,80.5L727.1,87.7L727.1,95.0L727.1,102.3L727.3,109.5L727.5,116.7L727.8,123.8L728.2,130.7L728.8,137.5L729.4,144.1L730.1,150.4L730.9,156.5L731.7,162.3M685.0,64.4L691.4,63.1L699.1,62.0L707.9,60.9L717.6,60.1L728.2,59.3L739.6,58.7L751.4,58.2L763.7,57.9L776.3,57.7L789.0,57.6L801.7,57.7L814.3,57.9L826.6,58.2L838.4,58.7L849.8,59.3L860.4,60.1L870.1,60.9L878.9,62.0L886.6,63.1L893.0,64.4M759.3,25.1L758.8,31.2L758.4,37.5L758.1,44.1L757.8,51.0L757.5,58.0L757.3,65.2L757.2,72.5L757.0,80.0L757.0,87.5L756.9,95.0L757.0,102.5L757.0,110.0L757.2,117.5L757.3,124.8L757.5,132.0L757.8,139.0L758.1,145.9L758.4,152.5L758.8,158.8L759.3,164.9M683.2,79.5L689.8,78.8L697.7,78.2L706.6,77.7L716.6,77.3L727.4,76.9L738.9,76.6L750.9,76.3L763.4,76.2L776.1,76.1L789.0,76.0L801.9,76.1L814.6,76.2L827.1,76.3L839.1,76.6L850.6,76.9L861.4,77.3L871.4,77.7L880.3,78.2L888.2,78.8L894.8,79.5M789.0,24.3L789.0,30.4L789.0,36.8L789.0,43.5L789.0,50.5L789.0,57.6L789.0,64.9L789.0,72.3L789.0,79.8L789.0,87.4L789.0,95.0L789.0,102.6L789.0,110.2L789.0,117.7L789.0,125.1L789.0,132.4L789.0,139.5L789.0,146.5L789.0,153.2L789.0,159.6L789.0,165.7M682.7,95.0L689.3,95.0L697.2,95.0L706.2,95.0L716.2,95.0L727.1,95.0L738.6,95.0L750.7,95.0L763.3,95.0L776.1,95.0L789.0,95.0L801.9,95.0L814.7,95.0L827.3,95.0L839.4,95.0L850.9,95.0L861.8,95.0L871.8,95.0L880.8,95.0L888.7,95.0L895.3,95.0M818.7,25.1L819.2,31.2L819.6,37.5L819.9,44.1L820.2,51.0L820.5,58.0L820.7,65.2L820.8,72.5L821.0,80.0L821.0,87.5L821.1,95.0L821.0,102.5L821.0,110.0L820.8,117.5L820.7,124.8L820.5,132.0L820.2,139.0L819.9,145.9L819.6,152.5L819.2,158.8L818.7,164.9M683.2,110.5L689.8,111.2L697.7,111.8L706.6,112.3L716.6,112.7L727.4,113.1L738.9,113.4L750.9,113.7L763.4,113.8L776.1,113.9L789.0,114.0L801.9,113.9L814.6,113.8L827.1,113.7L839.1,113.4L850.6,113.1L861.4,112.7L871.4,112.3L880.3,111.8L888.2,111.2L894.8,110.5M846.3,27.7L847.1,33.5L847.9,39.6L848.6,45.9L849.2,52.5L849.8,59.3L850.2,66.2L850.5,73.3L850.7,80.5L850.9,87.7L850.9,95.0L850.9,102.3L850.7,109.5L850.5,116.7L850.2,123.8L849.8,130.7L849.2,137.5L848.6,144.1L847.9,150.4L847.1,156.5L846.3,162.3M685.0,125.6L691.4,126.9L699.1,128.0L707.9,129.1L717.6,129.9L728.2,130.7L739.6,131.3L751.4,131.8L763.7,132.1L776.3,132.3L789.0,132.4L801.7,132.3L814.3,132.1L826.6,131.8L838.4,131.3L849.8,130.7L860.4,129.9L870.1,129.1L878.9,128.0L886.6,126.9L893.0,125.6M869.4,32.0L870.7,37.4L871.9,43.0L873.0,48.9L873.9,55.1L874.7,61.4L875.3,68.0L875.8,74.6L876.1,81.3L876.3,88.2L876.4,95.0L876.3,101.8L876.1,108.7L875.8,115.4L875.3,122.0L874.7,128.6L873.9,134.9L873.0,141.1L871.9,147.0L870.7,152.6L869.4,158.0M687.9,139.6L694.0,141.5L701.4,143.3L709.9,144.8L719.4,146.1L729.7,147.3L740.7,148.2L752.3,148.9L764.3,149.4L776.6,149.7L789.0,149.8L801.4,149.7L813.7,149.4L825.7,148.9L837.3,148.2L848.3,147.3L858.6,146.1L868.1,144.8L876.6,143.3L884.0,141.5L890.1,139.6M886.0,38.0L887.8,42.8L889.4,47.8L890.8,53.1L892.0,58.7L893.0,64.4L893.8,70.4L894.5,76.4L895.0,82.5L895.2,88.8L895.3,95.0L895.2,101.2L895.0,107.5L894.5,113.6L893.8,119.6L893.0,125.6L892.0,131.3L890.8,136.9L889.4,142.2L887.8,147.2L886.0,152.0M692.0,152.0L697.7,154.6L704.7,156.9L712.8,159.0L721.8,160.8L731.7,162.3L742.4,163.5L753.5,164.5L765.1,165.2L777.0,165.6L789.0,165.7L801.0,165.6L812.9,165.2L824.5,164.5L835.6,163.5L846.3,162.3L856.2,160.8L865.2,159.0L873.3,156.9L880.3,154.6L886.0,152.0"/>
+                  </svg>
+                </div>
+                <figcaption><b>Four effects that only move or tint pixels.</b> They cost almost nothing, because they are usually merged into the tone-mapping pass. Lottes's FXAA paper already suggests combining bloom compositing, colour grading and film noise into one full-screen pass. All four should run after the upscaler: AMD's FSR documentation lists film grain, chromatic aberration and vignette among the effects to apply at display resolution, because noise and fringes put through a temporal upscaler smear.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="order"><span class="step-num">7</span> The order, and where the time goes</h3>
+              <p>The order matters because each effect changes the next one's input. Depth of field and bloom need HDR values, so they come before the tone curve. Anything that blurs should see anti-aliased, stable input, so most effects come after <a class="term" data-term="taa" href="glossary.html#taa">TAA</a>, the firewall of 9.2; Karis's TAA talk lists bloom and depth of field after it. Unreal puts depth of field just before its upscaler instead, and Epic notes that motion blur and the tone mapper run after TSR at full resolution. Grain, vignette and fringes come last, then the interface, which no camera effect should touch.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 158" role="img" aria-label="A typical order of camera effects, as in Unreal: the HDR scene, then depth of field, then TAA or the upscaler, then motion blur, then bloom and lens flare, then exposure and the tone map, then vignette, grain, chromatic aberration and distortion, often merged into one pass, and finally the interface, which no effect touches. Published costs on Xbox One: depth of field 1.27 milliseconds, motion blur 0.52, bloom 0.35.">
+                  <defs><marker id="pc-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <rect class="f-lit-soft s-lit" x="0" y="30" width="96" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="8" y="50">HDR scene</text>
+                  <text class="t-small t-muted" x="8" y="72">lit, fogged,</text>
+                  <text class="t-small t-muted" x="8" y="86">transparents</text>
+                  <line class="s-muted" x1="97" y1="63" x2="110" y2="63" marker-end="url(#pc-arr)"/>
+                  <rect class="f-acc-soft s-acc" x="112" y="30" width="96" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="120" y="50">Depth of</text>
+                  <text class="t-small t-strong" x="120" y="64">field</text>
+                  <text class="t-small t-muted" x="120" y="88">1.27 ms</text>
+                  <line class="s-muted" x1="209" y1="63" x2="222" y2="63" marker-end="url(#pc-arr)"/>
+                  <rect class="f-acc" x="112" y="104" width="96" height="10" rx="2"/>
+                  <rect class="f-surface s-strong" x="224" y="30" width="96" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="232" y="50">TAA or</text>
+                  <text class="t-small t-strong" x="232" y="64">upscaler</text>
+                  <text class="t-small t-muted" x="232" y="88">9.2, 9.3</text>
+                  <line class="s-muted" x1="321" y1="63" x2="334" y2="63" marker-end="url(#pc-arr)"/>
+                  <rect class="f-acc-soft s-acc" x="336" y="30" width="96" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="344" y="50">Motion</text>
+                  <text class="t-small t-strong" x="344" y="64">blur</text>
+                  <text class="t-small t-muted" x="344" y="88">0.52 ms</text>
+                  <line class="s-muted" x1="433" y1="63" x2="446" y2="63" marker-end="url(#pc-arr)"/>
+                  <rect class="f-acc" x="336" y="104" width="39.30708661417323" height="10" rx="2"/>
+                  <rect class="f-acc-soft s-acc" x="448" y="30" width="96" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="456" y="50">Bloom,</text>
+                  <text class="t-small t-strong" x="456" y="64">lens flare</text>
+                  <text class="t-small t-muted" x="456" y="88">0.35 ms</text>
+                  <line class="s-muted" x1="545" y1="63" x2="558" y2="63" marker-end="url(#pc-arr)"/>
+                  <rect class="f-acc" x="448" y="104" width="26.456692913385822" height="10" rx="2"/>
+                  <rect class="f-surface s-strong" x="560" y="30" width="104" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="568" y="50">Exposure,</text>
+                  <text class="t-small t-strong" x="568" y="64">tone map</text>
+                  <text class="t-small t-muted" x="568" y="88">9.1</text>
+                  <line class="s-muted" x1="665" y1="63" x2="678" y2="63" marker-end="url(#pc-arr)"/>
+                  <rect class="f-acc-soft s-acc" x="680" y="30" width="104" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="688" y="50">Vignette, grain,</text>
+                  <text class="t-small t-strong" x="688" y="64">CA, distortion</text>
+                  <text class="t-small t-muted" x="688" y="88">often merged</text>
+                  <line class="s-muted" x1="785" y1="63" x2="798" y2="63" marker-end="url(#pc-arr)"/>
+                  <rect class="f-surface s-strong" x="800" y="30" width="96" height="66" rx="6"/>
+                  <text class="t-small t-strong" x="808" y="50">Interface</text>
+                  <text class="t-small t-muted" x="808" y="88">not affected</text>
+                  <text class="t-small t-muted" x="0" y="134">Bars: published costs from Call of Duty: Advanced Warfare on Xbox One (Jimenez 2014), drawn to scale.</text>
+                  <text class="t-small t-muted" x="0" y="150">Everything right of the upscaler runs at full display resolution.</text>
+                  <text class="t-caps" x="0" y="18">A TYPICAL ORDER, AS IN UNREAL</text>
+                  </svg>
+                </div>
+                <figcaption><b>Depth of field and motion blur are the expensive ones.</b> The three costs are published figures from a shipped game, Call of Duty: Advanced Warfare on Xbox One: 1.27 ms for depth of field in a close-up portrait shot, 0.52 ms for motion blur while running, 0.35 ms for bloom. HDRP computes chromatic aberration after bloom, its documentation notes, so very strong bloom can overpower it.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="courtyard"><span class="step-num">8</span> Try it: the courtyard's effect stack</h3>
+              <p>The Lantern Courtyard runs a small post chain of its own: height fog, bloom, then one pass for exposure, the tone curve, a light vignette and a touch of noise against banding, then FXAA. Switch between its views to take the stack apart.</p>
+              <figure>
+                <div class="demo" data-demo="courtyard" data-view="final" data-views="final,bloom,hdr-clipped,fog-off">
+                  <p class="demo-hint">The Lantern Courtyard's finished frame: a stone courtyard at dusk with a glowing lantern, fog near the ground, bloom around the brightest light, a tone curve and a light vignette. Its views show the bloom buffer alone, the frame without tone mapping, and the frame without fog.</p>
+                </div>
+                <figcaption><b>The Lantern Courtyard, every effect on.</b> Bloom keeps light brighter than 2.5 after an <a class="term" data-term="exposure" href="glossary.html#exposure">exposure</a> of 2, blurs it at four sizes from half to a sixteenth of the internal resolution, and adds it at 10% before the tone curve. The tone-map pass also darkens the corners by up to 30%. <strong>Bloom</strong> shows the bloom buffer alone: only the lantern's glass and the sky near the low sun get through the threshold. <strong>No tone map</strong> shows the same light clipped at white. <strong>No fog</strong> removes the height fog: the far wall and the horizon lose their haze, and so does the lantern's glow in the air, which is fog (9.5), not bloom.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="accessibility"><span class="step-num">9</span> Give players the switches</h3>
+              <p>Several camera effects cause real problems for some players. Motion blur, camera shake and head bob contribute to motion sickness, which is why Xbox Accessibility Guideline 117 asks games to avoid them or let players turn them off, and to offer a field of view setting. Bright, flashing effects fall under guideline 118, which treats more than about three flashes a second over about a fifth of the screen as a failure. Grain, chromatic aberration, vignette and depth of field reduce contrast and detail, which hurts players with low vision.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 322" role="img" aria-label="A game's camera settings screen with separate controls for motion blur (Off, Low, High), camera shake, depth of field, film grain, chromatic aberration, vignette, lens flares, field of view and reduce flashing. Notes beside it: for motion sickness, Xbox guideline 117 asks games to avoid or let players disable camera shake, head bob and motion blur and to offer field of view; for readability, grain, chromatic aberration, vignette and depth of field each need their own switch; for photosensitivity, Xbox guideline 118 limits flashes to about three a second over about a fifth of the screen.">
+                  <rect class="f-surface s-strong" x="0" y="0" width="430" height="318" rx="10"/>
+                  <text class="t-head" x="20" y="30">Settings · Display · Camera</text>
+                  <text class="t-small t-strong" x="20" y="62">Motion blur</text>
+                  <rect class="f-acc" x="250" y="48" width="44" height="20" rx="4"/>
+                  <text class="t-small mid t-on-acc" x="272" y="62">Off</text>
+                  <rect class="f-sunken s-strong" x="296" y="48" width="44" height="20" rx="4"/>
+                  <text class="t-small mid" x="318" y="62">Low</text>
+                  <rect class="f-sunken s-strong" x="342" y="48" width="44" height="20" rx="4"/>
+                  <text class="t-small mid" x="364" y="62">High</text>
+                  <text class="t-small t-strong" x="20" y="91">Camera shake</text>
+                  <line class="s-strong w3 round" x1="220" y1="87" x2="370" y2="87"/>
+                  <line class="s-acc w3 round" x1="220" y1="87" x2="257.5" y2="87"/>
+                  <circle class="f-acc" cx="257.5" cy="87" r="7"/>
+                  <text class="t-small t-muted" x="380" y="91">25%</text>
+                  <text class="t-small t-strong" x="20" y="120">Depth of field</text>
+                  <rect class="f-acc" x="330" y="107" width="40" height="20" rx="10"/>
+                  <circle class="f-surface" cx="360" cy="117" r="7"/>
+                  <text class="t-small t-muted end" x="320" y="120">On</text>
+                  <text class="t-small t-strong" x="20" y="149">Film grain</text>
+                  <rect class="f-strong" x="330" y="136" width="40" height="20" rx="10"/>
+                  <circle class="f-surface" cx="340" cy="146" r="7"/>
+                  <text class="t-small t-muted end" x="320" y="149">Off</text>
+                  <text class="t-small t-strong" x="20" y="178">Chromatic aberration</text>
+                  <rect class="f-strong" x="330" y="165" width="40" height="20" rx="10"/>
+                  <circle class="f-surface" cx="340" cy="175" r="7"/>
+                  <text class="t-small t-muted end" x="320" y="178">Off</text>
+                  <text class="t-small t-strong" x="20" y="207">Vignette</text>
+                  <rect class="f-acc" x="330" y="194" width="40" height="20" rx="10"/>
+                  <circle class="f-surface" cx="360" cy="204" r="7"/>
+                  <text class="t-small t-muted end" x="320" y="207">On</text>
+                  <text class="t-small t-strong" x="20" y="236">Lens flares</text>
+                  <rect class="f-acc" x="330" y="223" width="40" height="20" rx="10"/>
+                  <circle class="f-surface" cx="360" cy="233" r="7"/>
+                  <text class="t-small t-muted end" x="320" y="236">On</text>
+                  <text class="t-small t-strong" x="20" y="265">Field of view</text>
+                  <line class="s-strong w3 round" x1="220" y1="261" x2="370" y2="261"/>
+                  <line class="s-acc w3 round" x1="220" y1="261" x2="302.5" y2="261"/>
+                  <circle class="f-acc" cx="302.5" cy="261" r="7"/>
+                  <text class="t-small t-muted" x="380" y="265">95°</text>
+                  <text class="t-small t-strong" x="20" y="294">Reduce flashing</text>
+                  <rect class="f-acc" x="330" y="281" width="40" height="20" rx="10"/>
+                  <circle class="f-surface" cx="360" cy="291" r="7"/>
+                  <text class="t-small t-muted end" x="320" y="294">On</text>
+                  <text class="t-small t-strong t-acc" x="460" y="58">Motion sickness</text>
+                  <text class="t-small" x="460" y="76">Xbox guideline 117: avoid camera shake, head bob and</text>
+                  <text class="t-small" x="460" y="91">motion blur, or let players turn them off; offer field of view.</text>
+                  <text class="t-small t-strong t-acc" x="460" y="146">Readability and low vision</text>
+                  <text class="t-small" x="460" y="164">Grain, chromatic aberration, vignette and depth of field all</text>
+                  <text class="t-small" x="460" y="179">lower contrast or detail. Give each its own switch.</text>
+                  <text class="t-small t-strong t-acc" x="460" y="234">Photosensitivity</text>
+                  <text class="t-small" x="460" y="252">Xbox guideline 118: no more than about three flashes a second</text>
+                  <text class="t-small" x="460" y="267">over about a fifth of the screen. Flares and bloom flash too.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One switch per effect.</b> A single toggle for all cinematic effects forces players to give up the effects they like to lose the one that makes them ill. Separate controls, with intensity sliders where it makes sense, cost little: Unreal and Unity already expose each effect as its own setting.</figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Camera effects cost GPU time in proportion to the pixels they touch and how far each pixel reaches. Bloom reads a lot but mostly at low resolution. Depth of field and motion blur gather many samples per pixel. The per-pixel effects are almost free once merged into the tone-map pass.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">1.27 ms</span><span class="what">depth of field, close-up shot, Advanced Warfare on Xbox One</span></div>
+              <div class="stat"><span class="value">0.52 ms</span><span class="what">motion blur while running, same game</span></div>
+              <div class="stat"><span class="value">0.35 ms</span><span class="what">bloom, same game</span></div>
+              <div class="stat"><span class="value">3 ms</span><span class="what">McGuire et al.'s motion blur filter at 1280 × 720 on a GeForce GTX 480 (2012)</span></div>
+            </div>
+            <p>Memory is modest. A bloom chain like the courtyard's, four levels down from half resolution and three back up, in 16-bit floating point (8 bytes per pixel), adds about 11 MB at 1080p: 5.5 MB going down (a quarter, a sixteenth, a sixty-fourth and a 256th of 16.6 MB) and 5.4 MB coming up. Depth of field and motion blur add a few half- or quarter-resolution buffers for CoC and tiles.</p>
+            <ul class="grows">
+              <li><strong>Display resolution</strong><span>Most effects run after the upscaler, so they cost the same at Performance as at native. Epic calls these the hidden costs of temporal upscaling, and Unreal halves motion blur's input resolution by default to contain them.</span></li>
+              <li><strong>Blur size</strong><span>Depth of field and motion blur need more samples, or show steps, as their radius grows: shallow focus in close-ups and fast camera turns are their worst cases.</span></li>
+              <li><strong>Quality settings</strong><span>Sample counts, bokeh shape (Godot's Circle costs most), high quality bloom filtering and full-resolution depth of field are the main knobs.</span></li>
+              <li><strong>Art time</strong><span>Every volume, cutscene and camera needs its own values, and the look depends on the tone curve, so grading and camera effects are tuned together.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>Keep bloom and the per-pixel effects on everywhere; they are cheap and part of the look. Use full depth of field mainly in cutscenes and photo mode, where focus is directed, and a cheaper Gaussian or none in gameplay. Offer motion blur with Off, Low and High, and test what fraction of players turn it off.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Most camera-effect bugs are an effect reading the wrong input, at the wrong point in the chain, or with too few samples.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A whole scene washed with a milky glow, every surface bleeding light, not just the lamp.">
+                    <defs><filter id="sy94-haze" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter></defs>
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-hi" fill-opacity="0.3" x="30" y="40" width="70" height="90"/>
+                    <rect class="f-buf-hi" fill-opacity="0.3" x="140" y="30" width="70" height="100"/>
+                    <circle class="f-paint-tungsten" cx="120" cy="30" r="8"/>
+                    <g filter="url(#sy94-haze)"><rect class="f-buf-hi" fill-opacity="0.45" x="20" y="30" width="200" height="100"/><circle class="f-paint-tungsten" cx="120" cy="30" r="24"/></g>
+                  </svg>
+                </div>
+                <h4>A milky, washed-out picture</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Bloom threshold too low or intensity too high, so ordinary surfaces bloom; or bloom applied after the tone curve, where everything bright looks equal.</dd></div>
+                  <div><dt>Ask for</dt><dd>Bloom on HDR values before the tone curve, a threshold or energy-conserving setup chosen deliberately, and a test scene with a dark room and one bright light.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Water with small bright glints, each surrounded by a halo that appears in one frame and is gone in the next.">
+                    <defs><filter id="sy94-fl" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="6"/></filter></defs>
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <circle class="f-paint-daylight" cx="60" cy="70" r="2"/><circle class="f-paint-daylight" cx="160" cy="88" r="2"/><circle class="f-paint-daylight" cx="110" cy="50" r="2"/>
+                    <circle class="f-paint-tungsten" fill-opacity="0.8" cx="60" cy="70" r="12" filter="url(#sy94-fl)"/>
+                    <circle class="f-paint-tungsten" fill-opacity="0.8" cx="160" cy="88" r="12" filter="url(#sy94-fl)"/>
+                    <text class="t-small t-on-buf-dark" x="8" y="122">halos blink on and off</text>
+                  </svg>
+                </div>
+                <h4>Flickering bloom on small highlights</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>One-pixel highlights (fireflies, glints on water or metal) fall on different downsampled texels each frame, so their bloom appears and disappears.</dd></div>
+                  <div><dt>Ask for</dt><dd>A wider downsample filter and reduced weight for the brightest pixels in the first downsample (HDRP: High Quality Prefiltering), and stable input from TAA.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A sharp character in front of a blurred background, with a thin sharp outline of background detail around the character instead of a soft blend.">
+                    <defs><filter id="sy94-dof" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="4"/></filter></defs>
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <g filter="url(#sy94-dof)"><rect class="f-buf-hi" fill-opacity="0.35" x="10" y="20" width="60" height="110"/><rect class="f-buf-hi" fill-opacity="0.35" x="160" y="10" width="70" height="120"/></g>
+                    <path class="f-buf-hi" fill-opacity="0.75" d="M120,22 C138,22 140,40 136,50 C150,56 154,76 150,130 L90,130 C86,76 90,56 104,50 C100,40 102,22 120,22 Z"/>
+                    <path class="s-pix w2" d="M120,16 C143,16 146,38 142,48 C157,55 161,76 157,130 M83,130 C79,76 83,55 98,48 C94,38 97,16 120,16"/>
+                  </svg>
+                </div>
+                <h4>Halos around in-focus objects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The gather mixes sharp foreground pixels into the blurred background, or the reverse, because near and far fields are not separated or depth is ignored at edges.</dd></div>
+                  <div><dt>Ask for</dt><dd>Separate near and far layers, depth-aware sample weighting, and a test shot with a sharp character against a distant blurred background and against a blurred foreground.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A first-person view where the held weapon and the ammunition counter are smeared sideways along with the background.">
+                    <defs><linearGradient id="sy94-smear" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-ink" stop-opacity="0"/><stop offset="1" class="stop-ink" stop-opacity="0.7"/></linearGradient></defs>
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect x="20" y="70" width="150" height="34" rx="6" fill="url(#sy94-smear)"/>
+                    <path class="f-strong s-ink" d="M150,130 L170,78 L230,70 L236,90 L190,98 L180,130 Z"/>
+                    <rect x="120" y="12" width="110" height="20" rx="3" fill="url(#sy94-smear)"/>
+                    <text class="t-head" x="170" y="27">30 / 90</text>
+                  </svg>
+                </div>
+                <h4>Motion blur on the weapon or the interface</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>First-person arms and weapons move with the camera but get camera-rotation vectors, or world-space interface is drawn before motion blur.</dd></div>
+                  <div><dt>Ask for</dt><dd>Correct vectors (or a mask) for first-person geometry, camera motion clamped separately, and all interface drawn after post-processing.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wall hides the sun, yet a row of lens flare ghosts still crosses the screen.">
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-hi" fill-opacity="0.4" x="0" y="0" width="80" height="130"/>
+                    <text class="t-small t-on-buf mid" x="40" y="22">wall</text>
+                    <circle class="f-paint-tungsten" fill-opacity="0.35" cx="110" cy="60" r="8"/>
+                    <circle class="f-paint-tungsten" fill-opacity="0.3" cx="150" cy="80" r="14"/>
+                    <circle class="f-paint-tungsten" fill-opacity="0.25" cx="200" cy="108" r="20"/>
+                  </svg>
+                </div>
+                <h4>Lens flares through walls</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A sprite flare attached to the sun or a lamp with no occlusion test, or one that tests only the light's centre pixel.</dd></div>
+                  <div><dt>Ask for</dt><dd>Occlusion testing over an area around the light, a fade instead of a pop, and a check at the screen edges, where Unity notes occlusion might not always work.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Unreal and Unity have every effect in this chapter as built-in, volume-driven settings. Godot has glow and depth of field built in; the rest needs a custom shader.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Where</th>
+                    <td>Post Process Volume, and the post-process settings on Camera and Cine Camera actors.</td>
+                    <td>Volume overrides: Add Override, Post-processing.</td>
+                    <td>Volume overrides; Motion Blur is on by default in the HDRP Graphics settings.</td>
+                    <td>Environment (glow) and CameraAttributes (depth of field, exposure).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Bloom</th>
+                    <td>Method: <strong>Standard</strong> (downsampled Gaussian blurs, the default) or <strong>Convolution</strong> (a kernel texture, for cinematics and high-end hardware); Intensity, Threshold (−1 includes all colours); Lens Dirt Mask.</td>
+                    <td><strong>Bloom</strong>: Threshold 0.9 (gamma space), Intensity 0 (off), Scatter 0.7, Clamp, Filter (Gaussian, Dual, Kawase), Downscale, Max Iterations 6, High Quality Filtering, Lens Dirt.</td>
+                    <td><strong>Bloom</strong>, energy-conserving: Threshold, Intensity, Scatter, Tint, Lens Dirt; Resolution (Half or Quarter), High Quality Prefiltering, High Quality Filtering, Anamorphic.</td>
+                    <td><strong>Glow</strong>, off by default: Levels 1 to 7, Intensity 0.3, Strength, Bloom, Blend Mode, HDR Threshold 1.0, HDR Scale, HDR Luminance Cap, Map.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Lens flare</th>
+                    <td>Lens Flares group: Intensity, Tint, Bokeh Size, Threshold, Bokeh Shape.</td>
+                    <td>Lens Flare (SRP) component for specific lights; <strong>Screen Space Lens Flare</strong> override, which needs Bloom Intensity above 0.</td>
+                    <td>Lens Flare (SRP) component; Screen Space Lens Flare override.</td>
+                    <td>None built in.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Depth of field</th>
+                    <td>Cinematic (desktop and console) and Mobile (Gaussian). Camera: Aperture (F-stop), Maximum Aperture, Number of diaphragm blades (4 to 16), focus distance; Cine Camera lens settings.</td>
+                    <td><strong>Depth of Field</strong> Mode: Gaussian (Start, End, Max Radius) or Bokeh (Focus Distance, Focal Length, Aperture, Blade Count, Blade Curvature, Blade Rotation).</td>
+                    <td><strong>Depth Of Field</strong> Focus Mode: Physical Camera or Manual Ranges; near and far Sample Count and Max Radius; path-traced DOF with the path tracer.</td>
+                    <td>CameraAttributesPractical: far and near blur (off by default, at 10 m and 2 m), transitions, Amount 0.1. Bokeh Shape: Box, Hexagon (default) or Circle.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Motion blur</th>
+                    <td>Amount, Max (percent of screen width), Per Object Size (4% default), Target FPS.</td>
+                    <td><strong>Motion Blur</strong> Mode: Camera Only or Camera and Objects; Quality, Intensity, Clamp 0.05.</td>
+                    <td>Intensity, Quality, Sample Count, Maximum and Minimum Velocity, Camera Motion Blur, Camera Clamp Mode.</td>
+                    <td>None built in.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Grain, vignette, fringes, distortion</th>
+                    <td>Film Grain (Intensity for shadows, midtones and highlights, Texel Size, Texture), Vignette Intensity, Chromatic Aberration (Intensity, Start Offset).</td>
+                    <td>Film Grain (Type, Intensity, Response), Vignette (Smoothness 0.2 and more), Chromatic Aberration (Intensity 0, off), Lens Distortion (Intensity, multipliers, Scale), Panini Projection.</td>
+                    <td>Film Grain, Vignette, Chromatic Aberration, Lens Distortion, Panini Projection.</td>
+                    <td>None built in; write a full-screen shader or a CompositorEffect.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Names and defaults checked against the documentation for Unreal Engine 5.8 (5.9 was in preview), Unity 6.6 (6000.6) with URP and HDRP 17.6, and Godot 4.7, in November 2026. Godot's CompositorEffect is marked experimental. Post-processing settings are renamed often; search your version's documentation if one is missing.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Camera-effect briefs need the engine, where the effect is set (which volume, which camera), the upscaler in use, the target frame time, and reference images for the look. Ask for the order of the chain and for player-facing settings as well as values.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when setting up the camera-effect stack</span></div>
+              <pre class="prompt-body">Unity 6.6, URP, STP upscaling at 67% render scale. Third-person action game, PC and console, 60 fps target with 2 ms budgeted for post-processing at 4K output.
+Look: grounded, filmic, night city with neon. References attached.
+1. Propose Volume override settings for Bloom, Depth of Field, Motion Blur, Film Grain, Vignette and Chromatic Aberration, separately for gameplay and cutscenes.
+2. Say which effects run before and after STP in URP, and what that means for cost at 4K and for grain and chromatic aberration.
+3. Design the player settings screen: which effects get their own toggle or slider, and defaults, following Xbox Accessibility Guidelines 117 and 118.
+4. Tell us how to measure each effect's GPU time on our target hardware.</pre>
+              <ul class="prompt-why">
+                <li>Naming the upscaler and render scale makes the answer account for effects at display resolution.</li>
+                <li>Splitting gameplay and cutscenes is where depth of field and motion blur decisions really differ.</li>
+                <li>Naming the accessibility guidelines turns settings into requirements you can check.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when an effect looks wrong in one situation</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, TSR, Cinematic depth of field in cutscenes, motion blur Amount 0.5.
+1. In close-ups, the character's hair has a thin sharp halo of the background around it.
+2. In first-person sections the held weapon blurs whenever the camera turns.
+3. The lantern bloom pulses when the camera moves slowly.
+
+For each, explain the likely cause in terms of the effect's inputs (depth, CoC layers, motion vectors, bright pixels) and its place in the post chain. Propose fixes in the Post Process Volume, the materials or the cameras, ranked by risk, and say how to confirm each with Unreal's visualisation tools.</pre>
+              <ul class="prompt-why">
+                <li>Three effects with three different input problems test the answer's grasp of the chain.</li>
+                <li>Naming TSR matters: depth of field runs before it, motion blur after.</li>
+                <li>Asking for the visualisation keeps the fix testable.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing camera-effect work</h3>
+            <ol class="review-list">
+              <li>In what order do the effects run, relative to TAA or the upscaler and to the tone curve?<span class="why">Bloom and depth of field need HDR values; grain and fringes belong after the upscaler.</span></li>
+              <li>What does each effect cost at the display resolution, in the worst shot?<span class="why">Close-up depth of field and fast camera turns are the expensive cases.</span></li>
+              <li>Do first-person geometry and the interface stay out of motion blur?<span class="why">Smeared weapons and HUDs are a common bug.</span></li>
+              <li>Which effects can players turn off separately, and are the defaults sensible?<span class="why">Motion blur, shake and flashing are accessibility issues.</span></li>
+              <li>Does bloom stay stable on tiny bright highlights?<span class="why">Firefly flicker in bloom is visible and distracting.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Why is bloom computed before the tone curve and film grain after the upscaler?</p>
+                <details><summary>Show answer</summary><p>Bloom needs to know how bright a light really is, which only the HDR, scene-referred values say; after the tone curve a flame and a white wall look alike. Grain is fine noise that should stay crisp at display resolution; a temporal upscaler would treat it as detail to accumulate and smear it.</p></details>
+              </li>
+              <li>
+                <p class="q">With the focus at 3 m, why do objects 1 m from the camera look far blurrier than a mountain on the horizon?</p>
+                <details><summary>Show answer</summary><p>The circle of confusion grows with the difference between the object's distance and the focus distance divided by the object's distance. In front of the focus plane that ratio keeps growing as things get closer; behind it, it approaches 1 however far away they are. For a 50 mm lens at f/2 that is 45 pixels at 1 m against at most 22.6 pixels at infinity on a 1920-pixel image.</p></details>
+              </li>
+              <li>
+                <p class="q">Several players report nausea in your first-person game. Which camera settings should they be able to change?</p>
+                <details><summary>Show answer</summary><p>Motion blur (off, or reduced), camera shake and head bob, and field of view, as Xbox Accessibility Guideline 117 recommends. Each should be a separate control, not one switch for all cinematic effects.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#post-processing">post-processing</a></li>
+              <li><a class="chip" href="glossary.html#post-process-volume">post-process volume</a></li>
+              <li><a class="chip" href="glossary.html#bloom">bloom</a></li>
+              <li><a class="chip" href="glossary.html#lens-flare">lens flare</a></li>
+              <li><a class="chip" href="glossary.html#depth-of-field">depth of field</a></li>
+              <li><a class="chip" href="glossary.html#circle-of-confusion">circle of confusion</a></li>
+              <li><a class="chip" href="glossary.html#bokeh">bokeh</a></li>
+              <li><a class="chip" href="glossary.html#motion-blur">motion blur</a></li>
+              <li><a class="chip" href="glossary.html#film-grain">film grain</a></li>
+              <li><a class="chip" href="glossary.html#vignette">vignette</a></li>
+              <li><a class="chip" href="glossary.html#chromatic-aberration">chromatic aberration</a></li>
+              <li><a class="chip" href="glossary.html#lens-distortion">lens distortion</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="9.5"></a> turns from the camera to the air in front of it: height fog, volumetric light and the sky.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Jorge Jimenez, <a href="https://advances.realtimerendering.com/s2014/sledgehammer/Next-Generation-Post-Processing-in-Call-of-Duty-Advanced-Warfare-v17.pptx">Next Generation Post Processing in Call of Duty: Advanced Warfare</a>, SIGGRAPH 2014 Advances in Real-Time Rendering course, Sledgehammer Games. Motion blur, bokeh depth of field, bloom and the Xbox One timings.</li>
+              <li>Morgan McGuire, Padraic Hennessy, Michael Bukowski and Brian Osman, <a href="https://casual-effects.com/research/McGuire2012Blur/McGuire12Blur.pdf">A Reconstruction Filter for Plausible Motion Blur</a>, I3D 2012.</li>
+              <li>Brian Karis, <a href="https://advances.realtimerendering.com/s2014/epic/TemporalAA.pptx">High Quality Temporal Supersampling</a>, SIGGRAPH 2014, for where TAA sits relative to bloom and depth of field; Timothy Lottes, <a href="https://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf">FXAA</a>, NVIDIA, 2011, for merging post passes.</li>
+              <li><a href="https://en.wikipedia.org/wiki/Circle_of_confusion">Circle of confusion</a>, Wikipedia, for the thin-lens blur formula.</li>
+              <li>Microsoft, Xbox Accessibility Guidelines <a href="https://learn.microsoft.com/en-us/gaming/accessibility/xbox-accessibility-guidelines/117">117: Visual distractions and motion settings</a> and <a href="https://learn.microsoft.com/en-us/gaming/accessibility/xbox-accessibility-guidelines/118">118: Photosensitivity</a>.</li>
+              <li>AMD GPUOpen, <a href="https://gpuopen.com/manuals/fidelityfx_sdk2/techniques/super-resolution-ml/">FSR 4 upscaler manual</a>, for which effects run after the upscaler.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/post-process-effects-in-unreal-engine?application_version=5.8">Post Process Effects</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/bloom-in-unreal-engine?application_version=5.8">Bloom</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/depth-of-field-in-unreal-engine?application_version=5.8">Depth of Field</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/temporal-super-resolution-in-unreal-engine?application_version=5.8">Temporal Super Resolution</a> (hidden costs after TSR).</li>
+              <li>Unity 6.6 documentation: URP <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/bloom">Bloom</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/depth-of-field-urp/volume-override-reference">Depth of Field</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/motion-blur">Motion Blur</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/film-grain">Film Grain</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/vignette">Vignette</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/chromatic-aberration">Chromatic Aberration</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/lens-distortion">Lens Distortion</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/visual-effects/lens-flares/lens-flare/choose-a-lens-flare-type">Choose a lens flare type</a> and <a href="https://docs.unity3d.com/Manual/post-processing-effect-availability-reference.html">Post-processing effect availability</a>; HDRP 17.6 <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Post-Processing-Bloom.html">Bloom</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Post-Processing-Depth-of-Field.html">Depth of Field</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Post-Processing-Motion-Blur.html">Motion Blur</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/shared/lens-flare/Override-Screen-Space-Lens-Flare.html">Screen Space Lens Flare</a>.</li>
+              <li>Godot 4.7 documentation: <a href="https://docs.godotengine.org/en/4.7/classes/class_environment.html">Environment</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_cameraattributespractical.html">CameraAttributesPractical</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_cameraattributesphysical.html">CameraAttributesPhysical</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_projectsettings.html">ProjectSettings</a> and <a href="https://docs.godotengine.org/en/4.7/classes/class_compositoreffect.html">CompositorEffect</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/courtyard-gl.js"></script>
+  <script src="assets/demos/courtyard-shaders.js"></script>
+  <script src="assets/demos/courtyard.js"></script>
+</body>
+</html>

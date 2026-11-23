@@ -118,9 +118,9 @@
       n: 9, title: "Post-processing and image quality", blurb: "Everything done to the image after the scene is lit.",
       chapters: [
         { num: "9.1", slug: "tone-mapping", title: "HDR, exposure and tone mapping", terms: "scene-referred light, exposure, auto-exposure, tone curve, ACES, AgX, LUT, colour grading", core: true, status: "published" },
-        { num: "9.2", slug: "anti-aliasing", title: "Anti-aliasing", terms: "jaggies, specular aliasing, SSAA, MSAA, FXAA, SMAA, TAA, jitter, history, motion vectors, ghosting", core: true, status: "planned" },
-        { num: "9.3", slug: "upscaling", title: "Upscaling and frame generation", terms: "DLSS, FSR, XeSS, TSR, internal resolution, dynamic resolution, VRS, frame generation, latency", core: true, status: "planned" },
-        { num: "9.4", slug: "camera-effects", title: "Camera effects", terms: "bloom, depth of field, circle of confusion, bokeh, motion blur, velocity buffer, grain, vignette", core: false, status: "planned" },
+        { num: "9.2", slug: "anti-aliasing", title: "Anti-aliasing", terms: "jaggies, specular aliasing, SSAA, MSAA, FXAA, SMAA, TAA, jitter, history, motion vectors, ghosting", core: true, status: "published" },
+        { num: "9.3", slug: "upscaling", title: "Upscaling and frame generation", terms: "DLSS, FSR, XeSS, TSR, internal resolution, dynamic resolution, VRS, frame generation, latency", core: true, status: "published" },
+        { num: "9.4", slug: "camera-effects", title: "Camera effects", terms: "bloom, depth of field, circle of confusion, bokeh, motion blur, velocity buffer, grain, vignette", core: false, status: "published" },
         { num: "9.5", slug: "atmosphere", title: "Atmosphere", terms: "height fog, volumetric fog, froxels, god rays, sky scattering, volumetric clouds", core: false, status: "planned" },
         { num: "9.6", slug: "special-surfaces", title: "Special surfaces and effects", terms: "particles, flipbooks, soft particles, decals, water, foliage, subsurface scattering, hair, terrain", core: false, status: "planned" }
       ]

@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>9.3 Upscaling and frame generation · Graphics Handbook</title>
+  <meta name="description" content="How games render fewer pixels than they show: internal resolution, quality modes, temporal upscalers (TSR, DLSS, FSR, XeSS, STP), dynamic resolution, variable rate shading and frame generation, with costs, latency, failure modes and how to brief the work.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="9.3">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 9 · Post-processing and image quality</p>
+            <h1><span class="ch-num">9.3</span> Upscaling and frame generation</h1>
+            <p class="lead">Most games on current hardware no longer render every pixel they show. They render a quarter to a half of them, let a temporal upscaler rebuild the rest from earlier frames, and on some GPUs invent whole frames in between. This chapter explains how that works, what each mode really renders, what it costs in milliseconds and latency, and where it breaks.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>, <a class="xref" data-ch="3.1">3.1 Pixels and displays</a>, <a class="xref" data-ch="2.2">2.2 The game loop and threads</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="9.4">9.4 Camera effects</a>, <a class="xref" data-ch="11.1">11.1 Frame budgets</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 35 minutes</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 225" role="img" aria-label="Five outlines of a 4K screen, each with the area actually rendered drawn to scale inside it. Native or DLAA renders all 3840 by 2160 pixels. Quality, 1.5 times per axis, renders 2560 by 1440, 44 percent of the pixels. Balanced, 1.72 times, renders about 2227 by 1253, 34 percent. Performance, 2 times, renders 1920 by 1080, 25 percent. Ultra Performance, 3 times, renders 1280 by 720, 11 percent.">
+                <text class="t-caps" x="0" y="16">SHOWN ON SCREEN: 3,840 × 2,160 = 8.29 MILLION PIXELS. RENDERED: THE BLUE AREA</text>
+                <text class="t-caps" x="0" y="38">NATIVE (DLAA, NATIVE AA)</text>
+                <rect class="f-surface s-strong" x="0" y="46" width="168" height="94.5"/>
+                <rect class="f-acc-soft s-acc w15" x="0" y="46" width="168.0" height="94.5"/>
+                <text class="t-strong" x="0" y="162.5">3,840 × 2,160</text>
+                <text class="t-small" x="0" y="179.5">1.0× per axis</text>
+                <text class="t-small t-acc t-strong" x="0" y="196.5">8.29 M pixels · 100%</text>
+                <text class="t-small t-muted" x="0" y="213.5">every pixel rendered</text>
+                <text class="t-caps" x="183" y="38">QUALITY</text>
+                <rect class="f-surface s-strong" x="183" y="46" width="168" height="94.5"/>
+                <rect class="f-acc-soft s-acc w15" x="183" y="46" width="112.0" height="63.0"/>
+                <text class="t-strong" x="183" y="162.5">2,560 × 1,440</text>
+                <text class="t-small" x="183" y="179.5">1.5× per axis</text>
+                <text class="t-small t-acc t-strong" x="183" y="196.5">3.69 M pixels · 44%</text>
+                <text class="t-small t-muted" x="183" y="213.5">1 rendered for every 2.25 shown</text>
+                <text class="t-caps" x="366" y="38">BALANCED</text>
+                <rect class="f-surface s-strong" x="366" y="46" width="168" height="94.5"/>
+                <rect class="f-acc-soft s-acc w15" x="366" y="46" width="97.4" height="54.8"/>
+                <text class="t-strong" x="366" y="162.5">2,227 × 1,253</text>
+                <text class="t-small" x="366" y="179.5">1.72× (FSR 1.7×) per axis</text>
+                <text class="t-small t-acc t-strong" x="366" y="196.5">2.79 M pixels · 34%</text>
+                <text class="t-small t-muted" x="366" y="213.5">1 rendered for every 2.97 shown</text>
+                <text class="t-caps" x="549" y="38">PERFORMANCE</text>
+                <rect class="f-surface s-strong" x="549" y="46" width="168" height="94.5"/>
+                <rect class="f-acc-soft s-acc w15" x="549" y="46" width="84.0" height="47.3"/>
+                <text class="t-strong" x="549" y="162.5">1,920 × 1,080</text>
+                <text class="t-small" x="549" y="179.5">2.0× per axis</text>
+                <text class="t-small t-acc t-strong" x="549" y="196.5">2.07 M pixels · 25%</text>
+                <text class="t-small t-muted" x="549" y="213.5">1 rendered for every 4 shown</text>
+                <text class="t-caps" x="732" y="38">ULTRA PERFORMANCE</text>
+                <rect class="f-surface s-strong" x="732" y="46" width="168" height="94.5"/>
+                <rect class="f-acc-soft s-acc w15" x="732" y="46" width="56.0" height="31.5"/>
+                <text class="t-strong" x="732" y="162.5">1,280 × 720</text>
+                <text class="t-small" x="732" y="179.5">3.0× per axis</text>
+                <text class="t-small t-acc t-strong" x="732" y="196.5">0.92 M pixels · 11%</text>
+                <text class="t-small t-muted" x="732" y="213.5">1 rendered for every 9 shown</text>
+                </svg>
+              </div>
+              <figcaption><b>On a 4K screen, Performance mode renders a quarter of the pixels.</b> Each outline is the 3840 × 2160 screen; the blue area, drawn to scale, is what the GPU actually shades. The ratios are NVIDIA's and AMD's documented scale factors per axis, so the pixel count falls with the square: 1.5× per axis renders 44% of the pixels, 2× renders 25%, 3× renders 11%. The upscaler fills in the rest from jittered samples of earlier frames.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>Shading cost follows pixel count, and pixel counts have run ahead of GPUs: a 4K frame has 8,294,400 pixels, four times 1080p. So games render at a lower <dfn class="term" data-term="internal-resolution">internal resolution</dfn> and enlarge the result to the screen's <a class="term" data-term="resolution" href="glossary.html#resolution">resolution</a>. Enlarging a single frame cannot invent detail it never sampled. The modern upscalers get around that with the trick from 9.2: the camera is <a class="term" data-term="subpixel-jitter" href="glossary.html#subpixel-jitter">jittered</a> every frame, so each frame samples different points, and the upscaler accumulates those samples into a full-resolution <a class="term" data-term="history-buffer" href="glossary.html#history-buffer">history</a>. Several low-resolution frames together hold more real detail than any one of them.</p>
+            <p>Frame generation goes a step further. Instead of making each frame cheaper, it makes extra frames: from two rendered frames and their motion, it creates one to five frames to show in between. The screen updates more often. The game does not respond any faster, because the in-between frames are made after the fact, and each real frame has to wait for them.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">An everyday comparison</span>
+                <p>A survey team cannot visit every house in a city each week, so each week it visits a different quarter of the houses and keeps last month's answers for the rest. Its map is nearly as complete as a full census for a quarter of the cost, as long as people do not move house too often. Frame generation is the cartoonist's in-betweener: given two key drawings, they draw the poses between. The animation is smoother; the story moves at the key drawings' pace.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>4K screens, 120 Hz and higher <a class="term" data-term="refresh-rate" href="glossary.html#refresh-rate">refresh rates</a>, and ray-traced lighting all multiply GPU work. Upscaling cuts the per-pixel work by half or more for a small loss in sharpness, and frame generation lets a game that renders 60 frames a second fill a 120 or 240 Hz screen.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Upscaling is now a core part of the frame budget, and often the default: Unreal Engine 5 ships with TSR on, and many games' recommended settings assume DLSS or FSR. It decides how sharp the game looks, inherits every TAA artifact from 9.2, and adds vendor integrations that must be tested per GPU family. Frame generation adds latency, can mangle the interface, and needs a high base frame rate to look right. Both show up in store pages and reviews, so decide early which ones you support and on which platforms.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>There are four separate ideas here, and games often use all four together: render fewer pixels and upscale, change that resolution every frame to hold the budget, shade some regions more coarsely than others, and add generated frames at the end.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="modes"><span class="step-num">1</span> Quality modes: how many pixels are rendered</h3>
+              <p>Upscalers offer <dfn class="term" data-term="quality-mode">quality modes</dfn>, each a fixed ratio between the display and internal resolution per axis. The names are shared and the ratios are not. Intel changed XeSS's ratios in version 1.3, so XeSS Quality now renders fewer pixels than DLSS or FSR Quality.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th scope="col">Mode</th><th scope="col" class="num">DLSS</th><th scope="col" class="num">FSR</th><th scope="col" class="num">XeSS 1.3 and later</th><th scope="col">Rendered at 4K, DLSS and FSR</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Native (DLAA, Native AA)</th><td class="num">1.0×</td><td class="num">1.0×</td><td class="num">1.0×</td><td>3840 × 2160, 100%</td></tr>
+                    <tr><th scope="row">Ultra Quality Plus</th><td class="num">–</td><td class="num">–</td><td class="num">1.3×</td><td>–</td></tr>
+                    <tr><th scope="row">Ultra Quality</th><td class="num">–</td><td class="num">–</td><td class="num">1.5×</td><td>–</td></tr>
+                    <tr><th scope="row">Quality</th><td class="num">1.5×</td><td class="num">1.5×</td><td class="num">1.7×</td><td>2560 × 1440, 44%</td></tr>
+                    <tr><th scope="row">Balanced</th><td class="num">1.724×</td><td class="num">1.7×</td><td class="num">2.0×</td><td>about 2227 × 1253, 34%</td></tr>
+                    <tr><th scope="row">Performance</th><td class="num">2.0×</td><td class="num">2.0×</td><td class="num">2.3×</td><td>1920 × 1080, 25%</td></tr>
+                    <tr><th scope="row">Ultra Performance</th><td class="num">3.0×</td><td class="num">3.0×</td><td class="num">3.0×</td><td>1280 × 720, 11%</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="stamp">Ratios per axis from NVIDIA's DLSS programming guide (jitter table), AMD's FSR Upscaling documentation and Intel's XeSS-SR developer guide 2.0. NVIDIA and Intel tell developers to query the ratio at runtime rather than hard-code it. Unreal's TSR uses a screen percentage directly: 50% is the same as Performance.</p>
+              <p>Lower modes also take longer to recover. With a quarter of the samples per frame, the upscaler needs about four frames to collect one real sample for every shown pixel, so anything new on screen, a <a class="term" data-term="disocclusion" href="glossary.html#disocclusion">disocclusion</a> or a camera cut, looks low-resolution for longer. Epic's TSR documentation makes the same calculation: at 50%, a newly revealed area needs four frames, 66 ms at 60 fps, to reach one sample per pixel.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="spatial-temporal"><span class="step-num">2</span> Spatial and temporal upscaling</h3>
+              <p><dfn class="term" data-term="spatial-upscaling">Spatial upscaling</dfn> enlarges one frame by interpolating between its pixels. Bilinear and Catmull-Rom filters do only that; AMD's FSR 1 (2021) also finds edges and sharpens them, which makes a 1440p image look closer to 4K than a plain stretch. It is cheap and works anywhere, and it cannot restore detail that fell between the samples. AMD's documentation says to run FSR 1 after anti-aliasing and tone mapping, on an already anti-aliased image.</p>
+              <p><dfn class="term" data-term="temporal-upscaling">Temporal upscaling</dfn> is <a class="term" data-term="taa" href="glossary.html#taa">TAA</a> (9.2) with the history kept at display resolution. Each low-resolution frame is rendered with a different jitter, its samples are placed where they belong in the high-resolution history, and the history is reprojected with <a class="term" data-term="motion-vectors" href="glossary.html#motion-vectors">motion vectors</a>. One pass both anti-aliases and upscales. Every artifact from 9.2 comes along: <a class="term" data-term="ghosting" href="glossary.html#ghosting">ghosting</a>, smearing of things without motion vectors, flicker on thin detail, and blur in motion.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 214" role="img" aria-label="Two ways to fill a display grid twice as fine as the rendered grid. Spatial: one rendered frame; each shown pixel is blended from the four nearest rendered pixels, so detail between samples cannot return. Temporal: each frame samples one jittered point per rendered pixel; over eight frames the samples land in different shown pixels, so every shown pixel collects exactly two real samples.">
+                  <text class="t-caps" x="20" y="20">SPATIAL: ONE FRAME, PIXELS IN BETWEEN INVENTED</text>
+                  <rect class="f-ink" fill-opacity="0.08" x="20" y="36" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.12" x="76" y="36" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.56" x="132" y="36" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.68" x="188" y="36" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.10" x="20" y="92" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.48" x="76" y="92" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.72" x="132" y="92" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.72" x="188" y="92" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.44" x="20" y="148" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.70" x="76" y="148" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.72" x="132" y="148" width="56" height="56"/>
+                  <rect class="f-ink" fill-opacity="0.74" x="188" y="148" width="56" height="56"/>
+                  <path class="s-strong" d="M20,36V204M76,36V204M132,36V204M188,36V204M244,36V204M20,36H244M20,92H244M20,148H244M20,204H244"/>
+                  <path class="s-line dash" d="M20,36V204M48,36V204M76,36V204M104,36V204M132,36V204M160,36V204M188,36V204M216,36V204M244,36V204M20,36H244M20,64H244M20,92H244M20,120H244M20,148H244M20,176H244M20,204H244"/>
+                  <rect class="s-pix w2" x="104" y="92" width="28" height="28"/>
+                  <line class="s-pix" x1="118" y1="106" x2="104" y2="64"/>
+                  <circle class="f-pix" cx="104" cy="64" r="3"/>
+                  <line class="s-pix" x1="118" y1="106" x2="160" y2="64"/>
+                  <circle class="f-pix" cx="160" cy="64" r="3"/>
+                  <line class="s-pix" x1="118" y1="106" x2="104" y2="120"/>
+                  <circle class="f-pix" cx="104" cy="120" r="3"/>
+                  <line class="s-pix" x1="118" y1="106" x2="160" y2="120"/>
+                  <circle class="f-pix" cx="160" cy="120" r="3"/>
+                  <text class="t-small" x="260" y="54">Each shown pixel (dashed grid)</text>
+                  <text class="t-small" x="260" y="70">is blended from the nearest</text>
+                  <text class="t-small" x="260" y="86">rendered pixels (solid grid).</text>
+                  <text class="t-small t-muted" x="260" y="114">FSR 1 also finds edges and</text>
+                  <text class="t-small t-muted" x="260" y="130">sharpens them. Detail that fell</text>
+                  <text class="t-small t-muted" x="260" y="146">between samples stays lost.</text>
+                  <text class="t-caps" x="470" y="20">TEMPORAL: JITTERED SAMPLES FROM 8 FRAMES</text>
+                  <rect class="f-surface" x="470" y="36" width="224" height="168"/>
+                  <path class="s-line" d="M470,36V204M498,36V204M526,36V204M554,36V204M582,36V204M610,36V204M638,36V204M666,36V204M694,36V204M470,36H694M470,64H694M470,92H694M470,120H694M470,148H694M470,176H694M470,204H694"/>
+                  <path class="s-strong" d="M470,36V204M526,36V204M582,36V204M638,36V204M694,36V204M470,36H694M470,92H694M470,148H694M470,204H694"/>
+                  <circle class="f-acc" cx="498.0" cy="54.7" r="2.2"/>
+                  <circle class="f-acc" cx="554.0" cy="54.7" r="2.2"/>
+                  <circle class="f-acc" cx="610.0" cy="54.7" r="2.2"/>
+                  <circle class="f-acc" cx="666.0" cy="54.7" r="2.2"/>
+                  <circle class="f-acc" cx="498.0" cy="110.7" r="2.2"/>
+                  <rect class="s-acc w2" x="526" y="92" width="56" height="56"/>
+                  <circle class="f-acc" cx="554.0" cy="110.7" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="554.0" y="113.7">1</text>
+                  <circle class="f-acc" cx="610.0" cy="110.7" r="2.2"/>
+                  <circle class="f-acc" cx="666.0" cy="110.7" r="2.2"/>
+                  <circle class="f-acc" cx="498.0" cy="166.7" r="2.2"/>
+                  <circle class="f-acc" cx="554.0" cy="166.7" r="2.2"/>
+                  <circle class="f-acc" cx="610.0" cy="166.7" r="2.2"/>
+                  <circle class="f-acc" cx="666.0" cy="166.7" r="2.2"/>
+                  <circle class="f-acc" cx="484.0" cy="73.3" r="2.2"/>
+                  <circle class="f-acc" cx="540.0" cy="73.3" r="2.2"/>
+                  <circle class="f-acc" cx="596.0" cy="73.3" r="2.2"/>
+                  <circle class="f-acc" cx="652.0" cy="73.3" r="2.2"/>
+                  <circle class="f-acc" cx="484.0" cy="129.3" r="2.2"/>
+                  <circle class="f-acc" cx="540.0" cy="129.3" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="540.0" y="132.3">2</text>
+                  <circle class="f-acc" cx="596.0" cy="129.3" r="2.2"/>
+                  <circle class="f-acc" cx="652.0" cy="129.3" r="2.2"/>
+                  <circle class="f-acc" cx="484.0" cy="185.3" r="2.2"/>
+                  <circle class="f-acc" cx="540.0" cy="185.3" r="2.2"/>
+                  <circle class="f-acc" cx="596.0" cy="185.3" r="2.2"/>
+                  <circle class="f-acc" cx="652.0" cy="185.3" r="2.2"/>
+                  <circle class="f-acc" cx="512.0" cy="42.2" r="2.2"/>
+                  <circle class="f-acc" cx="568.0" cy="42.2" r="2.2"/>
+                  <circle class="f-acc" cx="624.0" cy="42.2" r="2.2"/>
+                  <circle class="f-acc" cx="680.0" cy="42.2" r="2.2"/>
+                  <circle class="f-acc" cx="512.0" cy="98.2" r="2.2"/>
+                  <circle class="f-acc" cx="568.0" cy="98.2" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="568.0" y="101.2">3</text>
+                  <circle class="f-acc" cx="624.0" cy="98.2" r="2.2"/>
+                  <circle class="f-acc" cx="680.0" cy="98.2" r="2.2"/>
+                  <circle class="f-acc" cx="512.0" cy="154.2" r="2.2"/>
+                  <circle class="f-acc" cx="568.0" cy="154.2" r="2.2"/>
+                  <circle class="f-acc" cx="624.0" cy="154.2" r="2.2"/>
+                  <circle class="f-acc" cx="680.0" cy="154.2" r="2.2"/>
+                  <circle class="f-acc" cx="477.0" cy="60.9" r="2.2"/>
+                  <circle class="f-acc" cx="533.0" cy="60.9" r="2.2"/>
+                  <circle class="f-acc" cx="589.0" cy="60.9" r="2.2"/>
+                  <circle class="f-acc" cx="645.0" cy="60.9" r="2.2"/>
+                  <circle class="f-acc" cx="477.0" cy="116.9" r="2.2"/>
+                  <circle class="f-acc" cx="533.0" cy="116.9" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="533.0" y="119.9">4</text>
+                  <circle class="f-acc" cx="589.0" cy="116.9" r="2.2"/>
+                  <circle class="f-acc" cx="645.0" cy="116.9" r="2.2"/>
+                  <circle class="f-acc" cx="477.0" cy="172.9" r="2.2"/>
+                  <circle class="f-acc" cx="533.0" cy="172.9" r="2.2"/>
+                  <circle class="f-acc" cx="589.0" cy="172.9" r="2.2"/>
+                  <circle class="f-acc" cx="645.0" cy="172.9" r="2.2"/>
+                  <circle class="f-acc" cx="505.0" cy="79.6" r="2.2"/>
+                  <circle class="f-acc" cx="561.0" cy="79.6" r="2.2"/>
+                  <circle class="f-acc" cx="617.0" cy="79.6" r="2.2"/>
+                  <circle class="f-acc" cx="673.0" cy="79.6" r="2.2"/>
+                  <circle class="f-acc" cx="505.0" cy="135.6" r="2.2"/>
+                  <circle class="f-acc" cx="561.0" cy="135.6" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="561.0" y="138.6">5</text>
+                  <circle class="f-acc" cx="617.0" cy="135.6" r="2.2"/>
+                  <circle class="f-acc" cx="673.0" cy="135.6" r="2.2"/>
+                  <circle class="f-acc" cx="505.0" cy="191.6" r="2.2"/>
+                  <circle class="f-acc" cx="561.0" cy="191.6" r="2.2"/>
+                  <circle class="f-acc" cx="617.0" cy="191.6" r="2.2"/>
+                  <circle class="f-acc" cx="673.0" cy="191.6" r="2.2"/>
+                  <circle class="f-acc" cx="491.0" cy="48.4" r="2.2"/>
+                  <circle class="f-acc" cx="547.0" cy="48.4" r="2.2"/>
+                  <circle class="f-acc" cx="603.0" cy="48.4" r="2.2"/>
+                  <circle class="f-acc" cx="659.0" cy="48.4" r="2.2"/>
+                  <circle class="f-acc" cx="491.0" cy="104.4" r="2.2"/>
+                  <circle class="f-acc" cx="547.0" cy="104.4" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="547.0" y="107.4">6</text>
+                  <circle class="f-acc" cx="603.0" cy="104.4" r="2.2"/>
+                  <circle class="f-acc" cx="659.0" cy="104.4" r="2.2"/>
+                  <circle class="f-acc" cx="491.0" cy="160.4" r="2.2"/>
+                  <circle class="f-acc" cx="547.0" cy="160.4" r="2.2"/>
+                  <circle class="f-acc" cx="603.0" cy="160.4" r="2.2"/>
+                  <circle class="f-acc" cx="659.0" cy="160.4" r="2.2"/>
+                  <circle class="f-acc" cx="519.0" cy="67.1" r="2.2"/>
+                  <circle class="f-acc" cx="575.0" cy="67.1" r="2.2"/>
+                  <circle class="f-acc" cx="631.0" cy="67.1" r="2.2"/>
+                  <circle class="f-acc" cx="687.0" cy="67.1" r="2.2"/>
+                  <circle class="f-acc" cx="519.0" cy="123.1" r="2.2"/>
+                  <circle class="f-acc" cx="575.0" cy="123.1" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="575.0" y="126.1">7</text>
+                  <circle class="f-acc" cx="631.0" cy="123.1" r="2.2"/>
+                  <circle class="f-acc" cx="687.0" cy="123.1" r="2.2"/>
+                  <circle class="f-acc" cx="519.0" cy="179.1" r="2.2"/>
+                  <circle class="f-acc" cx="575.0" cy="179.1" r="2.2"/>
+                  <circle class="f-acc" cx="631.0" cy="179.1" r="2.2"/>
+                  <circle class="f-acc" cx="687.0" cy="179.1" r="2.2"/>
+                  <circle class="f-acc" cx="473.5" cy="85.8" r="2.2"/>
+                  <circle class="f-acc" cx="529.5" cy="85.8" r="2.2"/>
+                  <circle class="f-acc" cx="585.5" cy="85.8" r="2.2"/>
+                  <circle class="f-acc" cx="641.5" cy="85.8" r="2.2"/>
+                  <circle class="f-acc" cx="473.5" cy="141.8" r="2.2"/>
+                  <circle class="f-acc" cx="529.5" cy="141.8" r="6.5"/>
+                  <text class="t-on-acc mid" font-size="9" x="529.5" y="144.8">8</text>
+                  <circle class="f-acc" cx="585.5" cy="141.8" r="2.2"/>
+                  <circle class="f-acc" cx="641.5" cy="141.8" r="2.2"/>
+                  <circle class="f-acc" cx="473.5" cy="197.8" r="2.2"/>
+                  <circle class="f-acc" cx="529.5" cy="197.8" r="2.2"/>
+                  <circle class="f-acc" cx="585.5" cy="197.8" r="2.2"/>
+                  <circle class="f-acc" cx="641.5" cy="197.8" r="2.2"/>
+                  <text class="t-small" x="710" y="54">Each frame samples one point per</text>
+                  <text class="t-small" x="710" y="70">rendered pixel, moved by the jitter.</text>
+                  <text class="t-small" x="710" y="86">Over 8 frames, every shown pixel</text>
+                  <text class="t-small" x="710" y="102">gets exactly 2 real samples.</text>
+                  <text class="t-small t-muted" x="710" y="130">Numbered: one rendered pixel's</text>
+                  <text class="t-small t-muted" x="710" y="146">sample in frames 1 to 8.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Spatial upscaling interpolates; temporal upscaling collects.</b> At 2× per axis, each frame has one sample for every four shown pixels. Jittered with the first eight <a class="term" data-term="halton-sequence" href="glossary.html#halton-sequence">Halton</a> offsets, eight frames put exactly two real samples in each shown pixel of this grid. NVIDIA recommends at least 32 jitter phases at this ratio, so that each shown pixel eventually receives eight.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="upscalers"><span class="step-num">3</span> The temporal upscalers</h3>
+              <p>They share a design and differ in how they decide, pixel by pixel, how much history to trust. Hand-written ones use rules like neighbourhood clamping. Machine-learned ones replace those rules with a neural network trained on very high quality reference images, which tends to keep more detail and ghost less, and needs matrix-maths hardware to run fast.</p>
+              <ul>
+                <li><dfn class="term" data-term="tsr">TSR</dfn>, Temporal Super Resolution, is Unreal Engine 5's own upscaler and its default anti-aliasing. It is hand-written, runs on any GPU with Shader Model 5 and on PlayStation 5 and Xbox Series consoles, and has scalability settings that trade quality for cost.</li>
+                <li><dfn class="term" data-term="dlss">DLSS</dfn> is NVIDIA's family for GeForce RTX GPUs. Super Resolution is its upscaler; DLAA is the same network at native resolution, used as anti-aliasing. DLSS 4 (2025) moved to a transformer model, and DLSS 4.5 (2026) added a second-generation one; NVIDIA notes that RTX 20 and 30 GPUs lack native FP8 support, so the newest models cost more there.</li>
+                <li><dfn class="term" data-term="fsr">FSR</dfn> is AMD's family. FSR 2 and 3 are hand-written temporal upscalers that run on most GPUs from any vendor. FSR Upscaling 4 is machine-learned; AMD's page lists it for Radeon RX 9000, 7000 and 6000 GPUs, and on other hardware the same API falls back to FSR 3.1.</li>
+                <li><dfn class="term" data-term="xess">XeSS</dfn> is Intel's machine-learned upscaler. It uses the matrix (XMX) units of Arc GPUs, and a cross-vendor version runs on any GPU with Shader Model 6.4.</li>
+                <li><dfn class="term" data-term="stp">STP</dfn>, Spatial-Temporal Post-processing, is Unity 6's built-in temporal upscaler for URP and HDRP. It needs compute shaders, does not run on OpenGL ES, and turns TAA on.</li>
+              </ul>
+              <p>On consoles, Sony's PS5 Pro has its own machine-learned upscaler, PSSR, whose 2026 update Sony says stems from its Project Amethyst work with AMD, and NVIDIA says Nintendo Switch 2's Tensor Cores run DLSS.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 246" role="img" aria-label="Where the upscaler sits in a frame. Geometry, lighting and transparency run at the internal resolution, for example 1920 by 1080. The upscaler takes the colour before tone mapping, depth, motion vectors, the jitter offset, exposure and optional masks, and outputs the display resolution, 3840 by 2160. Post effects such as bloom, motion blur and the tone map, then the interface, run at display resolution. Frame generation, if used, comes last and uses the frame with and without the interface.">
+                  <defs><marker id="up-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  <marker id="up-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                  <rect class="f-sunken" x="0" y="34" width="372" height="120" rx="8"/>
+                  <text class="t-caps" x="12" y="52">INTERNAL RESOLUTION, E.G. 1920 × 1080</text>
+                  <rect class="f-pix-soft" x="520" y="34" width="380" height="120" rx="8"/>
+                  <text class="t-caps" x="532" y="52">DISPLAY RESOLUTION, 3840 × 2160</text>
+                  <rect class="f-surface s-strong" x="12" y="66" width="108" height="70" rx="6"/>
+                  <text class="t-small t-strong" x="21" y="88">Geometry</text>
+                  <text class="t-small t-muted" x="21" y="104">G-buffer, depth,</text>
+                  <text class="t-small t-muted" x="21" y="119">motion vectors</text>
+                  <rect class="f-surface s-strong" x="132" y="66" width="108" height="70" rx="6"/>
+                  <text class="t-small t-strong" x="141" y="88">Lighting</text>
+                  <text class="t-small t-muted" x="141" y="104">shadows, AO,</text>
+                  <text class="t-small t-muted" x="141" y="119">reflections</text>
+                  <rect class="f-surface s-strong" x="252" y="66" width="108" height="70" rx="6"/>
+                  <text class="t-small t-strong" x="261" y="88">Transparency</text>
+                  <text class="t-small t-muted" x="261" y="104">particles, glass;</text>
+                  <text class="t-small t-muted" x="261" y="119">DOF in Unreal</text>
+                  <rect class="f-acc s-acc" x="384" y="66" width="124" height="70" rx="6"/>
+                  <text class="t-small t-strong t-on-acc" x="393" y="88">Upscaler</text>
+                  <text class="t-small t-on-acc" x="393" y="104">TSR, DLSS, FSR,</text>
+                  <text class="t-small t-on-acc" x="393" y="119">XeSS, STP</text>
+                  <rect class="f-surface s-strong" x="532" y="66" width="108" height="70" rx="6"/>
+                  <text class="t-small t-strong" x="541" y="88">Post effects</text>
+                  <text class="t-small t-muted" x="541" y="104">bloom, motion</text>
+                  <text class="t-small t-muted" x="541" y="119">blur, tone map</text>
+                  <rect class="f-surface s-strong" x="652" y="66" width="108" height="70" rx="6"/>
+                  <text class="t-small t-strong" x="661" y="88">Interface</text>
+                  <text class="t-small t-muted" x="661" y="104">drawn at full</text>
+                  <text class="t-small t-muted" x="661" y="119">resolution</text>
+                  <rect class="f-surface s-strong dash" x="772" y="66" width="118" height="70" rx="6"/>
+                  <text class="t-small t-strong" x="781" y="88">Frame gen</text>
+                  <text class="t-small t-muted" x="781" y="104">optional, uses the</text>
+                  <text class="t-small t-muted" x="781" y="119">frame with and</text>
+                  <text class="t-small t-muted" x="781" y="134">without the UI</text>
+                  <line class="s-muted" x1="121" y1="101" x2="130" y2="101" marker-end="url(#up-arr)"/>
+                  <line class="s-muted" x1="241" y1="101" x2="250" y2="101" marker-end="url(#up-arr)"/>
+                  <line class="s-muted" x1="361" y1="101" x2="382" y2="101" marker-end="url(#up-arr)"/>
+                  <line class="s-muted" x1="509" y1="101" x2="530" y2="101" marker-end="url(#up-arr)"/>
+                  <line class="s-muted" x1="641" y1="101" x2="650" y2="101" marker-end="url(#up-arr)"/>
+                  <line class="s-muted" x1="761" y1="101" x2="770" y2="101" marker-end="url(#up-arr)"/>
+                  <text class="t-small t-acc t-strong" x="384" y="176">Inputs</text>
+                  <text class="t-small" x="384" y="192">colour before tone mapping, depth,</text>
+                  <text class="t-small" x="384" y="207">motion vectors, this frame's jitter,</text>
+                  <text class="t-small" x="384" y="222">exposure, optional masks for</text>
+                  <text class="t-small" x="384" y="237">transparent and animated pixels</text>
+                  <path class="s-acc w15" d="M446,166 V140" marker-end="url(#up-arr-a)"/>
+                  <text class="t-small t-muted" x="12" y="176">Everything here costs a quarter as much at</text>
+                  <text class="t-small t-muted" x="12" y="191">Performance mode. Textures use a negative</text>
+                  <text class="t-small t-muted" x="12" y="206">mip bias so they keep display-level detail.</text>
+                  <text class="t-small t-muted" x="590" y="176">Everything here runs at full resolution</text>
+                  <text class="t-small t-muted" x="590" y="191">and does not get cheaper with the mode:</text>
+                  <text class="t-small t-muted" x="590" y="206">Epic calls it the hidden cost of upscaling.</text>
+                  </svg>
+                </div>
+                <figcaption><b>The upscaler is the line between internal and display resolution.</b> NVIDIA's guide asks for DLSS early in post-processing, before tone mapping; Intel says the same for XeSS. Unreal runs TSR after depth of field. AMD's FSR 4 documentation lists bloom, depth of field, motion blur, tone mapping, film grain and vignette as effects to run after FSR. Everything after the upscaler runs at full resolution.</figcaption>
+              </figure>
+              <p>What the upscaler needs is close to what TAA needs: colour, depth, motion vectors, and the jitter offset used this frame. Exposure (9.1) helps it handle HDR values; masks mark particles and transparent effects whose history should count for less. One more setting matters: textures must be sampled as if the game ran at display resolution, or they come out blurry. NVIDIA's formula is a <a class="term" data-term="lod-bias" href="glossary.html#lod-bias">mip bias</a> of log2(internal width ÷ display width) − 1, which gives −2 at Performance; AMD uses the same formula, and Intel recommends log2(internal ÷ display) without the −1. Godot applies log2 of the 3D scale automatically, as its documentation describes.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="dynamic-resolution"><span class="step-num">4</span> Dynamic resolution: holding the frame budget</h3>
+              <p><dfn class="term" data-term="dynamic-resolution">Dynamic resolution</dfn> changes the internal resolution every few frames, from measured GPU time. When an explosion fills the screen and the frame would overrun its <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a>, it renders fewer pixels; when the load passes, it renders more. A temporal upscaler makes the changes hard to see, because the history stays at display resolution. Engines build it in for consoles: Unreal documents TSR's dynamic resolution support on console platforms, and HDRP uses hardware dynamic resolution on all consoles it supports.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 296" role="img" aria-label="Two charts over 12 seconds at 60 frames per second. Top: GPU time per frame. At a fixed 100 percent resolution it is 14.5 milliseconds until an explosion fills the screen from 4 to 8.5 seconds, when it rises to 21.8 milliseconds, over the 16.7 millisecond budget. With dynamic resolution it briefly touches the budget, then settles at about 15 milliseconds. Bottom: the dynamic screen percentage drops from 100 to about 80 percent during the explosion and returns afterwards.">
+                  <text class="t-caps" x="70" y="22">GPU TIME PER FRAME</text>
+                  <line class="s-line" x1="70" y1="160" x2="670" y2="160"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="164">10 ms</text>
+                  <line class="s-line" x1="70" y1="125.71428571428572" x2="670" y2="125.71428571428572"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="129.71428571428572">14 ms</text>
+                  <line class="s-line" x1="70" y1="91.42857142857143" x2="670" y2="91.42857142857143"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="95.42857142857143">18 ms</text>
+                  <line class="s-line" x1="70" y1="57.14285714285715" x2="670" y2="57.14285714285715"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="61.14285714285715">22 ms</text>
+                  <rect class="f-lit-soft" x="270.278164116829" y="40" width="225.31293463143248" height="230" opacity="0.6"/>
+                  <text class="t-small t-lit t-strong" x="276.278164116829" y="54">explosion on screen</text>
+                  <line class="s-pix w2 dash" x1="70" y1="102.85714285714285" x2="670" y2="102.85714285714285"/>
+                  <text class="t-small t-pix t-strong" x="678" y="106.85714285714285">budget 16.7 ms</text>
+                  <polyline class="s-muted w2" points="70.0,121.4 70.8,121.4 71.7,121.4 72.5,121.4 73.3,121.4 74.2,121.4 75.0,121.4 75.8,121.4 76.7,121.4 77.5,121.4 78.3,121.4 79.2,121.4 80.0,121.4 80.8,121.4 81.7,121.4 82.5,121.4 83.4,121.4 84.2,121.4 85.0,121.4 85.9,121.4 86.7,121.4 87.5,121.4 88.4,121.4 89.2,121.4 90.0,121.4 90.9,121.4 91.7,121.4 92.5,121.4 93.4,121.4 94.2,121.4 95.0,121.4 95.9,121.4 96.7,121.4 97.5,121.4 98.4,121.4 99.2,121.4 100.0,121.4 100.9,121.4 101.7,121.4 102.5,121.4 103.4,121.4 104.2,121.4 105.0,121.4 105.9,121.4 106.7,121.4 107.6,121.4 108.4,121.4 109.2,121.4 110.1,121.4 110.9,121.4 111.7,121.4 112.6,121.4 113.4,121.4 114.2,121.4 115.1,121.4 115.9,121.4 116.7,121.4 117.6,121.4 118.4,121.4 119.2,121.4 120.1,121.4 120.9,121.4 121.7,121.4 122.6,121.4 123.4,121.4 124.2,121.4 125.1,121.4 125.9,121.4 126.7,121.4 127.6,121.4 128.4,121.4 129.2,121.4 130.1,121.4 130.9,121.4 131.8,121.4 132.6,121.4 133.4,121.4 134.3,121.4 135.1,121.4 135.9,121.4 136.8,121.4 137.6,121.4 138.4,121.4 139.3,121.4 140.1,121.4 140.9,121.4 141.8,121.4 142.6,121.4 143.4,121.4 144.3,121.4 145.1,121.4 145.9,121.4 146.8,121.4 147.6,121.4 148.4,121.4 149.3,121.4 150.1,121.4 150.9,121.4 151.8,121.4 152.6,121.4 153.4,121.4 154.3,121.4 155.1,121.4 156.0,121.4 156.8,121.4 157.6,121.4 158.5,121.4 159.3,121.4 160.1,121.4 161.0,121.4 161.8,121.4 162.6,121.4 163.5,121.4 164.3,121.4 165.1,121.4 166.0,121.4 166.8,121.4 167.6,121.4 168.5,121.4 169.3,121.4 170.1,121.4 171.0,121.4 171.8,121.4 172.6,121.4 173.5,121.4 174.3,121.4 175.1,121.4 176.0,121.4 176.8,121.4 177.6,121.4 178.5,121.4 179.3,121.4 180.2,121.4 181.0,121.4 181.8,121.4 182.7,121.4 183.5,121.4 184.3,121.4 185.2,121.4 186.0,121.4 186.8,121.4 187.7,121.4 188.5,121.4 189.3,121.4 190.2,121.4 191.0,121.4 191.8,121.4 192.7,121.4 193.5,121.4 194.3,121.4 195.2,121.4 196.0,121.4 196.8,121.4 197.7,121.4 198.5,121.4 199.3,121.4 200.2,121.4 201.0,121.4 201.8,121.4 202.7,121.4 203.5,121.4 204.4,121.4 205.2,121.4 206.0,121.4 206.9,121.4 207.7,121.4 208.5,121.4 209.4,121.4 210.2,121.4 211.0,121.4 211.9,121.4 212.7,121.4 213.5,121.4 214.4,121.4 215.2,121.4 216.0,121.4 216.9,121.4 217.7,121.4 218.5,121.4 219.4,121.4 220.2,121.4 221.0,121.4 221.9,121.4 222.7,121.4 223.5,121.4 224.4,121.4 225.2,121.4 226.1,121.4 226.9,121.4 227.7,121.4 228.6,121.4 229.4,121.4 230.2,121.4 231.1,121.4 231.9,121.4 232.7,121.4 233.6,121.4 234.4,121.4 235.2,121.4 236.1,121.4 236.9,121.4 237.7,121.4 238.6,121.4 239.4,121.4 240.2,121.4 241.1,121.4 241.9,121.4 242.7,121.4 243.6,121.4 244.4,121.4 245.2,121.4 246.1,121.4 246.9,121.4 247.7,121.4 248.6,121.4 249.4,121.4 250.3,121.4 251.1,121.4 251.9,121.4 252.8,121.4 253.6,121.4 254.4,121.4 255.3,121.4 256.1,121.4 256.9,121.4 257.8,121.4 258.6,121.4 259.4,121.4 260.3,121.4 261.1,121.4 261.9,121.4 262.8,121.4 263.6,121.4 264.4,121.4 265.3,121.4 266.1,121.4 266.9,121.4 267.8,121.4 268.6,121.4 269.4,121.4 270.3,121.4 271.1,119.4 271.9,117.3 272.8,115.2 273.6,113.1 274.5,111.1 275.3,109.0 276.1,106.9 277.0,104.9 277.8,102.8 278.6,100.7 279.5,98.6 280.3,96.6 281.1,94.5 282.0,92.4 282.8,90.4 283.6,88.3 284.5,86.2 285.3,84.1 286.1,82.1 287.0,80.0 287.8,77.9 288.6,75.9 289.5,73.8 290.3,71.7 291.1,69.6 292.0,67.6 292.8,65.5 293.6,63.4 294.5,61.4 295.3,59.3 296.1,59.3 297.0,59.3 297.8,59.3 298.7,59.3 299.5,59.3 300.3,59.3 301.2,59.3 302.0,59.3 302.8,59.3 303.7,59.3 304.5,59.3 305.3,59.3 306.2,59.3 307.0,59.3 307.8,59.3 308.7,59.3 309.5,59.3 310.3,59.3 311.2,59.3 312.0,59.3 312.8,59.3 313.7,59.3 314.5,59.3 315.3,59.3 316.2,59.3 317.0,59.3 317.8,59.3 318.7,59.3 319.5,59.3 320.3,59.3 321.2,59.3 322.0,59.3 322.9,59.3 323.7,59.3 324.5,59.3 325.4,59.3 326.2,59.3 327.0,59.3 327.9,59.3 328.7,59.3 329.5,59.3 330.4,59.3 331.2,59.3 332.0,59.3 332.9,59.3 333.7,59.3 334.5,59.3 335.4,59.3 336.2,59.3 337.0,59.3 337.9,59.3 338.7,59.3 339.5,59.3 340.4,59.3 341.2,59.3 342.0,59.3 342.9,59.3 343.7,59.3 344.5,59.3 345.4,59.3 346.2,59.3 347.1,59.3 347.9,59.3 348.7,59.3 349.6,59.3 350.4,59.3 351.2,59.3 352.1,59.3 352.9,59.3 353.7,59.3 354.6,59.3 355.4,59.3 356.2,59.3 357.1,59.3 357.9,59.3 358.7,59.3 359.6,59.3 360.4,59.3 361.2,59.3 362.1,59.3 362.9,59.3 363.7,59.3 364.6,59.3 365.4,59.3 366.2,59.3 367.1,59.3 367.9,59.3 368.7,59.3 369.6,59.3 370.4,59.3 371.3,59.3 372.1,59.3 372.9,59.3 373.8,59.3 374.6,59.3 375.4,59.3 376.3,59.3 377.1,59.3 377.9,59.3 378.8,59.3 379.6,59.3 380.4,59.3 381.3,59.3 382.1,59.3 382.9,59.3 383.8,59.3 384.6,59.3 385.4,59.3 386.3,59.3 387.1,59.3 387.9,59.3 388.8,59.3 389.6,59.3 390.4,59.3 391.3,59.3 392.1,59.3 392.9,59.3 393.8,59.3 394.6,59.3 395.5,59.3 396.3,59.3 397.1,59.3 398.0,59.3 398.8,59.3 399.6,59.3 400.5,59.3 401.3,59.3 402.1,59.3 403.0,59.3 403.8,59.3 404.6,59.3 405.5,59.3 406.3,59.3 407.1,59.3 408.0,59.3 408.8,59.3 409.6,59.3 410.5,59.3 411.3,59.3 412.1,59.3 413.0,59.3 413.8,59.3 414.6,59.3 415.5,59.3 416.3,59.3 417.1,59.3 418.0,59.3 418.8,59.3 419.7,59.3 420.5,59.3 421.3,59.3 422.2,59.3 423.0,59.3 423.8,59.3 424.7,59.3 425.5,59.3 426.3,59.3 427.2,59.3 428.0,59.3 428.8,59.3 429.7,59.3 430.5,59.3 431.3,59.3 432.2,59.3 433.0,59.3 433.8,59.3 434.7,59.3 435.5,59.3 436.3,59.3 437.2,59.3 438.0,59.3 438.8,59.3 439.7,59.3 440.5,59.3 441.3,59.3 442.2,59.3 443.0,59.3 443.9,59.3 444.7,59.3 445.5,59.3 446.4,60.3 447.2,61.4 448.0,62.4 448.9,63.4 449.7,64.5 450.5,65.5 451.4,66.5 452.2,67.6 453.0,68.6 453.9,69.6 454.7,70.7 455.5,71.7 456.4,72.8 457.2,73.8 458.0,74.8 458.9,75.9 459.7,76.9 460.5,77.9 461.4,79.0 462.2,80.0 463.0,81.0 463.9,82.1 464.7,83.1 465.5,84.1 466.4,85.2 467.2,86.2 468.1,87.3 468.9,88.3 469.7,89.3 470.6,90.4 471.4,91.4 472.2,92.4 473.1,93.5 473.9,94.5 474.7,95.5 475.6,96.6 476.4,97.6 477.2,98.6 478.1,99.7 478.9,100.7 479.7,101.8 480.6,102.8 481.4,103.8 482.2,104.9 483.1,105.9 483.9,106.9 484.7,108.0 485.6,109.0 486.4,110.0 487.2,111.1 488.1,112.1 488.9,113.1 489.7,114.2 490.6,115.2 491.4,116.2 492.3,117.3 493.1,118.3 493.9,119.4 494.8,120.4 495.6,121.4 496.4,121.4 497.3,121.4 498.1,121.4 498.9,121.4 499.8,121.4 500.6,121.4 501.4,121.4 502.3,121.4 503.1,121.4 503.9,121.4 504.8,121.4 505.6,121.4 506.4,121.4 507.3,121.4 508.1,121.4 508.9,121.4 509.8,121.4 510.6,121.4 511.4,121.4 512.3,121.4 513.1,121.4 513.9,121.4 514.8,121.4 515.6,121.4 516.5,121.4 517.3,121.4 518.1,121.4 519.0,121.4 519.8,121.4 520.6,121.4 521.5,121.4 522.3,121.4 523.1,121.4 524.0,121.4 524.8,121.4 525.6,121.4 526.5,121.4 527.3,121.4 528.1,121.4 529.0,121.4 529.8,121.4 530.6,121.4 531.5,121.4 532.3,121.4 533.1,121.4 534.0,121.4 534.8,121.4 535.6,121.4 536.5,121.4 537.3,121.4 538.2,121.4 539.0,121.4 539.8,121.4 540.7,121.4 541.5,121.4 542.3,121.4 543.2,121.4 544.0,121.4 544.8,121.4 545.7,121.4 546.5,121.4 547.3,121.4 548.2,121.4 549.0,121.4 549.8,121.4 550.7,121.4 551.5,121.4 552.3,121.4 553.2,121.4 554.0,121.4 554.8,121.4 555.7,121.4 556.5,121.4 557.3,121.4 558.2,121.4 559.0,121.4 559.8,121.4 560.7,121.4 561.5,121.4 562.4,121.4 563.2,121.4 564.0,121.4 564.9,121.4 565.7,121.4 566.5,121.4 567.4,121.4 568.2,121.4 569.0,121.4 569.9,121.4 570.7,121.4 571.5,121.4 572.4,121.4 573.2,121.4 574.0,121.4 574.9,121.4 575.7,121.4 576.5,121.4 577.4,121.4 578.2,121.4 579.0,121.4 579.9,121.4 580.7,121.4 581.5,121.4 582.4,121.4 583.2,121.4 584.0,121.4 584.9,121.4 585.7,121.4 586.6,121.4 587.4,121.4 588.2,121.4 589.1,121.4 589.9,121.4 590.7,121.4 591.6,121.4 592.4,121.4 593.2,121.4 594.1,121.4 594.9,121.4 595.7,121.4 596.6,121.4 597.4,121.4 598.2,121.4 599.1,121.4 599.9,121.4 600.7,121.4 601.6,121.4 602.4,121.4 603.2,121.4 604.1,121.4 604.9,121.4 605.7,121.4 606.6,121.4 607.4,121.4 608.2,121.4 609.1,121.4 609.9,121.4 610.8,121.4 611.6,121.4 612.4,121.4 613.3,121.4 614.1,121.4 614.9,121.4 615.8,121.4 616.6,121.4 617.4,121.4 618.3,121.4 619.1,121.4 619.9,121.4 620.8,121.4 621.6,121.4 622.4,121.4 623.3,121.4 624.1,121.4 624.9,121.4 625.8,121.4 626.6,121.4 627.4,121.4 628.3,121.4 629.1,121.4 629.9,121.4 630.8,121.4 631.6,121.4 632.4,121.4 633.3,121.4 634.1,121.4 635.0,121.4 635.8,121.4 636.6,121.4 637.5,121.4 638.3,121.4 639.1,121.4 640.0,121.4 640.8,121.4 641.6,121.4 642.5,121.4 643.3,121.4 644.1,121.4 645.0,121.4 645.8,121.4 646.6,121.4 647.5,121.4 648.3,121.4 649.1,121.4 650.0,121.4 650.8,121.4 651.6,121.4 652.5,121.4 653.3,121.4 654.1,121.4 655.0,121.4 655.8,121.4 656.6,121.4 657.5,121.4 658.3,121.4 659.2,121.4 660.0,121.4 660.8,121.4 661.7,121.4 662.5,121.4 663.3,121.4 664.2,121.4 665.0,121.4 665.8,121.4 666.7,121.4 667.5,121.4 668.3,121.4 669.2,121.4 670.0,121.4"/>
+                  <polyline class="s-acc w3" points="70.0,121.4 70.8,121.4 71.7,121.4 72.5,121.4 73.3,121.4 74.2,121.4 75.0,121.4 75.8,121.4 76.7,121.4 77.5,121.4 78.3,121.4 79.2,121.4 80.0,121.4 80.8,121.4 81.7,121.4 82.5,121.4 83.4,121.4 84.2,121.4 85.0,121.4 85.9,121.4 86.7,121.4 87.5,121.4 88.4,121.4 89.2,121.4 90.0,121.4 90.9,121.4 91.7,121.4 92.5,121.4 93.4,121.4 94.2,121.4 95.0,121.4 95.9,121.4 96.7,121.4 97.5,121.4 98.4,121.4 99.2,121.4 100.0,121.4 100.9,121.4 101.7,121.4 102.5,121.4 103.4,121.4 104.2,121.4 105.0,121.4 105.9,121.4 106.7,121.4 107.6,121.4 108.4,121.4 109.2,121.4 110.1,121.4 110.9,121.4 111.7,121.4 112.6,121.4 113.4,121.4 114.2,121.4 115.1,121.4 115.9,121.4 116.7,121.4 117.6,121.4 118.4,121.4 119.2,121.4 120.1,121.4 120.9,121.4 121.7,121.4 122.6,121.4 123.4,121.4 124.2,121.4 125.1,121.4 125.9,121.4 126.7,121.4 127.6,121.4 128.4,121.4 129.2,121.4 130.1,121.4 130.9,121.4 131.8,121.4 132.6,121.4 133.4,121.4 134.3,121.4 135.1,121.4 135.9,121.4 136.8,121.4 137.6,121.4 138.4,121.4 139.3,121.4 140.1,121.4 140.9,121.4 141.8,121.4 142.6,121.4 143.4,121.4 144.3,121.4 145.1,121.4 145.9,121.4 146.8,121.4 147.6,121.4 148.4,121.4 149.3,121.4 150.1,121.4 150.9,121.4 151.8,121.4 152.6,121.4 153.4,121.4 154.3,121.4 155.1,121.4 156.0,121.4 156.8,121.4 157.6,121.4 158.5,121.4 159.3,121.4 160.1,121.4 161.0,121.4 161.8,121.4 162.6,121.4 163.5,121.4 164.3,121.4 165.1,121.4 166.0,121.4 166.8,121.4 167.6,121.4 168.5,121.4 169.3,121.4 170.1,121.4 171.0,121.4 171.8,121.4 172.6,121.4 173.5,121.4 174.3,121.4 175.1,121.4 176.0,121.4 176.8,121.4 177.6,121.4 178.5,121.4 179.3,121.4 180.2,121.4 181.0,121.4 181.8,121.4 182.7,121.4 183.5,121.4 184.3,121.4 185.2,121.4 186.0,121.4 186.8,121.4 187.7,121.4 188.5,121.4 189.3,121.4 190.2,121.4 191.0,121.4 191.8,121.4 192.7,121.4 193.5,121.4 194.3,121.4 195.2,121.4 196.0,121.4 196.8,121.4 197.7,121.4 198.5,121.4 199.3,121.4 200.2,121.4 201.0,121.4 201.8,121.4 202.7,121.4 203.5,121.4 204.4,121.4 205.2,121.4 206.0,121.4 206.9,121.4 207.7,121.4 208.5,121.4 209.4,121.4 210.2,121.4 211.0,121.4 211.9,121.4 212.7,121.4 213.5,121.4 214.4,121.4 215.2,121.4 216.0,121.4 216.9,121.4 217.7,121.4 218.5,121.4 219.4,121.4 220.2,121.4 221.0,121.4 221.9,121.4 222.7,121.4 223.5,121.4 224.4,121.4 225.2,121.4 226.1,121.4 226.9,121.4 227.7,121.4 228.6,121.4 229.4,121.4 230.2,121.4 231.1,121.4 231.9,121.4 232.7,121.4 233.6,121.4 234.4,121.4 235.2,121.4 236.1,121.4 236.9,121.4 237.7,121.4 238.6,121.4 239.4,121.4 240.2,121.4 241.1,121.4 241.9,121.4 242.7,121.4 243.6,121.4 244.4,121.4 245.2,121.4 246.1,121.4 246.9,121.4 247.7,121.4 248.6,121.4 249.4,121.4 250.3,121.4 251.1,121.4 251.9,121.4 252.8,121.4 253.6,121.4 254.4,121.4 255.3,121.4 256.1,121.4 256.9,121.4 257.8,121.4 258.6,121.4 259.4,121.4 260.3,121.4 261.1,121.4 261.9,121.4 262.8,121.4 263.6,121.4 264.4,121.4 265.3,121.4 266.1,121.4 266.9,121.4 267.8,121.4 268.6,121.4 269.4,121.4 270.3,121.4 271.1,119.4 271.9,117.3 272.8,115.2 273.6,113.1 274.5,111.1 275.3,109.0 276.1,107.2 277.0,105.9 277.8,105.2 278.6,105.1 279.5,105.5 280.3,106.2 281.1,107.2 282.0,108.3 282.8,109.5 283.6,110.5 284.5,111.4 285.3,112.0 286.1,112.4 287.0,112.6 287.8,112.6 288.6,112.5 289.5,112.2 290.3,111.9 291.1,111.6 292.0,111.3 292.8,111.0 293.6,110.9 294.5,110.8 295.3,110.9 296.1,112.4 297.0,113.9 297.8,115.5 298.7,116.9 299.5,118.1 300.3,119.1 301.2,119.7 302.0,119.9 302.8,119.9 303.7,119.5 304.5,119.0 305.3,118.4 306.2,117.8 307.0,117.1 307.8,116.6 308.7,116.2 309.5,116.0 310.3,115.9 311.2,115.9 312.0,116.1 312.8,116.4 313.7,116.6 314.5,116.9 315.3,117.2 316.2,117.4 317.0,117.6 317.8,117.7 318.7,117.7 319.5,117.7 320.3,117.6 321.2,117.5 322.0,117.3 322.9,117.2 323.7,117.1 324.5,117.0 325.4,116.9 326.2,116.9 327.0,116.9 327.9,116.9 328.7,117.0 329.5,117.0 330.4,117.1 331.2,117.1 332.0,117.2 332.9,117.2 333.7,117.2 334.5,117.2 335.4,117.2 336.2,117.2 337.0,117.2 337.9,117.2 338.7,117.2 339.5,117.1 340.4,117.1 341.2,117.1 342.0,117.1 342.9,117.1 343.7,117.1 344.5,117.1 345.4,117.1 346.2,117.1 347.1,117.1 347.9,117.1 348.7,117.2 349.6,117.2 350.4,117.2 351.2,117.2 352.1,117.2 352.9,117.2 353.7,117.2 354.6,117.2 355.4,117.1 356.2,117.1 357.1,117.1 357.9,117.1 358.7,117.1 359.6,117.1 360.4,117.1 361.2,117.1 362.1,117.1 362.9,117.1 363.7,117.1 364.6,117.1 365.4,117.1 366.2,117.1 367.1,117.1 367.9,117.1 368.7,117.1 369.6,117.1 370.4,117.1 371.3,117.1 372.1,117.1 372.9,117.1 373.8,117.1 374.6,117.1 375.4,117.1 376.3,117.1 377.1,117.1 377.9,117.1 378.8,117.1 379.6,117.1 380.4,117.1 381.3,117.1 382.1,117.1 382.9,117.1 383.8,117.1 384.6,117.1 385.4,117.1 386.3,117.1 387.1,117.1 387.9,117.1 388.8,117.1 389.6,117.1 390.4,117.1 391.3,117.1 392.1,117.1 392.9,117.1 393.8,117.1 394.6,117.1 395.5,117.1 396.3,117.1 397.1,117.1 398.0,117.1 398.8,117.1 399.6,117.1 400.5,117.1 401.3,117.1 402.1,117.1 403.0,117.1 403.8,117.1 404.6,117.1 405.5,117.1 406.3,117.1 407.1,117.1 408.0,117.1 408.8,117.1 409.6,117.1 410.5,117.1 411.3,117.1 412.1,117.1 413.0,117.1 413.8,117.1 414.6,117.1 415.5,117.1 416.3,117.1 417.1,117.1 418.0,117.1 418.8,117.1 419.7,117.1 420.5,117.1 421.3,117.1 422.2,117.1 423.0,117.1 423.8,117.1 424.7,117.1 425.5,117.1 426.3,117.1 427.2,117.1 428.0,117.1 428.8,117.1 429.7,117.1 430.5,117.1 431.3,117.1 432.2,117.1 433.0,117.1 433.8,117.1 434.7,117.1 435.5,117.1 436.3,117.1 437.2,117.1 438.0,117.1 438.8,117.1 439.7,117.1 440.5,117.1 441.3,117.1 442.2,117.1 443.0,117.1 443.9,117.1 444.7,117.1 445.5,117.1 446.4,117.8 447.2,118.5 448.0,119.1 448.9,119.8 449.7,120.3 450.5,120.7 451.4,121.0 452.2,121.1 453.0,121.1 453.9,120.9 454.7,120.7 455.5,120.5 456.4,120.2 457.2,120.0 458.0,119.8 458.9,119.6 459.7,119.5 460.5,119.5 461.4,119.6 462.2,119.7 463.0,119.8 463.9,120.0 464.7,120.1 465.5,120.3 466.4,120.4 467.2,120.5 468.1,120.5 468.9,120.5 469.7,120.6 470.6,120.5 471.4,120.5 472.2,120.5 473.1,120.5 473.9,120.4 474.7,120.4 475.6,120.4 476.4,120.4 477.2,120.5 478.1,120.5 478.9,120.6 479.7,120.6 480.6,120.7 481.4,120.7 482.2,120.8 483.1,120.8 483.9,120.9 484.7,120.9 485.6,120.9 486.4,121.0 487.2,121.0 488.1,121.0 488.9,121.0 489.7,121.1 490.6,121.1 491.4,121.1 492.3,121.2 493.1,121.2 493.9,121.2 494.8,121.3 495.6,121.4 496.4,121.4 497.3,121.4 498.1,121.4 498.9,121.4 499.8,121.4 500.6,121.4 501.4,121.4 502.3,121.4 503.1,121.4 503.9,121.4 504.8,121.4 505.6,121.4 506.4,121.4 507.3,121.4 508.1,121.4 508.9,121.4 509.8,121.4 510.6,121.4 511.4,121.4 512.3,121.4 513.1,121.4 513.9,121.4 514.8,121.4 515.6,121.4 516.5,121.4 517.3,121.4 518.1,121.4 519.0,121.4 519.8,121.4 520.6,121.4 521.5,121.4 522.3,121.4 523.1,121.4 524.0,121.4 524.8,121.4 525.6,121.4 526.5,121.4 527.3,121.4 528.1,121.4 529.0,121.4 529.8,121.4 530.6,121.4 531.5,121.4 532.3,121.4 533.1,121.4 534.0,121.4 534.8,121.4 535.6,121.4 536.5,121.4 537.3,121.4 538.2,121.4 539.0,121.4 539.8,121.4 540.7,121.4 541.5,121.4 542.3,121.4 543.2,121.4 544.0,121.4 544.8,121.4 545.7,121.4 546.5,121.4 547.3,121.4 548.2,121.4 549.0,121.4 549.8,121.4 550.7,121.4 551.5,121.4 552.3,121.4 553.2,121.4 554.0,121.4 554.8,121.4 555.7,121.4 556.5,121.4 557.3,121.4 558.2,121.4 559.0,121.4 559.8,121.4 560.7,121.4 561.5,121.4 562.4,121.4 563.2,121.4 564.0,121.4 564.9,121.4 565.7,121.4 566.5,121.4 567.4,121.4 568.2,121.4 569.0,121.4 569.9,121.4 570.7,121.4 571.5,121.4 572.4,121.4 573.2,121.4 574.0,121.4 574.9,121.4 575.7,121.4 576.5,121.4 577.4,121.4 578.2,121.4 579.0,121.4 579.9,121.4 580.7,121.4 581.5,121.4 582.4,121.4 583.2,121.4 584.0,121.4 584.9,121.4 585.7,121.4 586.6,121.4 587.4,121.4 588.2,121.4 589.1,121.4 589.9,121.4 590.7,121.4 591.6,121.4 592.4,121.4 593.2,121.4 594.1,121.4 594.9,121.4 595.7,121.4 596.6,121.4 597.4,121.4 598.2,121.4 599.1,121.4 599.9,121.4 600.7,121.4 601.6,121.4 602.4,121.4 603.2,121.4 604.1,121.4 604.9,121.4 605.7,121.4 606.6,121.4 607.4,121.4 608.2,121.4 609.1,121.4 609.9,121.4 610.8,121.4 611.6,121.4 612.4,121.4 613.3,121.4 614.1,121.4 614.9,121.4 615.8,121.4 616.6,121.4 617.4,121.4 618.3,121.4 619.1,121.4 619.9,121.4 620.8,121.4 621.6,121.4 622.4,121.4 623.3,121.4 624.1,121.4 624.9,121.4 625.8,121.4 626.6,121.4 627.4,121.4 628.3,121.4 629.1,121.4 629.9,121.4 630.8,121.4 631.6,121.4 632.4,121.4 633.3,121.4 634.1,121.4 635.0,121.4 635.8,121.4 636.6,121.4 637.5,121.4 638.3,121.4 639.1,121.4 640.0,121.4 640.8,121.4 641.6,121.4 642.5,121.4 643.3,121.4 644.1,121.4 645.0,121.4 645.8,121.4 646.6,121.4 647.5,121.4 648.3,121.4 649.1,121.4 650.0,121.4 650.8,121.4 651.6,121.4 652.5,121.4 653.3,121.4 654.1,121.4 655.0,121.4 655.8,121.4 656.6,121.4 657.5,121.4 658.3,121.4 659.2,121.4 660.0,121.4 660.8,121.4 661.7,121.4 662.5,121.4 663.3,121.4 664.2,121.4 665.0,121.4 665.8,121.4 666.7,121.4 667.5,121.4 668.3,121.4 669.2,121.4 670.0,121.4"/>
+                  <text class="t-small t-muted" x="678" y="63.28571428571428">fixed 100%: 21.8 ms</text>
+                  <text class="t-small t-acc t-strong" x="678" y="133.14498960717214">dynamic: 15.0 ms</text>
+                  <text class="t-caps" x="70" y="190">SCREEN PERCENTAGE (PER AXIS)</text>
+                  <line class="s-line" x1="70" y1="270" x2="670" y2="270"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="274">50%</text>
+                  <line class="s-line" x1="70" y1="235" x2="670" y2="235"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="239">75%</text>
+                  <line class="s-line" x1="70" y1="200" x2="670" y2="200"/>
+                  <text class="t-mono t-small t-muted end" x="64" y="204">100%</text>
+                  <polyline class="s-acc w3" points="70.0,200.0 70.8,200.0 71.7,200.0 72.5,200.0 73.3,200.0 74.2,200.0 75.0,200.0 75.8,200.0 76.7,200.0 77.5,200.0 78.3,200.0 79.2,200.0 80.0,200.0 80.8,200.0 81.7,200.0 82.5,200.0 83.4,200.0 84.2,200.0 85.0,200.0 85.9,200.0 86.7,200.0 87.5,200.0 88.4,200.0 89.2,200.0 90.0,200.0 90.9,200.0 91.7,200.0 92.5,200.0 93.4,200.0 94.2,200.0 95.0,200.0 95.9,200.0 96.7,200.0 97.5,200.0 98.4,200.0 99.2,200.0 100.0,200.0 100.9,200.0 101.7,200.0 102.5,200.0 103.4,200.0 104.2,200.0 105.0,200.0 105.9,200.0 106.7,200.0 107.6,200.0 108.4,200.0 109.2,200.0 110.1,200.0 110.9,200.0 111.7,200.0 112.6,200.0 113.4,200.0 114.2,200.0 115.1,200.0 115.9,200.0 116.7,200.0 117.6,200.0 118.4,200.0 119.2,200.0 120.1,200.0 120.9,200.0 121.7,200.0 122.6,200.0 123.4,200.0 124.2,200.0 125.1,200.0 125.9,200.0 126.7,200.0 127.6,200.0 128.4,200.0 129.2,200.0 130.1,200.0 130.9,200.0 131.8,200.0 132.6,200.0 133.4,200.0 134.3,200.0 135.1,200.0 135.9,200.0 136.8,200.0 137.6,200.0 138.4,200.0 139.3,200.0 140.1,200.0 140.9,200.0 141.8,200.0 142.6,200.0 143.4,200.0 144.3,200.0 145.1,200.0 145.9,200.0 146.8,200.0 147.6,200.0 148.4,200.0 149.3,200.0 150.1,200.0 150.9,200.0 151.8,200.0 152.6,200.0 153.4,200.0 154.3,200.0 155.1,200.0 156.0,200.0 156.8,200.0 157.6,200.0 158.5,200.0 159.3,200.0 160.1,200.0 161.0,200.0 161.8,200.0 162.6,200.0 163.5,200.0 164.3,200.0 165.1,200.0 166.0,200.0 166.8,200.0 167.6,200.0 168.5,200.0 169.3,200.0 170.1,200.0 171.0,200.0 171.8,200.0 172.6,200.0 173.5,200.0 174.3,200.0 175.1,200.0 176.0,200.0 176.8,200.0 177.6,200.0 178.5,200.0 179.3,200.0 180.2,200.0 181.0,200.0 181.8,200.0 182.7,200.0 183.5,200.0 184.3,200.0 185.2,200.0 186.0,200.0 186.8,200.0 187.7,200.0 188.5,200.0 189.3,200.0 190.2,200.0 191.0,200.0 191.8,200.0 192.7,200.0 193.5,200.0 194.3,200.0 195.2,200.0 196.0,200.0 196.8,200.0 197.7,200.0 198.5,200.0 199.3,200.0 200.2,200.0 201.0,200.0 201.8,200.0 202.7,200.0 203.5,200.0 204.4,200.0 205.2,200.0 206.0,200.0 206.9,200.0 207.7,200.0 208.5,200.0 209.4,200.0 210.2,200.0 211.0,200.0 211.9,200.0 212.7,200.0 213.5,200.0 214.4,200.0 215.2,200.0 216.0,200.0 216.9,200.0 217.7,200.0 218.5,200.0 219.4,200.0 220.2,200.0 221.0,200.0 221.9,200.0 222.7,200.0 223.5,200.0 224.4,200.0 225.2,200.0 226.1,200.0 226.9,200.0 227.7,200.0 228.6,200.0 229.4,200.0 230.2,200.0 231.1,200.0 231.9,200.0 232.7,200.0 233.6,200.0 234.4,200.0 235.2,200.0 236.1,200.0 236.9,200.0 237.7,200.0 238.6,200.0 239.4,200.0 240.2,200.0 241.1,200.0 241.9,200.0 242.7,200.0 243.6,200.0 244.4,200.0 245.2,200.0 246.1,200.0 246.9,200.0 247.7,200.0 248.6,200.0 249.4,200.0 250.3,200.0 251.1,200.0 251.9,200.0 252.8,200.0 253.6,200.0 254.4,200.0 255.3,200.0 256.1,200.0 256.9,200.0 257.8,200.0 258.6,200.0 259.4,200.0 260.3,200.0 261.1,200.0 261.9,200.0 262.8,200.0 263.6,200.0 264.4,200.0 265.3,200.0 266.1,200.0 266.9,200.0 267.8,200.0 268.6,200.0 269.4,200.0 270.3,200.0 271.1,200.0 271.9,200.0 272.8,200.0 273.6,200.0 274.5,200.0 275.3,200.0 276.1,200.2 277.0,200.6 277.8,201.5 278.6,202.6 279.5,204.0 280.3,205.6 281.1,207.3 282.0,209.0 282.8,210.7 283.6,212.4 284.5,213.8 285.3,215.2 286.1,216.4 287.0,217.4 287.8,218.3 288.6,219.1 289.5,219.8 290.3,220.5 291.1,221.1 292.0,221.8 292.8,222.4 293.6,223.1 294.5,223.9 295.3,224.6 296.1,225.4 297.0,226.3 297.8,227.1 298.7,227.9 299.5,228.5 300.3,229.1 301.2,229.4 302.0,229.5 302.8,229.5 303.7,229.3 304.5,229.0 305.3,228.7 306.2,228.3 307.0,228.0 307.8,227.7 308.7,227.5 309.5,227.4 310.3,227.3 311.2,227.3 312.0,227.4 312.8,227.6 313.7,227.7 314.5,227.9 315.3,228.0 316.2,228.1 317.0,228.2 317.8,228.3 318.7,228.3 319.5,228.3 320.3,228.2 321.2,228.2 322.0,228.1 322.9,228.0 323.7,228.0 324.5,227.9 325.4,227.9 326.2,227.9 327.0,227.9 327.9,227.9 328.7,227.9 329.5,227.9 330.4,228.0 331.2,228.0 332.0,228.0 332.9,228.0 333.7,228.0 334.5,228.1 335.4,228.1 336.2,228.1 337.0,228.0 337.9,228.0 338.7,228.0 339.5,228.0 340.4,228.0 341.2,228.0 342.0,228.0 342.9,228.0 343.7,228.0 344.5,228.0 345.4,228.0 346.2,228.0 347.1,228.0 347.9,228.0 348.7,228.0 349.6,228.0 350.4,228.0 351.2,228.0 352.1,228.0 352.9,228.0 353.7,228.0 354.6,228.0 355.4,228.0 356.2,228.0 357.1,228.0 357.9,228.0 358.7,228.0 359.6,228.0 360.4,228.0 361.2,228.0 362.1,228.0 362.9,228.0 363.7,228.0 364.6,228.0 365.4,228.0 366.2,228.0 367.1,228.0 367.9,228.0 368.7,228.0 369.6,228.0 370.4,228.0 371.3,228.0 372.1,228.0 372.9,228.0 373.8,228.0 374.6,228.0 375.4,228.0 376.3,228.0 377.1,228.0 377.9,228.0 378.8,228.0 379.6,228.0 380.4,228.0 381.3,228.0 382.1,228.0 382.9,228.0 383.8,228.0 384.6,228.0 385.4,228.0 386.3,228.0 387.1,228.0 387.9,228.0 388.8,228.0 389.6,228.0 390.4,228.0 391.3,228.0 392.1,228.0 392.9,228.0 393.8,228.0 394.6,228.0 395.5,228.0 396.3,228.0 397.1,228.0 398.0,228.0 398.8,228.0 399.6,228.0 400.5,228.0 401.3,228.0 402.1,228.0 403.0,228.0 403.8,228.0 404.6,228.0 405.5,228.0 406.3,228.0 407.1,228.0 408.0,228.0 408.8,228.0 409.6,228.0 410.5,228.0 411.3,228.0 412.1,228.0 413.0,228.0 413.8,228.0 414.6,228.0 415.5,228.0 416.3,228.0 417.1,228.0 418.0,228.0 418.8,228.0 419.7,228.0 420.5,228.0 421.3,228.0 422.2,228.0 423.0,228.0 423.8,228.0 424.7,228.0 425.5,228.0 426.3,228.0 427.2,228.0 428.0,228.0 428.8,228.0 429.7,228.0 430.5,228.0 431.3,228.0 432.2,228.0 433.0,228.0 433.8,228.0 434.7,228.0 435.5,228.0 436.3,228.0 437.2,228.0 438.0,228.0 438.8,228.0 439.7,228.0 440.5,228.0 441.3,228.0 442.2,228.0 443.0,228.0 443.9,228.0 444.7,228.0 445.5,228.0 446.4,228.0 447.2,228.0 448.0,228.0 448.9,228.0 449.7,227.9 450.5,227.8 451.4,227.5 452.2,227.2 453.0,226.8 453.9,226.4 454.7,225.9 455.5,225.3 456.4,224.8 457.2,224.2 458.0,223.7 458.9,223.2 459.7,222.7 460.5,222.3 461.4,221.9 462.2,221.5 463.0,221.1 463.9,220.8 464.7,220.4 465.5,220.0 466.4,219.7 467.2,219.2 468.1,218.8 468.9,218.3 469.7,217.9 470.6,217.4 471.4,216.9 472.2,216.3 473.1,215.8 473.9,215.3 474.7,214.8 475.6,214.3 476.4,213.7 477.2,213.2 478.1,212.7 478.9,212.2 479.7,211.6 480.6,211.1 481.4,210.6 482.2,210.0 483.1,209.5 483.9,208.9 484.7,208.3 485.6,207.7 486.4,207.1 487.2,206.5 488.1,205.9 488.9,205.3 489.7,204.6 490.6,204.0 491.4,203.3 492.3,202.7 493.1,202.0 493.9,201.3 494.8,200.6 495.6,200.0 496.4,200.0 497.3,200.0 498.1,200.0 498.9,200.0 499.8,200.0 500.6,200.0 501.4,200.0 502.3,200.0 503.1,200.0 503.9,200.0 504.8,200.0 505.6,200.0 506.4,200.0 507.3,200.0 508.1,200.0 508.9,200.0 509.8,200.0 510.6,200.0 511.4,200.0 512.3,200.0 513.1,200.0 513.9,200.0 514.8,200.0 515.6,200.0 516.5,200.0 517.3,200.0 518.1,200.0 519.0,200.0 519.8,200.0 520.6,200.0 521.5,200.0 522.3,200.0 523.1,200.0 524.0,200.0 524.8,200.0 525.6,200.0 526.5,200.0 527.3,200.0 528.1,200.0 529.0,200.0 529.8,200.0 530.6,200.0 531.5,200.0 532.3,200.0 533.1,200.0 534.0,200.0 534.8,200.0 535.6,200.0 536.5,200.0 537.3,200.0 538.2,200.0 539.0,200.0 539.8,200.0 540.7,200.0 541.5,200.0 542.3,200.0 543.2,200.0 544.0,200.0 544.8,200.0 545.7,200.0 546.5,200.0 547.3,200.0 548.2,200.0 549.0,200.0 549.8,200.0 550.7,200.0 551.5,200.0 552.3,200.0 553.2,200.0 554.0,200.0 554.8,200.0 555.7,200.0 556.5,200.0 557.3,200.0 558.2,200.0 559.0,200.0 559.8,200.0 560.7,200.0 561.5,200.0 562.4,200.0 563.2,200.0 564.0,200.0 564.9,200.0 565.7,200.0 566.5,200.0 567.4,200.0 568.2,200.0 569.0,200.0 569.9,200.0 570.7,200.0 571.5,200.0 572.4,200.0 573.2,200.0 574.0,200.0 574.9,200.0 575.7,200.0 576.5,200.0 577.4,200.0 578.2,200.0 579.0,200.0 579.9,200.0 580.7,200.0 581.5,200.0 582.4,200.0 583.2,200.0 584.0,200.0 584.9,200.0 585.7,200.0 586.6,200.0 587.4,200.0 588.2,200.0 589.1,200.0 589.9,200.0 590.7,200.0 591.6,200.0 592.4,200.0 593.2,200.0 594.1,200.0 594.9,200.0 595.7,200.0 596.6,200.0 597.4,200.0 598.2,200.0 599.1,200.0 599.9,200.0 600.7,200.0 601.6,200.0 602.4,200.0 603.2,200.0 604.1,200.0 604.9,200.0 605.7,200.0 606.6,200.0 607.4,200.0 608.2,200.0 609.1,200.0 609.9,200.0 610.8,200.0 611.6,200.0 612.4,200.0 613.3,200.0 614.1,200.0 614.9,200.0 615.8,200.0 616.6,200.0 617.4,200.0 618.3,200.0 619.1,200.0 619.9,200.0 620.8,200.0 621.6,200.0 622.4,200.0 623.3,200.0 624.1,200.0 624.9,200.0 625.8,200.0 626.6,200.0 627.4,200.0 628.3,200.0 629.1,200.0 629.9,200.0 630.8,200.0 631.6,200.0 632.4,200.0 633.3,200.0 634.1,200.0 635.0,200.0 635.8,200.0 636.6,200.0 637.5,200.0 638.3,200.0 639.1,200.0 640.0,200.0 640.8,200.0 641.6,200.0 642.5,200.0 643.3,200.0 644.1,200.0 645.0,200.0 645.8,200.0 646.6,200.0 647.5,200.0 648.3,200.0 649.1,200.0 650.0,200.0 650.8,200.0 651.6,200.0 652.5,200.0 653.3,200.0 654.1,200.0 655.0,200.0 655.8,200.0 656.6,200.0 657.5,200.0 658.3,200.0 659.2,200.0 660.0,200.0 660.8,200.0 661.7,200.0 662.5,200.0 663.3,200.0 664.2,200.0 665.0,200.0 665.8,200.0 666.7,200.0 667.5,200.0 668.3,200.0 669.2,200.0 670.0,200.0"/>
+                  <text class="t-small t-acc t-strong" x="678" y="232.00116101436691">80% (64% of pixels)</text>
+                  <text class="t-mono t-small t-muted mid" x="70" y="286">0 s</text>
+                  <text class="t-mono t-small t-muted mid" x="170.1390820584145" y="286">2 s</text>
+                  <text class="t-mono t-small t-muted mid" x="270.278164116829" y="286">4 s</text>
+                  <text class="t-mono t-small t-muted mid" x="370.4172461752434" y="286">6 s</text>
+                  <text class="t-mono t-small t-muted mid" x="470.5563282336579" y="286">8 s</text>
+                  <text class="t-mono t-small t-muted mid" x="570.6954102920723" y="286">10 s</text>
+                  <text class="t-mono t-small t-muted mid" x="670" y="286">12 s</text>
+                  </svg>
+                </div>
+                <figcaption><b>Dynamic resolution spends resolution to keep time.</b> An illustrative model: 3 ms of each frame does not depend on resolution and 12.5 ms × load does. At a fixed 100%, the explosion pushes frames to 21.8 ms, well over the 16.7 ms budget for 60 fps. The controller sees GPU times two frames late and moves the screen percentage part of the way each frame, settling at 80% per axis, 64% of the pixels, and recovering when the load passes.</figcaption>
+              </figure>
+              <p>Unreal's controller is driven by <code>r.DynamicRes.OperationMode</code> (off by default), with a minimum screen percentage of 50, a maximum of 100 and a frame time budget of 33.3 ms by default; you set the budget to your target. A good controller leaves headroom below the budget, changes resolution in small steps, and waits a few frames between changes, because measurements are noisy and jitter interacts with the change, as Epic's documentation notes.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="vrs"><span class="step-num">5</span> Variable rate shading: coarser shading where nobody looks</h3>
+              <p><dfn class="term" data-term="vrs">Variable rate shading</dfn>, VRS, lowers shading cost inside a frame instead of across it. The GPU runs the pixel shader once for a block of pixels, 2 × 1, 2 × 2, or on some hardware up to 4 × 4, and copies the result. Microsoft's Direct3D 12 specification says depth, stencil and coverage are still computed for every pixel, so edges stay sharp. The rate can be set per draw call, per triangle, or with a small screen-space image where each texel covers a tile of 8 × 8 or 16 × 16 pixels.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 310" role="img" aria-label="A frame divided into 16 by 9 tiles, each shaded by its shading rate. The character in the middle is at full rate, one shader run per pixel. The smooth sky and far hills are at 2 by 2, a quarter of the runs. The motion-blurred ground is at 2 by 1, half. Tiles hidden under an opaque HUD panel are at 4 by 4, a sixteenth. Altogether the frame runs 56 percent of the pixel shader work of a full-rate frame.">
+                  <text class="t-caps" x="20" y="18">SHADING RATE PER TILE OVER ONE FRAME</text>
+                  <rect class="f-acc" fill-opacity="0.28" x="20" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="50" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="80" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="110" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="140" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="170" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="200" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="230" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="260" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="290" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="320" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="350" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="380" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="410" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="440" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="470" y="30" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="20" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="50" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="80" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="110" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="140" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="170" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="200" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="230" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="260" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="290" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="320" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="350" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="380" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="410" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="440" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="470" y="60" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="20" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="50" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="80" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="110" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="140" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="170" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="200" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="230" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="260" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="290" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="320" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="350" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="380" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="410" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="440" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="470" y="90" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="20" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="50" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="80" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="110" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="140" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="170" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="200" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="230" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="260" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="290" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="320" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="350" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="380" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="410" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="440" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.28" x="470" y="120" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="20" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="50" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="80" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="110" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="140" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="170" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="200" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="230" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="260" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="290" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="320" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="350" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="380" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="410" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="440" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="470" y="150" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="20" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="50" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="80" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="110" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="140" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="170" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="200" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="230" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="260" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="290" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="320" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="350" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="380" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="410" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="440" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="470" y="180" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="20" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="50" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="80" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="110" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="140" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="170" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="200" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="230" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="260" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="290" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="320" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="350" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="380" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="410" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="440" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="470" y="210" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="20" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="50" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="80" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="110" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="140" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="170" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="200" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="230" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="260" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.85" x="290" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="320" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="350" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="380" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="410" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="440" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="470" y="240" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="20" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="50" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="80" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.1" x="110" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="140" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="170" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="200" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="230" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="260" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="290" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="320" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="350" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="380" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="410" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="440" y="270" width="30" height="30"/>
+                  <rect class="f-acc" fill-opacity="0.5" x="470" y="270" width="30" height="30"/>
+                  <path class="s-surface" d="M20,30V300M50,30V300M80,30V300M110,30V300M140,30V300M170,30V300M200,30V300M230,30V300M260,30V300M290,30V300M320,30V300M350,30V300M380,30V300M410,30V300M440,30V300M470,30V300M500,30V300M20,30H500M20,60H500M20,90H500M20,120H500M20,150H500M20,180H500M20,210H500M20,240H500M20,270H500M20,300H500"/>
+                  <rect class="s-strong" x="20" y="30" width="480" height="270"/>
+                  <path class="s-ink w2" d="M20,138 C110,114 170,147 260,132 S410,117 500,141"/>
+                  <ellipse class="f-surface s-ink w2" cx="260" cy="120" rx="24" ry="25.5"/>
+                  <path class="f-surface s-ink w2" d="M212,270 L224,156 Q260,138 296,156 L308,270 Z"/>
+                  <rect class="f-surface s-ink w2" x="29" y="246" width="102" height="45" rx="4"/>
+                  <text class="t-small t-strong mid" x="80" y="273">HUD panel</text>
+                  <text class="t-small t-strong" x="350" y="66">sky</text>
+                  <text class="t-small t-strong" x="362" y="258">ground, motion-blurred</text>
+                  <text class="t-caps" x="540" y="40">RATE · SHADER RUNS PER PIXEL</text>
+                  <rect class="f-acc s-strong" fill-opacity="0.85" x="540" y="56" width="26" height="26"/>
+                  <text class="t-small t-strong" x="576" y="67">1 × 1: full rate</text>
+                  <text class="t-small t-muted" x="576" y="81">character, detail · 51 tiles</text>
+                  <rect class="f-acc s-strong" fill-opacity="0.5" x="540" y="96" width="26" height="26"/>
+                  <text class="t-small t-strong" x="576" y="107">2 × 1: half</text>
+                  <text class="t-small t-muted" x="576" y="121">blurred by motion · 32 tiles</text>
+                  <rect class="f-acc s-strong" fill-opacity="0.28" x="540" y="136" width="26" height="26"/>
+                  <text class="t-small t-strong" x="576" y="147">2 × 2: quarter</text>
+                  <text class="t-small t-muted" x="576" y="161">smooth sky, far hills · 53 tiles</text>
+                  <rect class="f-acc s-strong" fill-opacity="0.1" x="540" y="176" width="26" height="26"/>
+                  <text class="t-small t-strong" x="576" y="187">4 × 4: a sixteenth</text>
+                  <text class="t-small t-muted" x="576" y="201">hidden under the HUD · 8 tiles</text>
+                  <text class="t-head t-acc" x="540" y="232">56% of the pixel shader runs</text>
+                  <text class="t-small t-muted" x="540" y="250">of a full-rate frame, with depth and</text>
+                  <text class="t-small t-muted" x="540" y="265">coverage still tested at every pixel.</text>
+                  </svg>
+                </div>
+                <figcaption><b>VRS spends shading where it shows.</b> An illustrative shading-rate map, drawn with 16 × 9 tiles for clarity; at 1080p a real one with 16-pixel tiles has 120 × 68. Smooth sky, motion-blurred ground and regions under an opaque interface panel can be shaded coarsely; the character stays at full rate. This map runs 56% of the pixel shader work. Unity's documentation gives the same examples: areas under UI and areas blurred by motion.</figcaption>
+              </figure>
+              <p>VRS saves pixel shading only, so it helps most when the frame is limited by expensive pixel shaders. It needs hardware support: Direct3D 12 VRS Tier 2 or Vulkan's fragment shading rate for the image-based form, and Unity lists PlayStation 5 and Xbox Series consoles among its supported platforms.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="frame-generation"><span class="step-num">6</span> Frame generation and latency</h3>
+              <p><dfn class="term" data-term="frame-generation">Frame generation</dfn> creates frames between two rendered ones. It uses both frames, their motion vectors and depth to estimate where everything was in between. Each <dfn class="term" data-term="generated-frame">generated frame</dfn> is shown at its moment in between. DLSS Frame Generation runs on GeForce RTX 40 and 50 GPUs. Multi Frame Generation, on RTX 50 only, makes up to three frames per rendered one in DLSS 4 and up to five in DLSS 4.5, whose Dynamic mode picks the multiplier to match the display's refresh rate. AMD's FSR Frame Generation has a machine-learned version for Radeon RX 9000 and an analytical one, previously FSR 3, for any GPU with Shader Model 6.2. Intel's XeSS Frame Generation can generate up to three frames on Intel hardware.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 316" role="img" aria-label="A timeline over 70 milliseconds. The GPU renders frames R1 to R4 at 60 frames a second, one every 16.7 milliseconds. Without frame generation each frame is shown as soon as it is rendered. With 2 times frame generation, a generated frame is shown between each pair of rendered frames, so the screen updates every 8.3 milliseconds, but each rendered frame is shown 10.1 milliseconds later than without it. With 4 times multi frame generation, three generated frames sit between each pair and each rendered frame is shown 15.8 milliseconds later.">
+                  <defs><pattern id="fg-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line class="s-acc" x1="0" y1="0" x2="0" y2="6" stroke-width="1.2"/></pattern></defs>
+                  <text class="t-small t-strong" x="0" y="58">GPU renders</text>
+                  <text class="t-small t-strong" x="0" y="73">60 frames a second</text>
+                  <text class="t-small t-strong" x="0" y="118">Shown, no frame</text>
+                  <text class="t-small t-strong" x="0" y="133">generation</text>
+                  <text class="t-small t-strong" x="0" y="178">Shown, 2× frame</text>
+                  <text class="t-small t-strong" x="0" y="193">generation</text>
+                  <text class="t-small t-strong" x="0" y="238">Shown, 4× multi</text>
+                  <text class="t-small t-strong" x="0" y="253">frame generation</text>
+                  <line class="s-line" x1="170.0" y1="36" x2="170.0" y2="270"/>
+                  <text class="t-mono t-small t-muted mid" x="170.0" y="288">0 ms</text>
+                  <line class="s-line" x1="339.0" y1="36" x2="339.0" y2="270"/>
+                  <text class="t-mono t-small t-muted mid" x="339.0" y="288">16.7</text>
+                  <line class="s-line" x1="508.1" y1="36" x2="508.1" y2="270"/>
+                  <text class="t-mono t-small t-muted mid" x="508.1" y="288">33.3</text>
+                  <line class="s-line" x1="677.1" y1="36" x2="677.1" y2="270"/>
+                  <text class="t-mono t-small t-muted mid" x="677.1" y="288">50.0</text>
+                  <line class="s-line" x1="846.2" y1="36" x2="846.2" y2="270"/>
+                  <text class="t-mono t-small t-muted mid" x="846.2" y="288">66.7</text>
+                  <rect class="f-acc s-surface" x="170.0" y="44" width="169.0" height="34" rx="3"/>
+                  <text class="t-small t-strong t-on-acc mid" x="254.5" y="65">R1</text>
+                  <rect class="f-acc s-surface" x="339.0" y="44" width="169.0" height="34" rx="3"/>
+                  <text class="t-small t-strong t-on-acc mid" x="423.6" y="65">R2</text>
+                  <rect class="f-acc s-surface" x="508.1" y="44" width="169.0" height="34" rx="3"/>
+                  <text class="t-small t-strong t-on-acc mid" x="592.6" y="65">R3</text>
+                  <rect class="f-acc s-surface" x="677.1" y="44" width="169.0" height="34" rx="3"/>
+                  <text class="t-small t-strong t-on-acc mid" x="761.7" y="65">R4</text>
+                  <rect class="f-acc-soft s-acc" x="339.0" y="104" width="169.0" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="423.6" y="125">R1</text>
+                  <rect class="f-acc-soft s-acc" x="508.1" y="104" width="169.0" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="592.6" y="125">R2</text>
+                  <rect class="f-acc-soft s-acc" x="677.1" y="104" width="169.0" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="761.7" y="125">R3</text>
+                  <rect class="f-acc-soft s-acc" x="441.0" y="164" width="84.5" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="483.3" y="185">R1</text>
+                  <rect fill="url(#fg-hatch)" x="525.5" y="164" width="84.5" height="34" rx="3"/>
+                  <rect class="s-acc" x="525.5" y="164" width="84.5" height="34" rx="3"/>
+                  <rect class="f-acc-soft s-acc" x="610.1" y="164" width="84.5" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="652.3" y="185">R2</text>
+                  <rect fill="url(#fg-hatch)" x="694.6" y="164" width="84.5" height="34" rx="3"/>
+                  <rect class="s-acc" x="694.6" y="164" width="84.5" height="34" rx="3"/>
+                  <rect class="f-acc-soft s-acc" x="779.1" y="164" width="84.5" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="821.4" y="185">R3</text>
+                  <rect fill="url(#fg-hatch)" x="863.6" y="164" width="16.4" height="34" rx="3"/>
+                  <rect class="s-acc" x="863.6" y="164" width="16.4" height="34" rx="3"/>
+                  <rect class="f-acc-soft s-acc" x="499.5" y="224" width="42.3" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="520.6" y="245">R1</text>
+                  <rect fill="url(#fg-hatch)" x="541.8" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="s-acc" x="541.8" y="224" width="42.3" height="34" rx="3"/>
+                  <rect fill="url(#fg-hatch)" x="584.0" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="s-acc" x="584.0" y="224" width="42.3" height="34" rx="3"/>
+                  <rect fill="url(#fg-hatch)" x="626.3" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="s-acc" x="626.3" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="f-acc-soft s-acc" x="668.6" y="224" width="42.3" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="689.7" y="245">R2</text>
+                  <rect fill="url(#fg-hatch)" x="710.8" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="s-acc" x="710.8" y="224" width="42.3" height="34" rx="3"/>
+                  <rect fill="url(#fg-hatch)" x="753.1" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="s-acc" x="753.1" y="224" width="42.3" height="34" rx="3"/>
+                  <rect fill="url(#fg-hatch)" x="795.3" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="s-acc" x="795.3" y="224" width="42.3" height="34" rx="3"/>
+                  <rect class="f-acc-soft s-acc" x="837.6" y="224" width="42.3" height="34" rx="3"/>
+                  <text class="t-small t-strong mid" x="858.7" y="245">R3</text>
+                  <rect fill="url(#fg-hatch)" x="879.9" y="224" width="0.1" height="34" rx="3"/>
+                  <rect class="s-acc" x="879.9" y="224" width="0.1" height="34" rx="3"/>
+                  <path class="s-pix w2" d="M508.1,202 V208 H610.1 V202"/>
+                  <text class="t-small t-pix t-strong" x="616.1" y="212">R2 shown +10.1 ms later</text>
+                  <path class="s-pix w2" d="M508.1,262 V268 H668.6 V262"/>
+                  <text class="t-small t-pix t-strong" x="674.6" y="272">R2 shown +15.8 ms later</text>
+                  <text class="t-small t-muted" x="0" y="306">Solid: rendered frames. Hatched: generated frames. A generated frame between R1 and R2 needs R2 to exist, so R2 waits behind it.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Generated frames make the screen smoother and the game later.</b> A simplified model at a steady 60 rendered frames a second. To show a frame between R1 and R2, R2 must already exist, so R2 is held back while the generated frames go first: by half a rendered frame plus generation time with 2×, by three quarters plus generation time with 4×. Generation costs are NVIDIA's for an RTX 5090 at 4K, 1.72 ms for 2× and 3.32 ms for 4×. Real numbers also depend on queuing and pacing.</figcaption>
+              </figure>
+              <p>Input is still read once per rendered frame, so a game generating from 30 rendered frames still responds like a 30 fps game, and a little later. Generated frames also have fewer real pixels to work from when the rendered frames are far apart, so artifacts grow as the base frame rate falls. AMD's guidance is that FSR Frame Generation runs best from at least 60 fps before generation and that below 30 fps should be avoided entirely.</p>
+              <p>The vendors pair frame generation with a latency reducer that removes the other big source of delay, the queue of frames waiting for the GPU (<a class="term" data-term="frame-latency" href="glossary.html#frame-latency">frame latency</a>, 2.2). <dfn class="term" data-term="reflex">NVIDIA Reflex</dfn> "synchronizes CPU and GPU pipelines for just-in-time rendering", in NVIDIA's words, and DLSS Frame Generation requires it. <dfn class="term" data-term="anti-lag">AMD Anti-Lag 2</dfn> does the same for Radeon GPUs from RDNA 1 onwards, and AMD pairs it with FSR Frame Generation; Intel requires its Xe Low Latency mode with XeSS Frame Generation. NVIDIA describes the pairing as generating frames "while maintaining great responsiveness with NVIDIA Reflex". Measure latency in your own game rather than assume it.</p>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The timeline ignores the GPU time generation takes away from rendering, which lowers the rendered frame rate a little, and the display's own refresh timing. With <a class="term" data-term="vrr" href="glossary.html#vrr">variable refresh rate</a> and the vendors' frame pacing, generated frames are spaced evenly; without it, uneven spacing can show as stutter.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="platforms"><span class="step-num">7</span> Choosing by platform</h3>
+              <p>No single upscaler runs everywhere at its best, so PC games usually ship several behind one setting, and console games pick one per platform. A starting point:</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th scope="col">Platform</th><th scope="col">Upscaler</th><th scope="col">Frame generation</th><th scope="col">Latency</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">PC, GeForce RTX 20 and 30</th><td>DLSS Super Resolution; newest models cost more here</td><td>Not DLSS's; FSR's analytical frame generation runs on any vendor</td><td>Reflex</td></tr>
+                    <tr><th scope="row">PC, GeForce RTX 40 and 50</th><td>DLSS Super Resolution</td><td>DLSS Frame Generation; Multi Frame Generation on RTX 50</td><td>Reflex, required with frame generation</td></tr>
+                    <tr><th scope="row">PC, Radeon RX 6000 to 9000</th><td>FSR Upscaling 4</td><td>FSR Frame Generation: machine-learned on RX 9000, analytical otherwise</td><td>Anti-Lag 2</td></tr>
+                    <tr><th scope="row">PC, Intel Arc</th><td>XeSS</td><td>XeSS Frame Generation, multi-frame on Intel</td><td>Xe Low Latency, required with it</td></tr>
+                    <tr><th scope="row">PC, other GPUs and handhelds</th><td>The engine's own: TSR, STP, or FSR 3.1 and XeSS's fallback paths</td><td>Only if the base rate stays near 60 fps</td><td>Engine frame limiter</td></tr>
+                    <tr><th scope="row">PS5, Xbox Series X|S</th><td>The engine's temporal upscaler with dynamic resolution; PSSR on PS5 Pro</td><td>Check the platform holder's guidance</td><td>Platform tools</td></tr>
+                    <tr><th scope="row">Nintendo Switch 2</th><td>DLSS, per NVIDIA</td><td>–</td><td>–</td></tr>
+                    <tr><th scope="row">Mac and iOS devices</th><td>MetalFX, spatial or temporal (offered by Godot)</td><td>–</td><td>–</td></tr>
+                    <tr><th scope="row">Android</th><td>Render scale with a spatial filter (FSR 1 in URP); STP where compute is available</td><td>–</td><td>–</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="stamp">Platform support from NVIDIA's DLSS page and Streamline guide, AMD's GPUOpen FSR pages, Intel's XeSS 3 page, Sony's PlayStation Blog, NVIDIA's Switch 2 announcement and the engine documentation listed in section 6, checked in November 2026. Console details beyond these are under NDA; use each platform holder's developer documentation.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Performance mode renders a quarter of the pixels, so it is tempting to expect a frame four times faster. It never is. Shadow maps, geometry processing and CPU work do not depend on resolution, everything after the upscaler runs at full resolution, and the upscaler has its own cost. Epic's own example in the TSR documentation: a frame took 57.50 ms at native 4K and 33.37 ms when rendered at 1080p and upscaled with TSR. That is 42% faster, against the 75% the pixel count suggests.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th scope="col">What</th><th scope="col">Hardware and setting</th><th scope="col" class="num">GPU time</th><th scope="col" class="num">GPU memory</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">DLSS Super Resolution, transformer (presets J, K)</th><td>RTX 4090, 4K output, Performance</td><td class="num">1.06 ms</td><td class="num">307 MB</td></tr>
+                  <tr><th scope="row">The same</th><td>RTX 2080 Ti, 4K output, Performance</td><td class="num">3.50 ms</td><td class="num">307 MB</td></tr>
+                  <tr><th scope="row">FSR Upscaling 4</th><td>RX 9070 XT, 4K output, Performance</td><td class="num">about 1.3 ms</td><td class="num">about 318 MB</td></tr>
+                  <tr><th scope="row">The same, INT8 model</th><td>RX 6600, 1080p output, Performance</td><td class="num">about 2.2 ms</td><td class="num">–</td></tr>
+                  <tr><th scope="row">TSR</th><td>Fortnite, PS5 and Xbox Series X, 2160p output</td><td class="num">about 1.5 ms</td><td class="num">–</td></tr>
+                  <tr><th scope="row">DLSS Frame Generation, 2×</th><td>RTX 4090, 4K</td><td class="num">2.77 ms</td><td class="num">–</td></tr>
+                  <tr><th scope="row">DLSS Multi Frame Generation, 4×</th><td>RTX 5090, 4K</td><td class="num">3.32 ms</td><td class="num">–</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">As published by NVIDIA (DLSS programming guide 310.6.0 and Streamline DLSS-G guide), AMD (FSR Upscaling page, measured on an RX 9070 XT for memory) and Epic (TSR documentation). The DLSS figures come from a command-line test without a renderer; real integrations add buffer copies. Measure in your own game.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">25%</span><span class="what">of the pixels rendered at Performance (2× per axis)</span></div>
+              <div class="stat"><span class="value">42%</span><span class="what">faster in Epic's TSR example, 4K native to 1080p upscaled</span></div>
+              <div class="stat"><span class="value">+10 ms</span><span class="what">extra wait per rendered frame with 2× generation from 60 fps, in the simplified model</span></div>
+              <div class="stat"><span class="value">60 fps</span><span class="what">AMD's minimum before frame generation for best results</span></div>
+            </div>
+            <ul class="grows">
+              <li><strong>Output resolution</strong><span>An upscaler's cost follows the pixels it outputs, not the ones it reads: AMD notes that FSR 4 is mostly bound by the presentation resolution.</span></li>
+              <li><strong>Work after the upscaler</strong><span>Motion blur, bloom, tone mapping and the interface run at full resolution whatever the mode. Epic devotes a section of the TSR documentation to these hidden costs.</span></li>
+              <li><strong>Older or smaller GPUs</strong><span>Machine-learned upscalers run slower without matrix hardware: DLSS preset L takes 10.60 ms at 4K Performance on an RTX 2080 Ti against 1.67 ms on an RTX 4090.</span></li>
+              <li><strong>Generated frames</strong><span>Each multiplier step adds generation time, 1.72 ms for 2× and 3.32 ms for 4× on an RTX 5090 at 4K, and that GPU time comes out of rendering.</span></li>
+              <li><strong>Integration and testing</strong><span>Each vendor SDK has its own inputs, masks, presets and certification checklist, and each needs testing on its GPU family and every quality mode.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>Budget the game at its target internal resolution from the start, not at native: Quality or Balanced at 1440p and 4K output on PC, and dynamic resolution with a temporal upscaler on consoles. Treat frame generation as an optional extra for players whose base frame rate is already good, never as the way to reach 60 fps.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Upscalers fail the way TAA does, more visibly at lower modes. Frame generation adds failures of its own at the interface and in timing.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Grass blades and a fence behind a character: sharp on the right, but a fizzing, blocky noise in the strip just revealed behind the character's left side.">
+                    <defs><filter id="sy93-fizz" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="1" seed="4"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  3 0 0 0 -1.3"/></filter></defs>
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <g class="s-geo w15"><path d="M120,130 V70 M140,130 V64 M160,130 V72 M180,130 V60 M200,130 V68 M220,130 V62"/></g>
+                    <rect x="52" y="40" width="44" height="90" filter="url(#sy93-fizz)"/>
+                    <rect class="s-pix w2 dash" x="52" y="40" width="44" height="90"/>
+                    <path class="f-strong s-ink" d="M100,130 V60 Q110,40 120,60 V130 Z"/>
+                    <text class="t-small t-pix t-strong" x="8" y="22">revealed: fizzing</text>
+                  </svg>
+                </div>
+                <h4>Shimmer and fizz around moving things</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Newly revealed areas and thin detail have few real samples; at Performance or Ultra Performance it takes many frames to fill them in.</dd></div>
+                  <div><dt>Ask for</dt><dd>A higher mode or minimum dynamic resolution, the vendor's recommended jitter phase count, and a disocclusion test scene for each mode.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A poster with text: crisp on the left at native resolution, blurred on the right with upscaling.">
+                    <defs><filter id="sy93-soft" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.6"/></filter></defs>
+                    <rect class="f-solid" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-surface s-strong" x="14" y="22" width="96" height="86"/>
+                    <text class="t-head" x="24" y="52">EXIT</text><text class="t-small" x="24" y="72">level 3</text><text class="t-small" x="24" y="90">gate B</text>
+                    <g filter="url(#sy93-soft)"><rect class="f-surface s-strong" x="130" y="22" width="96" height="86"/><text class="t-head" x="140" y="52">EXIT</text><text class="t-small" x="140" y="72">level 3</text><text class="t-small" x="140" y="90">gate B</text></g>
+                    <text class="t-small t-muted mid" x="62" y="124">native</text><text class="t-small t-muted mid" x="178" y="124">upscaled</text>
+                  </svg>
+                </div>
+                <h4>Blurry textures with upscaling on</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Textures still choose mip levels for the internal resolution, so they are a level or two softer than at native.</dd></div>
+                  <div><dt>Ask for</dt><dd>The vendor's mip bias formula applied per mode, an exception for flickering high-frequency textures, and a side-by-side check of signs and text against native.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A glowing magic projectile with a long smeared tail behind it, much longer than the effect itself.">
+                    <defs><linearGradient id="sy93-tail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-acc" stop-opacity="0"/><stop offset="1" class="stop-acc" stop-opacity="0.8"/></linearGradient></defs>
+                    <rect class="f-solid" x="0" y="0" width="240" height="130"/>
+                    <rect x="20" y="56" width="160" height="18" rx="9" fill="url(#sy93-tail)"/>
+                    <circle class="f-acc" cx="186" cy="65" r="14"/>
+                    <circle class="f-surface" cx="186" cy="65" r="5"/>
+                  </svg>
+                </div>
+                <h4>Smeared particles and transparent effects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Particles, glass and animated materials write no motion vectors and are not in the depth buffer, so the upscaler blends them with history from where they were.</dd></div>
+                  <div><dt>Ask for</dt><dd>Reactive or transparency masks for those materials, as the vendor SDKs describe, and motion vectors for any opaque animated surface.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A crosshair and ammunition counter warped and doubled where the background moves behind them.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <g class="s-ink w2"><path d="M120,45 V60 M120,70 V85 M100,65 H115 M125,65 H140"/></g>
+                    <g class="s-ink w2" opacity="0.4"><path d="M128,45 V60 M128,70 V85 M108,65 H123 M133,65 H148"/></g>
+                    <text class="t-head" x="160" y="118">30 / 90</text>
+                    <text class="t-head" x="166" y="114" opacity="0.4">30 / 90</text>
+                  </svg>
+                </div>
+                <h4>Interface warping with frame generation</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The generator receives a frame with the interface already drawn in and moves it with the scene, so text and crosshairs wobble or double.</dd></div>
+                  <div><dt>Ask for</dt><dd>The frame without the interface plus the interface separately (NVIDIA calls them the hudless and UI buffers), and a test pass over every menu and HUD element with frame generation on.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame counter reading 120 fps beside a hand on a mouse with a long delay arrow to the screen.">
+                    <defs><marker id="sy93-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker></defs>
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-solid s-strong" x="130" y="20" width="96" height="70" rx="4"/>
+                    <text class="t-head" x="142" y="50">120 fps</text>
+                    <text class="t-small t-muted" x="142" y="70">from 40 rendered</text>
+                    <rect class="f-strong s-ink" x="20" y="74" width="34" height="44" rx="16"/>
+                    <path class="s-pix w2 dash" d="M58,92 C90,92 100,70 126,62" marker-end="url(#sy93-arr)"/>
+                    <text class="t-small t-pix t-strong" x="62" y="118">late response</text>
+                  </svg>
+                </div>
+                <h4>High frame counter, sluggish controls</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Frame generation from a low base frame rate: input is read only per rendered frame and each one waits behind the generated frames.</dd></div>
+                  <div><dt>Ask for</dt><dd>Reflex, Anti-Lag 2 or Xe Low Latency always on with generation, a minimum base frame rate (AMD suggests 60), and latency measured, not inferred from the frame counter.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Unreal ships a temporal upscaler on by default and takes vendor upscalers as plugins. Unity's two pipelines differ: HDRP has DLSS and FSR 2 built in, URP has STP and FSR 1. Godot has FSR 2.2 and Apple's MetalFX.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Built-in upscaling</th>
+                    <td>TSR (default) and TAAU, driven by <code>r.ScreenPercentage</code>; spatial secondary upscale with <code>r.SecondaryScreenPercentage.GameViewport</code>.</td>
+                    <td>URP Asset, <strong>Render Scale</strong> and <strong>Upscaling Filter</strong>: Automatic, Bilinear, Nearest-Neighbor, FidelityFX Super Resolution 1.0, Spatial-Temporal Post-Processing (STP) 1.0.</td>
+                    <td>HDRP Asset, Dynamic Resolution, <strong>Upscale Filter</strong>: Catmull-Rom, Contrast Adaptive Sharpen, FSR 1, TAA Upscale, STP.</td>
+                    <td>Project Settings, Rendering, Scaling 3D: <strong>Mode</strong> Bilinear (default), FSR 1.0, FSR 2.2 (Forward+), MetalFX Spatial or Temporal (Metal only), Nearest; <strong>Scale</strong>; <strong>FSR Sharpness</strong> 0.2.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Vendor upscalers</th>
+                    <td>Plugins: NVIDIA's DLSS plugin for 5.5 to 5.8 (Super Resolution, DLAA, Ray Reconstruction, Multi Frame Generation, Reflex), and AMD's and Intel's for FSR and XeSS.</td>
+                    <td>None built in.</td>
+                    <td>DLSS 4.5 Super Resolution through the built-in NVIDIA package (Windows 64-bit, D3D11, D3D12, Vulkan); FSR 2.2.1.</td>
+                    <td>FSR 2.2 built in; no DLSS or XeSS.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Frame generation</th>
+                    <td>Through the vendor plugins.</td>
+                    <td>None built in.</td>
+                    <td>None built in.</td>
+                    <td>None built in.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Dynamic resolution</th>
+                    <td><code>r.DynamicRes.OperationMode</code> (0, off, by default); MinScreenPercentage 50, MaxScreenPercentage 100, FrameTimeBudget 33.3 ms by default.</td>
+                    <td>Camera, <strong>Allow Dynamic Resolution</strong>; your script sets the scale with ScalableBufferManager. Metal, Android Vulkan and Windows D3D12. TAA cannot be combined with it.</td>
+                    <td>HDRP Asset <strong>Dynamic Resolution</strong>, camera <strong>Allow Dynamic Resolution</strong>, and an HD Dynamic Resolution component; hardware dynamic resolution on consoles and D3D12, Vulkan and Metal PCs.</td>
+                    <td>No automatic controller; change the viewport's <code>scaling_3d_scale</code> from script.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Variable rate shading</th>
+                    <td><code>r.VRS.Enable</code>, <code>r.VRS.EnableImage</code>; per material or by shading-rate image. D3D12 Tier 2, Vulkan fragment shading rate, Quest.</td>
+                    <td>Shading-rate images through the render graph API (since 6.1). D3D12, Android Vulkan, PS5, Xbox Series.</td>
+                    <td>Unity's VRS documentation covers URP.</td>
+                    <td>Viewport <strong>VRS Mode</strong>: Texture or XR; ignored without hardware support.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Mip bias</th>
+                    <td>Applied by TSR and the vendor plugins.</td>
+                    <td>Camera <strong>Mip Bias</strong> under TAA settings.</td>
+                    <td>Handled by the upscale filter.</td>
+                    <td>Automatic, log2 of the 3D scale plus <strong>Texture Mipmap Bias</strong>.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Checked against Unreal Engine 5.8 documentation (5.9 was in preview), Unity 6.6 (6000.6) with URP and HDRP 17.6, Godot 4.7, NVIDIA's DLSS programming guide 310.6.0 and Streamline DLSS-G guide 2.14.16, AMD FSR Upscaling 4.1.2 and FSR Frame Generation 4.0.2 (FSR SDK 2.4), and Intel's XeSS-SR developer guide 2.0 and XeSS 3 page, in November 2026. Vendor features change several times a year; check the current SDK before planning.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Upscaling briefs need the engine and pipeline, the output resolution and target frame rate per platform, which vendor SDKs you are allowed to ship, and the artifacts you care about. Ask for the mip bias, jitter and mask requirements explicitly; they are where integrations go wrong.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when planning upscaling support</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Lumen and Nanite on. PC (min spec RTX 3060 / RX 6600, 1440p) and PS5 / Xbox Series X (4K output, 60 fps mode).
+1. Propose the upscaling setup per platform: TSR, DLSS, FSR, XeSS, quality modes offered, and default screen percentage, with reasons.
+2. Propose dynamic resolution settings for consoles (budget, minimum and maximum screen percentage) and explain how they interact with TSR.
+3. List what our materials, particles and animation must provide for every temporal upscaler: motion vectors, masks, mip bias.
+4. Say whether to offer frame generation on PC, under which minimum base frame rate, and what UI and latency work it requires.
+5. Give a test plan: scenes, camera moves and captures to compare modes, and how to measure input latency.</pre>
+              <ul class="prompt-why">
+                <li>Min spec GPUs from two vendors force the answer to cover fallbacks.</li>
+                <li>Asking what content must provide turns an engine setting into tasks for artists and engineers.</li>
+                <li>A latency measurement in the test plan keeps frame generation honest.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when an upscaler or frame generation misbehaves</span></div>
+              <pre class="prompt-body">Unity 6.6, HDRP, DLSS Super Resolution at Balanced, 4K output, RTX 4070.
+1. Shop signs and posters are noticeably blurrier than at native resolution.
+2. Rain particles leave streaks behind them when the camera turns.
+3. At Performance, foliage behind the player shimmers for about a second after it is revealed.
+
+For each: the likely cause in terms of mip bias, motion vectors, masks or sample count; the HDRP or material settings to change; and a way to confirm the cause before and after, such as a debug view or a side-by-side capture against native.</pre>
+              <ul class="prompt-why">
+                <li>Three symptoms with three different causes test whether the answer understands the upscaler's inputs.</li>
+                <li>Naming the mode and output resolution lets the AI reason about sample counts.</li>
+                <li>Asking for confirmation steps keeps you from shipping a guess.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing upscaling work</h3>
+            <ol class="review-list">
+              <li>What internal resolution does each mode render on each platform, and what is the frame time in each?<span class="why">The mode names hide different ratios; the budget needs real numbers.</span></li>
+              <li>Is the mip bias set from the vendor's formula and updated when the mode or dynamic resolution changes?<span class="why">Without it every texture is softer than at native.</span></li>
+              <li>Which materials provide motion vectors, and which need reactive or transparency masks?<span class="why">Missing inputs are the main cause of smearing.</span></li>
+              <li>Which passes run after the upscaler, and what do they cost at display resolution?<span class="why">That is the part of the frame upscaling does not shrink.</span></li>
+              <li>With frame generation on, what is the base frame rate, which latency reducer is active, and was latency measured?<span class="why">A high frame counter can hide a sluggish game.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">At 4K output, how many pixels does DLSS or FSR Performance mode render, and why is the frame not four times faster?</p>
+                <details><summary>Show answer</summary><p>1920 × 1080, a quarter of 3840 × 2160. Work that does not depend on resolution (shadow maps, geometry, CPU) stays the same, the passes after the upscaler run at full 4K, and the upscaler itself costs a millisecond or more. Epic's TSR example went from 57.5 ms to 33.4 ms, 42% faster.</p></details>
+              </li>
+              <li>
+                <p class="q">A game renders 30 frames a second and uses 4× frame generation to show 120. Why does it still feel sluggish?</p>
+                <details><summary>Show answer</summary><p>Input is read only for rendered frames, 30 times a second, and each rendered frame is held back so the generated frames can be shown first. Generation from a low base rate also has more artifacts. A latency reducer helps, but AMD's guidance is to start from at least 60 fps.</p></details>
+              </li>
+              <li>
+                <p class="q">After turning on an upscaler, signs and posters look blurrier than at native, though edges look fine. What is missing?</p>
+                <details><summary>Show answer</summary><p>A negative mip bias. Textures pick mip levels from the internal resolution, so they are sampled one or two levels too soft. NVIDIA's formula, log2(internal width ÷ display width) − 1, gives −2 at Performance.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#internal-resolution">internal resolution</a></li>
+              <li><a class="chip" href="glossary.html#quality-mode">quality mode</a></li>
+              <li><a class="chip" href="glossary.html#spatial-upscaling">spatial upscaling</a></li>
+              <li><a class="chip" href="glossary.html#temporal-upscaling">temporal upscaling</a></li>
+              <li><a class="chip" href="glossary.html#tsr">TSR</a></li>
+              <li><a class="chip" href="glossary.html#dlss">DLSS</a></li>
+              <li><a class="chip" href="glossary.html#fsr">FSR</a></li>
+              <li><a class="chip" href="glossary.html#xess">XeSS</a></li>
+              <li><a class="chip" href="glossary.html#stp">STP</a></li>
+              <li><a class="chip" href="glossary.html#dynamic-resolution">dynamic resolution</a></li>
+              <li><a class="chip" href="glossary.html#vrs">variable rate shading</a></li>
+              <li><a class="chip" href="glossary.html#frame-generation">frame generation</a></li>
+              <li><a class="chip" href="glossary.html#generated-frame">generated frame</a></li>
+              <li><a class="chip" href="glossary.html#reflex">NVIDIA Reflex</a></li>
+              <li><a class="chip" href="glossary.html#anti-lag">AMD Anti-Lag 2</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="9.4"></a> covers the effects that run around the upscaler: bloom, depth of field, motion blur and the other imperfections of real cameras.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>NVIDIA, <a href="https://raw.githubusercontent.com/NVIDIA/DLSS/main/doc/DLSS_Programming_Guide_Release.pdf">DLSS Super Resolution Programming Guide</a> 310.6.0 (March 2026): execution modes, scaling ratios, jitter phases, mip bias, pipeline placement, timings; <a href="https://raw.githubusercontent.com/NVIDIA-RTX/Streamline/main/docs/ProgrammingGuideDLSS_G.md">Streamline DLSS-G guide</a> 2.14.16: frame generation costs, Multi and Dynamic Multi Frame Generation, Reflex requirement, hudless and UI buffers.</li>
+              <li>NVIDIA, <a href="https://www.nvidia.com/en-us/geforce/news/dlss-4-5-dynamic-multi-frame-gen-6x-2nd-gen-transformer-super-res/">DLSS 4.5 announcement</a> (January 2026), <a href="https://www.nvidia.com/en-us/geforce/technologies/dlss/">DLSS technology page</a>, <a href="https://developer.nvidia.com/rtx/dlss/get-started">DLSS developer page</a>, <a href="https://developer.nvidia.com/performance-rendering-tools/reflex">Reflex</a> and <a href="https://blogs.nvidia.com/blog/nintendo-switch-2-leveled-up-with-nvidia-ai-powered-dlss-and-4k-gaming/">Nintendo Switch 2 announcement</a>.</li>
+              <li>AMD GPUOpen: <a href="https://gpuopen.com/fidelityfx-superresolution-4/">AMD FSR Upscaling</a>, <a href="https://gpuopen.com/manuals/fidelityfx_sdk2/techniques/super-resolution-ml/">FSR 4 upscaler manual</a>, <a href="https://gpuopen.com/manuals/fidelityfx_sdk/techniques/super-resolution-spatial/">FSR 1 manual</a>, <a href="https://gpuopen.com/amd-fsr-framegeneration/">AMD FSR Frame Generation</a>, <a href="https://gpuopen.com/learn/welcome-amd-fsr-redstone-amd-fsr-sdk-21-available/">FSR Redstone and SDK 2.1</a> and <a href="https://gpuopen.com/anti-lag-2/">Radeon Anti-Lag 2</a>.</li>
+              <li>Intel, <a href="https://www.intel.com/content/www/us/en/developer/articles/technical/xess-sr-developer-guide.html">XeSS Super Resolution developer guide 2.0</a> and <a href="https://www.intel.com/content/www/us/en/developer/topic-technology/gamedev/xess.html">XeSS technologies</a>.</li>
+              <li>Microsoft, <a href="https://microsoft.github.io/DirectX-Specs/d3d/VariableRateShading.html">Variable Rate Shading specification</a>.</li>
+              <li>Sony Interactive Entertainment, <a href="https://blog.playstation.com/2026/02/27/upgraded-pssr-upscaler-is-coming-to-ps5-pro/">Upgraded PSSR upscaler is coming to PS5 Pro</a>, PlayStation Blog, February 2026.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/temporal-super-resolution-in-unreal-engine?application_version=5.8">Temporal Super Resolution</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/screen-percentage-with-temporal-upscale-in-unreal-engine?application_version=5.8">Screen Percentage with Temporal Upscale</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/dynamic-resolution-in-unreal-engine?application_version=5.8">Dynamic Resolution</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/xr-performance-features-in-unreal-engine?application_version=5.8">XR performance features</a> (VRS).</li>
+              <li>Unity 6.6 documentation: <a href="https://docs.unity3d.com/Manual/urp/universalrp-asset.html">URP Asset</a>, <a href="https://docs.unity3d.com/Manual/urp/stp/stp-upscaler.html">Spatial-Temporal Post-processing</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/cameras/resolution-scale/dynamic-resolution/introduction">Dynamic resolution</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/in-urp/variable-rate-shading/introduction">Variable rate shading</a>; HDRP 17.6 <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Dynamic-Resolution.html">Dynamic resolution</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/deep-learning-super-sampling-in-hdrp.html">DLSS in HDRP</a>.</li>
+              <li>Godot 4.7 documentation: <a href="https://docs.godotengine.org/en/4.7/tutorials/3d/resolution_scaling.html">Resolution scaling</a> and <a href="https://docs.godotengine.org/en/4.7/classes/class_viewport.html">Viewport</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+</body>
+</html>
