@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>9.1 HDR, exposure and tone mapping · Graphics Handbook</title>
+  <meta name="description" content="How a renderer turns scene light into screen values: scene-referred and display-referred values, exposure and EV, auto-exposure and the luminance histogram, tone curves from Reinhard to ACES and AgX, colour grading, LUTs and white balance.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="9.1">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 9 · Post-processing and image quality</p>
+            <h1><span class="ch-num">9.1</span> HDR, exposure and tone mapping</h1>
+            <p class="lead">A lit frame holds light from almost nothing to thousands of times brighter than a screen's white. Exposure decides which of that light becomes the middle of the picture; a tone curve squeezes the rest onto the screen without flat white highlights or black shadows; grading then sets the look. These three steps decide how every lighting decision in the game finally appears.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="3.2">3.2 Colour done right</a>, <a class="xref" data-ch="7.1">7.1 Lights</a>, <a class="xref" data-ch="8.1">8.1 Direct and indirect light</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>, <a class="xref" data-ch="9.4">9.4 Camera effects</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 35 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Tone curve lab</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="Top: five parts of a sunny scene on a log scale of scene light, from inside a dark archway at 0.018 to a lantern flame at 34, with 1.0 marked as the screen's white. Middle: without tone mapping, the arch and the wall in shade land where they should, but the sunlit wall, the sky and the flame all land on the same flat white. Bottom: with a tone curve, the arch, the shade, the sunlit wall and the sky all get their own screen values, and only the flame reaches white.">
+                  <defs>
+                    <linearGradient id="pic-scr" x1="0" y1="0" x2="1" y2="0"><stop offset="0" class="stop-buf-lo"/><stop offset="1" class="stop-buf-hi"/></linearGradient>
+                  </defs>
+                  <text class="t-caps" x="60" y="20">SCENE LIGHT · LOG SCALE, EACH TICK ×10</text>
+                  <line class="s-ink w2" x1="60" y1="70" x2="840" y2="70"/>
+                  <g class="s-ink">
+                    <line x1="60" y1="64" x2="60" y2="76"/><line x1="255" y1="64" x2="255" y2="76"/><line x1="450" y1="64" x2="450" y2="76"/><line x1="645" y1="64" x2="645" y2="76"/><line x1="840" y1="64" x2="840" y2="76"/>
+                  </g>
+                  <text class="t-mono t-small t-muted mid" x="60" y="92">0.01</text>
+                  <text class="t-mono t-small t-muted mid" x="255" y="92">0.1</text>
+                  <text class="t-mono t-small t-muted mid" x="450" y="92">1</text>
+                  <text class="t-mono t-small t-muted mid" x="645" y="92">10</text>
+                  <text class="t-mono t-small t-muted mid" x="840" y="92">100</text>
+                  <line class="s-pix dash" x1="450" y1="32" x2="450" y2="64"/>
+                  <text class="t-small t-pix t-strong mid" x="450" y="28">screen white</text>
+                  <g class="f-acc">
+                    <circle cx="109.8" cy="70" r="5.5"/><circle cx="277.2" cy="70" r="5.5"/><circle cx="491.4" cy="70" r="5.5"/><circle cx="565.3" cy="70" r="5.5"/><circle cx="747.6" cy="70" r="5.5"/>
+                  </g>
+                  <text class="t-small mid" x="109.8" y="54">inside the arch</text>
+                  <text class="t-small mid" x="277.2" y="54">wall in shade</text>
+                  <text class="t-small end" x="485" y="54">sunlit wall</text>
+                  <text class="t-small" x="572" y="54">sky</text>
+                  <text class="t-small mid" x="747.6" y="54">lantern flame</text>
+
+                  <g class="s-acc" stroke-opacity="0.5">
+                    <line x1="109.8" y1="76" x2="171.4" y2="170"/><line x1="277.2" y1="76" x2="368.8" y2="170"/><line x1="491.4" y1="76" x2="840" y2="170"/><line x1="565.3" y1="76" x2="840" y2="170"/><line x1="747.6" y1="76" x2="840" y2="170"/>
+                  </g>
+                  <text class="t-caps" x="60" y="164">NO TONE MAP · EVERYTHING ABOVE 1 CLIPS</text>
+                  <rect x="60" y="172" width="780" height="22" fill="url(#pic-scr)"/>
+                  <rect class="s-strong" x="60" y="172" width="780" height="22"/>
+                  <g class="f-acc"><circle cx="171.4" cy="183" r="5"/><circle cx="368.8" cy="183" r="5"/></g>
+                  <circle class="f-pix" cx="840" cy="183" r="7"/>
+                  <text class="t-small t-pix t-strong end" x="830" y="212">sunlit wall, sky and flame: all the same white</text>
+
+                  <g class="s-acc" stroke-opacity="0.5">
+                    <path d="M109.8,76 C109.8,130 107.5,200 107.5,262"/><path d="M277.2,76 C277.2,140 350.5,200 350.5,262"/><path d="M491.4,76 C491.4,150 781.1,210 781.1,262"/><path d="M565.3,76 C565.3,150 819.5,210 819.5,262"/><path d="M747.6,76 C747.6,150 840,210 840,262"/>
+                  </g>
+                  <text class="t-caps" x="60" y="256">WITH A TONE CURVE (ACES FIT)</text>
+                  <rect x="60" y="264" width="780" height="22" fill="url(#pic-scr)"/>
+                  <rect class="s-strong" x="60" y="264" width="780" height="22"/>
+                  <g class="f-acc"><circle cx="107.5" cy="275" r="5"/><circle cx="350.5" cy="275" r="5"/><circle cx="781.1" cy="275" r="5"/><circle cx="819.5" cy="275" r="5"/><circle cx="840" cy="275" r="5"/></g>
+                  <text class="t-small t-acc t-strong" x="60" y="306">black</text>
+                  <text class="t-small t-acc t-strong end" x="840" y="306">white</text>
+                  <text class="t-small" x="420" y="306">the bright parts get their own values; only the flame reaches white</text>
+                  <text class="t-small t-muted" x="60" y="330">Screen bars run from black to white in stored values. Scene values from the tone curve lab in step 6, at exposure 0.</text>
+                </svg>
+              </div>
+              <figcaption><b>The scene has more light than the screen has values.</b> These five parts of one sunny scene span more than 10 stops, a factor of nearly 2,000. Cut off at the screen's white, three of them become the same flat white. A tone curve gives up a little contrast in the bright parts so every part keeps a value of its own.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>The renderer lights a frame in <a class="term" data-term="linear-colour" href="glossary.html#linear-colour">linear</a> light with no upper limit, <a class="term" data-term="hdr-rendering" href="glossary.html#hdr-rendering">HDR rendering</a> (3.2). Those values are <dfn class="term" data-term="scene-referred">scene-referred</dfn>: they describe how much light is in the scene. A sunlit wall can be 2.0 and a lantern flame 30. A screen, though, takes <dfn class="term" data-term="display-referred">display-referred</dfn> values: what it should show, from black to its white. Something has to translate.</p>
+            <p>The translation has two parts, the same two a camera has. <dfn class="term" data-term="exposure">Exposure</dfn> multiplies all the light so that the important part of the scene lands in the middle of the picture. Then <dfn class="term" data-term="tone-mapping">tone mapping</dfn> bends the values with a curve, so the bright end rolls off gently towards white instead of stopping dead, and the dark end fades into black instead of crushing. Grading comes after, to set mood and match shots.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>A photographer shooting a room with a sunny window chooses an exposure: the room or the view. Film then did something kind: it did not burn out at a hard limit but faded into white gradually, so the window still showed a hint of the garden. Exposure is the dial; the tone curve is the film.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Real light spans a range far larger than any screen. Without exposure, every light value set in physical units (7.1) would come out black or white. Without a tone curve, skies, lamps, fire and sunlit walls all clip to the same flat white, and colourful bright things change colour as one channel hits its limit before the others.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>The tone mapper and exposure set are where art direction meets physics. Changing either late changes how every level, light and material looks, so artists will retune everything they have lit. Choose the tone curve and exposure approach in pre-production, lock them for lookdev, and treat a change as a project-wide decision.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>Follow the light from the end of the lighting pass to the screen: how much range there is, how exposure chooses a slice of it, how the engine can choose automatically, how curves map it, and what grading does after.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="range"><span class="step-num">1</span> How much range: the scene against the screen</h3>
+              <p>Brightness of a surface or a light source is luminance, measured in candelas per square metre, the same unit as the <a class="term" data-term="nit" href="glossary.html#nit">nit</a> used for screens. In the real world it runs from about a thousandth of a nit for a night sky to over a billion for the sun at noon. A typical LCD monitor shows white at about 250 nits and, at a typical contrast of about 1,000 to 1, black at about a quarter of a nit.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="A log axis of luminance from 0.0001 to 10 billion nits. Real-world values: night sky 0.001, a scene at sunrise or sunset 25, an overcast scene 700, a scene in full sunlight 5,000, a clear sky at noon 10,000, a frosted bulb 130,000, the sun at the horizon 600,000, a lamp filament 7 million, the sun at noon 1.6 billion. Below, a typical standard monitor covers 0.25 to 250 nits, about 10 stops, and a typical HDR screen about 0.005 to 1,000.">
+                    <text class="t-caps" x="60" y="20">LUMINANCE IN NITS (CD/M²) · LOG SCALE, EACH TICK ×10</text>
+                    <line class="s-ink w2" x1="60" y1="130" x2="844" y2="130"/>
+                    <g class="s-ink">
+                      <line x1="60" y1="124" x2="60" y2="136"/><line x1="116" y1="124" x2="116" y2="136"/><line x1="172" y1="124" x2="172" y2="136"/><line x1="228" y1="124" x2="228" y2="136"/><line x1="284" y1="124" x2="284" y2="136"/><line x1="340" y1="124" x2="340" y2="136"/><line x1="396" y1="124" x2="396" y2="136"/><line x1="452" y1="124" x2="452" y2="136"/>
+                      <line x1="508" y1="124" x2="508" y2="136"/><line x1="564" y1="124" x2="564" y2="136"/><line x1="620" y1="124" x2="620" y2="136"/><line x1="676" y1="124" x2="676" y2="136"/><line x1="732" y1="124" x2="732" y2="136"/><line x1="788" y1="124" x2="788" y2="136"/><line x1="844" y1="124" x2="844" y2="136"/>
+                    </g>
+                    <text class="t-mono t-small t-muted mid" x="60" y="150">10⁻⁴</text>
+                    <text class="t-mono t-small t-muted mid" x="172" y="150">0.01</text>
+                    <text class="t-mono t-small t-muted mid" x="284" y="150">1</text>
+                    <text class="t-mono t-small t-muted mid" x="396" y="150">100</text>
+                    <text class="t-mono t-small t-muted mid" x="508" y="150">10⁴</text>
+                    <text class="t-mono t-small t-muted mid" x="620" y="150">10⁶</text>
+                    <text class="t-mono t-small t-muted mid" x="732" y="150">10⁸</text>
+                    <text class="t-mono t-small t-muted mid" x="844" y="150">10¹⁰</text>
+
+                    <g class="f-lit">
+                      <circle cx="116" cy="130" r="4.5"/><circle cx="362.3" cy="130" r="4.5"/><circle cx="443.3" cy="130" r="4.5"/><circle cx="491.1" cy="130" r="4.5"/><circle cx="508" cy="130" r="4.5"/>
+                      <circle cx="570.4" cy="130" r="4.5"/><circle cx="607.6" cy="130" r="4.5"/><circle cx="667.3" cy="130" r="4.5"/><circle cx="799.4" cy="130" r="4.5"/>
+                    </g>
+                    <g class="s-lit">
+                      <line x1="116" y1="124" x2="116" y2="96"/><line x1="362.3" y1="124" x2="362.3" y2="40"/><line x1="443.3" y1="124" x2="443.3" y2="68"/><line x1="491.1" y1="124" x2="491.1" y2="96"/><line x1="508" y1="124" x2="508" y2="40"/>
+                      <line x1="570.4" y1="124" x2="570.4" y2="68"/><line x1="607.6" y1="124" x2="607.6" y2="96"/><line x1="667.3" y1="124" x2="667.3" y2="40"/><line x1="799.4" y1="124" x2="799.4" y2="68"/>
+                    </g>
+                    <text class="t-small" x="120" y="96">night sky</text>
+                    <text class="t-small end" x="358" y="40">sunrise or sunset scene</text>
+                    <text class="t-small end" x="439" y="68">overcast scene</text>
+                    <text class="t-small end" x="487" y="96">sunlit scene</text>
+                    <text class="t-small" x="512" y="40">clear sky, noon</text>
+                    <text class="t-small" x="574" y="68">frosted bulb</text>
+                    <text class="t-small" x="611" y="96">sun at horizon</text>
+                    <text class="t-small" x="671" y="40">lamp filament</text>
+                    <text class="t-small end" x="795" y="68">sun at noon</text>
+
+                    <rect class="f-acc-soft s-acc w15" x="250.3" y="170" width="168" height="22" rx="3"/>
+                    <text class="t-small t-strong" x="430" y="186">typical monitor: about 0.25 to 250 nits, 1,000 : 1, about 10 stops</text>
+                    <rect class="f-acc-soft s-acc w15 dash" x="155.1" y="204" width="296.9" height="22" rx="3"/>
+                    <text class="t-small t-strong" x="464" y="220">typical HDR screen: highlights to about 1,000 nits</text>
+                    <text class="t-small t-muted" x="60" y="254">Night sky to the sun at noon is about 40 stops. Even one view of a real scene can hold more than a screen shows.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Real light covers about forty stops; a screen covers about ten.</b> Real-world values are from the Wikipedia list of luminance orders of magnitude; the monitor and HDR screen ranges are typical, not standards. HDR screens (3.2) add room above standard white, but nowhere near the sun.</figcaption>
+              </figure>
+              <p>Real scenes are not only the sun and the night sky, but even one view holds far more than a screen's range: a sunny exterior with deep shade and a bright sky, or an interior with a window. That is why the renderer cannot simply divide by a constant. It needs to choose a slice, which is exposure, and then compress what is outside the slice, which is the tone curve.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="exposure"><span class="step-num">2</span> Exposure and EV: sliding the window</h3>
+              <p>Exposure is a single multiplier applied to all the light before the tone curve. Photographers and engines measure it as an <dfn class="term" data-term="exposure-value">exposure value</dfn>, EV, on a log scale where each step, a stop, doubles or halves the light. EV100 is the value for ISO 100 film. A bright scene needs a high EV and a dark one a low EV: Unity's lighting guide gives about EV 14 for a sunlit scene, 10 for cloudy, 7 for low sun, 4 for an interior and 1 for moonlight. In Unreal's formula the multiplier is 1 / 2<sup>EV100</sup>, so each EV step halves the image brightness.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="An axis of scene brightness as EV100 from minus 2 to 16, with Unity's reference values: moonless night minus 2, moonlight 1, interior 4, low sun 7, cloudy 10, sunlit 14. Below, three rows show the window of light one exposure shows well, centred at EV 1 for a moonlit street, EV 4 for an interior and EV 14 for a sunny square. Exposure slides the window along the axis without changing its width.">
+                    <text class="t-caps" x="80" y="20">SCENE BRIGHTNESS AS EV100 · EACH STEP DOUBLES THE LIGHT</text>
+                    <line class="s-ink w2" x1="80" y1="70" x2="836" y2="70"/>
+                    <g class="s-ink">
+                      <line x1="80" y1="64" x2="80" y2="76"/><line x1="206" y1="64" x2="206" y2="76"/><line x1="332" y1="64" x2="332" y2="76"/><line x1="458" y1="64" x2="458" y2="76"/><line x1="584" y1="64" x2="584" y2="76"/><line x1="710" y1="64" x2="710" y2="76"/><line x1="836" y1="64" x2="836" y2="76"/>
+                    </g>
+                    <text class="t-mono t-small t-muted mid" x="80" y="92">−2</text>
+                    <text class="t-mono t-small t-muted mid" x="206" y="92">1</text>
+                    <text class="t-mono t-small t-muted mid" x="332" y="92">4</text>
+                    <text class="t-mono t-small t-muted mid" x="458" y="92">7</text>
+                    <text class="t-mono t-small t-muted mid" x="584" y="92">10</text>
+                    <text class="t-mono t-small t-muted mid" x="710" y="92">13</text>
+                    <text class="t-mono t-small t-muted mid" x="836" y="92">16</text>
+                    <g class="f-lit">
+                      <circle cx="80" cy="70" r="4.5"/><circle cx="206" cy="70" r="4.5"/><circle cx="332" cy="70" r="4.5"/><circle cx="458" cy="70" r="4.5"/><circle cx="584" cy="70" r="4.5"/><circle cx="752" cy="70" r="4.5"/>
+                    </g>
+                    <text class="t-small" x="84" y="54">moonless</text>
+                    <text class="t-small mid" x="206" y="54">moonlit</text>
+                    <text class="t-small mid" x="332" y="54">interior</text>
+                    <text class="t-small mid" x="458" y="54">low sun</text>
+                    <text class="t-small mid" x="584" y="54">cloudy</text>
+                    <text class="t-small mid" x="752" y="54">sunlit</text>
+
+                    <text class="t-small t-strong end" x="70" y="134">moonlit</text>
+                    <text class="t-small t-strong end" x="70" y="148">street</text>
+                    <rect class="f-acc-soft s-acc w15" x="80" y="122" width="336" height="30" rx="4"/>
+                    <line class="s-acc w3" x1="206" y1="118" x2="206" y2="156"/>
+                    <text class="t-small t-acc t-strong" x="214" y="141">exposure EV 1</text>
+                    <text class="t-small t-strong end" x="70" y="178">interior</text>
+                    <rect class="f-acc-soft s-acc w15" x="122" y="166" width="420" height="30" rx="4"/>
+                    <line class="s-acc w3" x1="332" y1="162" x2="332" y2="200"/>
+                    <text class="t-small t-acc t-strong" x="340" y="185">exposure EV 4</text>
+                    <text class="t-small t-strong end" x="70" y="222">sunny</text>
+                    <text class="t-small t-strong end" x="70" y="236">square</text>
+                    <rect class="f-acc-soft s-acc w15" x="542" y="210" width="294" height="30" rx="4"/>
+                    <line class="s-acc w3" x1="752" y1="206" x2="752" y2="244"/>
+                    <text class="t-small t-acc t-strong end" x="744" y="229">exposure EV 14</text>
+                    <text class="t-small t-muted" x="424" y="141">window: what one exposure shows well</text>
+                  </svg>
+                </div>
+                <figcaption><b>Exposure slides a fixed window along the scene's brightness.</b> Reference EV100 values from Unity's physical light units guide. Each window is the same width; it is only centred differently. The tone curve decides how wide the window is and how gently its edges fade.</figcaption>
+              </figure>
+              <p>Engines set exposure in three ways. Fixed or manual exposure is a number the lighting artist chooses per area or per camera. Physical camera exposure derives it from shutter speed, aperture and ISO, which matters most when lights are set in <a class="term" data-term="physical-light-units" href="glossary.html#physical-light-units">physical light units</a> (7.1). Automatic exposure measures the frame, step 3. Most projects use automatic exposure with limits, plus exposure compensation, an offset in stops that artists use to make a space look brighter or darker than the meter would.</p>
+              <p>Exposure aims at <dfn class="term" data-term="middle-grey">middle grey</dfn>, a surface reflecting 18% of the light, which looks halfway between black and white. Reinhard and colleagues' 2002 tone reproduction paper builds on exactly this photographer's rule: map the scene's average to 0.18, then compress what lies above.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="auto-exposure"><span class="step-num">3</span> Auto-exposure: measure, then adapt slowly</h3>
+              <p><dfn class="term" data-term="auto-exposure">Auto-exposure</dfn>, also called eye adaptation, does what a camera's meter and our eyes do. Each frame the renderer measures the scene's brightness on a small, downsampled copy, picks a target exposure, and moves the current exposure towards it over time. Unreal's default meter builds a <dfn class="term" data-term="luminance-histogram">luminance histogram</dfn>: it counts pixels in 64 brightness bands on a log scale, discards the darkest pixels and the brightest few by percentage, and averages the rest. Epic suggests a Low Percent of 70 to 80 and a High Percent of 80 to 95.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Left: a histogram of a frame's pixel brightness in stops, with most pixels around mid-grey and a small group of very bright lamps. The darkest 80 percent and the brightest 5 percent are ignored; the band in between, shaded blue, is averaged, at about 2.5 stops above mid-grey. Right: exposure over time. When the player leaves a tunnel at 2 seconds, scene brightness jumps from EV 4 to EV 14; exposure catches up at 3 stops a second, so the image is too bright for about 3 seconds. Re-entering the tunnel at 7 seconds, exposure falls at 1 stop a second and the image is too dark for longer.">
+                    <text class="t-caps" x="30" y="20">ONE FRAME'S LUMINANCE HISTOGRAM</text>
+                    <rect class="f-sunken" x="30" y="66" width="235.3" height="134"/>
+                    <rect class="f-sunken" x="350.5" y="66" width="79.5" height="134"/>
+                    <rect class="f-acc-soft" x="265.3" y="66" width="85.2" height="134"/>
+                    <rect class="f-strong" x="31.0" y="197.0" width="10.5" height="3.0"/><rect class="f-strong" x="43.5" y="196.9" width="10.5" height="3.1"/><rect class="f-strong" x="56.0" y="196.8" width="10.5" height="3.2"/><rect class="f-strong" x="68.5" y="196.3" width="10.5" height="3.7"/><rect class="f-strong" x="81.0" y="195.4" width="10.5" height="4.6"/><rect class="f-strong" x="93.5" y="193.4" width="10.5" height="6.6"/><rect class="f-strong" x="106.0" y="189.8" width="10.5" height="10.2"/><rect class="f-strong" x="118.5" y="183.6" width="10.5" height="16.4"/><rect class="f-strong" x="131.0" y="173.9" width="10.5" height="26.1"/><rect class="f-strong" x="143.5" y="160.3" width="10.5" height="39.7"/><rect class="f-strong" x="156.0" y="142.9" width="10.5" height="57.1"/><rect class="f-strong" x="168.5" y="123.4" width="10.5" height="76.6"/><rect class="f-strong" x="181.0" y="104.2" width="10.5" height="95.8"/><rect class="f-strong" x="193.5" y="88.7" width="10.5" height="111.3"/><rect class="f-strong" x="206.0" y="80.0" width="10.5" height="120.0"/><rect class="f-strong" x="218.5" y="80.0" width="10.5" height="120.0"/><rect class="f-strong" x="231.0" y="88.7" width="10.5" height="111.3"/><rect class="f-strong" x="243.5" y="104.2" width="10.5" height="95.8"/><rect class="f-strong" x="256.0" y="123.4" width="10.5" height="76.6"/><rect class="f-acc" x="268.5" y="142.9" width="10.5" height="57.1"/><rect class="f-acc" x="281.0" y="160.3" width="10.5" height="39.7"/><rect class="f-acc" x="293.5" y="173.9" width="10.5" height="26.1"/><rect class="f-acc" x="306.0" y="183.5" width="10.5" height="16.5"/><rect class="f-acc" x="318.5" y="189.2" width="10.5" height="10.8"/><rect class="f-acc" x="331.0" y="190.6" width="10.5" height="9.4"/><rect class="f-acc" x="343.5" y="187.6" width="10.5" height="12.4"/><rect class="f-strong" x="356.0" y="183.4" width="10.5" height="16.6"/><rect class="f-strong" x="368.5" y="183.8" width="10.5" height="16.2"/><rect class="f-strong" x="381.0" y="189.2" width="10.5" height="10.8"/><rect class="f-strong" x="393.5" y="194.2" width="10.5" height="5.8"/><rect class="f-strong" x="406.0" y="196.4" width="10.5" height="3.6"/><rect class="f-strong" x="418.5" y="197.0" width="10.5" height="3.0"/>
+                    <line class="s-strong" x1="30" y1="200" x2="430" y2="200"/>
+                    <text class="t-small t-muted" x="40" y="44">darkest 80% of pixels: ignored</text>
+                    <text class="t-small t-muted end" x="430" y="44">brightest 5%:</text>
+                    <text class="t-small t-muted end" x="430" y="58">ignored</text>
+                    <line class="s-acc w2" x1="292.1" y1="66" x2="292.1" y2="200"/>
+                    <text class="t-small t-acc t-strong mid" x="292.1" y="60">averaged</text>
+                    <text class="t-mono t-small t-muted mid" x="30" y="216">−8</text>
+                    <text class="t-mono t-small t-muted mid" x="130" y="216">−4</text>
+                    <text class="t-mono t-small t-muted mid" x="230" y="216">0</text>
+                    <text class="t-mono t-small t-muted mid" x="330" y="216">+4</text>
+                    <text class="t-mono t-small t-muted mid" x="430" y="216">+8</text>
+                    <text class="t-small t-muted" x="30" y="236">brightness in stops from mid-grey</text>
+                    <text class="t-small" x="30" y="256">The blue band's average becomes the exposure target.</text>
+
+                    <text class="t-caps" x="500" y="20">ADAPTING OVER TIME</text>
+                    <line class="s-strong" x1="500" y1="200" x2="860" y2="200"/>
+                    <line class="s-strong" x1="500" y1="60" x2="500" y2="200"/>
+                    <polygon class="f-pix-soft" points="560,180 560,80 660,80"/>
+                    <polygon class="f-pix-soft" points="710,80 860,130 860,180 710,180"/>
+                    <polyline class="s-ink w2 dash" points="500,180 560,180 560,80 710,80 710,180 860,180"/>
+                    <polyline class="s-acc w3 round" points="500,180 560,180 660,80 710,80 860,130"/>
+                    <text class="t-mono t-small t-muted end" x="494" y="184">4</text>
+                    <text class="t-mono t-small t-muted end" x="494" y="84">14</text>
+                    <text class="t-small t-muted" x="472" y="56">EV</text>
+                    <text class="t-mono t-small t-muted mid" x="500" y="216">0 s</text>
+                    <text class="t-mono t-small t-muted mid" x="560" y="216">2</text>
+                    <text class="t-mono t-small t-muted mid" x="710" y="216">7</text>
+                    <text class="t-mono t-small t-muted mid" x="860" y="216">12 s</text>
+                    <text class="t-small t-pix t-strong" x="566" y="112">too bright</text>
+                    <text class="t-small t-pix t-strong" x="760" y="166">too dark, for longer</text>
+                    <text class="t-small t-muted" x="566" y="72">leave the tunnel</text>
+                    <text class="t-small t-muted" x="716" y="72">go back in</text>
+                    <line class="s-ink w2 dash" x1="500" y1="240" x2="520" y2="240"/>
+                    <text class="t-small" x="526" y="244">scene</text>
+                    <line class="s-acc w3" x1="580" y1="240" x2="600" y2="240"/>
+                    <text class="t-small" x="606" y="244">exposure: up 3 stops/s, down 1 stop/s</text>
+                    <text class="t-small t-muted" x="500" y="262">Example speeds; engines set them in stops per second.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Auto-exposure measures, then follows.</b> Left: discarding the extremes keeps a few lamps or a dark corner from swinging exposure. Right: adapting gradually stops the image pumping with every glance at a lamp. HDRP's documentation recommends adapting more slowly from light to dark than from dark to light, as eyes do.</figcaption>
+              </figure>
+              <p>Auto-exposure misjudges scenes that are meant to be dark or bright: a night level metered to middle grey looks like grey day. Exposure compensation, minimum and maximum exposure limits, and metering masks that weight the centre of the screen are how artists keep it honest. Unreal adds local exposure, which compresses contrast region by region for scenes such as a bright doorway seen from a dark interior; Epic says it should always be set up when using Lumen GI.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="tone-curve"><span class="step-num">4</span> The tone curve</h3>
+              <p>After exposure, a <dfn class="term" data-term="tone-curve">tone curve</dfn> maps each value to a screen value. Plotted against stops of scene light it is an S: a toe at the dark end that eases into black, a nearly straight middle where most of the picture lives, and a shoulder at the bright end that rolls off towards white. The shoulder is the point of the exercise. Without it, everything brighter than white is cut off at the same value.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Four tone curves plotted as screen value against scene light in stops from mid-grey, from minus 8 to plus 8. With no tone map, the curve rises and stops dead at white about 2.5 stops above mid-grey. Reinhard rolls off slowly and never quite reaches white. The ACES fit has a dark toe, a steep middle and a shoulder that reaches white around 6 stops up. AgX has a softer toe and a long shoulder. All four meet at mid-grey.">
+                    <text class="t-caps" x="70" y="20">SCREEN VALUE FOR NEUTRAL LIGHT, BY SCENE LIGHT</text>
+                    <line class="s-line" x1="70" y1="40" x2="610" y2="40"/>
+                    <line class="s-line" x1="70" y1="135" x2="610" y2="135"/>
+                    <line class="s-strong" x1="70" y1="230" x2="610" y2="230"/>
+                    <line class="s-strong" x1="70" y1="40" x2="70" y2="230"/>
+                    <line class="s-muted dot-dash" x1="340" y1="40" x2="340" y2="230"/>
+                    <text class="t-mono t-small t-muted end" x="64" y="44">255</text>
+                    <text class="t-mono t-small t-muted end" x="64" y="139">128</text>
+                    <text class="t-mono t-small t-muted end" x="64" y="234">0</text>
+                    <text class="t-mono t-small t-muted mid" x="70" y="248">−8</text>
+                    <text class="t-mono t-small t-muted mid" x="205" y="248">−4</text>
+                    <text class="t-mono t-small t-muted mid" x="340" y="248">0</text>
+                    <text class="t-mono t-small t-muted mid" x="475" y="248">+4</text>
+                    <text class="t-mono t-small t-muted mid" x="610" y="248">+8</text>
+                    <text class="t-small t-muted mid" x="340" y="264">scene light, stops from mid-grey</text>
+                    <polyline class="s-pix w2" points="70.0,228.3 78.4,227.9 86.9,227.6 95.3,227.1 103.8,226.5 112.2,225.9 120.6,225.1 129.1,224.2 137.5,223.1 145.9,221.8 154.4,220.4 162.8,218.9 171.3,217.3 179.7,215.6 188.1,213.7 196.6,211.7 205.0,209.5 213.4,207.2 221.9,204.7 230.3,202.1 238.8,199.2 247.2,196.1 255.6,192.8 264.1,189.2 272.5,185.4 280.9,181.3 289.4,176.8 297.8,172.1 306.3,167.0 314.7,161.4 323.1,155.5 331.6,149.2 340.0,142.3 348.4,135.0 356.9,127.1 365.3,118.6 373.8,109.5 382.2,99.7 390.6,89.1 399.1,77.8 407.5,65.6 415.9,52.6 424.4,40.0 432.8,40.0 441.3,40.0 449.7,40.0 458.1,40.0 466.6,40.0 475.0,40.0 483.4,40.0 491.9,40.0 500.3,40.0 508.8,40.0 517.2,40.0 525.6,40.0 534.1,40.0 542.5,40.0 550.9,40.0 559.4,40.0 567.8,40.0 576.3,40.0 584.7,40.0 593.1,40.0 601.6,40.0 610.0,40.0"/>
+                    <polyline class="s-muted w2" points="70.0,227.9 78.4,227.5 86.9,227.0 95.3,226.5 103.8,225.8 112.2,225.0 120.6,224.1 129.1,222.9 137.5,221.6 145.9,220.2 154.4,218.7 162.8,217.1 171.3,215.4 179.7,213.5 188.1,211.5 196.6,209.4 205.0,207.1 213.4,204.6 221.9,202.0 230.3,199.2 238.8,196.1 247.2,192.9 255.6,189.5 264.1,185.8 272.5,182.0 280.9,177.8 289.4,173.5 297.8,168.9 306.3,164.0 314.7,158.9 323.1,153.6 331.6,148.1 340.0,142.3 348.4,136.5 356.9,130.4 365.3,124.4 373.8,118.2 382.2,112.1 390.6,106.1 399.1,100.1 407.5,94.4 415.9,88.9 424.4,83.7 432.8,78.9 441.3,74.3 449.7,70.2 458.1,66.4 466.6,62.9 475.0,59.9 483.4,57.1 491.9,54.7 500.3,52.6 508.8,50.8 517.2,49.2 525.6,47.9 534.1,46.7 542.5,45.7 550.9,44.8 559.4,44.1 567.8,43.4 576.3,42.9 584.7,42.4 593.1,42.1 601.6,41.7 610.0,41.5"/>
+                    <polyline class="s-ink w2" points="70.0,229.9 78.4,229.9 86.9,229.8 95.3,229.8 103.8,229.7 112.2,229.6 120.6,229.5 129.1,229.3 137.5,229.0 145.9,228.7 154.4,228.2 162.8,227.5 171.3,226.5 179.7,225.1 188.1,223.3 196.6,220.9 205.0,218.3 213.4,215.3 221.9,212.1 230.3,208.6 238.8,204.8 247.2,200.8 255.6,196.5 264.1,192.0 272.5,187.2 280.9,182.1 289.4,176.9 297.8,171.5 306.3,165.9 314.7,160.2 323.1,154.3 331.6,148.4 340.0,142.3 348.4,136.3 356.9,130.2 365.3,124.2 373.8,118.2 382.2,112.2 390.6,106.4 399.1,100.8 407.5,95.3 415.9,90.0 424.4,84.9 432.8,80.1 441.3,75.6 449.7,71.3 458.1,67.4 466.6,63.7 475.0,60.4 483.4,57.4 491.9,54.8 500.3,52.4 508.8,50.3 517.2,48.5 525.6,46.9 534.1,45.5 542.5,44.3 550.9,43.1 559.4,41.9 567.8,40.6 576.3,40.3 584.7,40.3 593.1,40.3 601.6,40.3 610.0,40.3" stroke-dasharray="7 3"/>
+                    <polyline class="s-acc w3 round" points="70.0,230.0 78.4,230.0 86.9,230.0 95.3,230.0 103.8,230.0 112.2,230.0 120.6,230.0 129.1,229.9 137.5,229.7 145.9,229.5 154.4,229.1 162.8,228.7 171.3,228.2 179.7,227.5 188.1,226.7 196.6,225.6 205.0,224.2 213.4,222.3 221.9,220.1 230.3,217.7 238.8,214.9 247.2,211.8 255.6,208.3 264.1,204.4 272.5,199.9 280.9,194.9 289.4,189.2 297.8,183.0 306.3,176.0 314.7,168.5 323.1,160.3 331.6,151.5 340.0,142.3 348.4,132.9 356.9,123.3 365.3,113.8 373.8,104.7 382.2,96.1 390.6,88.1 399.1,80.9 407.5,74.5 415.9,68.9 424.4,64.1 432.8,60.0 441.3,56.5 449.7,53.6 458.1,51.1 466.6,49.1 475.0,47.3 483.4,45.9 491.9,44.7 500.3,43.7 508.8,42.9 517.2,42.2 525.6,41.6 534.1,41.1 542.5,40.7 550.9,40.4 559.4,40.1 567.8,40.0 576.3,40.0 584.7,40.0 593.1,40.0 601.6,40.0 610.0,40.0"/>
+                    <text class="t-small t-acc t-strong" x="150" y="216">toe</text>
+                    <text class="t-small t-acc t-strong" x="384" y="140">straight-ish middle</text>
+                    <text class="t-small t-acc t-strong" x="470" y="78">shoulder</text>
+                    <text class="t-small t-pix t-strong" x="432" y="32">clipped: no detail above here</text>
+
+                    <line class="s-pix w2" x1="650" y1="60" x2="676" y2="60"/>
+                    <text class="t-small" x="684" y="64">No tone map (clip)</text>
+                    <line class="s-muted w2" x1="650" y1="86" x2="676" y2="86"/>
+                    <text class="t-small" x="684" y="90">Reinhard, x / (1 + x)</text>
+                    <line class="s-acc w3" x1="650" y1="112" x2="676" y2="112"/>
+                    <text class="t-small t-acc t-strong" x="684" y="116">ACES fit (Hill)</text>
+                    <line class="s-ink w2" x1="650" y1="138" x2="676" y2="138" stroke-dasharray="7 3"/>
+                    <text class="t-small" x="684" y="142">AgX-like (Wrensch)</text>
+                    <text class="t-small t-muted" x="650" y="176">Each curve's input is scaled</text>
+                    <text class="t-small t-muted" x="650" y="191">so mid-grey lands at the same</text>
+                    <text class="t-small t-muted" x="650" y="206">screen value, to compare shapes.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Every tone curve trades contrast for range.</b> Curves drawn from their published formulas, the same code as the tone curve lab. Without a curve, detail ends about 2.5 stops above mid-grey. Reinhard holds detail far up but flattens the highlights. The ACES fit keeps a strong middle and a deep toe, the look most games have used; AgX keeps more of the shadows and the highlights at the cost of some punch.</figcaption>
+              </figure>
+              <p>Reinhard's simple operator, x / (1 + x) from the 2002 paper, maps every value below 1 and never reaches white, which guarantees nothing clips but leaves highlights grey. <dfn class="term" data-term="filmic-tone-mapping">Filmic tone mapping</dfn> shapes the curve like photographic film's response instead, with a toe and a shoulder, and is what Unreal calls its default tonemapper. Godot 4 offers Linear (the default, which clips), Reinhard, Filmic, ACES and AgX.</p>
+              <details class="fold">
+                <summary><span class="fold-kind">Code</span> Two curves in a few lines</summary>
+                <div class="fold-body">
+                  <p>Reinhard per channel, and Krzysztof Narkowicz's widely copied one-line fit of the ACES curve, which already includes a pre-exposure so that an input of 1 gives about 0.8:</p>
+                  <pre class="code"><code>reinhard(x) = x / (1 + x)
+aces_narkowicz(x) = clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0, 1)</code></pre>
+                  <p>Both run on linear values after exposure, and the result is then encoded for the screen with the sRGB curve (3.2). Narkowicz describes his fit as a simple luminance-only fit that over-saturates brights; the tone curve lab and the Lantern Courtyard use Stephen Hill's fuller fit, which adds a colour matrix before and after.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="aces-agx"><span class="step-num">5</span> ACES, AgX and what happens to colour</h3>
+              <p><dfn class="term" data-term="aces">ACES</dfn>, the Academy Color Encoding System, is a colour management standard from film production. Its output transforms include a tone curve, and fits of the ACES 1 curve became the default in many engines: Unity's URP and HDRP have an ACES mode, and Unreal describes its filmic tonemapper as matching the ACES standard. ACES 2, documented in 2025, redesigned the output transforms with a gentler highlight roll-off and lower mid-tone contrast.</p>
+              <p>Most game tone curves are applied to each colour channel separately. For grey that is harmless. For a bright, saturated colour it is not: in a lantern flame the red channel is several times the green, so red reaches the shoulder first and stops growing while green keeps climbing. The colour slides from orange towards yellow, then white. Some shift towards white is right, since very bright light looks white to us; the problem is how fast, and that hue drifts on the way. <dfn class="term" data-term="agx">AgX</dfn>, created by Troy Sobotka and Blender's default view transform since version 4.0, mixes a little of each channel into the others before compressing in log space, so bright colours fade towards white with less change of hue. Blender's manual credits it with 16.5 stops of dynamic range.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="The lantern flame's colour at mid-grey brightness and at 2, 4 and 6 stops brighter, shown as screen values of its red, green and blue channels under three tone curves, with the hue of the result. Without tone mapping the hue moves from 30 to 40 to 60 degrees, yellow, as red and then green clip. With the ACES fit it moves from 29 to 40, 47 and 52 degrees. With AgX it moves from 31 to 35, 40 and 48 degrees, while all channels rise towards white.">
+                    <text class="t-caps" x="20" y="48">NO TONE MAP (CLIP)</text>
+                    <rect class="f-strong" x="230" y="65.7" width="18" height="38.3"/>
+                    <text class="t-mono t-small t-muted mid" x="239" y="116">R</text>
+                    <rect class="f-strong" x="252" y="82.3" width="18" height="21.7"/>
+                    <text class="t-mono t-small t-muted mid" x="261" y="116">G</text>
+                    <rect class="f-strong" x="274" y="98.6" width="18" height="5.4"/>
+                    <text class="t-mono t-small t-muted mid" x="283" y="116">B</text>
+                    <text class="t-small t-strong" x="302" y="74">30°</text>
+                    <rect class="f-pix" x="390" y="48.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="399" y="116">R</text>
+                    <rect class="f-strong" x="412" y="62.9" width="18" height="41.1"/>
+                    <text class="t-mono t-small t-muted mid" x="421" y="116">G</text>
+                    <rect class="f-strong" x="434" y="92.0" width="18" height="12.0"/>
+                    <text class="t-mono t-small t-muted mid" x="443" y="116">B</text>
+                    <text class="t-small t-strong" x="462" y="74">40°</text>
+                    <rect class="f-pix" x="550" y="48.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="559" y="116">R</text>
+                    <rect class="f-pix" x="572" y="48.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="581" y="116">G</text>
+                    <rect class="f-strong" x="594" y="80.2" width="18" height="23.8"/>
+                    <text class="t-mono t-small t-muted mid" x="603" y="116">B</text>
+                    <text class="t-small t-strong" x="622" y="74">60°</text>
+                    <rect class="f-pix" x="710" y="48.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="719" y="116">R</text>
+                    <rect class="f-pix" x="732" y="48.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="741" y="116">G</text>
+                    <rect class="f-strong" x="754" y="59.2" width="18" height="44.8"/>
+                    <text class="t-mono t-small t-muted mid" x="763" y="116">B</text>
+                    <text class="t-small t-strong" x="782" y="74">60°</text>
+                    <line class="s-strong" x1="225" y1="104" x2="880" y2="104"/>
+                    <text class="t-caps" x="20" y="126">ACES FIT, PER CHANNEL</text>
+                    <rect class="f-strong" x="230" y="142.6" width="18" height="39.4"/>
+                    <text class="t-mono t-small t-muted mid" x="239" y="194">R</text>
+                    <rect class="f-strong" x="252" y="161.1" width="18" height="20.9"/>
+                    <text class="t-mono t-small t-muted mid" x="261" y="194">G</text>
+                    <rect class="f-strong" x="274" y="178.2" width="18" height="3.8"/>
+                    <text class="t-mono t-small t-muted mid" x="283" y="194">B</text>
+                    <text class="t-small t-strong" x="302" y="152">29°</text>
+                    <rect class="f-strong" x="390" y="127.7" width="18" height="54.3"/>
+                    <text class="t-mono t-small t-muted mid" x="399" y="194">R</text>
+                    <rect class="f-strong" x="412" y="139.2" width="18" height="42.8"/>
+                    <text class="t-mono t-small t-muted mid" x="421" y="194">G</text>
+                    <rect class="f-strong" x="434" y="162.2" width="18" height="19.8"/>
+                    <text class="t-mono t-small t-muted mid" x="443" y="194">B</text>
+                    <text class="t-small t-strong" x="462" y="152">40°</text>
+                    <rect class="f-pix" x="550" y="126.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="559" y="194">R</text>
+                    <rect class="f-strong" x="572" y="128.9" width="18" height="53.1"/>
+                    <text class="t-mono t-small t-muted mid" x="581" y="194">G</text>
+                    <rect class="f-strong" x="594" y="139.3" width="18" height="42.7"/>
+                    <text class="t-mono t-small t-muted mid" x="603" y="194">B</text>
+                    <text class="t-small t-strong" x="622" y="152">47°</text>
+                    <rect class="f-pix" x="710" y="126.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="719" y="194">R</text>
+                    <rect class="f-strong" x="732" y="126.4" width="18" height="55.6"/>
+                    <text class="t-mono t-small t-muted mid" x="741" y="194">G</text>
+                    <rect class="f-strong" x="754" y="129.0" width="18" height="53.0"/>
+                    <text class="t-mono t-small t-muted mid" x="763" y="194">B</text>
+                    <text class="t-small t-strong" x="782" y="152">52°</text>
+                    <line class="s-strong" x1="225" y1="182" x2="880" y2="182"/>
+                    <text class="t-caps" x="20" y="204">AGX-LIKE</text>
+                    <rect class="f-strong" x="230" y="223.6" width="18" height="36.4"/>
+                    <text class="t-mono t-small t-muted mid" x="239" y="272">R</text>
+                    <rect class="f-strong" x="252" y="237.1" width="18" height="22.9"/>
+                    <text class="t-mono t-small t-muted mid" x="261" y="272">G</text>
+                    <rect class="f-strong" x="274" y="251.6" width="18" height="8.4"/>
+                    <text class="t-mono t-small t-muted mid" x="283" y="272">B</text>
+                    <text class="t-small t-strong" x="302" y="230">31°</text>
+                    <rect class="f-strong" x="390" y="211.3" width="18" height="48.7"/>
+                    <text class="t-mono t-small t-muted mid" x="399" y="272">R</text>
+                    <rect class="f-strong" x="412" y="222.8" width="18" height="37.2"/>
+                    <text class="t-mono t-small t-muted mid" x="421" y="272">G</text>
+                    <rect class="f-strong" x="434" y="238.9" width="18" height="21.1"/>
+                    <text class="t-mono t-small t-muted mid" x="443" y="272">B</text>
+                    <text class="t-small t-strong" x="462" y="230">35°</text>
+                    <rect class="f-strong" x="550" y="205.0" width="18" height="55.0"/>
+                    <text class="t-mono t-small t-muted mid" x="559" y="272">R</text>
+                    <rect class="f-strong" x="572" y="211.3" width="18" height="48.7"/>
+                    <text class="t-mono t-small t-muted mid" x="581" y="272">G</text>
+                    <rect class="f-strong" x="594" y="224.2" width="18" height="35.8"/>
+                    <text class="t-mono t-small t-muted mid" x="603" y="272">B</text>
+                    <text class="t-small t-strong" x="622" y="230">40°</text>
+                    <rect class="f-pix" x="710" y="204.0" width="18" height="56.0"/>
+                    <text class="t-mono t-small t-muted mid" x="719" y="272">R</text>
+                    <rect class="f-strong" x="732" y="205.6" width="18" height="54.4"/>
+                    <text class="t-mono t-small t-muted mid" x="741" y="272">G</text>
+                    <rect class="f-strong" x="754" y="212.2" width="18" height="47.8"/>
+                    <text class="t-mono t-small t-muted mid" x="763" y="272">B</text>
+                    <text class="t-small t-strong" x="782" y="230">48°</text>
+                    <line class="s-strong" x1="225" y1="260" x2="880" y2="260"/>
+                    <text class="t-small t-muted" x="230" y="24">at mid-grey</text>
+                    <text class="t-small t-muted" x="390" y="24">+2 stops</text>
+                    <text class="t-small t-muted" x="550" y="24">+4 stops</text>
+                    <text class="t-small t-muted" x="710" y="24">+6 stops</text>
+                    <rect class="f-pix" x="20" y="283" width="14" height="12"/>
+                    <text class="t-small" x="40" y="293">channel at full white: no further change possible</text>
+                    <text class="t-small t-muted" x="430" y="293">Hue in degrees: 0 is red, 30 orange, 60 yellow. True flame hue: 30°.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Brighter flames turn yellow before they turn white.</b> Computed with the tone curve lab's code from the flame's paint colour, scaled to mid-grey brightness and then 2, 4 and 6 stops above. Clipping jumps to yellow as soon as red and then green hit the top. The ACES fit drifts steadily towards yellow; AgX drifts less and moves all three channels towards white together.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="lab"><span class="step-num">6</span> Try it: the tone curve lab</h3>
+              <p>The lab below holds one HDR picture, a sunny square with a lantern in a shaded arch, about 12 stops from the darkest shade to the flame, and two test ramps. Change exposure and the curve, and watch the plot, the clipped-pixel count and the flame's hue.</p>
+              <figure>
+                <div class="demo" data-demo="tone-curve-lab">
+                  <p class="demo-hint">The tone curve lab needs JavaScript. It shows an HDR picture of a sunny square and a lantern under four tone curves: no tone mapping, Reinhard, an ACES fit and an AgX-like curve, with an exposure slider and the curve plotted.</p>
+                </div>
+                <figcaption><b>Tone curve lab.</b> It opens with no tone mapping at exposure 0: the sky and the sunlit wall are hatched where they have clipped to white, and the flame has lost its colour. Every curve here is scaled so mid-grey looks the same, so what changes between them is the toe and the shoulder.</figcaption>
+              </figure>
+              <ul>
+                <li>With <strong>No tone map</strong>, lower the exposure until the sky stops clipping. The arch goes nearly black: no single exposure fits this scene without a curve.</li>
+                <li>Switch to <strong>ACES fit</strong> and raise the exposure to +2. The flame turns yellow and the flame-coloured ramp passes through yellow before white.</li>
+                <li>Do the same with <strong>AgX-like</strong>: the ramp stays orange longer and fades towards white, and the shade keeps more detail, at the cost of a flatter look.</li>
+              </ul>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="grading"><span class="step-num">7</span> Grading, white balance and LUTs</h3>
+              <p><dfn class="term" data-term="colour-grading">Colour grading</dfn> sets the look once the light is right: overall contrast and saturation, tints for shadows and highlights, curves. <dfn class="term" data-term="white-balance">White balance</dfn> removes a colour cast by making a chosen light read as neutral, through temperature and tint controls, as a camera does. Engines prefer to grade on scene-referred values before the tone curve, where the full range is still available: Unreal applies its colour grading controls in scene-referred linear space, and URP's High Dynamic Range grading mode grades before tonemapping.</p>
+              <p>A <dfn class="term" data-term="lut">LUT</dfn>, a lookup table, captures a whole grade as a small 3D texture. For every input colour it stores the output colour, so a grade built in an image editor or a grading suite costs one texture read per pixel at runtime. Unreal's LUTs are 16 × 16 × 16, stored unwrapped as a 256 × 16 texture, and are applied to the final low dynamic range image. URP uses 32 entries per side by default.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 280" role="img" aria-label="Left: a cube of colours with red increasing to the right, green upwards and blue into the depth, divided into a grid of entries. An input colour inside the cube points to the output colour stored for it. Right: Unreal's LUT layout, sixteen slices of 16 by 16 laid side by side as a 256 by 16 texture, one slice per blue level. Below, the memory of each size: 16 cubed is 4,096 entries, 16 kilobytes at 4 bytes each; 32 cubed is 32,768 entries, 128 kilobytes.">
+                    <defs>
+                      <marker id="lut-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">A 3D LUT: ONE OUTPUT COLOUR PER INPUT COLOUR</text>
+                    <polygon class="f-sunken s-strong" points="60,240 220,240 280,200 120,200"/>
+                    <polygon class="f-sunken s-strong" points="220,240 280,200 280,40 220,80"/>
+                    <polygon class="f-surface s-strong" points="60,240 220,240 220,80 60,80"/>
+                    <g class="s-line">
+                      <line x1="100" y1="80" x2="100" y2="240"/><line x1="140" y1="80" x2="140" y2="240"/><line x1="180" y1="80" x2="180" y2="240"/>
+                      <line x1="60" y1="120" x2="220" y2="120"/><line x1="60" y1="160" x2="220" y2="160"/><line x1="60" y1="200" x2="220" y2="200"/>
+                      <line x1="235" y1="70" x2="235" y2="230"/><line x1="250" y1="60" x2="250" y2="220"/><line x1="265" y1="50" x2="265" y2="210"/>
+                    </g>
+                    <polygon class="s-strong" points="60,80 120,40 280,40 220,80"/>
+                    <g class="s-line">
+                      <line x1="75" y1="70" x2="235" y2="70"/><line x1="90" y1="60" x2="250" y2="60"/><line x1="105" y1="50" x2="265" y2="50"/>
+                      <line x1="100" y1="80" x2="160" y2="40"/><line x1="140" y1="80" x2="200" y2="40"/><line x1="180" y1="80" x2="240" y2="40"/>
+                    </g>
+                    <line class="s-muted dash" x1="60" y1="240" x2="120" y2="200"/>
+                    <circle class="f-buf-lo s-strong" cx="60" cy="240" r="6"/>
+                    <circle class="f-paint-red s-strong" cx="220" cy="240" r="6"/>
+                    <circle class="f-paint-green s-strong" cx="60" cy="80" r="6"/>
+                    <circle class="f-paint-sky s-strong" cx="120" cy="200" r="6"/>
+                    <circle class="f-buf-hi s-strong" cx="280" cy="40" r="6"/>
+                    <text class="t-small t-muted" x="22" y="258">black</text>
+                    <text class="t-small t-muted" x="210" y="262">R →</text>
+                    <text class="t-small t-muted" x="24" y="76">G ↑</text>
+                    <text class="t-small t-muted" x="130" y="214">B</text>
+                    <text class="t-small t-muted" x="288" y="44">white</text>
+                    <circle class="f-acc" cx="150" cy="170" r="5"/>
+                    <line class="s-acc w2" x1="150" y1="170" x2="186" y2="134" marker-end="url(#lut-arr)"/>
+                    <circle class="f-surface s-acc w2" cx="190" cy="130" r="5"/>
+                    <text class="t-small t-acc t-strong" x="300" y="132">input colour → stored output</text>
+                    <text class="t-small t-muted" x="300" y="150">between entries, the GPU blends</text>
+                    <text class="t-small t-muted" x="300" y="166">the eight nearest (trilinear)</text>
+
+                    <text class="t-caps" x="500" y="20">UNREAL'S LAYOUT: 16 SLICES SIDE BY SIDE</text>
+                    <g class="f-surface s-strong">
+                      <rect x="500" y="46" width="44" height="44"/><rect x="548" y="46" width="44" height="44"/><rect x="596" y="46" width="44" height="44"/><rect x="644" y="46" width="44" height="44"/>
+                      <rect x="768" y="46" width="44" height="44"/><rect x="816" y="46" width="44" height="44"/>
+                    </g>
+                    <text class="t-small t-muted mid" x="728" y="72">…</text>
+                    <text class="t-small t-muted" x="500" y="108">blue 0</text>
+                    <text class="t-small t-muted" x="548" y="108">blue 1</text>
+                    <text class="t-small t-muted end" x="860" y="108">blue 15</text>
+                    <text class="t-small t-muted" x="500" y="128">each slice: red across, green up, 16 × 16</text>
+                    <text class="t-small t-strong" x="500" y="148">together: one 256 × 16 texture</text>
+
+                    <text class="t-caps" x="500" y="186">SIZE</text>
+                    <text class="t-small" x="500" y="208">16 × 16 × 16 = 4,096 entries</text>
+                    <text class="t-small t-strong" x="720" y="208">16 KB at 4 bytes each</text>
+                    <text class="t-small" x="500" y="230">32 × 32 × 32 = 32,768 entries</text>
+                    <text class="t-small t-strong" x="720" y="230">128 KB at 4 bytes each</text>
+                    <text class="t-small t-muted" x="500" y="258">A whole grade for less memory than one small texture.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A LUT is a grade you can look up.</b> The cube is drawn with 5 entries per side for clarity; real ones use 16 or 32. A LUT built for one stage of the pipeline is wrong at another: Epic notes that LUTs are applied after the image is in sRGB, and recommends the colour grading controls instead so the look holds on HDR screens too.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="in-the-frame"><span class="step-num">8</span> Where tone mapping sits in the frame</h3>
+              <p>Everything up to tone mapping is scene-referred: lighting, fog, transparent surfaces and HDR effects such as bloom and depth of field (9.4). Tone mapping is the boundary. After it, values are display-referred, and only screen-level work follows: a LUT in some pipelines, encoding for the screen, and the interface. Anti-aliasing and upscaling usually run before this point (9.2, 9.3), and Unreal describes tone mapping as the last post-processing stage.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="The end of a frame. Scene-referred stages: lighting, then fog and transparent surfaces, then bloom and other camera effects, then exposure, then grading and white balance. The tone curve marks the boundary. Display-referred stages after it: an optional LUT, encoding with the sRGB curve or PQ for HDR10, then the interface, then the screen.">
+                    <defs>
+                      <marker id="fp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-lit-soft" x="10" y="30" width="560" height="120" rx="8"/>
+                    <text class="t-caps" x="22" y="48">SCENE-REFERRED · LINEAR, NO UPPER LIMIT</text>
+                    <rect class="f-pix-soft" x="600" y="30" width="290" height="120" rx="8"/>
+                    <text class="t-caps" x="612" y="48">DISPLAY-REFERRED · 0 TO 1</text>
+                    <rect class="f-surface s-strong" x="22" y="62" width="88" height="62" rx="5"/><text class="t-small t-strong" x="30" y="82">Lighting</text><text class="t-small t-muted" x="30" y="98">HDR, 16-bit</text><text class="t-small t-muted" x="30" y="112">float</text>
+                    <rect class="f-surface s-strong" x="128" y="62" width="88" height="62" rx="5"/><text class="t-small t-strong" x="136" y="82">Fog,</text><text class="t-small t-strong" x="136" y="98">transparents</text>
+                    <rect class="f-surface s-strong" x="234" y="62" width="88" height="62" rx="5"/><text class="t-small t-strong" x="242" y="82">Bloom, DOF,</text><text class="t-small t-strong" x="242" y="98">motion blur</text><text class="t-small t-muted" x="242" y="114">(9.4)</text>
+                    <rect class="f-acc-soft s-acc w15" x="340" y="62" width="88" height="62" rx="5"/><text class="t-small t-strong" x="348" y="82">Exposure</text><text class="t-small t-muted" x="348" y="98">× 2^−EV, fixed</text><text class="t-small t-muted" x="348" y="112">or automatic</text>
+                    <rect class="f-acc-soft s-acc w15" x="446" y="62" width="112" height="62" rx="5"/><text class="t-small t-strong" x="454" y="82">Grading</text><text class="t-small t-muted" x="454" y="98">white balance,</text><text class="t-small t-muted" x="454" y="112">contrast, colour</text>
+                    <rect class="f-acc s-acc" x="566" y="56" width="72" height="74" rx="5"/><text class="t-small t-on-acc t-strong mid" x="602" y="90">Tone</text><text class="t-small t-on-acc t-strong mid" x="602" y="106">curve</text>
+                    <rect class="f-surface s-strong dash" x="648" y="62" width="64" height="62" rx="5"/><text class="t-small t-strong" x="656" y="82">LUT</text><text class="t-small t-muted" x="656" y="98">in some</text><text class="t-small t-muted" x="656" y="112">pipelines</text>
+                    <rect class="f-surface s-strong" x="720" y="62" width="76" height="62" rx="5"/><text class="t-small t-strong" x="728" y="82">Encode</text><text class="t-small t-muted" x="728" y="98">sRGB, or PQ</text><text class="t-small t-muted" x="728" y="112">for HDR10</text>
+                    <rect class="f-surface s-strong" x="804" y="62" width="78" height="62" rx="5"/><text class="t-small t-strong" x="812" y="82">Interface</text><text class="t-small t-muted" x="812" y="98">then the</text><text class="t-small t-muted" x="812" y="112">screen</text>
+                    <g class="s-muted">
+                      <line x1="111" y1="93" x2="126" y2="93" marker-end="url(#fp-arr)"/><line x1="217" y1="93" x2="232" y2="93" marker-end="url(#fp-arr)"/><line x1="323" y1="93" x2="338" y2="93" marker-end="url(#fp-arr)"/><line x1="429" y1="93" x2="444" y2="93" marker-end="url(#fp-arr)"/>
+                    </g>
+                    <text class="t-small" x="22" y="176">Anti-aliasing and upscaling (9.2, 9.3) usually run on scene-referred values, before this point.</text>
+                    <text class="t-small" x="22" y="196">For an HDR screen the tone curve targets the screen's peak brightness instead of white, for example Unity's ACES 1,000, 2,000 or 4,000-nit presets.</text>
+                    <text class="t-small t-muted" x="22" y="216">The tone curve is often merged with exposure, grading and encoding into one full-screen pass.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Tone mapping is the line between scene light and screen values.</b> Everything that adds or spreads light belongs before it; everything that only arranges the final picture comes after. Most mistakes in this area are a stage on the wrong side of the line, such as a LUT made for display-referred values applied to scene-referred ones.</figcaption>
+              </figure>
+              <figure>
+                <div class="demo" data-demo="courtyard" data-view="final" data-views="final,hdr-clipped">
+                  <p class="demo-hint">The Lantern Courtyard's finished frame, with a fixed exposure, bloom and a filmic tone curve, so the sky and the lantern keep colour and detail. Switching to No tone map clips everything above white.</p>
+                </div>
+                <figcaption><b>The Lantern Courtyard, tone mapped.</b> The courtyard uses a fixed exposure (a multiplier of 2), adds bloom, then applies Stephen Hill's ACES fit and the sRGB curve. Switch to No tone map: the whole picture brightens and flattens, the sky near the sun pales towards white, and the lantern glass and the sunlit stone lose their gradations where channels clip.</figcaption>
+              </figure>
+              <p>HDR output changes the last steps, not the first ones. With an <a class="term" data-term="hdr-display" href="glossary.html#hdr-display">HDR display</a> the tone curve maps scene light to the screen's peak brightness, often 1,000 nits, rather than to standard white, and the encoding is the <a class="term" data-term="hdr10" href="glossary.html#hdr10">HDR10</a> PQ curve instead of sRGB (3.2). Not every tone mapper supports it: Godot's Filmic and ACES modes and its colour correction LUT do not, while Linear, Reinhard and AgX do.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>On the GPU, tone mapping is among the cheapest things in the frame: arithmetic per pixel and perhaps one LUT read, usually merged into a single full-screen pass with exposure, grading and encoding. Its real cost is bandwidth for that one pass and, above all, people-time.</p>
+            <p>The pass reads the HDR scene colour and writes the final image. At 1080p, reading a 16-bit floating-point colour target (8 bytes per pixel) is 2,073,600 × 8 = 16.6 MB, and writing an 8-bit target (4 bytes per pixel) is 8.3 MB: about 25 MB per frame, or 1.5 GB a second at 60 fps. At 4K it is four times as much. Auto-exposure adds a small reduction pass on a downsampled copy of the frame.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">1 pass</span><span class="what">exposure, grading, tone curve and encoding, usually combined</span></div>
+              <div class="stat"><span class="value">25 MB</span><span class="what">read and written by that pass per 1080p frame, 16-bit in, 8-bit out</span></div>
+              <div class="stat"><span class="value">128 KB</span><span class="what">a 32 × 32 × 32 LUT at 4 bytes per entry, URP's default size</span></div>
+              <div class="stat"><span class="value">~40 stops</span><span class="what">night sky to the noon sun, against about 10 for a typical monitor</span></div>
+            </div>
+            <ul class="grows">
+              <li><strong>Resolution and precision</strong><span>The pass touches every pixel once; 4K and 16-bit scene colour scale its bandwidth.</span></li>
+              <li><strong>Extra exposure work</strong><span>Histogram metering, metering masks and local exposure add passes of their own.</span></li>
+              <li><strong>HDR output</strong><span>A second output path, calibration settings for players and testing on several screens (3.2).</span></li>
+              <li><strong>Changing the curve late</strong><span>Every light, emissive and material was tuned against the old curve; changing it means relighting and re-reviewing the whole game.</span></li>
+              <li><strong>Grading pipeline</strong><span>LUT authoring tools, matching what artists see in their grading software with the engine, and keeping LUTs valid when the curve or colour space changes.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>A neutral, low-contrast curve such as AgX or a neutral mode gives grading the most room and handles HDR screens well, but needs a deliberate grade to look finished. A punchy filmic curve looks good out of the box and is what many teams ship, at the cost of hue shifts in saturated highlights and less room to grade. Pick one in pre-production and grade against it from the first lit scene.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Exposure and tone mapping bugs rarely crash; they make whole levels look wrong, and artists then compensate light by light. Learn to spot these.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A window in a dark wall showing a completely flat white rectangle with no detail of the view outside.">
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-buf-hi" x="70" y="22" width="100" height="80"/>
+                    <path class="s-pix w15 dash" d="M70,62 H170 M120,22 V102"/>
+                    <text class="t-small t-on-buf-dark mid" x="120" y="122">all one value</text>
+                  </svg>
+                </div>
+                <h4>Flat white skies and windows</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No tone curve, a curve that clips early, or exposure set for a dark interior while a bright exterior is in view.</dd></div>
+                  <div><dt>Ask for</dt><dd>The tone mapper and exposure settings, a capture with clipped pixels highlighted, and local exposure or tighter metering where interiors and exteriors meet.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A campfire whose flames are pale yellow and white in the middle, with orange only at the very edges.">
+                    <defs><filter id="sy-fire" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5"/></filter></defs>
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <path class="f-paint-candle" filter="url(#sy-fire)" d="M80,116 C70,80 100,64 104,30 C120,56 150,60 160,116 Z"/>
+                    <path class="f-paint-tungsten" filter="url(#sy-fire)" d="M96,112 C90,88 110,74 114,52 C126,74 144,84 146,112 Z"/>
+                    <path class="f-paint-daylight" filter="url(#sy-fire)" d="M108,110 C106,94 116,86 118,72 C126,88 134,96 134,110 Z"/>
+                    <text class="t-small t-on-buf-dark" x="170" y="40">orange</text>
+                    <text class="t-small t-on-buf-dark" x="170" y="54">turns yellow</text>
+                  </svg>
+                </div>
+                <h4>Fire, neon and skin change colour as they brighten</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A tone curve applied per channel: the strongest channel reaches the shoulder first, so the hue drifts towards yellow or the secondary colours before white.</dd></div>
+                  <div><dt>Ask for</dt><dd>A side-by-side with a hue-preserving option (AgX, a neutral mode, or the engine's hue-preservation settings) on test ramps of saturated colours.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A brightness graph swinging up and down as the camera pans past a bright lamp.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <polyline class="s-acc w2 round" points="10,80 40,80 60,30 80,90 100,40 120,86 150,82 170,34 190,88 230,82"/>
+                    <circle class="f-lit" cx="60" cy="22" r="6"/>
+                    <circle class="f-lit" cx="170" cy="26" r="6"/>
+                    <text class="t-small t-muted" x="12" y="118">pan past lamps: the image pumps</text>
+                  </svg>
+                </div>
+                <h4>Exposure pumping</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Auto-exposure reacts too fast, or meters on a few bright pixels such as lamps or effects, so brightness swings as the camera moves.</dd></div>
+                  <div><dt>Ask for</dt><dd>Slower adaptation, histogram percentages that ignore the brightest pixels, minimum and maximum exposure limits, and a metering mask.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two copies of the same scene: the left with deep shadows and strong colour, the right grey and washed out.">
+                    <rect class="f-buf-lo" x="10" y="20" width="100" height="90"/>
+                    <rect class="f-paint-red" x="20" y="60" width="30" height="40"/>
+                    <rect class="f-paint-sky" x="60" y="30" width="40" height="30"/>
+                    <rect class="f-buf-lo" x="130" y="20" width="100" height="90"/>
+                    <rect class="f-paint-red" x="140" y="60" width="30" height="40"/>
+                    <rect class="f-paint-sky" x="180" y="30" width="40" height="30"/>
+                    <rect class="f-buf-hi" fill-opacity="0.45" x="130" y="20" width="100" height="90"/>
+                    <text class="t-small t-muted mid" x="60" y="124">intended</text>
+                    <text class="t-small t-pix t-strong mid" x="180" y="124">grey and flat</text>
+                  </svg>
+                </div>
+                <h4>A grey, washed-out image</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Tone mapping applied twice, a LUT built for a different stage or colour space, a gamma step applied twice, or HDR output fed an SDR curve.</dd></div>
+                  <div><dt>Ask for</dt><dd>The order of post-processing stages, which colour space each LUT was authored in, and a capture of the frame before and after the final pass.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dark corridor where everything in the shadows has become solid black, with a crate barely visible.">
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <polygon class="f-buf-hi" fill-opacity="0.18" points="150,0 240,0 240,130 190,130"/>
+                    <rect class="s-strong" x="40" y="70" width="50" height="40" stroke-opacity="0.35"/>
+                    <text class="t-small t-on-buf-dark" x="20" y="30">crate? door? lost</text>
+                  </svg>
+                </div>
+                <h4>Crushed, murky shadows</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A high-contrast curve's toe plus a low exposure, or grading contrast pushed after the curve, so many dark values end at the same black.</dd></div>
+                  <div><dt>Ask for</dt><dd>The curve's toe settings, exposure compensation for dark areas, and a check on several screens at the brightness players will use.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To diagnose, look at the frame before tone mapping. Unreal's HDR (Eye Adaptation) visualisation shows the histogram and metering, HDRP has exposure debug modes, and a frame capture (11.5) shows the scene colour target with its true values, so you can tell whether a problem is in the light or in the mapping.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>All four pipelines expose exposure, a tone mapper and grading, but URP has no automatic exposure, and only Godot offers AgX as a built-in mode.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, URP</th><th scope="col">Unity 6, HDRP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Tone mapper</th>
+                    <td>The Filmic tonemapper, described as matching the ACES standard. Post Process Volume: Slope 0.88, Toe 0.55, Shoulder 0.26, Black Clip 0, White Clip 0.04 by default.</td>
+                    <td><strong>Tonemapping</strong> override, Mode: None, Neutral or ACES.</td>
+                    <td><strong>Tonemapping</strong> override, Mode: None, Neutral, ACES, Custom (toe, shoulder and gamma controls) or External (your own lookup texture).</td>
+                    <td>Environment, Tonemap <strong>Mode</strong>: Linear (default, clips), Reinhard, Filmic, ACES or AgX. <strong>White</strong>; AgX has its own <strong>AgX White</strong> (16.29) and <strong>AgX Contrast</strong> (1.25).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Exposure</th>
+                    <td>Post Process Volume, Exposure, Metering Mode: <strong>Auto Exposure Histogram</strong> (default), Auto Exposure Basic or Manual. <strong>Exposure Compensation</strong>; Min and Max EV100 with the project setting Extend default luminance range.</td>
+                    <td>Fixed only, per Unity's feature comparison. <strong>Post Exposure</strong> on Color Adjustments, in EV, applied before tonemapping.</td>
+                    <td><strong>Exposure</strong> override, Mode: Fixed, Automatic, Automatic Histogram, Curve Mapping or Use Physical Camera. Limit Min and Max, Compensation.</td>
+                    <td>Environment Tonemap <strong>Exposure</strong> (1.0). Camera Attributes: Exposure Multiplier, and Sensitivity in ISO with physical light units.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Auto-exposure</th>
+                    <td>Speed Up, Speed Down (stops per second), Low and High Percent, Exposure Metering Mask, Exposure Compensation Curve. <strong>Local Exposure</strong> under Lens.</td>
+                    <td>None.</td>
+                    <td>Metering Mode: Average, Spot, Center Weighted, Mask Weighted, Procedural Mask. Adaptation Progressive with Speed Dark to Light and Light to Dark; Histogram Percentages.</td>
+                    <td>Camera Attributes: <strong>Auto Exposure</strong> (off by default), Scale 0.4, Speed 0.5, Min and Max Sensitivity. Forward+ only.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Grading and white balance</th>
+                    <td>White Balance (Temp, Tint) and Color Grading (Global, Shadows, Midtones, Highlights: Saturation, Contrast, Gamma, Gain, Offset), in scene-referred linear before tone mapping.</td>
+                    <td>White Balance, Color Adjustments and other overrides. URP Asset <strong>Grading Mode</strong>: High Dynamic Range (before tonemapping) or Low Dynamic Range (after).</td>
+                    <td>White Balance, Color Adjustments, Channel Mixer, Color Curves, Lift Gamma Gain, Shadows Midtones Highlights, Split Toning.</td>
+                    <td>Adjustments: Brightness, Contrast, Saturation, applied after tonemapping. No white balance control.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">LUT</th>
+                    <td><strong>Color Grading LUT</strong>: 16 × 16 × 16 unwrapped to 256 × 16, applied after sRGB. Epic recommends the grading controls instead, especially for HDR.</td>
+                    <td>Color Lookup override. URP Asset <strong>LUT Size</strong>, default 32.</td>
+                    <td>Tonemapping Mode External: a log-encoded lookup texture with a Contribution slider.</td>
+                    <td><strong>Color Correction</strong>: a 1D gradient or a 3D texture. Not supported with HDR output.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">HDR output (3.2)</th>
+                    <td>ACES-based output device modes for 1,000 and 2,000-nit screens.</td>
+                    <td>Neutral: range reduction BT2390 (default) or Reinhard, Paper White, Min and Max Nits. ACES: 1,000 (default), 2,000 or 4,000-nit presets.</td>
+                    <td>See HDRP's HDR tonemapping reference.</td>
+                    <td>Filmic and ACES do not support HDR output; Linear, Reinhard and AgX do.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Names and defaults checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) with URP and HDRP 17.6, and Godot 4.7 in November 2026. Engines rename post-processing settings often; search your version's documentation if one is missing.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Tone mapping briefs need the engine and pipeline, the current tone mapper and exposure mode, whether HDR output is supported, and reference images. Ask for test scenes and ramps, not just settings.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when choosing the tone mapping setup in pre-production</span></div>
+              <pre class="prompt-body">Godot 4.7, Forward+, physical light units on. Stylised but grounded fantasy look; day-night cycle; lots of fire, magic effects and coloured lights. PC, with HDR output wanted later.
+
+1. Compare the Filmic, ACES and AgX tonemap modes for our look: contrast, saturated highlights such as fire, and HDR output support.
+2. Recommend exposure settings for day, dusk and night, and auto-exposure settings (Camera Attributes) that avoid pumping when spells flash.
+3. Give us a test scene: grey and saturated ramps from −6 to +6 stops, a mid-grey card, a fire, a sunlit wall and a night interior.
+4. Say what our artists must not change once we lock this, and why.</pre>
+              <ul class="prompt-why">
+                <li>Naming fire and coloured lights points the comparison at hue shifts, where the curves differ most.</li>
+                <li>HDR output "later" brings out that two of Godot's modes do not support it.</li>
+                <li>Asking what to lock turns a settings choice into a production rule.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when brightness swings or highlights clip</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Lumen. Auto Exposure Histogram, default speeds, Exposure Compensation 0.5.
+1. Walking through the market, brightness pumps every time a lantern string enters the view.
+2. From inside the tavern, the doorway to the sunny street is a flat white rectangle.
+
+For each, explain the cause in terms of metering (Low and High Percent, metering mask), adaptation speed and the tone curve. Propose changes ranked by risk to the overall look, including Local Exposure for the doorway. Tell us which visualisation to use to confirm each cause before and after.</pre>
+              <ul class="prompt-why">
+                <li>Stating the metering mode and compensation lets the AI reason about the current histogram.</li>
+                <li>Two symptoms with different causes test whether the answer separates metering from range.</li>
+                <li>Asking for the visualisation means you can verify the fix yourself.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing exposure and tone mapping work</h3>
+            <ol class="review-list">
+              <li>Which tone mapper is used, and was the whole game lit against it?<span class="why">Changing it later changes every scene.</span></li>
+              <li>Is exposure fixed, physical or automatic, and what are its limits and speeds?<span class="why">Unbounded auto-exposure turns night into grey day and pumps in mixed scenes.</span></li>
+              <li>Does grading happen before or after the tone curve, and what colour space were LUTs authored in?<span class="why">A LUT at the wrong stage washes out or crushes the image.</span></li>
+              <li>How do saturated bright colours look on a ramp?<span class="why">Per-channel curves shift hue; check fire, neon, skin and effects.</span></li>
+              <li>What does the HDR output path use, and is it tested on real screens?<span class="why">Not every tone mapper supports HDR, and calibration is part of the feature.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A sunlit wall renders at 2.0 and the sky at 4.0 in the lighting buffer. Without tone mapping they look identical on screen. Why, and what fixes it?</p>
+                <details><summary>Show answer</summary><p>Both are above 1.0, the screen's white, so both clip to the same white. Lowering exposure would separate them but darken everything else; a tone curve with a shoulder compresses values above the middle so both keep distinct screen values below white.</p></details>
+              </li>
+              <li>
+                <p class="q">The game's campfires look yellow-white, though the artist painted the flames orange. What is the likely cause?</p>
+                <details><summary>Show answer</summary><p>A tone curve applied to each channel separately. The flame's red channel reaches the curve's shoulder first and stops growing while green keeps rising, so the hue slides towards yellow and then white. Lower the fire's intensity or exposure, or use a curve that preserves hue better, such as AgX.</p></details>
+              </li>
+              <li>
+                <p class="q">Players complain that the screen keeps brightening and darkening in a street lit by bright neon signs. Which settings do you look at?</p>
+                <details><summary>Show answer</summary><p>Auto-exposure: its metering (which pixels are averaged; histogram percentages that ignore the brightest few percent, or a metering mask), its adaptation speeds, and its minimum and maximum exposure limits.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#scene-referred">scene-referred</a></li>
+              <li><a class="chip" href="glossary.html#display-referred">display-referred</a></li>
+              <li><a class="chip" href="glossary.html#exposure">exposure</a></li>
+              <li><a class="chip" href="glossary.html#tone-mapping">tone mapping</a></li>
+              <li><a class="chip" href="glossary.html#exposure-value">exposure value</a></li>
+              <li><a class="chip" href="glossary.html#middle-grey">middle grey</a></li>
+              <li><a class="chip" href="glossary.html#auto-exposure">auto-exposure</a></li>
+              <li><a class="chip" href="glossary.html#luminance-histogram">luminance histogram</a></li>
+              <li><a class="chip" href="glossary.html#tone-curve">tone curve</a></li>
+              <li><a class="chip" href="glossary.html#filmic-tone-mapping">filmic tone mapping</a></li>
+              <li><a class="chip" href="glossary.html#aces">ACES</a></li>
+              <li><a class="chip" href="glossary.html#agx">AgX</a></li>
+              <li><a class="chip" href="glossary.html#colour-grading">colour grading</a></li>
+              <li><a class="chip" href="glossary.html#white-balance">white balance</a></li>
+              <li><a class="chip" href="glossary.html#lut">LUT</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="9.2"></a> deals with the jagged edges and shimmer that remain in the frame, and the temporal techniques most games now use to remove them.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Erik Reinhard, Michael Stark, Peter Shirley and James Ferwerda, <a href="https://www.cs.utah.edu/docs/techreports/2002/pdf/UUCS-02-001.pdf">Photographic Tone Reproduction for Digital Images</a>, University of Utah technical report UUCS-02-001, 2002; published at SIGGRAPH 2002.</li>
+              <li>Academy of Motion Picture Arts and Sciences, <a href="https://docs.acescentral.com/">ACES documentation</a> and <a href="https://docs.acescentral.com/background/about-aces-2/">About ACES 2</a>.</li>
+              <li>Krzysztof Narkowicz, <a href="https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/">ACES Filmic Tone Mapping Curve</a>, 2016; Stephen Hill's fit as published in Matt Pettineo's <a href="https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl">BakingLab ACES.hlsl</a>.</li>
+              <li>Benjamin Wrensch, <a href="https://iolite-engine.com/blog_posts/minimal_agx_implementation">Minimal AgX Implementation</a>, after Troy Sobotka's AgX; Blender <a href="https://docs.blender.org/manual/en/4.5/render/color_management.html">Color Management</a> manual and <a href="https://developer.blender.org/docs/release_notes/4.0/color_management/">Blender 4.0 colour management release notes</a>.</li>
+              <li><a href="https://en.wikipedia.org/wiki/Orders_of_magnitude_(luminance)">Orders of magnitude (luminance)</a>, Wikipedia, for the real-world luminance values.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/auto-exposure-in-unreal-engine?application_version=5.8">Auto Exposure</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/color-grading-and-the-filmic-tonemapper-in-unreal-engine?application_version=5.8">Color Grading and the Filmic Tonemapper</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/using-lookup-tables-for-color-grading-in-unreal-engine?application_version=5.8">Using Lookup Tables for Color Grading</a>.</li>
+              <li>Unity 6.6 documentation: URP <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/tonemapping">Tonemapping</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/post-processing-and-full-screen-effects/urp/effect-list/color-adjustments">Color Adjustments</a>, <a href="https://docs.unity.com/en-us/engine/current/manual/render-pipelines/universal-render-pipeline/urp-reference/universalrp-asset">URP Asset</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>; HDRP 17.6 <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-override-exposure.html">Exposure override</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Post-Processing-Tonemapping.html">Tonemapping</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Physical-Light-Units.html">Physical light units</a>.</li>
+              <li>Godot 4.7 documentation: <a href="https://docs.godotengine.org/en/4.7/classes/class_environment.html">Environment</a>, <a href="https://docs.godotengine.org/en/4.7/classes/class_cameraattributes.html">CameraAttributes</a> and <a href="https://docs.godotengine.org/en/4.7/classes/class_cameraattributespractical.html">CameraAttributesPractical</a>.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/courtyard-gl.js"></script>
+  <script src="assets/demos/courtyard-shaders.js"></script>
+  <script src="assets/demos/courtyard.js"></script>
+  <script src="assets/demos/tone-curve-lab.js"></script>
+</body>
+</html>

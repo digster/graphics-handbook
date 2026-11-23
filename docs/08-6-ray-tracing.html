@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>8.6 Ray tracing · Graphics Handbook</title>
+  <meta name="description" content="How GPUs trace rays against the real scene: rays, triangle tests, bounding volume hierarchies, BLAS and TLAS, DXR and Vulkan ray tracing, RT cores, hybrid rendering and ray budgets, with what they cost and how they break.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="8.6">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <h1><span class="ch-num">8.6</span> Ray tracing</h1>
+            <p class="lead">Ray tracing asks the scene itself, not the screen, what lies in a given direction. GPUs now answer that question in hardware by walking a tree of boxes wrapped around the triangles. This chapter shows how the tree works, what it costs to keep it up to date as things move, and why games still draw the picture with rasterization and spend about one ray per pixel on each effect.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="4.4">4.4 Culling</a>, <a class="xref" data-ch="8.4">8.4 Screen-space tricks</a>, <a class="xref" data-ch="8.5">8.5 Real-time GI families</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="8.7">8.7 Path tracing and denoising</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 40 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>BVH traversal</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 380" role="img" aria-label="Side view of a camera looking down at a shiny floor point P. The camera's view covers only a wedge of the scene; everything else is off screen. Ray 1 goes from the camera through a pixel to P. Ray 2 goes from P towards a lamp and is blocked by an awning that is off screen, so P is in shadow. Ray 3 is P's reflection ray, which hits the underside of the same off-screen awning. Dashed boxes around the objects show how the GPU groups geometry so rays can skip whatever they miss.">
+                  <defs>
+                    <marker id="pic-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                  </defs>
+                  <polygon class="f-sunken" points="20,20 880,20 880,300 610,300 70,120 205,300 20,300"/>
+                  <line class="s-strong dash" x1="70" y1="120" x2="610" y2="300"/>
+                  <line class="s-strong dash" x1="70" y1="120" x2="205" y2="300"/>
+                  <text class="t-caps" x="560" y="96">OFF SCREEN</text>
+                  <text class="t-caps" x="476" y="292">ON SCREEN</text>
+
+                  <rect class="f-solid" x="20" y="300" width="860" height="18"/>
+                  <line class="s-ink w2" x1="20" y1="300" x2="880" y2="300"/>
+                  <ellipse class="f-paint-sky" cx="400" cy="300" rx="44" ry="4"/>
+
+                  <rect class="f-solid s-ink" x="255" y="258" width="50" height="42"/>
+                  <rect class="f-solid s-ink" x="780" y="70" width="80" height="230"/>
+                  <rect class="f-strong s-ink" x="440" y="118" width="340" height="14"/>
+                  <text class="t-small t-muted mid" x="610" y="112">awning</text>
+                  <text class="t-small t-muted mid" x="280" y="284">crate</text>
+
+                  <rect class="s-acc dash" x="248" y="251" width="64" height="53" rx="3" stroke-opacity="0.75"/>
+                  <rect class="s-acc dash" x="433" y="63" width="434" height="241" rx="3" stroke-opacity="0.75"/>
+                  <rect class="s-acc dash" x="240" y="56" width="634" height="254" rx="4" stroke-opacity="0.45"/>
+
+                  <g class="s-lit w15 round">
+                    <line x1="560" y1="24" x2="560" y2="18"/>
+                    <line x1="573" y1="40" x2="579" y2="40"/>
+                    <line x1="547" y1="40" x2="541" y2="40"/>
+                    <line x1="569" y1="31" x2="573" y2="27"/>
+                    <line x1="551" y1="31" x2="547" y2="27"/>
+                  </g>
+                  <circle class="f-lit" cx="560" cy="40" r="8"/>
+                  <text class="t-small t-lit t-strong" x="584" y="44">lamp</text>
+
+                  <polygon class="f-ink" points="70,120 44,102 52,134"/>
+                  <text class="t-small t-muted" x="22" y="96">camera</text>
+                  <line class="s-ink w3" x1="135" y1="141.7" x2="105" y2="166.7"/>
+                  <text class="t-small t-muted" x="80" y="190">screen</text>
+                  <circle class="f-acc" cx="125.1" cy="150" r="3.5"/>
+
+                  <line class="s-acc w2" x1="70" y1="120" x2="396" y2="297.8" marker-end="url(#pic-arr)"/>
+                  <line class="s-acc w2" x1="400" y1="300" x2="503.4" y2="132"/>
+                  <line class="s-acc dot-dash" x1="503.4" y1="132" x2="560" y2="40"/>
+                  <path class="s-pix w2" d="M497,126 L510,139 M510,126 L497,139"/>
+                  <line class="s-acc w2" x1="400" y1="300" x2="704" y2="134.2" marker-end="url(#pic-arr)"/>
+                  <circle class="f-surface s-acc w2" cx="708" cy="132" r="4.5"/>
+
+                  <circle class="f-acc" cx="400" cy="300" r="5.5"/>
+                  <text class="t-strong" x="378" y="290">P</text>
+
+                  <circle class="f-acc" cx="180" cy="180" r="9"/>
+                  <text class="t-on-acc t-strong t-small mid" x="180" y="184">1</text>
+                  <circle class="f-acc" cx="452" cy="215.5" r="9"/>
+                  <text class="t-on-acc t-strong t-small mid" x="452" y="219.5">2</text>
+                  <circle class="f-acc" cx="620" cy="180" r="9"/>
+                  <text class="t-on-acc t-strong t-small mid" x="620" y="184">3</text>
+
+                  <circle class="f-acc" cx="28" cy="341" r="8"/>
+                  <text class="t-on-acc t-strong t-small mid" x="28" y="345">1</text>
+                  <text class="t-small" x="42" y="345"><tspan class="t-strong">Camera ray:</tspan> what this pixel sees. Rasterization usually answers it instead.</text>
+                  <circle class="f-acc" cx="478" cy="341" r="8"/>
+                  <text class="t-on-acc t-strong t-small mid" x="478" y="345">2</text>
+                  <text class="t-small" x="492" y="345"><tspan class="t-strong">Shadow ray:</tspan> the off-screen awning blocks the lamp, so P is in shadow.</text>
+                  <circle class="f-acc" cx="28" cy="366" r="8"/>
+                  <text class="t-on-acc t-strong t-small mid" x="28" y="370">3</text>
+                  <text class="t-small" x="42" y="370"><tspan class="t-strong">Reflection ray:</tspan> P mirrors the awning's underside, which is not on screen.</text>
+                  <rect class="s-acc dash" x="470" y="360" width="16" height="11" rx="2"/>
+                  <text class="t-small" x="492" y="370"><tspan class="t-strong">Boxes</tspan> around objects let a ray skip everything inside one it misses.</text>
+                </svg>
+              </div>
+              <figcaption><b>Ray tracing asks the scene, not the screen.</b> A screen-space effect (8.4) could only reuse what the camera saw, the wedge between the dashed lines. A traced ray tests the real geometry, so it finds the off-screen awning both as the thing that shades P and as the thing P reflects. Boxes around the geometry are what make that affordable: a ray that misses a box skips everything inside it.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A <dfn class="term" data-term="ray">ray</dfn> is a question: starting here and looking in this direction, what is the first thing I meet? <dfn class="term" data-term="ray-tracing">Ray tracing</dfn> answers it by testing the ray against the scene's actual triangles. Ask it from a surface towards a light and you get a shadow. Ask it along the mirror direction and you get a reflection. Ask it in random directions and you gather bounced light.</p>
+            <p><a class="term" data-term="rasterization" href="glossary.html#rasterization">Rasterization</a> (5.3) works the other way round: it takes each triangle and finds the pixels it covers. That is extremely fast for the one question every frame must answer, what the camera sees, but it cannot ask about anything else. Everything since Part 7, shadow maps, reflection probes, screen-space tricks, has been a workaround for that. Ray tracing removes the need for most of those workarounds, at a price.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>To find one book in a big library you do not check every shelf. You go to the right floor, then the right room, then the right bookcase, and ignore everything else. A ray does the same with nested boxes: if it misses the box around the whole east wing of a level, it never looks at a single triangle inside it.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Screen-space effects (8.4) cannot see behind objects or past the screen edge. Shadow maps blur and alias. Probes are baked in the wrong place. Rays against the real geometry fix all three: correct contact shadows, reflections of things off screen, and bounced light from objects the camera cannot see.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Hardware ray tracing sets a hardware floor. Epic's requirements for it in Unreal are an NVIDIA RTX 2000 or AMD Radeon RX 6000 series GPU or newer on Windows, or a PlayStation 5, Xbox Series or Switch 2. Each traced effect costs milliseconds and needs a denoiser. And content decides much of the cost: how many objects move, how many are skinned, and how much alpha-tested foliage there is. Those are art and design decisions, not only engineering ones.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>A ray-traced effect is three problems stacked: test one ray against one triangle, avoid testing almost all of the triangles, and keep the structure that makes the second possible up to date while the game runs. Then the hardware, the APIs and the frame decide how many rays you can afford.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="ray"><span class="step-num">1</span> What a ray is, and the two answers it can want</h3>
+              <p>In the DirectX Raytracing specification a ray is an origin, a direction and a range of distances to search, from a minimum to a maximum. Every point on it is the origin plus some distance times the direction. The minimum is set a hair above zero so a ray leaving a surface does not hit that surface; the maximum stops a shadow ray at the light.</p>
+              <p>Effects want one of two answers. Reflections and bounced light need the <em>closest</em> hit, because that is what you would see. A shadow ray only needs to know whether <em>anything</em> is in the way, so it can stop at the first hit it finds, whichever that is. That shortcut makes shadow rays the cheapest kind.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: a ray from an origin O along a direction, with a search range from a small minimum distance to a maximum. It crosses a crate at distance 4 and a wall at distance 7. Right, top: a closest-hit ray finds three candidate hits in an arbitrary order and keeps the nearest. Right, bottom: an any-hit shadow ray towards a light stops at the first hit it finds.">
+                    <defs>
+                      <marker id="ry-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="22">A RAY: ORIGIN + DISTANCE × DIRECTION</text>
+                    <rect class="f-solid s-ink" x="196" y="86" width="44" height="68"/>
+                    <text class="t-small t-muted mid" x="218" y="172">crate</text>
+                    <rect class="f-solid s-ink" x="330" y="50" width="18" height="140"/>
+                    <text class="t-small t-muted mid" x="339" y="42">wall</text>
+                    <line class="s-acc w2" x1="40" y1="120" x2="196" y2="120"/>
+                    <line class="s-acc dot-dash" x1="196" y1="120" x2="412" y2="120" marker-end="url(#ry-arr)"/>
+                    <circle class="f-acc" cx="40" cy="120" r="5.5"/>
+                    <text class="t-strong" x="26" y="106">O</text>
+                    <circle class="f-surface s-acc w2" cx="196" cy="120" r="4.5"/>
+                    <circle class="f-surface s-acc w15" cx="330" cy="120" r="4"/>
+                    <line class="s-muted" x1="40" y1="226" x2="400" y2="226"/>
+                    <line class="s-muted" x1="40" y1="220" x2="40" y2="232"/>
+                    <line class="s-muted" x1="400" y1="220" x2="400" y2="232"/>
+                    <text class="t-mono t-small t-muted" x="40" y="244">t = 0</text>
+                    <text class="t-mono t-small t-muted end" x="400" y="244">tMax</text>
+                    <line class="s-ink" x1="196" y1="214" x2="196" y2="232"/>
+                    <text class="t-mono t-small mid" x="196" y="210">t = 4</text>
+                    <line class="s-ink" x1="330" y1="214" x2="330" y2="232"/>
+                    <text class="t-mono t-small mid" x="330" y="210">t = 7</text>
+                    <text class="t-small t-muted" x="58" y="72">tMin is just above 0, so the ray</text>
+                    <text class="t-small t-muted" x="58" y="86">does not hit the surface it left</text>
+
+                    <text class="t-caps" x="470" y="22">CLOSEST HIT · REFLECTIONS, BOUNCED LIGHT</text>
+                    <line class="s-acc w2" x1="480" y1="70" x2="860" y2="70"/>
+                    <circle class="f-acc" cx="480" cy="70" r="5"/>
+                    <circle class="f-surface s-muted w15" cx="700" cy="70" r="6"/>
+                    <text class="t-small t-muted mid" x="700" y="54">found 1st</text>
+                    <circle class="f-surface s-muted w15" cx="800" cy="70" r="6"/>
+                    <text class="t-small t-muted mid" x="800" y="54">found 2nd</text>
+                    <circle class="f-acc" cx="600" cy="70" r="7"/>
+                    <text class="t-small t-acc t-strong mid" x="600" y="54">found 3rd, nearest</text>
+                    <text class="t-small" x="480" y="98">Hits are found in whatever order the boxes are visited.</text>
+                    <text class="t-small" x="480" y="113">Each nearer hit shortens the search; the nearest is kept.</text>
+
+                    <text class="t-caps" x="470" y="152">ANY HIT · SHADOWS, AMBIENT OCCLUSION</text>
+                    <line class="s-acc w2" x1="480" y1="196" x2="700" y2="196"/>
+                    <line class="s-acc dot-dash" x1="700" y1="196" x2="840" y2="196"/>
+                    <circle class="f-acc" cx="480" cy="196" r="5"/>
+                    <circle class="f-lit" cx="850" cy="196" r="8"/>
+                    <text class="t-small t-lit t-strong mid" x="850" y="180">light</text>
+                    <circle class="f-acc" cx="700" cy="196" r="7"/>
+                    <text class="t-small t-acc t-strong mid" x="700" y="180">first hit: stop</text>
+                    <circle class="f-surface s-muted w15" cx="620" cy="196" r="6"/>
+                    <text class="t-small t-muted mid" x="620" y="180">never tested</text>
+                    <text class="t-small" x="480" y="226">The question is yes or no: is anything in the way?</text>
+                    <text class="t-small" x="480" y="241">Any hit answers it, so the search ends there.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Two questions, two costs.</b> A closest-hit ray must keep searching until no nearer hit can exist. An any-hit ray, the kind used for shadows and ambient occlusion, can end at the first hit, which is why AMD's performance guide tells developers to stop shadow rays after the first hit.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="triangle-test"><span class="step-num">2</span> Testing one ray against one triangle</h3>
+              <p>The basic operation is the <dfn class="term" data-term="ray-triangle-intersection">ray-triangle intersection</dfn> test. First, find where the ray crosses the flat plane the triangle lies in. Second, decide whether that point is inside the triangle. The second step uses the same <a class="term" data-term="barycentric-coordinates" href="glossary.html#barycentric-coordinates">barycentric coordinates</a> as rasterization (5.3): three weights, one per corner, that describe the point. If all three are zero or more, the point is inside. The widely used Möller–Trumbore method (1997) does both steps in a few dozen multiplications and additions, and the weights it produces are exactly what a hit shader needs to interpolate UVs and normals.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="A triangle with corners A, B and C lying in a shaded plane. Ray 1 crosses the plane at a point inside the triangle with weights 0.5, 0.3 and 0.2, all positive: a hit. Ray 2 crosses the plane outside the triangle, where the weight for A is negative: a miss. On the right, the cost of testing every triangle: one ray against a million triangles is a million tests, and one ray per pixel at 1080p against them is about two trillion tests per frame.">
+                    <polygon class="f-sunken" points="20,236 400,236 440,30 60,30" fill-opacity="0.8"/>
+                    <polygon class="f-geo-soft s-geo w2" points="80,200 330,220 230,50"/>
+                    <text class="t-strong t-geo" x="64" y="206">A</text>
+                    <text class="t-strong t-geo" x="336" y="230">B</text>
+                    <text class="t-strong t-geo" x="226" y="44">C</text>
+                    <text class="t-small t-muted" x="300" y="250">the triangle's plane</text>
+                    <line class="s-acc w2" x1="30" y1="40" x2="185" y2="176"/>
+                    <line class="s-acc dot-dash" x1="185" y1="176" x2="215" y2="202"/>
+                    <circle class="f-acc" cx="185" cy="176" r="5.5"/>
+                    <text class="t-small t-acc t-strong" x="22" y="34">ray 1</text>
+                    <text class="t-small t-acc t-strong" x="194" y="172">hit</text>
+                    <line class="s-muted w2" x1="300" y1="12" x2="330" y2="139"/>
+                    <line class="s-muted dot-dash" x1="330" y1="139" x2="338" y2="172"/>
+                    <circle class="f-surface s-pix w2" cx="330" cy="139" r="5"/>
+                    <text class="t-small t-muted t-strong" x="306" y="10">ray 2</text>
+                    <text class="t-small t-pix t-strong" x="342" y="136">miss</text>
+
+                    <text class="t-caps" x="470" y="26">IS THE CROSSING POINT INSIDE?</text>
+                    <text class="t-small" x="470" y="48">Ray 1 crosses at 0.5 A + 0.3 B + 0.2 C.</text>
+                    <text class="t-small t-acc t-strong" x="470" y="64">All three weights ≥ 0: inside, a hit.</text>
+                    <text class="t-small" x="470" y="86">Ray 2 crosses at −0.2 A + 0.7 B + 0.5 C.</text>
+                    <text class="t-small t-pix t-strong" x="470" y="102">One weight below 0: outside, a miss.</text>
+
+                    <text class="t-caps" x="470" y="140">TESTING EVERY TRIANGLE</text>
+                    <text class="t-small" x="470" y="162">One ray, a scene of 1,000,000 triangles:</text>
+                    <text class="t-strong" x="470" y="180">1,000,000 tests</text>
+                    <text class="t-small" x="470" y="202">One ray per pixel at 1080p (2,073,600 rays):</text>
+                    <text class="t-strong" x="470" y="220">about 2 × 10¹² tests, every frame</text>
+                    <text class="t-small t-muted" x="470" y="242">Far beyond any GPU. Step 3 removes almost all of them.</text>
+                  </svg>
+                </div>
+                <figcaption><b>One test is cheap; a scene's worth is not.</b> The weights that decide inside or outside are the barycentric coordinates from 5.3. The test itself is a few dozen arithmetic operations, but testing every triangle for every ray would cost trillions of them per frame.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="bvh"><span class="step-num">3</span> Skip most of the scene: the bounding volume hierarchy</h3>
+              <p>An <dfn class="term" data-term="acceleration-structure">acceleration structure</dfn> groups triangles so a ray can ignore most of them. The APIs leave its exact format to the GPU maker, and both NVIDIA's and AMD's hardware walk the same kind: a <dfn class="term" data-term="bvh">bounding volume hierarchy</dfn>, or BVH. It is a tree of boxes, the same axis-aligned <a class="term" data-term="bounding-volume" href="glossary.html#bounding-volume">bounding volumes</a> that culling uses (4.4). The root box holds everything. Each box holds two or more smaller boxes, and the smallest, the leaves, hold a few triangles each.</p>
+              <p>A ray first tests the root box. Where it enters a box, it tests that box's children; where it misses one, everything inside is skipped without a single triangle test. Only in leaves does it test triangles. For a closest hit there is one more saving: visit the nearer child first, and once a hit is found, skip any box that starts farther away than that hit.</p>
+              <figure>
+                <div class="demo" data-demo="bvh-traversal">
+                  <p class="demo-hint">The BVH traversal interactive needs JavaScript. It shows forty triangles inside nested boxes and a ray crossing them: by default the ray reaches its closest hit after 15 box tests and 11 triangle tests, where testing every triangle would take 40.</p>
+                </div>
+                <figcaption><b>BVH traversal.</b> Blue boxes are ones the ray entered; grey boxes were tested and missed, and everything inside them skipped; dashed boxes start beyond the closest hit already found. The tree on the right is the same set of boxes. Step through to see the order: box tests first, triangle tests only in the leaves the ray reaches.</figcaption>
+              </figure>
+              <ul>
+                <li>Press <strong>Restart</strong>, then <strong>Step</strong>: the ray tests the root, then both of its children, and goes down only one side of the tree.</li>
+                <li>Drag the start so the ray crosses empty space: two or three box tests, and no triangle tests at all, settle that it hits nothing.</li>
+                <li>Switch to <strong>Any hit (shadow ray)</strong>. The aim point becomes a light, and the search stops at the first triangle in the way, or at the light.</li>
+              </ul>
+              <p>The demo splits each box's triangles at the middle. Production builders choose splits with the surface area heuristic, which estimates how likely a ray is to enter each child from the child's surface area and picks the split with the lowest expected cost. Either way the payoff is the depth of the tree: each level roughly halves what is left, so a million triangles sit about 20 levels below the root, because 2<sup>20</sup> is about a million. A ray makes tens of box tests and a handful of triangle tests instead of a million triangle tests.</p>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> Testing a ray against a box</summary>
+                <div class="fold-body">
+                  <p>An axis-aligned box is the overlap of three slabs, one per axis, each between two parallel planes. For each axis, the ray enters its slab at one distance and leaves at another:</p>
+                  <p class="formula">t<sub>near</sub> = max over x, y, z of the slab entry distances,&nbsp;&nbsp; t<sub>far</sub> = min of the exit distances</p>
+                  <p>The ray hits the box if t<sub>near</sub> ≤ t<sub>far</sub> and the range overlaps the ray's own search range. That is six subtractions and multiplications and a few comparisons, cheaper than a triangle test, which is why the tree spends box tests to save triangle tests.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="blas-tlas"><span class="step-num">4</span> Two levels: one tree per mesh, one tree over the scene</h3>
+              <p>One BVH for a whole level would have to be rebuilt every time anything moved. So the APIs split it in two. A <dfn class="term" data-term="blas">bottom-level acceleration structure</dfn>, or BLAS, is a BVH over one mesh's triangles, built in the mesh's own coordinate space. A <dfn class="term" data-term="tlas">top-level acceleration structure</dfn>, or TLAS, is a BVH over instances: each entry points at a BLAS and stores that instance's <a class="term" data-term="transform" href="glossary.html#transform">transform</a>, an ID and a mask that lets rays include or ignore it. Microsoft announced DirectX Raytracing in 2018 with exactly this two-level design.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 346" role="img" aria-label="Top: the TLAS, a tree whose leaves are seven instances: four crates, a character, a lantern and a level chunk. Each instance stores a transform and points down to a BLAS. Bottom: three BLAS, one per mesh: a crate mesh of 12 triangles shared by all four crates, a character mesh refitted every frame, and a static level chunk built once.">
+                    <defs>
+                      <marker id="bt-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-geo" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">TLAS · ONE FOR THE SCENE, OVER INSTANCES, REBUILT EVERY FRAME</text>
+                    <rect class="f-acc-soft s-acc w15" x="430" y="32" width="40" height="18" rx="3"/>
+                    <rect class="f-acc-soft s-acc" x="250" y="66" width="34" height="16" rx="3"/>
+                    <rect class="f-acc-soft s-acc" x="616" y="66" width="34" height="16" rx="3"/>
+                    <line class="s-acc" x1="450" y1="50" x2="267" y2="66"/>
+                    <line class="s-acc" x1="450" y1="50" x2="633" y2="66"/>
+                    <g class="s-acc">
+                      <line x1="267" y1="82" x2="76" y2="104"/><line x1="267" y1="82" x2="188" y2="104"/><line x1="267" y1="82" x2="300" y2="104"/><line x1="267" y1="82" x2="412" y2="104"/>
+                      <line x1="633" y1="82" x2="524" y2="104"/><line x1="633" y1="82" x2="636" y2="104"/><line x1="633" y1="82" x2="770" y2="104"/>
+                    </g>
+                    <rect class="f-surface s-strong" x="30" y="104" width="92" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="40" y="122">crate 1</text>
+                    <text class="t-small t-muted" x="40" y="138">transform, ID</text>
+                    <rect class="f-surface s-strong" x="142" y="104" width="92" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="152" y="122">crate 2</text>
+                    <text class="t-small t-muted" x="152" y="138">transform, ID</text>
+                    <rect class="f-surface s-strong" x="254" y="104" width="92" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="264" y="122">crate 3</text>
+                    <text class="t-small t-muted" x="264" y="138">transform, ID</text>
+                    <rect class="f-surface s-strong" x="366" y="104" width="92" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="376" y="122">crate 4</text>
+                    <text class="t-small t-muted" x="376" y="138">transform, ID</text>
+                    <rect class="f-surface s-strong" x="478" y="104" width="92" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="488" y="122">character</text>
+                    <text class="t-small t-muted" x="488" y="138">transform, ID</text>
+                    <rect class="f-surface s-strong" x="590" y="104" width="92" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="600" y="122">lantern</text>
+                    <text class="t-small t-muted" x="600" y="138">transform, ID</text>
+                    <rect class="f-surface s-strong" x="702" y="104" width="136" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="712" y="122">level chunk</text>
+                    <text class="t-small t-muted" x="712" y="138">transform, ID, mask</text>
+
+                    <g class="s-geo w15">
+                      <line x1="76" y1="148" x2="150" y2="214" marker-end="url(#bt-arr)"/>
+                      <line x1="188" y1="148" x2="166" y2="214" marker-end="url(#bt-arr)"/>
+                      <line x1="300" y1="148" x2="184" y2="214" marker-end="url(#bt-arr)"/>
+                      <line x1="412" y1="148" x2="200" y2="214" marker-end="url(#bt-arr)"/>
+                      <line x1="524" y1="148" x2="470" y2="214" marker-end="url(#bt-arr)"/>
+                      <line x1="636" y1="148" x2="560" y2="214" marker-end="url(#bt-arr)"/>
+                      <line x1="770" y1="148" x2="740" y2="214" marker-end="url(#bt-arr)"/>
+                    </g>
+
+                    <text class="t-caps" x="20" y="338">BLAS · ONE PER MESH, IN THE MESH'S OWN SPACE</text>
+                    <rect class="f-geo-soft s-geo w15" x="96" y="218" width="160" height="96" rx="6"/>
+                    <text class="t-small t-strong" x="108" y="236">crate mesh</text>
+                    <text class="t-small t-muted" x="108" y="252">12 triangles</text>
+                    <text class="t-small t-geo t-strong" x="108" y="300">shared by all four</text>
+                    <rect class="s-geo dash" x="196" y="244" width="48" height="40" rx="2"/>
+                    <polygon class="f-geo-soft s-geo" points="200,280 240,280 240,248"/>
+                    <polygon class="f-geo-soft s-geo" points="200,280 200,248 240,248"/>
+
+                    <rect class="f-geo-soft s-geo w15" x="370" y="218" width="230" height="96" rx="6"/>
+                    <text class="t-small t-strong" x="382" y="236">character mesh (skinned)</text>
+                    <text class="t-small t-muted" x="382" y="252">for example, 40,000 triangles</text>
+                    <text class="t-small t-geo t-strong" x="382" y="300">vertices move: refit every frame</text>
+                    <rect class="s-geo dash" x="540" y="232" width="48" height="74" rx="2"/>
+                    <rect class="s-geo dash" x="546" y="238" width="36" height="28" rx="2"/>
+                    <rect class="s-geo dash" x="546" y="270" width="36" height="30" rx="2"/>
+
+                    <rect class="f-geo-soft s-geo w15" x="640" y="218" width="240" height="96" rx="6"/>
+                    <text class="t-small t-strong" x="652" y="236">level chunk (static)</text>
+                    <text class="t-small t-muted" x="652" y="252">for example, 500,000 triangles</text>
+                    <text class="t-small t-geo t-strong" x="652" y="300">built once, tuned for fast tracing</text>
+                    <rect class="s-geo dash" x="812" y="232" width="58" height="74" rx="2"/>
+                    <rect class="s-geo dash" x="816" y="236" width="24" height="32" rx="2"/>
+                    <rect class="s-geo dash" x="842" y="236" width="24" height="32" rx="2"/>
+                    <rect class="s-geo dash" x="816" y="272" width="50" height="30" rx="2"/>
+                  </svg>
+                </div>
+                <figcaption><b>The TLAS holds instances; each BLAS holds one mesh's triangles.</b> A ray walks the TLAS, and on reaching an instance it is moved into that mesh's own space with the inverse transform and continues through the BLAS. Four crates share one BLAS, the same saving <a class="term" data-term="instancing" href="glossary.html#instancing">instancing</a> gives drawing (4.3). The DXR specification allows up to 2<sup>24</sup> (about 16.8 million) instances in one TLAS.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="refit"><span class="step-num">5</span> When things move: update the instance, refit, or rebuild</h3>
+              <p>Keeping the structures current is the part of ray tracing that rasterization never had to pay for. What has to change depends on how an object moves:</p>
+              <ul>
+                <li><strong>It moves as a whole</strong>, like a pushed crate or a car. Its BLAS is untouched; only its transform in the TLAS changes. Engines rebuild the TLAS every frame, and Epic notes that cost grows mostly with the number of instances.</li>
+                <li><strong>Its vertices move</strong>, like a <a class="term" data-term="skinned-mesh" href="glossary.html#skinned-mesh">skinned</a> character or a flag. The BLAS must follow. The cheap option is a <dfn class="term" data-term="bvh-refit">refit</dfn>: keep the same tree and grow each box bottom-up to fit the new vertex positions. DXR calls this an update, and allows it only if the BLAS was built to allow updates and only vertex positions changed.</li>
+                <li><strong>It changes a lot</strong>. Refitting keeps the old grouping, so triangles that have moved apart leave boxes stretched and overlapping, and rays enter more of them. The DXR specification warns that updates are faster than a full build but can lower ray tracing performance, especially if the geometry has moved far from where it was built. The fix is a rebuild: a new tree from scratch.</li>
+              </ul>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Three panels. Left: a crate that moves as a whole keeps its BLAS; only the transform in its TLAS instance changes. Middle: four triangles in two leaf boxes; after a small deformation the refit keeps the same two groups and slightly enlarges both boxes. Right: after a large change the refitted boxes stretch across each other and overlap, while a rebuild regroups the triangles into two tight boxes.">
+                    <defs>
+                      <marker id="rf-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">MOVES AS A WHOLE</text>
+                    <rect class="f-solid s-ink" x="40" y="70" width="50" height="50"/>
+                    <rect class="f-solid s-ink" x="170" y="50" width="50" height="50" transform="rotate(12 195 75)"/>
+                    <line class="s-muted w15" x1="100" y1="92" x2="156" y2="82" marker-end="url(#rf-arr)"/>
+                    <rect class="f-acc-soft s-acc" x="30" y="150" width="230" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="42" y="168">TLAS instance: new transform</text>
+                    <text class="t-small t-muted" x="42" y="184">the TLAS is rebuilt every frame anyway</text>
+                    <rect class="f-geo-soft s-geo" x="30" y="206" width="230" height="44" rx="5"/>
+                    <text class="t-small t-strong" x="42" y="224">BLAS: unchanged</text>
+                    <text class="t-small t-muted" x="42" y="240">no work for the mesh at all</text>
+                    <text class="t-small t-acc t-strong" x="30" y="276">cost: one instance in the TLAS</text>
+
+                    <text class="t-caps" x="320" y="20">BENDS A LITTLE: REFIT</text>
+                    <text class="t-small t-muted" x="320" y="42">before</text>
+                    <rect class="s-geo dash" x="322" y="52" width="72" height="62" rx="2"/>
+                    <rect class="s-geo dash" x="400" y="52" width="72" height="62" rx="2"/>
+                    <polygon class="f-geo-soft s-geo" points="328,108 360,108 344,60"/>
+                    <polygon class="f-geo-soft s-geo" points="362,108 390,98 374,58"/>
+                    <polygon class="f-geo-soft s-geo" points="404,108 436,108 420,58"/>
+                    <polygon class="f-geo-soft s-geo" points="438,100 468,108 454,60"/>
+                    <text class="t-small t-muted" x="320" y="146">after: same two groups, boxes regrown</text>
+                    <rect class="s-acc w15" x="322" y="154" width="80" height="72" rx="2"/>
+                    <rect class="s-acc w15" x="404" y="156" width="74" height="70" rx="2"/>
+                    <polygon class="f-geo-soft s-geo" points="328,220 360,220 344,172"/>
+                    <polygon class="f-geo-soft s-geo" points="366,206 396,192 372,160"/>
+                    <polygon class="f-geo-soft s-geo" points="410,220 442,220 426,170"/>
+                    <polygon class="f-geo-soft s-geo" points="444,212 474,220 460,162"/>
+                    <text class="t-small t-acc t-strong" x="320" y="250">fast: no new tree, just new box sizes</text>
+                    <text class="t-small t-muted" x="320" y="266">fine while the mesh keeps its shape,</text>
+                    <text class="t-small t-muted" x="320" y="281">as a walking character mostly does</text>
+
+                    <text class="t-caps" x="600" y="20">CHANGES A LOT: REBUILD</text>
+                    <text class="t-small t-muted" x="600" y="42">refit only: groups no longer fit</text>
+                    <rect class="s-pix w15 dash" x="602" y="52" width="268" height="62" rx="2"/>
+                    <rect class="s-pix w15 dash" x="610" y="58" width="252" height="50" rx="2"/>
+                    <polygon class="f-geo-soft s-geo" points="614,104 646,104 630,62"/>
+                    <polygon class="f-geo-soft s-geo" points="824,104 856,104 840,62"/>
+                    <polygon class="f-geo-soft s-geo" points="650,104 680,96 666,62"/>
+                    <polygon class="f-geo-soft s-geo" points="786,98 816,104 802,62"/>
+                    <text class="t-small t-pix" x="600" y="132">both boxes span everything: rays enter both</text>
+                    <text class="t-small t-muted" x="600" y="160">rebuilt: triangles regrouped by where they are now</text>
+                    <rect class="s-acc w15" x="606" y="170" width="80" height="54" rx="2"/>
+                    <rect class="s-acc w15" x="780" y="170" width="82" height="54" rx="2"/>
+                    <polygon class="f-geo-soft s-geo" points="614,218 646,218 630,176"/>
+                    <polygon class="f-geo-soft s-geo" points="650,218 680,210 666,176"/>
+                    <polygon class="f-geo-soft s-geo" points="786,212 816,218 802,176"/>
+                    <polygon class="f-geo-soft s-geo" points="824,218 856,218 840,176"/>
+                    <text class="t-small t-acc t-strong" x="600" y="250">slower to build, faster to trace</text>
+                    <text class="t-small t-muted" x="600" y="266">engines rebuild deforming meshes now and</text>
+                    <text class="t-small t-muted" x="600" y="281">then, or every frame when they must</text>
+                  </svg>
+                </div>
+                <figcaption><b>Three costs for three kinds of motion.</b> Rigid motion touches only the TLAS. Deformation needs a refit, which keeps the tree and grows its boxes. When triangles end up far from their old neighbours, the refitted boxes overlap and every ray pays for it, until a rebuild regroups them.</figcaption>
+              </figure>
+              <p>The same trade appears when building. DXR offers a build flag that prefers fast tracing, which the specification recommends for static geometry and expects to take roughly two to three times as long to build, and one that prefers fast building, roughly a half to a third of the default build time, for geometry rebuilt every frame. Unity's per-renderer Ray Tracing Mode exposes the same choices to artists: Static, Dynamic Transform (rigid motion), and Dynamic Geometry (vertices move). Getting that setting right per object is a content task that directly changes the frame time.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="apis"><span class="step-num">6</span> The APIs: ray tracing shaders, or a ray query in any shader</h3>
+              <p><dfn class="term" data-term="dxr">DXR</dfn>, DirectX Raytracing, was announced by Microsoft in March 2018 as part of <a class="term" data-term="directx-12" href="glossary.html#directx-12">DirectX 12</a>. <dfn class="term" data-term="vulkan-ray-tracing">Vulkan ray tracing</dfn> followed as final Khronos extensions in November 2020: one for acceleration structures, one for ray tracing pipelines and one for ray queries. Both offer the same two ways to trace.</p>
+              <p>The first is a ray tracing pipeline. A ray generation shader launches rays; the hardware walks the acceleration structure; and the API calls back small shaders you supply: an any-hit shader for candidate hits, which can reject them, for example where a leaf texture is transparent; a closest-hit shader to shade the nearest hit; and a miss shader for rays that hit nothing, which usually returns the sky. A table, the shader binding table, says which shaders belong to which object.</p>
+              <p>The second is <dfn class="term" data-term="inline-ray-tracing">inline ray tracing</dfn>, added in DXR tier 1.1 and available in Vulkan as ray queries. Any shader, including a <a class="term" data-term="compute-shader" href="glossary.html#compute-shader">compute shader</a> or a pixel shader, can trace a ray and handle the result in its own code, with no separate shaders. The DXR specification gives the simplest case: an opaque, triangles-only shadow ray that ends at the first hit, which the system can run very efficiently. It also warns that inline ray tracing with many materials depends heavily on how alike neighbouring rays are, which is the subject of step 8.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="Left, the ray tracing pipeline: a ray generation shader calls trace ray; fixed-function traversal walks the acceleration structure and calls an any-hit shader for candidates, then a closest-hit shader or a miss shader, and the result returns to the ray generation shader. Right, inline ray tracing: one compute or pixel shader starts a ray query, loops while the hardware traverses, and reads the committed hit itself.">
+                    <defs>
+                      <marker id="ap-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">RAY TRACING PIPELINE · DXR 1.0, VULKAN PIPELINES</text>
+                    <rect class="f-surface s-strong" x="20" y="40" width="130" height="48" rx="6"/>
+                    <text class="t-small t-strong" x="32" y="60">ray generation</text>
+                    <text class="t-small t-muted" x="32" y="76">shader: TraceRay()</text>
+                    <rect class="f-acc-soft s-acc w15" x="190" y="40" width="150" height="48" rx="6"/>
+                    <text class="t-small t-strong" x="202" y="60">traversal</text>
+                    <text class="t-small t-muted" x="202" y="76">fixed function, hardware</text>
+                    <line class="s-muted" x1="152" y1="64" x2="186" y2="64" marker-end="url(#ap-arr)"/>
+                    <rect class="f-surface s-strong" x="190" y="112" width="150" height="40" rx="6"/>
+                    <text class="t-small t-strong" x="202" y="130">any-hit shader</text>
+                    <text class="t-small t-muted" x="202" y="145">accept or ignore a candidate</text>
+                    <line class="s-muted" x1="250" y1="90" x2="250" y2="108" marker-end="url(#ap-arr)"/>
+                    <line class="s-muted" x1="280" y1="110" x2="280" y2="92" marker-end="url(#ap-arr)"/>
+                    <rect class="f-surface s-strong" x="380" y="30" width="130" height="40" rx="6"/>
+                    <text class="t-small t-strong" x="392" y="48">closest-hit shader</text>
+                    <text class="t-small t-muted" x="392" y="63">shade the nearest hit</text>
+                    <rect class="f-surface s-strong" x="380" y="80" width="130" height="40" rx="6"/>
+                    <text class="t-small t-strong" x="392" y="98">miss shader</text>
+                    <text class="t-small t-muted" x="392" y="113">nothing hit: sky</text>
+                    <line class="s-muted" x1="342" y1="56" x2="376" y2="50" marker-end="url(#ap-arr)"/>
+                    <line class="s-muted" x1="342" y1="72" x2="376" y2="98" marker-end="url(#ap-arr)"/>
+                    <path class="s-muted dash" d="M445,122 V180 H85 V92" marker-end="url(#ap-arr)"/>
+                    <text class="t-small t-muted" x="96" y="174">the result returns to the ray generation shader</text>
+                    <text class="t-small" x="20" y="208">Hit shaders per material, chosen through the shader binding table.</text>
+
+                    <text class="t-caps" x="570" y="20">INLINE · DXR 1.1 RAYQUERY, VULKAN RAY QUERIES</text>
+                    <rect class="f-surface s-strong" x="570" y="40" width="310" height="132" rx="6"/>
+                    <text class="t-small t-strong" x="584" y="60">any shader: compute, pixel, vertex…</text>
+                    <text class="t-mono t-small" x="598" y="84">q.TraceRayInline(…)</text>
+                    <text class="t-mono t-small" x="598" y="104">while (q.Proceed()) { … }</text>
+                    <text class="t-mono t-small" x="598" y="124">if (q.CommittedStatus() …)</text>
+                    <rect class="f-acc-soft s-acc w15" x="776" y="130" width="94" height="22" rx="4"/>
+                    <text class="t-small mid" x="823" y="145">traversal</text>
+                    <path class="s-acc dot-dash" d="M760,100 H823 V128"/>
+                    <text class="t-small t-muted" x="584" y="160">the shader handles the hit itself</text>
+                    <text class="t-small" x="570" y="196">Simplest for shadows and AO: opaque geometry,</text>
+                    <text class="t-small" x="570" y="212">first hit, no material shaders to call.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Same acceleration structures, two ways to trace.</b> Pipelines suit effects that need each material's own shading at the hit, such as sharp reflections. Inline queries suit visibility questions, such as shadows and ambient occlusion, and effects that read lighting at the hit from a cache instead of running each material's shader.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Both APIs also support custom geometry tested by an intersection shader (spheres, hair curves), callable shaders, recursion limits and payload sizes. DXR tier 1.2 adds opacity micromaps, which mark parts of a triangle as opaque or transparent so fewer any-hit shaders run, and shader execution reordering, which lets the GPU regroup rays by what they hit. Engines handle these; what a lead needs is the pipeline-or-inline distinction and its effect on cost.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="rt-cores"><span class="step-num">7</span> The hardware: RT cores and ray accelerators</h3>
+              <p>Walking a BVH in ordinary shader code is slow: each step loads a node, tests boxes, decides where to go next, and waits on memory. NVIDIA's Turing GPUs (GeForce RTX 20 series, 2018) added <dfn class="term" data-term="rt-cores">RT cores</dfn>, fixed-function units beside each group of shader cores that do BVH traversal and ray-triangle tests. AMD's RDNA 2 GPUs, the generation in PlayStation 5 and Xbox Series, add a ray accelerator to each compute unit, which tests a ray against four boxes or one triangle per clock; there, the traversal loop itself still runs as shader code.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Left: a table of who does each part of a ray's work. Generating the ray and shading the hit are shader code on every GPU. Testing boxes and triangles is in hardware on NVIDIA RTX and AMD RDNA 2. Walking the tree is hardware on NVIDIA and shader code on AMD RDNA 2. On a GPU without ray tracing hardware, everything is shader code. Right: one Quake II RTX frame took 202 milliseconds on a GTX 1080 Ti, 97 milliseconds on an RTX 2080 with its RT cores unused, and 29 milliseconds with them on.">
+                    <text class="t-caps" x="20" y="20">WHO DOES EACH PART OF A RAY'S WORK</text>
+                    <text class="t-small t-muted" x="190" y="44">no RT hardware</text>
+                    <text class="t-small t-muted" x="290" y="44">NVIDIA RTX</text>
+                    <text class="t-small t-muted" x="384" y="44">AMD RDNA 2</text>
+                    <text class="t-small" x="20" y="72">Generate the ray</text>
+                    <text class="t-small" x="20" y="108">Walk the tree</text>
+                    <text class="t-small" x="20" y="144">Test boxes, triangles</text>
+                    <text class="t-small" x="20" y="180">Shade the hit</text>
+                    <rect class="f-surface s-strong" x="186" y="56" width="88" height="26" rx="4"/><text class="t-small mid" x="230" y="73">shader</text>
+                    <rect class="f-surface s-strong" x="282" y="56" width="88" height="26" rx="4"/><text class="t-small mid" x="326" y="73">shader</text>
+                    <rect class="f-surface s-strong" x="378" y="56" width="88" height="26" rx="4"/><text class="t-small mid" x="422" y="73">shader</text>
+                    <rect class="f-surface s-strong" x="186" y="92" width="88" height="26" rx="4"/><text class="t-small mid" x="230" y="109">shader</text>
+                    <rect class="f-acc-soft s-acc w15" x="282" y="92" width="88" height="26" rx="4"/><text class="t-small t-acc t-strong mid" x="326" y="109">RT core</text>
+                    <rect class="f-surface s-strong" x="378" y="92" width="88" height="26" rx="4"/><text class="t-small mid" x="422" y="109">shader</text>
+                    <rect class="f-surface s-strong" x="186" y="128" width="88" height="26" rx="4"/><text class="t-small mid" x="230" y="145">shader</text>
+                    <rect class="f-acc-soft s-acc w15" x="282" y="128" width="88" height="26" rx="4"/><text class="t-small t-acc t-strong mid" x="326" y="145">RT core</text>
+                    <rect class="f-acc-soft s-acc w15" x="378" y="128" width="88" height="26" rx="4"/><text class="t-small t-acc t-strong mid" x="422" y="145">ray accel.</text>
+                    <rect class="f-surface s-strong" x="186" y="164" width="88" height="26" rx="4"/><text class="t-small mid" x="230" y="181">shader</text>
+                    <rect class="f-surface s-strong" x="282" y="164" width="88" height="26" rx="4"/><text class="t-small mid" x="326" y="181">shader</text>
+                    <rect class="f-surface s-strong" x="378" y="164" width="88" height="26" rx="4"/><text class="t-small mid" x="422" y="181">shader</text>
+                    <text class="t-small t-muted" x="20" y="216">In shader code alone, NVIDIA counts many thousands of</text>
+                    <text class="t-small t-muted" x="20" y="231">instruction slots per ray. It quoted 10 gigarays a second for</text>
+                    <text class="t-small t-muted" x="20" y="246">Turing's RT cores: tracing alone, before any shading.</text>
+
+                    <text class="t-caps" x="520" y="20">ONE QUAKE II RTX FRAME, PATH TRACED</text>
+                    <text class="t-small" x="520" y="54">GTX 1080 Ti (Pascal), shader code only</text>
+                    <rect class="f-surface s-strong" x="520" y="62" width="300" height="24" rx="3"/>
+                    <text class="t-small t-strong" x="826" y="79">202 ms</text>
+                    <text class="t-small" x="520" y="114">RTX 2080, RT cores not used</text>
+                    <rect class="f-surface s-strong" x="520" y="122" width="144.1" height="24" rx="3"/>
+                    <text class="t-small t-strong" x="670" y="139">97 ms</text>
+                    <text class="t-small" x="520" y="174">RTX 2080, RT cores on</text>
+                    <rect class="f-acc s-acc" x="520" y="182" width="43.1" height="24" rx="3"/>
+                    <text class="t-small t-acc t-strong" x="569" y="199">29 ms</text>
+                    <text class="t-small t-muted" x="520" y="232">Bars to scale. NVIDIA's figures, Hot Chips 2019:</text>
+                    <text class="t-small t-muted" x="520" y="247">about 7× faster than the previous generation.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Fixed-function hardware for the inner loop.</b> The parts of a ray's work that are the same for every game, walking the tree and testing boxes and triangles, moved into hardware. Generating rays and shading hits stay in shaders, so a scene with expensive materials at the hits is still expensive, whatever the RT hardware.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="coherence"><span class="step-num">8</span> Coherence and divergence: why some rays cost more</h3>
+              <p>GPUs run shaders in <a class="term" data-term="warp" href="glossary.html#warp">warps</a> of 32 or 64 lanes that execute the same instruction together (3.5). <dfn class="term" data-term="ray-coherence">Coherence</dfn> is how alike neighbouring rays are. Shadow rays from neighbouring pixels to the same light start close together and point the same way, so they visit the same boxes, which stay in the cache, and finish at about the same time. Reflection rays from a rough floor scatter: they visit different parts of the tree, miss the cache, and hit different materials. That is <dfn class="term" data-term="ray-divergence">divergence</dfn>, and it costs twice: in memory traffic during traversal, and in shading, where a warp runs each material's shader in turn while lanes that need a different one wait.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Left: eight shadow rays from eight neighbouring pixels on a floor all head to the same light, through the same two boxes. Below, one row of eight lanes, all busy running one shader. Right: eight reflection rays from neighbouring pixels on a rough floor scatter in different directions and hit a red wall, a crate and the sky. Below, three rows of eight lanes: the warp runs the wall shader with three lanes busy, the crate shader with two, and the sky shader with three, the rest idle each time.">
+                    <text class="t-caps" x="20" y="20">COHERENT · SHADOW RAYS TO ONE LIGHT</text>
+                    <circle class="f-lit" cx="230" cy="44" r="9"/>
+                    <rect class="s-acc dash" x="150" y="78" width="110" height="56" rx="3"/>
+                    <rect class="s-acc dash" x="120" y="140" width="120" height="44" rx="3"/>
+                    <line class="s-ink w2" x1="40" y1="200" x2="300" y2="200"/>
+                    <g class="s-acc w15">
+                      <line x1="70" y1="200" x2="228" y2="52"/><line x1="86" y1="200" x2="228" y2="52"/><line x1="102" y1="200" x2="229" y2="52"/><line x1="118" y1="200" x2="229" y2="52"/>
+                      <line x1="134" y1="200" x2="230" y2="52"/><line x1="150" y1="200" x2="230" y2="52"/><line x1="166" y1="200" x2="231" y2="52"/><line x1="182" y1="200" x2="231" y2="52"/>
+                    </g>
+                    <text class="t-small t-muted" x="190" y="214">8 neighbouring pixels</text>
+                    <text class="t-small" x="20" y="240">one shader, all 8 lanes busy</text>
+                    <g class="f-acc">
+                      <rect x="20" y="250" width="16" height="16" rx="2"/><rect x="40" y="250" width="16" height="16" rx="2"/><rect x="60" y="250" width="16" height="16" rx="2"/><rect x="80" y="250" width="16" height="16" rx="2"/>
+                      <rect x="100" y="250" width="16" height="16" rx="2"/><rect x="120" y="250" width="16" height="16" rx="2"/><rect x="140" y="250" width="16" height="16" rx="2"/><rect x="160" y="250" width="16" height="16" rx="2"/>
+                    </g>
+                    <text class="t-small t-acc t-strong" x="186" y="263">1 pass</text>
+
+                    <text class="t-caps" x="470" y="20">DIVERGENT · REFLECTIONS FROM A ROUGH FLOOR</text>
+                    <rect class="f-paint-red s-ink" x="470" y="40" width="24" height="160"/>
+                    <rect class="f-solid s-ink" x="790" y="120" width="60" height="80"/>
+                    <line class="s-ink w2" x1="470" y1="200" x2="880" y2="200"/>
+                    <g class="s-acc w15">
+                      <line x1="600" y1="200" x2="494" y2="96"/>
+                      <line x1="616" y1="200" x2="720" y2="40"/>
+                      <line x1="632" y1="200" x2="494" y2="140"/>
+                      <line x1="648" y1="200" x2="790" y2="150"/>
+                      <line x1="664" y1="200" x2="600" y2="40"/>
+                      <line x1="680" y1="200" x2="790" y2="176"/>
+                      <line x1="696" y1="200" x2="494" y2="60"/>
+                      <line x1="712" y1="200" x2="860" y2="40"/>
+                    </g>
+                    <text class="t-small t-muted" x="602" y="214">8 neighbouring pixels</text>
+                    <text class="t-small t-muted" x="808" y="114">crate</text>
+                    <text class="t-small t-muted" x="770" y="36">sky</text>
+                    <text class="t-small" x="470" y="236">wall</text>
+                    <text class="t-small" x="470" y="256">crate</text>
+                    <text class="t-small" x="470" y="276">sky</text>
+                    <g class="f-acc">
+                      <rect x="510" y="226" width="14" height="14" rx="2"/><rect x="546" y="226" width="14" height="14" rx="2"/><rect x="618" y="226" width="14" height="14" rx="2"/>
+                      <rect x="564" y="246" width="14" height="14" rx="2"/><rect x="600" y="246" width="14" height="14" rx="2"/>
+                      <rect x="528" y="266" width="14" height="14" rx="2"/><rect x="582" y="266" width="14" height="14" rx="2"/><rect x="636" y="266" width="14" height="14" rx="2"/>
+                    </g>
+                    <g class="s-strong">
+                      <rect x="528" y="226" width="14" height="14" rx="2"/><rect x="564" y="226" width="14" height="14" rx="2"/><rect x="582" y="226" width="14" height="14" rx="2"/><rect x="600" y="226" width="14" height="14" rx="2"/><rect x="636" y="226" width="14" height="14" rx="2"/>
+                      <rect x="510" y="246" width="14" height="14" rx="2"/><rect x="528" y="246" width="14" height="14" rx="2"/><rect x="546" y="246" width="14" height="14" rx="2"/><rect x="582" y="246" width="14" height="14" rx="2"/><rect x="618" y="246" width="14" height="14" rx="2"/><rect x="636" y="246" width="14" height="14" rx="2"/>
+                      <rect x="510" y="266" width="14" height="14" rx="2"/><rect x="546" y="266" width="14" height="14" rx="2"/><rect x="564" y="266" width="14" height="14" rx="2"/><rect x="600" y="266" width="14" height="14" rx="2"/><rect x="618" y="266" width="14" height="14" rx="2"/>
+                    </g>
+                    <text class="t-small t-pix t-strong" x="662" y="256">3 passes, most lanes idle</text>
+                  </svg>
+                </div>
+                <figcaption><b>Alike rays share work; scattered rays wait on each other.</b> The DXR specification describes many ray tracing workloads as suffering from divergent execution and data access because of their random nature. Shader execution reordering (DXR 1.2) and similar techniques sort rays by what they hit before shading; engines also cap the roughness above which they trace reflections at all.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="hybrid"><span class="step-num">9</span> Hybrid rendering: rasterize what the camera sees, trace the rest</h3>
+              <p>Games rarely trace camera rays for the normal view. Rasterization answers "what does each pixel see?" faster than any ray tracer, and the <a class="term" data-term="g-buffer" href="glossary.html#g-buffer">G-buffer</a> it writes holds each pixel's position, normal and material. Rays start from there. This is <dfn class="term" data-term="hybrid-rendering">hybrid rendering</dfn>, and it is how Microsoft introduced DXR in 2018: rasterize most of the scene, and use rays for effects such as shadows and reflections.</p>
+              <p>The common uses, each a separate pass with its own <dfn class="term" data-term="ray-budget">ray budget</dfn>, the number of rays per pixel it may trace each frame:</p>
+              <ul>
+                <li><dfn class="term" data-term="ray-traced-shadows">Ray-traced shadows</dfn>: one any-hit ray per pixel towards a random point on each light. Contact shadows are exact, and the spread of points over an <a class="term" data-term="area-light" href="glossary.html#area-light">area light</a> gives soft edges that widen with distance, as real penumbras do.</li>
+                <li><dfn class="term" data-term="ray-traced-reflections">Ray-traced reflections</dfn>: one closest-hit ray along the reflection direction, spread by <a class="term" data-term="roughness" href="glossary.html#roughness">roughness</a>. They show what <a class="term" data-term="ssr" href="glossary.html#ssr">SSR</a> cannot: off-screen and hidden objects. The hit then needs lighting, either full shading or a lookup in a cache such as Lumen's <a class="term" data-term="surface-cache" href="glossary.html#surface-cache">surface cache</a>.</li>
+                <li><dfn class="term" data-term="rtgi">Ray-traced GI</dfn>: rays in many directions from surfaces or probes, gathering bounced light. 8.5's <a class="term" data-term="ddgi" href="glossary.html#ddgi">DDGI</a> and Lumen's hardware mode both trace this way, from far fewer points than there are pixels.</li>
+                <li>Ray-traced ambient occlusion (<a class="term" data-term="rtao" href="glossary.html#rtao">RTAO</a>, 8.3): short any-hit rays in the hemisphere above each pixel.</li>
+              </ul>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="A hybrid frame. Rasterization draws the G-buffer: primary visibility, with no rays. The acceleration structures are updated. Then three ray passes start from G-buffer surfaces: shadows at one ray per pixel per light, reflections at a quarter to one ray per pixel on smooth surfaces only, and GI from probes or at a fraction of a ray per pixel. Each ray pass is denoised, then lighting combines them and post-processing finishes the frame.">
+                    <defs>
+                      <marker id="hy-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-pix-soft s-pix" x="20" y="60" width="140" height="78" rx="6"/>
+                    <text class="t-strong" x="32" y="84">Rasterize</text>
+                    <text class="t-small t-muted" x="32" y="102">G-buffer: what each</text>
+                    <text class="t-small t-muted" x="32" y="117">pixel sees. No rays.</text>
+                    <rect class="f-geo-soft s-geo" x="190" y="60" width="140" height="78" rx="6"/>
+                    <text class="t-strong" x="202" y="84">Update BVHs</text>
+                    <text class="t-small t-muted" x="202" y="102">refit skinned BLAS,</text>
+                    <text class="t-small t-muted" x="202" y="117">rebuild the TLAS</text>
+                    <line class="s-muted" x1="162" y1="99" x2="186" y2="99" marker-end="url(#hy-arr)"/>
+
+                    <rect class="f-acc-soft s-acc w15" x="370" y="20" width="200" height="54" rx="6"/>
+                    <text class="t-strong" x="382" y="42">Shadow rays</text>
+                    <text class="t-small t-muted" x="382" y="60">1 per pixel per light, any hit</text>
+                    <rect class="f-acc-soft s-acc w15" x="370" y="84" width="200" height="54" rx="6"/>
+                    <text class="t-strong" x="382" y="106">Reflection rays</text>
+                    <text class="t-small t-muted" x="382" y="124">¼ to 1 per pixel, smooth surfaces</text>
+                    <rect class="f-acc-soft s-acc w15" x="370" y="148" width="200" height="54" rx="6"/>
+                    <text class="t-strong" x="382" y="170">GI rays</text>
+                    <text class="t-small t-muted" x="382" y="188">from probes, or a fraction per pixel</text>
+                    <line class="s-muted" x1="332" y1="90" x2="366" y2="50" marker-end="url(#hy-arr)"/>
+                    <line class="s-muted" x1="332" y1="99" x2="366" y2="110" marker-end="url(#hy-arr)"/>
+                    <line class="s-muted" x1="332" y1="108" x2="366" y2="172" marker-end="url(#hy-arr)"/>
+
+                    <rect class="f-surface s-strong" x="610" y="60" width="120" height="78" rx="6"/>
+                    <text class="t-strong" x="622" y="84">Denoise</text>
+                    <text class="t-small t-muted" x="622" y="102">each signal, in</text>
+                    <text class="t-small t-muted" x="622" y="117">space and time (8.7)</text>
+                    <line class="s-muted" x1="572" y1="47" x2="606" y2="90" marker-end="url(#hy-arr)"/>
+                    <line class="s-muted" x1="572" y1="111" x2="606" y2="100" marker-end="url(#hy-arr)"/>
+                    <line class="s-muted" x1="572" y1="175" x2="606" y2="110" marker-end="url(#hy-arr)"/>
+                    <rect class="f-lit-soft s-lit" x="760" y="60" width="120" height="78" rx="6"/>
+                    <text class="t-strong" x="772" y="84">Light, post</text>
+                    <text class="t-small t-muted" x="772" y="102">combine, then the</text>
+                    <text class="t-small t-muted" x="772" y="117">rest of the frame</text>
+                    <line class="s-muted" x1="732" y1="99" x2="756" y2="99" marker-end="url(#hy-arr)"/>
+                    <path class="s-pix dash" d="M90,140 V230 H470 V206" marker-end="url(#hy-arr)"/>
+                    <text class="t-small t-pix" x="104" y="224">each pixel's position and normal is where its rays start</text>
+                  </svg>
+                </div>
+                <figcaption><b>A hybrid frame.</b> Rasterization does primary visibility; rays do the effects that need the rest of the scene. The ray budgets shown are typical rather than fixed: Unity's HDRP, for example, offers ray-traced reflections at one ray per pixel or, with Full Resolution off, one ray per four pixels.</figcaption>
+              </figure>
+              <p>Every one of those passes is noisy at these budgets. One shadow ray per pixel to a random point on an area light gives a speckled penumbra; one reflection ray on a rough surface gives a speckled reflection. Hybrid ray tracing is only usable because of <a class="term" data-term="denoising" data-forward href="glossary.html#denoising">denoising</a>, which blends neighbouring pixels and previous frames. Taken to its limit, with every bounce traced, the same idea becomes <a class="term" data-term="path-tracing" data-forward href="glossary.html#path-tracing">path tracing</a>, the subject of 8.7.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Ray tracing costs in three places: the rays themselves (traversal plus shading at the hits), keeping the acceleration structures current, and the denoising each effect needs. The first is set by the ray budget. At one ray per pixel, 1080p is 2,073,600 rays per effect per frame; at 60 fps that is about 124 million a second, and 4K is four times that.</p>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Rays per frame, bars to scale. Reflections at one ray per four pixels at 1080p: 518,400. Lumen screen probes at 1080p: about 518,400. Shadows for one light at one ray per pixel at 1080p: 2,073,600. One ray per pixel at 1440p: 3,686,400. One ray per pixel at 4K: 8,294,400. For comparison, a reference path tracer at 1,024 samples per pixel at 1080p traces billions of rays per frame, far off the scale.">
+                  <text class="t-caps" x="20" y="20">RAYS PER FRAME, ONE EFFECT (BARS TO SCALE)</text>
+                  <text class="t-small" x="20" y="48">Reflections, ¼ ray per pixel, 1080p</text>
+                  <rect class="f-acc-soft s-acc" x="300" y="36" width="35" height="18" rx="2"/>
+                  <text class="t-mono t-small" x="341" y="50">518,400</text>
+                  <text class="t-small" x="20" y="78">Lumen screen probes, 1080p (8.5)</text>
+                  <rect class="f-acc-soft s-acc" x="300" y="66" width="35" height="18" rx="2"/>
+                  <text class="t-mono t-small" x="341" y="80">about 518,400</text>
+                  <text class="t-small" x="20" y="108">Shadows, 1 light, 1 ray per pixel, 1080p</text>
+                  <rect class="f-acc s-acc" x="300" y="96" width="140" height="18" rx="2"/>
+                  <text class="t-mono t-small" x="446" y="110">2,073,600</text>
+                  <text class="t-small" x="20" y="138">1 ray per pixel, 1440p</text>
+                  <rect class="f-acc s-acc" x="300" y="126" width="248.9" height="18" rx="2"/>
+                  <text class="t-mono t-small" x="555" y="140">3,686,400</text>
+                  <text class="t-small" x="20" y="168">1 ray per pixel, 4K</text>
+                  <rect class="f-acc s-acc" x="300" y="156" width="560" height="18" rx="2"/>
+                  <text class="t-mono t-small t-on-acc end" x="852" y="170">8,294,400</text>
+                  <line class="s-line" x1="300" y1="30" x2="300" y2="180"/>
+                  <text class="t-small t-muted" x="20" y="204">For scale: a reference path tracer at 1,024 samples per pixel and a few rays per sample traces billions of rays</text>
+                  <text class="t-small t-muted" x="20" y="220">for one 1080p frame. Real-time effects live on the left of this chart, which is why every one of them is denoised.</text>
+                </svg>
+              </div>
+              <figcaption><b>Budgets are a few million rays per effect per frame.</b> Bars are to scale, with 4K at one ray per pixel as the longest. NVIDIA's own denoiser library recommends about half to one ray per pixel in practice, and a quarter for diffuse light with a downscaled denoiser; AMD's performance guide says one ray per pixel can give high-quality results with a good denoiser.</figcaption>
+            </figure>
+            <div class="stat-row">
+              <div class="stat"><span class="value">2,073,600</span><span class="what">rays per effect per frame at one ray per pixel, 1080p</span></div>
+              <div class="stat"><span class="value">≤ 100,000</span><span class="what">instances in the ray tracing scene after culling, Epic's guidance for 30 fps on current consoles</span></div>
+              <div class="stat"><span class="value">50 to 100</span><span class="what">traversal steps per ray in a typical scene, per Epic's traversal debug view; 1,000 or more signals a problem</span></div>
+              <div class="stat"><span class="value">2.6 ms</span><span class="what">DDGI's indirect lighting, 524,288 rays, RTX 2080 Ti (2019, from 8.5)</span></div>
+            </div>
+            <p class="stamp">Guidance from Epic's Unreal Engine 5.8 ray tracing performance guide, NVIDIA's NRD documentation and AMD's RDNA performance guide; timing from the DDGI paper. Your costs depend on content and hardware; measure them with the engine's GPU profiler.</p>
+            <p>Two worked examples make the scaling concrete. A ray-traced shadow pass for three shadow-casting lights at one ray per pixel at 1440p traces 3 × 3,686,400 = 11,059,200 rays a frame before denoising. Unity's HDRP documents that execution time grows linearly with a reflection's sample count but exponentially with its bounce count, because each bounce spawns more rays from every hit.</p>
+            <ul class="grows">
+              <li><strong>Rays per pixel and resolution</strong><span>Linear: twice the rays is roughly twice the traversal and shading. Most engines trace at a lower internal resolution and upscale.</span></li>
+              <li><strong>Bounces</strong><span>Each extra bounce traces again from every hit, and those rays are less coherent than the first.</span></li>
+              <li><strong>Shading at the hits</strong><span>Full material shading at reflection hits (Unreal's Hit Lighting) costs far more than reading a cache such as Lumen's surface cache.</span></li>
+              <li><strong>Moving and deforming geometry</strong><span>The TLAS is rebuilt every frame and grows with instance count; every skinned mesh needs its BLAS refit, in proportion to its triangle count.</span></li>
+              <li><strong>Alpha-tested foliage</strong><span>Every leaf candidate runs an any-hit shader to read the alpha texture, the ray-traced version of <a class="term" data-term="alpha-tested-foliage" href="glossary.html#alpha-tested-foliage">alpha-test cost</a> (5.4).</span></li>
+              <li><strong>Overlapping geometry</strong><span>Where meshes overlap, a ray must traverse each of them to find the closest hit. Epic lists overlapping meshes, skyboxes and grass as common traversal costs.</span></li>
+              <li><strong>Memory</strong><span>BLAS memory grows with triangle count. AMD's advice is that smaller BVHs are always better, and DXR's compaction option reclaims memory for static geometry.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>Ray tracing is usually a quality tier rather than a baseline: shadows or reflections traced on capable PCs and current consoles, with shadow maps, probes and screen-space effects as the fallback. That doubles part of the lighting work, because both paths must look acceptable. A game that requires hardware ray tracing saves that duplication but drops every player below the hardware floor.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Ray tracing fixes the blind spots of screen-space effects and brings new failures: too few rays, geometry that differs between what is drawn and what is traced, and update costs that spike when content moves.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A post's soft shadow on the floor made of grainy, crawling speckle instead of a smooth gradient.">
+                    <defs>
+                      <filter id="sy-rtnoise" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="11"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.8 0 0 0 -1.25"/>
+                      </filter>
+                      <linearGradient id="sy-rtnoise-g" x1="0" y1="0" x2="1" y2="0"><stop offset="0.25" class="stop-black"/><stop offset="0.5" class="stop-white"/><stop offset="0.8" class="stop-black"/></linearGradient>
+                      <mask id="sy-rtnoise-m" maskContentUnits="userSpaceOnUse"><rect x="0" y="60" width="240" height="70" fill="url(#sy-rtnoise-g)"/></mask>
+                    </defs>
+                    <rect class="f-surface" x="0" y="0" width="240" height="70"/>
+                    <rect class="f-sunken" x="0" y="70" width="240" height="60"/>
+                    <polygon class="f-shade" fill-opacity="0.35" points="108,76 132,76 176,128 88,128"/>
+                    <g mask="url(#sy-rtnoise-m)"><rect x="0" y="70" width="240" height="60" filter="url(#sy-rtnoise)"/></g>
+                    <rect class="f-solid s-ink" x="112" y="14" width="16" height="64"/>
+                  </svg>
+                </div>
+                <h4>Grainy or boiling shadows and reflections</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Too few rays for the area light or roughness, or a denoiser that is off, too weak, or losing its history when the camera moves.</dd></div>
+                  <div><dt>Ask for</dt><dd>The rays per pixel per effect, the denoiser settings, and a capture in motion; then more rays only where the noise is worst, such as large area lights.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A character standing on a mirror-like floor. The floor reflects the wall behind but there is no reflection of the character.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="70"/>
+                    <rect class="f-paint-sky" fill-opacity="0.35" x="0" y="70" width="240" height="60"/>
+                    <rect class="f-solid" x="30" y="20" width="60" height="50"/>
+                    <rect class="f-solid" x="30" y="70" width="60" height="44" fill-opacity="0.6"/>
+                    <path class="f-strong s-ink" d="M150,14 C162,14 164,26 161,32 C170,36 172,50 170,70 L132,70 C130,50 132,36 141,32 C138,26 140,14 150,14 Z"/>
+                    <path class="s-pix w15 dash" d="M150,126 C162,126 164,114 161,108 C170,104 172,90 170,70 M132,70 C130,90 132,104 141,108 C138,114 140,126 150,126"/>
+                    <text class="t-small t-pix t-strong" x="176" y="112">missing</text>
+                  </svg>
+                </div>
+                <h4>Objects missing from reflections or casting no shadow</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The object is not in the acceleration structure: its ray tracing setting is off, it was culled from the ray tracing scene, or, in HDRP, a skinned mesh off camera stopped updating.</dd></div>
+                  <div><dt>Ask for</dt><dd>The object's ray tracing mode, the ray tracing culling settings, and the engine's view of the ray tracing scene.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A detailed rounded rock casting a shadow; the shadow is a blocky, faceted outline that does not match the rock, with dark speckles on the rock itself.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <polygon class="f-shade" fill-opacity="0.4" points="148,104 178,96 214,104 230,124 160,124"/>
+                    <path class="f-solid s-ink" d="M40,104 C36,70 60,44 96,40 C132,36 150,62 148,104 Z"/>
+                    <g class="f-shade" fill-opacity="0.45">
+                      <circle cx="80" cy="70" r="3"/><circle cx="104" cy="58" r="2.5"/><circle cx="118" cy="84" r="3"/><circle cx="66" cy="90" r="2.5"/><circle cx="96" cy="80" r="2"/>
+                    </g>
+                    <polyline class="s-pix w15" points="40,104 52,64 96,40 140,58 148,104"/>
+                    <text class="t-small t-pix t-strong" x="160" y="40">traced proxy</text>
+                    <text class="t-small t-pix t-strong" x="160" y="54">≠ drawn mesh</text>
+                  </svg>
+                </div>
+                <h4>Shadows that do not match the drawn mesh</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Rays hit a simpler version of the mesh than the one drawn, such as Unreal's Nanite fallback mesh, or vertex animation that is not applied in the ray tracing scene. Epic notes that fallback meshes can cause shadow artifacts.</dd></div>
+                  <div><dt>Ask for</dt><dd>The fallback or proxy detail for the worst meshes, World Position Offset evaluation where animation matters, and a bias check on self-shadowing.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time graph, mostly flat around 15 milliseconds, with tall spikes where many objects start moving at once.">
+                    <rect class="f-surface" x="0" y="0" width="240" height="130"/>
+                    <line class="s-pix dash" x1="10" y1="48" x2="230" y2="48"/>
+                    <text class="t-small t-pix" x="12" y="42">budget</text>
+                    <polyline class="s-acc w2 round" points="10,82 30,80 50,83 70,81 90,82 100,30 110,82 130,80 150,24 158,36 166,81 190,82 210,79 230,81"/>
+                    <text class="t-small t-muted end" x="232" y="118">explosion: 200 pieces move</text>
+                  </svg>
+                </div>
+                <h4>Frame-time spikes when lots of things move</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Many dynamic instances or deforming meshes at once: TLAS size, BLAS refits or rebuilds, or new objects whose BLAS is built on first use.</dd></div>
+                  <div><dt>Ask for</dt><dd>A GPU capture of the spike frame showing acceleration structure build time, the count of dynamic instances, and limits or simpler proxies for debris and crowds.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A tree canopy made of many overlapping leaf cards, with a heat map showing the densest part in bright rose.">
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <rect class="f-solid" x="114" y="80" width="12" height="50"/>
+                    <g class="f-geo-soft s-geo">
+                      <rect x="70" y="20" width="40" height="30" transform="rotate(-20 90 35)"/><rect x="100" y="12" width="40" height="30" transform="rotate(15 120 27)"/>
+                      <rect x="130" y="24" width="40" height="30" transform="rotate(-10 150 39)"/><rect x="86" y="44" width="40" height="30" transform="rotate(25 106 59)"/>
+                      <rect x="118" y="48" width="40" height="30" transform="rotate(-25 138 63)"/><rect x="104" y="30" width="36" height="28" transform="rotate(5 122 44)"/>
+                    </g>
+                    <ellipse class="f-pix" fill-opacity="0.45" cx="120" cy="44" rx="30" ry="20"/>
+                    <text class="t-small t-pix t-strong" x="160" y="104">any-hit shader</text>
+                    <text class="t-small t-pix t-strong" x="160" y="118">on every leaf</text>
+                  </svg>
+                </div>
+                <h4>Foliage and fences make ray tracing slow</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Alpha-tested cards are traced as non-opaque, so each candidate hit runs an any-hit shader to read the texture, and dense, overlapping cards multiply those calls.</dd></div>
+                  <div><dt>Ask for</dt><dd>Foliage marked opaque or excluded from ray-traced effects where acceptable, simpler ray tracing proxies, and opacity micromaps where the engine supports them.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>To diagnose, use the engine's ray tracing views: Unreal's ray tracing debug modes show traversal cost per pixel and which instances are dynamic, and its <code>stat GPU</code> lists the ray tracing scene update. A frame capture tool (11.5) shows acceleration structure builds as their own GPU work.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Unreal builds most of its ray tracing into Lumen and a few standalone features. Unity offers ray-traced effects only in HDRP. Godot has no built-in ray-traced lighting, and its newest version exposes the low-level API for those who want to write their own.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, HDRP</th><th scope="col">Unity 6, URP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Turn it on</th>
+                    <td>Project Settings, Rendering, Hardware Ray Tracing: <strong>Support Hardware Ray Tracing</strong>. Needs Shader Model 6 and Skin Cache support. Lumen uses it through <strong>Use Hardware Ray Tracing when available</strong>.</td>
+                    <td><strong>Realtime Ray Tracing</strong> in the HDRP Asset, then <strong>Ray Tracing</strong> in Frame Settings. DirectX 12 only.</td>
+                    <td>Not available. Unity's feature comparison lists no ray-traced effects for URP.</td>
+                    <td>No built-in ray-traced effects. Godot 4.7's RenderingDevice adds experimental BLAS, TLAS and ray tracing pipeline calls, Vulkan only.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Platforms</th>
+                    <td>Windows DirectX 12 with RTX 2000 or Radeon RX 6000 and newer; PlayStation 5, Xbox Series, Switch 2. Vulkan ray tracing on Windows and Linux is experimental.</td>
+                    <td>Windows DirectX 12 with supported GPUs, and specific consoles per their own documentation.</td>
+                    <td>None.</td>
+                    <td>Vulkan devices that report ray tracing support; not macOS or iOS.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Shadows</th>
+                    <td><strong>Ray Traced Shadows</strong> as the project default, overridden per light with <strong>Cast Ray Traced Shadows</strong>. Softness from each light's source size, or Source Angle for the sun. <strong>MegaLights</strong> (experimental) traces shadows for many lights.</td>
+                    <td>Per light, in Shadows: <strong>Ray-Traced Shadows</strong>, with Sample Count and Denoise. Directional lights need <strong>Screen Space Shadows</strong> on first.</td>
+                    <td>Shadow maps only.</td>
+                    <td>Shadow maps only.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Reflections and GI</th>
+                    <td>Lumen reflections and GI in hardware mode. <strong>Ray Lighting Mode</strong>: Surface Cache (default), Hit Lighting for Reflections, or Hit Lighting.</td>
+                    <td>A <strong>Ray Tracing</strong> option on the Screen Space Reflection override (Tracing: Ray Tracing, or Mixed, which ray marches first) and on the Screen Space Global Illumination override. Also ray-traced AO, contact shadows and subsurface scattering.</td>
+                    <td>Screen space and probes only.</td>
+                    <td>SDFGI, VoxelGI, SSR and SSIL (8.4, 8.5).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">What gets traced</th>
+                    <td>Static and skinned meshes, instanced meshes, landscape and more. Nanite meshes trace a fallback mesh by default (<code>r.RayTracing.Nanite.Mode</code>). World Position Offset is opt-in per object.</td>
+                    <td>Each renderer's <strong>Ray Tracing Mode</strong>: Off, Static, Dynamic Transform or Dynamic Geometry.</td>
+                    <td>Not applicable.</td>
+                    <td>Whatever your own code adds to its BLAS and TLAS.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Cost notes</th>
+                    <td>TLAS rebuilt every frame; deforming meshes update their BLAS every frame; stay at or under about 100,000 instances after culling for 30 fps on consoles. RTAO is deprecated.</td>
+                    <td>Performance or Quality mode per effect. Reflections: Full Resolution traces one ray per pixel, off traces one per four pixels.</td>
+                    <td>Not applicable.</td>
+                    <td>Not applicable.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Names checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) with HDRP 17.6, and Godot 4.7 in November 2026. Experimental features change quickly; confirm their status in your version.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Ray tracing briefs need the engine and version, the target hardware, which effects are traced and at what budget, what the fallback is, and what in the content moves. Ask for update costs as well as ray costs.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding a ray-traced effect as a quality tier</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Lumen in software mode today. Targets: PC (RTX 3060 and up for the new tier), PlayStation 5.
+We want ray-traced shadows for the sun and the four main interior lights on an "Ultra" tier, with shadow maps kept for everyone else.
+Budget for the new shadow work: 2.0 ms at 1440p internal on an RTX 3060.
+
+1. List the project and per-light settings to enable, and how to keep the shadow-map path working for lower tiers.
+2. Estimate rays per frame and the denoising cost for our five lights.
+3. Name the content risks: Nanite fallback meshes, foliage, World Position Offset, skinned crowds. Say how to check each.
+4. Give a profiling plan: which stat and capture views show traversal cost and acceleration structure updates.</pre>
+              <ul class="prompt-why">
+                <li>A budget in milliseconds on named hardware turns "add ray tracing" into a testable target.</li>
+                <li>Counting lights and rays makes the AI show its arithmetic, which you can check against step 9.</li>
+                <li>Naming the content risks gets a plan for the failures in section 5, not just a settings list.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when ray-traced reflections are wrong or slow</span></div>
+              <pre class="prompt-body">Unity 6.6, HDRP 17.6, DirectX 12. Ray-traced reflections on the Screen Space Reflection override, Performance mode.
+1. Characters do not appear in floor reflections once they walk out of the camera's view.
+2. In the forest level the reflection pass jumps from about 1.5 ms to 6 ms.
+
+For each problem, explain the likely cause in terms of the acceleration structure (what is included, how it updates) and the ray budget. Propose fixes ranked by visual risk, including Ray Tracing Mode per renderer and the Ray Tracing Settings override. Tell us exactly what to capture to confirm each cause.</pre>
+              <ul class="prompt-why">
+                <li>Version, pipeline and mode pin down which settings exist.</li>
+                <li>"Once they walk out of view" points at culling of the acceleration structure without naming the fix.</li>
+                <li>The forest spike invites a check of alpha-tested foliage and any-hit shaders.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing ray tracing work</h3>
+            <ol class="review-list">
+              <li>How many rays per pixel does each effect trace, at what resolution?<span class="why">That number, times pixels, is most of the cost.</span></li>
+              <li>What is in the acceleration structure, and how does each kind of object update?<span class="why">Static, rigid and deforming objects cost differently; missing objects vanish from reflections and shadows.</span></li>
+              <li>Is the traced geometry the same as the drawn geometry?<span class="why">Fallback meshes, proxies and skipped vertex animation cause mismatched shadows and self-shadowing.</span></li>
+              <li>How is each effect denoised, and what happens when the camera moves fast?<span class="why">At these budgets the denoiser decides the final look.</span></li>
+              <li>What does a player without ray tracing hardware see?<span class="why">The fallback path has to be designed, tested and budgeted too.</span></li>
+              <li>What happens to the frame when 200 objects move at once?<span class="why">Update costs spike in exactly the moments a game most wants to look good.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">Why can a shadow ray be cheaper than a reflection ray against the same scene?</p>
+                <details><summary>Show answer</summary><p>A shadow ray only needs to know whether anything blocks the light, so it can stop at the first hit and needs no material shading. A reflection ray must find the closest hit, which means continuing to search until no nearer hit is possible, and then the hit has to be lit. Shadow rays from neighbouring pixels also tend to be coherent.</p></details>
+              </li>
+              <li>
+                <p class="q">A level has 400 identical crates, one skinned dragon and a static castle. What happens to the acceleration structures each frame as the dragon flies and players push crates around?</p>
+                <details><summary>Show answer</summary><p>The 400 crates share one BLAS that never changes; pushing them only changes their transforms in the TLAS, which is rebuilt every frame. The castle's BLAS was built once. The dragon's BLAS must be refitted every frame as its vertices move, and rebuilt now and then if its pose changes enough that the refitted boxes get loose.</p></details>
+              </li>
+              <li>
+                <p class="q">Your game renders the G-buffer with rasterization and traces one shadow ray per pixel. A colleague asks why you don't trace the camera rays too. What do you say?</p>
+                <details><summary>Show answer</summary><p>Rasterization already answers what each pixel sees, faster than tracing, and the G-buffer gives every pixel's position and normal, which is exactly where the shadow rays start. Tracing primary rays would spend the ray budget on the one question that does not need rays. That is hybrid rendering.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#ray">ray</a></li>
+              <li><a class="chip" href="glossary.html#ray-tracing">ray tracing</a></li>
+              <li><a class="chip" href="glossary.html#ray-triangle-intersection">ray-triangle intersection</a></li>
+              <li><a class="chip" href="glossary.html#acceleration-structure">acceleration structure</a></li>
+              <li><a class="chip" href="glossary.html#bvh">BVH</a></li>
+              <li><a class="chip" href="glossary.html#blas">BLAS</a></li>
+              <li><a class="chip" href="glossary.html#tlas">TLAS</a></li>
+              <li><a class="chip" href="glossary.html#bvh-refit">refit</a></li>
+              <li><a class="chip" href="glossary.html#dxr">DXR</a></li>
+              <li><a class="chip" href="glossary.html#vulkan-ray-tracing">Vulkan ray tracing</a></li>
+              <li><a class="chip" href="glossary.html#inline-ray-tracing">inline ray tracing</a></li>
+              <li><a class="chip" href="glossary.html#rt-cores">RT cores</a></li>
+              <li><a class="chip" href="glossary.html#ray-coherence">coherence</a></li>
+              <li><a class="chip" href="glossary.html#ray-divergence">divergence</a></li>
+              <li><a class="chip" href="glossary.html#hybrid-rendering">hybrid rendering</a></li>
+              <li><a class="chip" href="glossary.html#ray-budget">ray budget</a></li>
+              <li><a class="chip" href="glossary.html#ray-traced-shadows">ray-traced shadows</a></li>
+              <li><a class="chip" href="glossary.html#ray-traced-reflections">ray-traced reflections</a></li>
+              <li><a class="chip" href="glossary.html#rtgi">RTGI</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="8.7"></a> follows rays all the way: every bounce traced, at a sample or two per pixel, and the denoisers and sampling tricks that make the result clean.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Microsoft, <a href="https://microsoft.github.io/DirectX-Specs/d3d/Raytracing.html">DirectX Raytracing (DXR) Functional Spec</a>: rays, acceleration structures and build flags, inline ray tracing (tier 1.1), opacity micromaps and shader execution reordering (tier 1.2). And <a href="https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/">Announcing Microsoft DirectX Raytracing!</a>, DirectX blog, 19 March 2018.</li>
+              <li>Daniel Koch, <a href="https://www.khronos.org/blog/vulkan-ray-tracing-final-specification-release">Vulkan Ray Tracing Final Specification Release</a>, Khronos blog, 23 November 2020.</li>
+              <li>John Burgess, <a href="https://www.old.hotchips.org/hc31/HC31_2.12_NVIDIA_final.pdf">RTX ON: The NVIDIA Turing GPU</a>, Hot Chips 31, 2019. RT cores, software traversal cost and the Quake II RTX timings.</li>
+              <li><a href="https://gpuopen.com/learn/rdna-performance-guide/">RDNA Performance Guide</a>, AMD GPUOpen, ray tracing section; and Chester Lam, <a href="https://chipsandcheese.com/p/raytracing-on-amds-rdna-2-3-and-nvidias-turing-and-pascal">Raytracing on AMD's RDNA 2/3, and Nvidia's Turing and Pascal</a>, Chips and Cheese.</li>
+              <li>Matt Pharr, Wenzel Jakob and Greg Humphreys, <a href="https://pbr-book.org/4ed/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies">Bounding Volume Hierarchies</a>, Physically Based Rendering, fourth edition. BVH construction and the surface area heuristic.</li>
+              <li>NVIDIA, <a href="https://github.com/NVIDIA-RTX/NRD">NVIDIA Real-time Denoisers (NRD)</a>, recommended rays per pixel.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/hardware-ray-tracing-in-unreal-engine?application_version=5.8">Hardware Ray Tracing</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/ray-tracing-performance-guide-in-unreal-engine?application_version=5.8">Ray Tracing Performance Guide</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/lumen-technical-details-in-unreal-engine?application_version=5.8">Lumen Technical Details</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/megalights-in-unreal-engine?application_version=5.8">MegaLights</a>.</li>
+              <li>Unity documentation: HDRP 17.6 <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Ray-Tracing-Getting-Started.html">Set up ray tracing</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/Ray-Traced-Shadows.html">Ray-traced shadows</a>, <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-screen-space-reflection.html">Screen Space Reflection reference</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/raytracing-requirements.html">Ray tracing hardware requirements</a>; Unity 6.6 <a href="https://docs.unity.com/en-us/engine/6000.6/script-reference/unityengine/experimental/rendering/raytracingmode">RayTracingMode</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>.</li>
+              <li>Godot 4.7 documentation, <a href="https://docs.godotengine.org/en/4.7/classes/class_renderingdevice.html">RenderingDevice</a>: the experimental acceleration structure and ray tracing pipeline methods.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/bvh-traversal.js"></script>
+</body>
+</html>

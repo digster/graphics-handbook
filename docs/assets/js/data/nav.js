@@ -110,14 +110,14 @@
         { num: "8.3", slug: "ambient-occlusion", title: "Ambient occlusion: SSAO to GTAO", terms: "AO, SSAO, HBAO, GTAO, horizon angle, bent normal, multi-bounce, specular occlusion, RTAO", core: true, status: "published" },
         { num: "8.4", slug: "screen-space", title: "Screen-space tricks and their blind spots", terms: "ray marching, Hi-Z tracing, SSR, SSGI, thickness, off-screen misses, fallbacks", core: true, status: "published" },
         { num: "8.5", slug: "realtime-gi", title: "Real-time GI families", terms: "LPV, VXGI, SDFGI, DDGI probes, Lumen surface cache, radiance cascades, light leaking", core: true, status: "published" },
-        { num: "8.6", slug: "ray-tracing", title: "Ray tracing", terms: "ray, BVH, BLAS and TLAS, DXR, hybrid rendering; ray-traced shadows, reflections and GI", core: false, status: "planned" },
-        { num: "8.7", slug: "path-tracing", title: "Path tracing and denoising", terms: "samples per pixel, noise, fireflies, importance sampling, ReSTIR, SVGF, ray reconstruction", core: false, status: "planned" }
+        { num: "8.6", slug: "ray-tracing", title: "Ray tracing", terms: "ray, BVH, BLAS and TLAS, DXR, hybrid rendering; ray-traced shadows, reflections and GI", core: false, status: "published" },
+        { num: "8.7", slug: "path-tracing", title: "Path tracing and denoising", terms: "samples per pixel, noise, fireflies, importance sampling, ReSTIR, SVGF, ray reconstruction", core: false, status: "published" }
       ]
     },
     {
       n: 9, title: "Post-processing and image quality", blurb: "Everything done to the image after the scene is lit.",
       chapters: [
-        { num: "9.1", slug: "tone-mapping", title: "HDR, exposure and tone mapping", terms: "scene-referred light, exposure, auto-exposure, tone curve, ACES, AgX, LUT, colour grading", core: true, status: "planned" },
+        { num: "9.1", slug: "tone-mapping", title: "HDR, exposure and tone mapping", terms: "scene-referred light, exposure, auto-exposure, tone curve, ACES, AgX, LUT, colour grading", core: true, status: "published" },
         { num: "9.2", slug: "anti-aliasing", title: "Anti-aliasing", terms: "jaggies, specular aliasing, SSAA, MSAA, FXAA, SMAA, TAA, jitter, history, motion vectors, ghosting", core: true, status: "planned" },
         { num: "9.3", slug: "upscaling", title: "Upscaling and frame generation", terms: "DLSS, FSR, XeSS, TSR, internal resolution, dynamic resolution, VRS, frame generation, latency", core: true, status: "planned" },
         { num: "9.4", slug: "camera-effects", title: "Camera effects", terms: "bloom, depth of field, circle of confusion, bokeh, motion blur, velocity buffer, grain, vignette", core: false, status: "planned" },

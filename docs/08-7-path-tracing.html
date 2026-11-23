@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>8.7 Path tracing and denoising · Graphics Handbook</title>
+  <meta name="description" content="How path tracing computes every bounce of light from random samples, why the result is noisy, and how importance sampling, ReSTIR, SVGF and AI denoisers such as DLSS Ray Reconstruction make it usable in real time.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="8.7">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <h1><span class="ch-num">8.7</span> Path tracing and denoising</h1>
+            <p class="lead">Path tracing follows light the way the rendering equation describes it: one random path per sample, bounce after bounce, until it reaches a light. Averaged over enough samples it is the reference every other technique is judged against. Real time can afford a sample or two per pixel, so the raw image is mostly noise, and smarter sampling and denoising do the rest.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="8.1">8.1 Direct and indirect light</a>, <a class="xref" data-ch="8.6">8.6 Ray tracing</a>, <a class="xref" data-ch="8.3">8.3 Ambient occlusion</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>, <a class="xref" data-ch="9.3">9.3 Upscaling and frame generation</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 40 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Samples per pixel</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+                <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="The same box room drawn three times. Left, one sample per pixel: the shapes are recognisable but covered in grain and a few bright specks. Middle, the same single sample after a denoiser: smooth, with slightly soft shadows. Right, the reference with 2,048 samples per pixel: smooth and sharp.">
+                  <defs>
+                    <filter id="pic-grain" x="0" y="0" width="100%" height="100%">
+                      <feTurbulence type="fractalNoise" baseFrequency="0.95" numOctaves="1" seed="4"/>
+                      <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.3 0 0 0 -1.15"/>
+                    </filter>
+                    <filter id="pic-soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="9"/></filter>
+                    <filter id="pic-softer" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="13"/></filter>
+                    <clipPath id="pic-clip"><rect x="0" y="0" width="270" height="200"/></clipPath>
+                  </defs>
+
+                  <g transform="translate(15,30)">
+                    <g clip-path="url(#pic-clip)">
+                      <polygon class="f-buf-hi" points="0,0 270,0 210,32 60,32"/><polygon class="f-shade" fill-opacity="0.08" points="0,0 270,0 210,32 60,32"/>
+                      <polygon class="f-buf-hi" points="60,32 210,32 210,150 60,150"/>
+                      <polygon class="f-buf-hi" points="60,150 210,150 270,200 0,200"/><polygon class="f-shade" fill-opacity="0.06" points="60,150 210,150 270,200 0,200"/>
+                      <polygon class="f-paint-red" points="0,0 60,32 60,150 0,200"/>
+                      <polygon class="f-paint-green" points="270,0 210,32 210,150 270,200"/>
+                      <polygon class="f-paint-daylight s-strong" points="112,6 158,6 150,18 120,18"/>
+                      <ellipse class="f-shade" fill-opacity="0.45" cx="104" cy="183" rx="34" ry="8" filter="url(#pic-soft)"/>
+                      <polygon class="f-shade" fill-opacity="0.4" points="150,170 196,170 226,192 172,194" filter="url(#pic-soft)"/>
+                      <polygon class="f-buf-hi s-strong" points="150,92 190,92 198,84 158,84"/>
+                      <rect class="f-buf-hi s-strong" x="150" y="92" width="40" height="80"/><rect class="f-shade" fill-opacity="0.12" x="150" y="92" width="40" height="80"/>
+                      <circle class="f-buf-hi s-strong" cx="100" cy="160" r="24"/>
+                      <path class="f-shade" fill-opacity="0.25" d="M78,170 A24,24 0 0 0 122,170 A28,22 0 0 1 78,170 Z"/>
+                      <rect x="0" y="0" width="270" height="200" filter="url(#pic-grain)"/>
+                      <g class="f-paint-daylight">
+                        <rect x="34" y="120" width="3" height="3"/><rect x="226" y="60" width="3" height="3"/><rect x="88" y="44" width="3" height="3"/>
+                        <rect x="180" y="186" width="3" height="3"/><rect x="132" y="110" width="3" height="3"/><rect x="244" y="150" width="3" height="3"/>
+                      </g>
+                    </g>
+                    <rect class="s-strong" x="0.5" y="0.5" width="269" height="199"/>
+                  </g>
+
+                  <g transform="translate(315,30)">
+                    <g clip-path="url(#pic-clip)">
+                      <polygon class="f-buf-hi" points="0,0 270,0 210,32 60,32"/><polygon class="f-shade" fill-opacity="0.08" points="0,0 270,0 210,32 60,32"/>
+                      <polygon class="f-buf-hi" points="60,32 210,32 210,150 60,150"/>
+                      <polygon class="f-buf-hi" points="60,150 210,150 270,200 0,200"/><polygon class="f-shade" fill-opacity="0.06" points="60,150 210,150 270,200 0,200"/>
+                      <polygon class="f-paint-red" points="0,0 60,32 60,150 0,200"/>
+                      <polygon class="f-paint-green" points="270,0 210,32 210,150 270,200"/>
+                      <polygon class="f-paint-daylight s-strong" points="112,6 158,6 150,18 120,18"/>
+                      <ellipse class="f-shade" fill-opacity="0.4" cx="104" cy="183" rx="38" ry="10" filter="url(#pic-softer)"/>
+                      <polygon class="f-shade" fill-opacity="0.35" points="150,170 196,170 226,192 172,194" filter="url(#pic-softer)"/>
+                      <polygon class="f-buf-hi s-strong" points="150,92 190,92 198,84 158,84"/>
+                      <rect class="f-buf-hi s-strong" x="150" y="92" width="40" height="80"/><rect class="f-shade" fill-opacity="0.12" x="150" y="92" width="40" height="80"/>
+                      <circle class="f-buf-hi s-strong" cx="100" cy="160" r="24"/>
+                      <path class="f-shade" fill-opacity="0.25" d="M78,170 A24,24 0 0 0 122,170 A28,22 0 0 1 78,170 Z"/>
+                    </g>
+                    <rect class="s-strong" x="0.5" y="0.5" width="269" height="199"/>
+                  </g>
+
+                  <g transform="translate(615,30)">
+                    <g clip-path="url(#pic-clip)">
+                      <polygon class="f-buf-hi" points="0,0 270,0 210,32 60,32"/><polygon class="f-shade" fill-opacity="0.08" points="0,0 270,0 210,32 60,32"/>
+                      <polygon class="f-buf-hi" points="60,32 210,32 210,150 60,150"/>
+                      <polygon class="f-buf-hi" points="60,150 210,150 270,200 0,200"/><polygon class="f-shade" fill-opacity="0.06" points="60,150 210,150 270,200 0,200"/>
+                      <polygon class="f-paint-red" points="0,0 60,32 60,150 0,200"/>
+                      <polygon class="f-paint-green" points="270,0 210,32 210,150 270,200"/>
+                      <polygon class="f-paint-daylight s-strong" points="112,6 158,6 150,18 120,18"/>
+                      <ellipse class="f-shade" fill-opacity="0.55" cx="104" cy="183" rx="30" ry="6" filter="url(#pic-soft)"/>
+                      <polygon class="f-shade" fill-opacity="0.45" points="150,170 196,170 226,192 172,194" filter="url(#pic-soft)"/>
+                      <polygon class="f-buf-hi s-strong" points="150,92 190,92 198,84 158,84"/>
+                      <rect class="f-buf-hi s-strong" x="150" y="92" width="40" height="80"/><rect class="f-shade" fill-opacity="0.12" x="150" y="92" width="40" height="80"/>
+                      <circle class="f-buf-hi s-strong" cx="100" cy="160" r="24"/>
+                      <path class="f-shade" fill-opacity="0.25" d="M78,170 A24,24 0 0 0 122,170 A28,22 0 0 1 78,170 Z"/>
+                    </g>
+                    <rect class="s-strong" x="0.5" y="0.5" width="269" height="199"/>
+                  </g>
+
+                  <text class="t-head" x="15" y="20">1 sample per pixel</text>
+                  <text class="t-head" x="315" y="20">The same sample, denoised</text>
+                  <text class="t-head" x="615" y="20">Reference: 2,048 samples</text>
+                  <text class="t-small t-muted" x="15" y="250">Every pixel is one random path:</text>
+                  <text class="t-small t-muted" x="15" y="265">right on average, wrong one by one.</text>
+                  <text class="t-small t-muted" x="315" y="250">SVGF (2017): about 10 ms at 1920 × 1080.</text>
+                  <text class="t-small t-muted" x="315" y="265">Smooth, slightly soft, close to the reference.</text>
+                  <text class="t-small t-muted" x="615" y="250">2,048 times the paths. What the other two</text>
+                  <text class="t-small t-muted" x="615" y="265">are trying to reach.</text>
+                </svg>
+              </div>
+              <figcaption><b>Path tracing is correct on average and noisy per pixel.</b> The three panels follow the comparison in the SVGF paper: one sample per pixel, the same input after denoising, and a reference with 2,048 samples per pixel. Real-time path tracing lives in the middle panel: a few samples, then a filter that guesses the rest.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>The <a class="term" data-term="rendering-equation" href="glossary.html#rendering-equation">rendering equation</a> (8.1) says the light leaving a point is what it emits plus all the light arriving from every direction, weighted by its material. The light arriving from each direction is itself light leaving some other point, so the question never ends. <dfn class="term" data-term="path-tracing">Path tracing</dfn> answers it by asking just one direction at a time: trace a ray, pick one random direction at the hit, trace again, and keep going until the path reaches a light. One such path is a very rough answer. The average of many is the right one.</p>
+            <p>Using random samples to estimate an average is <dfn class="term" data-term="monte-carlo-integration">Monte Carlo integration</dfn>. Its catch is the leftover randomness: each pixel's few samples differ from the true average by a random amount, so the image is speckled with <dfn class="term" data-term="noise">noise</dfn>. <dfn class="term" data-term="denoising">Denoising</dfn> removes it by borrowing information from neighbouring pixels and from previous frames.</p>
+            <div class="analogy">
+              <div>
+                <span class="label">Everyday comparison</span>
+                <p>An opinion poll. Ask one person per street and each street's result is a coin toss; ask a thousand per street and it is accurate, at a thousand times the effort. Path tracing is the poll; samples per pixel are people per street. Denoising is noticing that neighbouring streets of similar houses vote alike and pooling their answers.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Every technique in Part 8 handles one kind of light with its own approximation: probes for diffuse bounce, screen-space or ray-traced reflections, AO for contact. Path tracing computes all of them, every bounce, in one method, with no leaks and no blind spots. That is why film uses it and why engines ship it as a reference.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Real-time path tracing exists in shipping games, but on top-end GPUs and only with heavy sampling tricks, an AI denoiser and upscaling. For most teams the engine's path tracer is a reference tool: it shows lighting artists what the real-time GI should look like and settles arguments about whether a bug is in the lighting or in the approximation. Know which of the two you are being sold.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>A path tracer is a loop around the ray tracing of 8.6. The interesting parts are the choices it makes at every bounce, how its error shrinks with samples, and the tricks that make few samples go further.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="one-path"><span class="step-num">1</span> One path, several bounces</h3>
+              <p>A sample starts as a camera ray through a random point inside the pixel, which also smooths jagged edges. At each surface it hits, the path tracer does two things. It sends a shadow ray to a random point on a light, as a ray-traced shadow does, and adds that light if nothing blocks it. Then it picks a random new direction, weighted by the surface's <a class="term" data-term="brdf" href="glossary.html#brdf">BRDF</a>, and continues. Each <a class="term" data-term="bounce" href="glossary.html#bounce">bounce</a> multiplies what the path can still carry by the surface's colour, so a path loses energy as it goes. It ends when it reaches a light, leaves the scene, or runs out of allowed bounces.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Side view of a room with a red left wall, a green right wall and a light in the ceiling. A path leaves the camera, hits the floor at A, bounces to the green wall at B, then to the ceiling at C, then to the floor at D, and from D reaches the light. At A, B and D a dashed shadow ray goes straight to the light. Beside it, the four steps of one path.">
+                    <defs>
+                      <marker id="pa-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-bg s-strong" x="120" y="40" width="520" height="210"/>
+                    <rect class="f-paint-red" x="120" y="40" width="10" height="210"/>
+                    <rect class="f-paint-green" x="630" y="40" width="10" height="210"/>
+                    <rect class="f-paint-daylight s-strong" x="400" y="34" width="70" height="8"/>
+                    <text class="t-small t-lit t-strong mid" x="435" y="28">light</text>
+                    <rect class="f-solid" x="120" y="250" width="520" height="14"/>
+                    <polygon class="f-ink" points="170,100 148,88 152,114"/>
+                    <text class="t-small t-muted" x="140" y="80">camera</text>
+
+                    <g class="s-lit dash">
+                      <line x1="330" y1="250" x2="420" y2="42"/>
+                      <line x1="630" y1="160" x2="460" y2="42"/>
+                    </g>
+                    <line class="s-acc w2" x1="170" y1="100" x2="327" y2="247" marker-end="url(#pa-arr)"/>
+                    <line class="s-acc w2" x1="330" y1="250" x2="626" y2="162" marker-end="url(#pa-arr)"/>
+                    <line class="s-acc w2" x1="630" y1="160" x2="524" y2="44" marker-end="url(#pa-arr)"/>
+                    <line class="s-acc w2" x1="520" y1="40" x2="254" y2="246" marker-end="url(#pa-arr)"/>
+                    <line class="s-acc w2" x1="250" y1="250" x2="426" y2="46" marker-end="url(#pa-arr)"/>
+                    <circle class="f-acc" cx="330" cy="250" r="5"/>
+                    <circle class="f-acc" cx="630" cy="160" r="5"/>
+                    <circle class="f-acc" cx="520" cy="40" r="5"/>
+                    <circle class="f-acc" cx="250" cy="250" r="5"/>
+                    <text class="t-strong" x="334" y="276">A</text>
+                    <text class="t-strong" x="610" y="156">B</text>
+                    <text class="t-strong" x="528" y="60">C</text>
+                    <text class="t-strong" x="238" y="276">D</text>
+                    <text class="t-small t-lit" x="346" y="200">shadow ray</text>
+                    <text class="t-small t-muted" x="20" y="150">C is on the ceiling,</text>
+                    <text class="t-small t-muted" x="20" y="164">level with the light:</text>
+                    <text class="t-small t-muted" x="20" y="178">no shadow ray there</text>
+
+                    <text class="t-caps" x="672" y="52">ONE PATH = ONE SAMPLE</text>
+                    <text class="t-small t-strong" x="672" y="76">1 Camera ray</text>
+                    <text class="t-small t-muted" x="672" y="91">through a random point in the pixel</text>
+                    <text class="t-small t-strong" x="672" y="115">2 Shadow ray at each hit</text>
+                    <text class="t-small t-muted" x="672" y="130">to a random point on a light</text>
+                    <text class="t-small t-strong" x="672" y="154">3 Random new direction</text>
+                    <text class="t-small t-muted" x="672" y="169">weighted by the material;</text>
+                    <text class="t-small t-muted" x="672" y="184">carry × surface colour</text>
+                    <text class="t-small t-strong" x="672" y="208">4 Stop</text>
+                    <text class="t-small t-muted" x="672" y="223">at a light, on leaving the scene,</text>
+                    <text class="t-small t-muted" x="672" y="238">or at the bounce limit</text>
+                  </svg>
+                </div>
+                <figcaption><b>A path bounces until it finds light.</b> Light reaches the camera along this path through the shadow rays from A and B, and through the last segment from D straight into the light. C, on the ceiling beside the light, cannot see it. The next sample for the same pixel will take completely different random turns.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="monte-carlo"><span class="step-num">2</span> Samples, and why noise falls so slowly</h3>
+              <p>The number of paths averaged per pixel is the <dfn class="term" data-term="samples-per-pixel">samples per pixel</dfn>, or spp. Monte Carlo error falls with the square root of the number of samples: in the words of Physically Based Rendering, the error goes down at a rate of O(n<sup>−1/2</sup>). Four times the samples halve the noise. Going from 1 to 1,024 samples, a thousand times the work, cuts the noise by a factor of 32.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="A chart of noise against samples per pixel on a doubling axis from 1 to 1,024. Noise starts at 100 percent with one sample and follows a curve down: 50 percent at 4 samples, 25 percent at 16, 12.5 percent at 64, 6.3 percent at 256 and 3.1 percent at 1,024. Below the axis, the time grows in proportion: one, four, sixteen, sixty-four, two hundred and fifty-six and one thousand and twenty-four times.">
+                    <text class="t-caps" x="20" y="18">NOISE, RELATIVE TO ONE SAMPLE (FROM THE FORMULA 1 / √N)</text>
+                    <line class="s-line" x1="80" y1="30" x2="620" y2="30"/>
+                    <line class="s-line" x1="80" y1="115" x2="620" y2="115"/>
+                    <line class="s-strong" x1="80" y1="200" x2="620" y2="200"/>
+                    <line class="s-strong" x1="80" y1="30" x2="80" y2="200"/>
+                    <text class="t-mono t-small t-muted end" x="72" y="34">100%</text>
+                    <text class="t-mono t-small t-muted end" x="72" y="119">50%</text>
+                    <text class="t-mono t-small t-muted end" x="72" y="204">0</text>
+                    <polyline class="s-acc w3 round" points="80.0,30.0 86.8,37.2 93.5,44.1 100.3,50.7 107.0,57.0 113.8,63.1 120.5,68.9 127.3,74.5 134.0,79.8 140.8,84.9 147.5,89.8 154.3,94.4 161.0,98.9 167.8,103.2 174.5,107.3 181.3,111.2 188.0,115.0 194.8,118.6 201.5,122.1 208.3,125.4 215.0,128.5 221.8,131.6 228.5,134.5 235.3,137.2 242.0,139.9 248.8,142.4 255.5,144.9 262.3,147.2 269.0,149.5 275.8,151.6 282.5,153.7 289.3,155.6 296.0,157.5 302.8,159.3 309.5,161.0 316.3,162.7 323.0,164.3 329.8,165.8 336.5,167.2 343.3,168.6 350.0,169.9 356.8,171.2 363.5,172.4 370.3,173.6 377.0,174.7 383.8,175.8 390.5,176.8 397.3,177.8 404.0,178.8 410.8,179.7 417.5,180.5 424.3,181.3 431.0,182.1 437.8,182.9 444.5,183.6 451.3,184.3 458.0,185.0 464.8,185.6 471.5,186.2 478.3,186.8 485.0,187.4 491.8,187.9 498.5,188.4 505.3,188.9 512.0,189.4 518.8,189.8 525.5,190.3 532.3,190.7 539.0,191.1 545.8,191.4 552.5,191.8 559.3,192.2 566.0,192.5 572.8,192.8 579.5,193.1 586.3,193.4 593.0,193.7 599.8,194.0 606.5,194.2 613.3,194.5 620.0,194.7"/>
+                    <g class="f-acc">
+                      <circle cx="80" cy="30" r="4.5"/><circle cx="188" cy="115" r="4.5"/><circle cx="296" cy="157.5" r="4.5"/><circle cx="404" cy="178.8" r="4.5"/><circle cx="512" cy="189.4" r="4.5"/><circle cx="620" cy="194.7" r="4.5"/>
+                    </g>
+                    <text class="t-small t-acc t-strong" x="196" y="110">50%</text>
+                    <text class="t-small t-acc t-strong" x="304" y="152">25%</text>
+                    <text class="t-small t-acc t-strong" x="404" y="168">12.5%</text>
+                    <text class="t-small t-acc t-strong" x="506" y="178">6.3%</text>
+                    <text class="t-small t-acc t-strong end" x="620" y="184">3.1%</text>
+                    <g class="t-mono t-small t-muted mid">
+                      <text class="t-mono t-small t-muted mid" x="80" y="216">1</text><text class="t-mono t-small t-muted mid" x="134" y="216">2</text><text class="t-mono t-small t-muted mid" x="188" y="216">4</text><text class="t-mono t-small t-muted mid" x="242" y="216">8</text><text class="t-mono t-small t-muted mid" x="296" y="216">16</text><text class="t-mono t-small t-muted mid" x="350" y="216">32</text><text class="t-mono t-small t-muted mid" x="404" y="216">64</text><text class="t-mono t-small t-muted mid" x="458" y="216">128</text><text class="t-mono t-small t-muted mid" x="512" y="216">256</text><text class="t-mono t-small t-muted mid" x="566" y="216">512</text><text class="t-mono t-small t-muted mid" x="620" y="216">1,024</text>
+                    </g>
+                    <text class="t-small t-muted" x="20" y="216">spp</text>
+                    <text class="t-small t-muted" x="20" y="240">time</text>
+                    <text class="t-mono t-small mid" x="80" y="240">×1</text><text class="t-mono t-small mid" x="188" y="240">×4</text><text class="t-mono t-small mid" x="296" y="240">×16</text><text class="t-mono t-small mid" x="404" y="240">×64</text><text class="t-mono t-small mid" x="512" y="240">×256</text><text class="t-mono t-small mid" x="620" y="240">×1,024</text>
+
+                    <text class="t-caps" x="660" y="52">THE ARITHMETIC</text>
+                    <text class="t-small" x="660" y="76">Noise ∝ 1 / √samples.</text>
+                    <text class="t-small" x="660" y="100">Each 4× the samples: half the noise.</text>
+                    <text class="t-small" x="660" y="124">1 → 1,024 samples:</text>
+                    <text class="t-small t-strong" x="660" y="140">1,024× the time, 32× less noise.</text>
+                    <text class="t-small t-muted" x="660" y="170">The last few percent of noise cost</text>
+                    <text class="t-small t-muted" x="660" y="185">most of the time, which is why the</text>
+                    <text class="t-small t-muted" x="660" y="200">offline world also denoises.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Noise falls with the square root of the samples.</b> The curve is drawn from the formula; dots mark every fourfold step, where the noise halves. Cost rises in proportion to the samples, so each halving costs four times as much as the last.</figcaption>
+              </figure>
+              <details class="fold">
+                <summary><span class="fold-kind">Maths</span> The Monte Carlo estimator</summary>
+                <div class="fold-body">
+                  <p>To estimate the light arriving at a point, an integral over directions, take N random directions ω<sub>i</sub>, each drawn with probability density p(ω<sub>i</sub>), and average:</p>
+                  <p class="formula">estimate = (1 / N) Σ f(ω<sub>i</sub>) / p(ω<sub>i</sub>)</p>
+                  <p>Dividing by p corrects for directions that were picked more often than others, so the estimate is right on average whatever p is. Its variance falls as 1/N, and noise, the square root of variance, as 1/√N. A good p, close in shape to f, makes the variance small from the start: that is importance sampling, step 5.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="interactive"><span class="step-num">3</span> Try it: a path tracer in the page</h3>
+              <p>The interactive below is a complete path tracer: a box room with a light in the ceiling, a white block and a mirror sphere, 96 × 96 pixels, up to four bounces per path. It accumulates samples while it is on screen, and keeps every one, so moving the slider back shows the earlier result instantly.</p>
+              <figure>
+                <div class="demo" data-demo="spp-slider">
+                  <p class="demo-hint">The samples-per-pixel interactive needs JavaScript. It path traces a small box room with a red and a green wall, a ceiling light, a block and a mirror sphere, from 1 to 1,024 samples per pixel, with an optional denoiser.</p>
+                </div>
+                <figcaption><b>Samples per pixel.</b> At 4 samples the room is recognisable under heavy grain; at 1,024 it is nearly clean. The noise readout halves for every four times the samples, as step 2 predicts. Turn the denoiser on at low counts to see how much of the image a filter can recover, and where it blurs. The bright specks that survive longest are fireflies, explained next.</figcaption>
+              </figure>
+              <ul>
+                <li>Start at <strong>1</strong> sample and turn the <strong>Denoiser</strong> on. The walls come back; the soft shadow under the block and the reflections in the sphere smear.</li>
+                <li>Switch <strong>Light sampling</strong> to <strong>Random bounces only</strong>. Paths must now hit the small light by chance, and at the same sample count the noise is roughly two and a half times higher. Step 5 explains why.</li>
+                <li>Watch the floor near the sphere at 64 and 256 samples: isolated bright pixels appear and vanish. They are paths that reached the light through the mirror.</li>
+              </ul>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>The demo's denoiser is a small spatial filter in the spirit of SVGF: it divides out the surface colour, then blends neighbours whose depth and normal match and whose brightness is within the local noise. Real-time denoisers also reuse previous frames, which this still image cannot show. The noise readout is the standard error of each pixel's average, combined over the image.</p>
+              </aside>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="fireflies"><span class="step-num">4</span> Fireflies</h3>
+              <p>Some light is found only by rare paths. A floor next to a mirror sphere receives light that bounced off the mirror from a small, bright lamp. A random path finds that route very rarely, but when it does, it carries the lamp's full brightness. One sample hundreds of times brighter than its neighbours lands in one pixel, and that pixel turns white. These isolated bright pixels are <dfn class="term" data-term="fireflies">fireflies</dfn>. They average out only at enormous sample counts, and in animation they flicker from frame to frame.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: from a point P on the floor, most random paths go to dim walls, but one rare path bounces off a mirror sphere into a small bright light. Right: the sixteen samples of one pixel as bars: fifteen are between 0.22 and 0.47, and one is 600, drawn broken off. Without it the pixel's average is 0.34; with it, 37.8, far above white.">
+                    <defs>
+                      <marker id="ff-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">A RARE PATH THAT FINDS A BRIGHT LIGHT</text>
+                    <line class="s-ink w2" x1="20" y1="210" x2="420" y2="210"/>
+                    <circle class="f-surface s-strong" cx="300" cy="168" r="40"/>
+                    <path class="s-muted" d="M276,140 A34,34 0 0 1 318,136"/>
+                    <text class="t-small t-muted mid" x="300" y="172">mirror</text>
+                    <rect class="f-paint-daylight s-strong" x="360" y="30" width="22" height="8"/>
+                    <circle class="f-lit" fill-opacity="0.25" cx="371" cy="34" r="16"/>
+                    <text class="t-small t-lit t-strong" x="388" y="38">small, bright light</text>
+                    <g class="s-muted">
+                      <line x1="120" y1="210" x2="40" y2="70"/><line x1="120" y1="210" x2="90" y2="50"/><line x1="120" y1="210" x2="160" y2="50"/><line x1="120" y1="210" x2="210" y2="70"/>
+                    </g>
+                    <line class="s-acc w2" x1="120" y1="210" x2="266" y2="150"/>
+                    <line class="s-acc w2" x1="266" y1="150" x2="366" y2="40" marker-end="url(#ff-arr)"/>
+                    <circle class="f-acc" cx="120" cy="210" r="5"/>
+                    <text class="t-strong" x="112" y="232">P</text>
+                    <text class="t-small t-muted" x="20" y="46">most paths:</text>
+                    <text class="t-small t-muted" x="20" y="60">dim walls</text>
+                    <text class="t-small t-acc t-strong" x="150" y="138">1 path in thousands</text>
+
+                    <text class="t-caps" x="470" y="20">ONE PIXEL'S 16 SAMPLES (EXAMPLE VALUES)</text>
+                    <line class="s-strong" x1="470" y1="200" x2="866" y2="200"/>
+                    <g class="f-geo-soft s-geo">
+                      <rect x="480" y="169" width="18" height="31"/><rect x="504" y="158" width="18" height="42"/><rect x="528" y="175" width="18" height="25"/><rect x="552" y="162" width="18" height="38"/>
+                      <rect x="576" y="171" width="18" height="29"/><rect x="600" y="153" width="18" height="47"/><rect x="624" y="167" width="18" height="33"/><rect x="648" y="164" width="18" height="36"/>
+                      <rect x="672" y="178" width="18" height="22"/><rect x="696" y="159" width="18" height="41"/>
+                      <rect x="744" y="170" width="18" height="30"/><rect x="768" y="165" width="18" height="35"/><rect x="792" y="172" width="18" height="28"/><rect x="816" y="156" width="18" height="44"/><rect x="840" y="166" width="18" height="34"/>
+                    </g>
+                    <rect class="f-acc" x="720" y="40" width="18" height="160"/>
+                    <path class="f-surface s-acc" d="M716,74 L742,66 L742,74 L716,82 Z"/>
+                    <text class="t-small t-acc t-strong mid" x="729" y="34">600</text>
+                    <line class="s-muted dash" x1="470" y1="166" x2="866" y2="166"/>
+                    <text class="t-small t-muted" x="476" y="140">average without it: 0.34</text>
+                    <text class="t-small t-acc t-strong" x="756" y="60">average with it: 37.8</text>
+                    <text class="t-small t-muted" x="756" y="74">far above white (1):</text>
+                    <text class="t-small t-muted" x="756" y="88">a white dot on screen</text>
+                    <text class="t-small t-muted" x="470" y="224">Bars to scale up to 0.5 = 50 px; the 600 bar is broken off.</text>
+                  </svg>
+                </div>
+                <figcaption><b>A firefly is one lucky sample.</b> Fifteen ordinary samples and one that found the light through the mirror give a pixel average a hundred times too bright. The true average for that pixel is somewhere in between, and only a very large number of samples reveals it.</figcaption>
+              </figure>
+              <p>Renderers fight fireflies three ways. Better sampling finds the rare light paths more often (step 5). Clamping caps how bright any one sample may be: Unreal's path tracer calls it Max Path Intensity and HDRP's Maximum Intensity. It works, but it throws away energy, so caustics and bright reflections come out darker. And denoisers try to spot and suppress outliers, which a plain blur cannot do: a blur spreads a firefly into a blob.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="importance"><span class="step-num">5</span> Importance sampling: ask the useful directions</h3>
+              <p>Monte Carlo is right on average whichever directions it samples, as long as it corrects for how often it picks each one. So pick the directions that matter. <dfn class="term" data-term="importance-sampling">Importance sampling</dfn> draws directions in proportion to how much light they are likely to bring: more of them near the surface normal, where light counts most; along a shiny surface's reflection lobe; and straight at the lights, which is what the shadow ray in step 1 does. Aiming at lights is called next event estimation. Combining several strategies and weighting each where it does best is multiple importance sampling, from Eric Veach and Leonidas Guibas in 1995, and every production path tracer uses it.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Two copies of the same point on a floor under a ceiling with a small light. Left, 16 random directions: only one of them happens to hit the light. Right, 8 shadow rays aimed at random points on the light, all of which reach it, plus 8 random bounce directions for indirect light.">
+                    <text class="t-caps" x="40" y="22">RANDOM DIRECTIONS ONLY</text>
+                    <line class="s-ink w2" x1="40" y1="50" x2="360" y2="50"/>
+                    <rect class="f-paint-daylight s-strong" x="240" y="44" width="50" height="8"/>
+                    <line class="s-ink w2" x1="40" y1="210" x2="360" y2="210"/>
+                    <g class="s-muted">
+                      <line x1="200" y1="210" x2="40" y2="187.5"/><line x1="200" y1="210" x2="40" y2="155"/><line x1="200" y1="210" x2="40" y2="117.6"/><line x1="200" y1="210" x2="75" y2="50"/>
+                      <line x1="200" y1="210" x2="110.1" y2="50"/><line x1="200" y1="210" x2="135.4" y2="50"/><line x1="200" y1="210" x2="165.6" y2="50"/><line x1="200" y1="210" x2="191.6" y2="50"/>
+                      <line x1="200" y1="210" x2="212.5" y2="50"/><line x1="200" y1="210" x2="225.2" y2="50"/><line x1="200" y1="210" x2="325" y2="50"/>
+                      <line x1="200" y1="210" x2="360" y2="140.2"/><line x1="200" y1="210" x2="360" y2="173.1"/><line x1="200" y1="210" x2="360" y2="194.6"/><line x1="200" y1="210" x2="333" y2="50"/>
+                    </g>
+                    <line class="s-acc w2" x1="200" y1="210" x2="281.5" y2="52"/>
+                    <circle class="f-acc" cx="200" cy="210" r="5"/>
+                    <text class="t-small t-acc t-strong" x="40" y="234">1 of 16 rays finds the light</text>
+
+                    <text class="t-caps" x="480" y="22">AIM AT THE LIGHT, BOUNCE AT RANDOM</text>
+                    <line class="s-ink w2" x1="480" y1="50" x2="800" y2="50"/>
+                    <rect class="f-paint-daylight s-strong" x="680" y="44" width="50" height="8"/>
+                    <line class="s-ink w2" x1="480" y1="210" x2="800" y2="210"/>
+                    <g class="s-muted">
+                      <line x1="640" y1="210" x2="480" y2="85"/><line x1="640" y1="210" x2="523.8" y2="50"/><line x1="640" y1="210" x2="575.4" y2="50"/><line x1="640" y1="210" x2="611.8" y2="50"/>
+                      <line x1="640" y1="210" x2="634.4" y2="50"/><line x1="640" y1="210" x2="760.6" y2="50"/><line x1="640" y1="210" x2="789.2" y2="50"/><line x1="640" y1="210" x2="800" y2="110"/>
+                    </g>
+                    <g class="s-lit w15">
+                      <line x1="640" y1="210" x2="682" y2="52"/><line x1="640" y1="210" x2="688" y2="52"/><line x1="640" y1="210" x2="694" y2="52"/><line x1="640" y1="210" x2="700" y2="52"/>
+                      <line x1="640" y1="210" x2="706" y2="52"/><line x1="640" y1="210" x2="712" y2="52"/><line x1="640" y1="210" x2="718" y2="52"/><line x1="640" y1="210" x2="724" y2="52"/>
+                    </g>
+                    <circle class="f-acc" cx="640" cy="210" r="5"/>
+                    <text class="t-small t-lit t-strong" x="480" y="234">8 shadow rays reach the light, unless blocked</text>
+                    <text class="t-small t-muted" x="816" y="120">8 random</text>
+                    <text class="t-small t-muted" x="816" y="134">bounces carry</text>
+                    <text class="t-small t-muted" x="816" y="148">indirect light</text>
+                  </svg>
+                </div>
+                <figcaption><b>Same rays, far less noise.</b> With random directions alone, a small light is found by luck, and whether a pixel gets 0, 1 or 2 hits makes its value jump. Aiming at the light makes every shadow ray count. Switch Light sampling off in the interactive to see the difference at equal samples.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="restir"><span class="step-num">6</span> ReSTIR: reuse good samples across pixels and frames</h3>
+              <p>Aiming at "the light" stops working when a scene has thousands of lights, or millions of glowing triangles: which one should a pixel aim at? <dfn class="term" data-term="restir">ReSTIR</dfn>, from Benedikt Bitterli, Chris Wyman, Matt Pharr, Peter Shirley, Aaron Lefohn and Wojciech Jarosz (SIGGRAPH 2020), answers it by resampling. Each pixel looks at many cheap candidate lights, keeps one in proportion to how much it would contribute ignoring shadows, and remembers it in a tiny record called a reservoir. Then pixels borrow: each combines its reservoir with those of a few random neighbours, and with its own reservoir from the last frame. Only the final winner gets a shadow ray.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Three panels. One: a pixel looks at 32 candidate lights and keeps one in its reservoir, which stores the chosen light, a weight total and the count of candidates seen. Two: the pixel combines its reservoir with those of five random neighbours within 30 pixels. Three: it also combines last frame's reservoir for the same surface, found with a motion vector, capped at 20 times the current frame's count. Finally one shadow ray is traced to the chosen light.">
+                    <defs>
+                      <marker id="rs-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">1 · CANDIDATES</text>
+                    <g class="f-lit">
+                      <circle cx="40" cy="50" r="3"/><circle cx="70" cy="40" r="3"/><circle cx="110" cy="46" r="3"/><circle cx="150" cy="38" r="3"/><circle cx="190" cy="52" r="3"/><circle cx="230" cy="42" r="3"/>
+                      <circle cx="56" cy="70" r="3"/><circle cx="96" cy="64" r="3"/><circle cx="132" cy="72" r="3"/><circle cx="172" cy="66" r="3"/><circle cx="212" cy="74" r="3"/><circle cx="250" cy="62" r="3"/>
+                      <circle cx="36" cy="92" r="3"/><circle cx="80" cy="96" r="3"/><circle cx="206" cy="98" r="3"/><circle cx="248" cy="90" r="3"/>
+                    </g>
+                    <circle class="f-lit" cx="160" cy="90" r="6"/>
+                    <g class="s-line">
+                      <line x1="140" y1="190" x2="40" y2="50"/><line x1="140" y1="190" x2="70" y2="40"/><line x1="140" y1="190" x2="110" y2="46"/><line x1="140" y1="190" x2="150" y2="38"/><line x1="140" y1="190" x2="190" y2="52"/><line x1="140" y1="190" x2="230" y2="42"/>
+                      <line x1="140" y1="190" x2="56" y2="70"/><line x1="140" y1="190" x2="96" y2="64"/><line x1="140" y1="190" x2="132" y2="72"/><line x1="140" y1="190" x2="172" y2="66"/><line x1="140" y1="190" x2="212" y2="74"/><line x1="140" y1="190" x2="250" y2="62"/>
+                      <line x1="140" y1="190" x2="36" y2="92"/><line x1="140" y1="190" x2="80" y2="96"/><line x1="140" y1="190" x2="206" y2="98"/><line x1="140" y1="190" x2="248" y2="90"/>
+                    </g>
+                    <line class="s-acc w2" x1="140" y1="190" x2="158" y2="96"/>
+                    <rect class="f-acc" x="132" y="184" width="16" height="16" rx="2"/>
+                    <rect class="f-acc-soft s-acc" x="30" y="214" width="224" height="58" rx="5"/>
+                    <text class="t-small t-strong" x="42" y="232">reservoir: the chosen light,</text>
+                    <text class="t-small" x="42" y="248">weight total, count M = 32</text>
+                    <text class="t-small t-muted" x="42" y="264">no shadow rays yet</text>
+                    <text class="t-small t-muted" x="168" y="186">32 candidates (16 drawn)</text>
+
+                    <text class="t-caps" x="320" y="20">2 · BORROW FROM NEIGHBOURS</text>
+                    <g class="s-line">
+                      <path d="M320,40 H560 M320,64 H560 M320,88 H560 M320,112 H560 M320,136 H560 M320,160 H560 M320,184 H560 M320,208 H560"/>
+                      <path d="M320,40 V208 M344,40 V208 M368,40 V208 M392,40 V208 M416,40 V208 M440,40 V208 M464,40 V208 M488,40 V208 M512,40 V208 M536,40 V208 M560,40 V208"/>
+                    </g>
+                    <circle class="s-acc dash" cx="440" cy="124" r="78"/>
+                    <rect class="f-acc" x="440" y="112" width="24" height="24"/>
+                    <g class="f-acc-soft s-acc">
+                      <rect x="368" y="64" width="24" height="24"/><rect x="488" y="64" width="24" height="24"/><rect x="392" y="160" width="24" height="24"/><rect x="512" y="136" width="24" height="24"/><rect x="344" y="136" width="24" height="24"/>
+                    </g>
+                    <g class="s-acc w15">
+                      <line x1="380" y1="88" x2="444" y2="114" marker-end="url(#rs-arr)"/><line x1="500" y1="88" x2="460" y2="114" marker-end="url(#rs-arr)"/>
+                      <line x1="404" y1="160" x2="444" y2="136" marker-end="url(#rs-arr)"/><line x1="512" y1="148" x2="466" y2="128" marker-end="url(#rs-arr)"/><line x1="368" y1="148" x2="438" y2="128" marker-end="url(#rs-arr)"/>
+                    </g>
+                    <text class="t-small" x="320" y="232">5 random neighbours within 30 pixels;</text>
+                    <text class="t-small" x="320" y="248">each brings its winner and its count.</text>
+                    <text class="t-small t-muted" x="320" y="264">Two rounds of this per frame.</text>
+
+                    <text class="t-caps" x="610" y="20">3 · BORROW FROM LAST FRAME</text>
+                    <rect class="f-surface s-strong dash" x="610" y="44" width="150" height="100" rx="4"/>
+                    <text class="t-small t-muted" x="618" y="60">last frame</text>
+                    <rect class="f-acc-soft s-acc" x="646" y="84" width="20" height="20"/>
+                    <rect class="f-surface s-strong" x="700" y="90" width="170" height="110" rx="4"/>
+                    <text class="t-small t-muted" x="708" y="106">this frame</text>
+                    <rect class="f-acc" x="760" y="140" width="20" height="20"/>
+                    <path class="s-pix w15" d="M666,96 C700,110 730,130 756,146" marker-end="url(#rs-arr)"/>
+                    <text class="t-small t-pix" x="610" y="166">motion vector</text>
+                    <text class="t-small" x="610" y="232">Last frame's reservoir for the same</text>
+                    <text class="t-small" x="610" y="248">surface; its count is capped at 20× this</text>
+                    <text class="t-small" x="610" y="264">frame's, so stale picks fade out.</text>
+                    <text class="t-small t-acc t-strong" x="610" y="288">Then: 1 shadow ray to the winner.</text>
+                  </svg>
+                </div>
+                <figcaption><b>Many candidates, one shadow ray.</b> Each pixel's winner has effectively been chosen from its own 32 candidates, its neighbours' and last frame's, hundreds in all, for the cost of one visibility test. The numbers are those of the paper's biased version; its unbiased version uses 3 neighbours and one round.</figcaption>
+              </figure>
+              <p>The paper reports scenes with up to 3.4 million dynamic emissive triangles rendered in under 50 ms per frame at 1920 × 1080, and the unbiased version reaching equal error 6 to 60 times faster than previous methods, on a GeForce RTX 2080 Ti or a Titan RTX. NVIDIA's RTXDI library is built on ReSTIR and has since added versions for bounced light (ReSTIR GI) and full paths (ReSTIR PT). The family is the main reason real-time path tracing with many lights became possible.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="denoisers"><span class="step-num">7</span> Denoisers: neighbours, history and guides</h3>
+              <p>A real-time denoiser works from more than the noisy image. The rasterized <a class="term" data-term="g-buffer" href="glossary.html#g-buffer">G-buffer</a> gives clean depth, normals and surface colour for every pixel, which say where one surface ends and the next begins. Motion vectors say where each pixel was last frame, so previous results can be reused. These guides let the denoiser average a lot of noisy samples without blurring across edges.</p>
+              <figure>
+                <div class="fig-frame">
+                  <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Six inputs feed a denoiser: the noisy colour, the albedo or surface colour, the normals, the depth, the motion vectors and the history, last frame's result. The denoiser divides out the albedo, accumulates the history, estimates the noise, blurs within edges and multiplies the albedo back. The output is a clean frame.">
+                    <defs>
+                      <filter id="dn-grain" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="9"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.3 0 0 0 -1.15"/>
+                      </filter>
+                      <linearGradient id="dn-depth" x1="0" y1="1" x2="0" y2="0"><stop offset="0" class="stop-buf-lo"/><stop offset="1" class="stop-buf-hi"/></linearGradient>
+                      <marker id="dn-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+                      <marker id="dn-arr-p" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path class="f-pix" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <text class="t-caps" x="20" y="20">INPUTS</text>
+                    <rect class="f-buf-hi" x="20" y="32" width="120" height="70"/>
+                    <polygon class="f-paint-red" points="20,32 40,42 40,92 20,102"/>
+                    <polygon class="f-paint-green" points="140,32 120,42 120,92 140,102"/>
+                    <polygon class="f-shade" fill-opacity="0.08" points="40,92 120,92 140,102 20,102"/>
+                    <rect x="20" y="32" width="120" height="70" filter="url(#dn-grain)"/>
+                    <rect class="s-strong" x="20" y="32" width="120" height="70"/>
+                    <text class="t-small t-strong" x="20" y="118">noisy colour</text>
+                    <text class="t-small t-muted" x="20" y="132">1 or 2 samples</text>
+
+                    <rect class="f-buf-hi" x="160" y="32" width="120" height="70"/>
+                    <polygon class="f-paint-red" points="160,32 180,42 180,92 160,102"/>
+                    <polygon class="f-paint-green" points="280,32 260,42 260,92 280,102"/>
+                    <polygon class="f-buf-hi" points="180,92 260,92 280,102 160,102"/>
+                    <rect class="f-buf-hi s-strong" x="226" y="62" width="18" height="34"/>
+                    <rect class="s-strong" x="160" y="32" width="120" height="70"/>
+                    <text class="t-small t-strong" x="160" y="118">albedo</text>
+                    <text class="t-small t-muted" x="160" y="132">surface colour, no light</text>
+
+                    <rect class="f-pix-soft" x="300" y="32" width="120" height="70"/>
+                    <g class="s-pix w15">
+                      <line x1="310" y1="70" x2="326" y2="70" marker-end="url(#dn-arr-p)"/><line x1="410" y1="70" x2="394" y2="70" marker-end="url(#dn-arr-p)"/>
+                      <line x1="360" y1="70" x2="360" y2="56" marker-end="url(#dn-arr-p)"/><line x1="360" y1="100" x2="360" y2="86" marker-end="url(#dn-arr-p)"/>
+                      <line x1="340" y1="100" x2="340" y2="86" marker-end="url(#dn-arr-p)"/><line x1="380" y1="100" x2="380" y2="86" marker-end="url(#dn-arr-p)"/>
+                    </g>
+                    <rect class="s-strong" x="300" y="32" width="120" height="70"/>
+                    <text class="t-small t-strong" x="300" y="118">normals</text>
+                    <text class="t-small t-muted" x="300" y="132">which way each faces</text>
+
+                    <rect x="20" y="152" width="120" height="70" fill="url(#dn-depth)"/>
+                    <rect class="s-strong" x="20" y="152" width="120" height="70"/>
+                    <text class="t-small t-on-buf" x="28" y="170">far</text>
+                    <text class="t-small t-on-buf-dark" x="28" y="216">near</text>
+                    <text class="t-small t-strong" x="20" y="238">depth</text>
+                    <text class="t-small t-muted" x="20" y="252">distance per pixel</text>
+
+                    <rect class="f-pix-soft" x="160" y="152" width="120" height="70"/>
+                    <g class="s-pix w15">
+                      <line x1="176" y1="172" x2="190" y2="168" marker-end="url(#dn-arr-p)"/><line x1="206" y1="172" x2="220" y2="168" marker-end="url(#dn-arr-p)"/><line x1="236" y1="172" x2="250" y2="168" marker-end="url(#dn-arr-p)"/>
+                      <line x1="176" y1="196" x2="192" y2="192" marker-end="url(#dn-arr-p)"/><line x1="206" y1="196" x2="222" y2="192" marker-end="url(#dn-arr-p)"/><line x1="236" y1="196" x2="252" y2="192" marker-end="url(#dn-arr-p)"/>
+                    </g>
+                    <rect class="s-strong" x="160" y="152" width="120" height="70"/>
+                    <text class="t-small t-strong" x="160" y="238">motion vectors</text>
+                    <text class="t-small t-muted" x="160" y="252">where it was last frame</text>
+
+                    <rect class="f-buf-hi" x="300" y="152" width="120" height="70"/>
+                    <polygon class="f-paint-red" points="300,152 320,162 320,212 300,222"/>
+                    <polygon class="f-paint-green" points="420,152 400,162 400,212 420,222"/>
+                    <polygon class="f-shade" fill-opacity="0.08" points="320,212 400,212 420,222 300,222"/>
+                    <rect class="s-strong dash" x="300" y="152" width="120" height="70"/>
+                    <text class="t-small t-strong" x="300" y="238">history</text>
+                    <text class="t-small t-muted" x="300" y="252">last frame's clean result</text>
+
+                    <line class="s-muted" x1="432" y1="127" x2="486" y2="127" marker-end="url(#dn-arr)"/>
+                    <rect class="f-acc-soft s-acc w15" x="490" y="40" width="210" height="196" rx="8"/>
+                    <text class="t-head" x="504" y="64">Denoiser</text>
+                    <text class="t-small" x="504" y="88">1 divide out the albedo</text>
+                    <text class="t-small" x="504" y="112">2 blend in the history, moved</text>
+                    <text class="t-small" x="518" y="126">by the motion vectors</text>
+                    <text class="t-small" x="504" y="150">3 estimate each pixel's noise</text>
+                    <text class="t-small" x="504" y="174">4 blur more where it is noisy,</text>
+                    <text class="t-small" x="518" y="188">never across depth or normal edges</text>
+                    <text class="t-small" x="504" y="212">5 multiply the albedo back</text>
+                    <line class="s-muted" x1="702" y1="127" x2="736" y2="127" marker-end="url(#dn-arr)"/>
+                    <rect class="f-buf-hi" x="740" y="92" width="140" height="70"/>
+                    <polygon class="f-paint-red" points="740,92 762,102 762,152 740,162"/>
+                    <polygon class="f-paint-green" points="880,92 858,102 858,152 880,162"/>
+                    <polygon class="f-shade" fill-opacity="0.08" points="762,152 858,152 880,162 740,162"/>
+                    <rect class="s-strong" x="740" y="92" width="140" height="70"/>
+                    <text class="t-small t-strong" x="740" y="178">clean frame</text>
+                    <text class="t-small t-muted" x="740" y="192">and the next frame's history</text>
+                  </svg>
+                </div>
+                <figcaption><b>What a denoiser reads.</b> The steps are those of SVGF; most real-time denoisers follow the same outline. Dividing out the albedo first means texture detail, which the G-buffer already has exactly, is never blurred; only the light is filtered.</figcaption>
+              </figure>
+              <p><dfn class="term" data-term="svgf">SVGF</dfn>, spatiotemporal variance-guided filtering, by Christoph Schied and colleagues at NVIDIA (High Performance Graphics 2017), is the clearest example. It takes one path per pixel, accumulates each pixel's history with <a class="term" data-term="temporal-accumulation" data-forward href="glossary.html#temporal-accumulation">temporal accumulation</a>, estimates how much each pixel's brightness varies, and runs a five-level à-trous filter, a blur whose taps spread further apart at each level, with edge-stopping on depth, normals and brightness. The paper reports about 10 ms at 1920 × 1080 on a Titan X (Pascal), with the filter alone averaging 4.4 ms at 1280 × 720. NVIDIA's open-source NRD library offers successors: ReLAX, an à-trous denoiser designed for RTXDI, ReBLUR, and SIGMA for shadows.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="ai-denoisers"><span class="step-num">8</span> AI denoisers and ray reconstruction</h3>
+              <p>An <dfn class="term" data-term="ai-denoiser">AI denoiser</dfn> replaces hand-written filter rules with a neural network trained on pairs of noisy and clean images. Offline, Intel's Open Image Denoise is widely used: Unreal's default path tracer denoiser runs Open Image Denoise networks on the GPU, and HDRP recommends it for its path tracer. In real time, NVIDIA's <dfn class="term" data-term="ray-reconstruction">ray reconstruction</dfn>, introduced with DLSS 3.5 in 2023, replaces a game's several hand-tuned denoisers, one per ray-traced effect, with a single network trained on offline-rendered images; NVIDIA describes it as available on all GeForce RTX GPUs. AMD's FSR Ray Regeneration is a machine-learning denoiser for ray-traced lighting in its FSR SDK, which runs separately from upscaling or alongside it.</p>
+              <p>NVIDIA's own announcement names the weaknesses these networks target: hand-tuned temporal denoisers can introduce ghosting and remove dynamic effects, and spatial blending can blur detail. A network does not abolish those trade-offs; it moves them. When an AI denoiser fails, it fails in ways that are harder to tune by hand, so review it in motion, not in screenshots.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="reference"><span class="step-num">9</span> Reference rendering and real time</h3>
+              <p>Path tracing appears in games in two very different roles. As <dfn class="term" data-term="reference-rendering">reference rendering</dfn>, the engine's path tracer accumulates thousands of samples while the camera stands still and restarts when anything moves; Epic describes Unreal's as being for final shots and ground truth comparisons, not gameplay. As real-time rendering, a game traces about one or two paths per pixel, samples lights with ReSTIR, denoises with a network, and upscales. NVIDIA's Cyberpunk 2077 Overdrive mode, which it calls full ray tracing, otherwise known as path tracing, recommended a GeForce RTX 40 series GPU with DLSS 3 at launch in 2023.</p>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th scope="col"></th><th scope="col">Reference path tracing</th><th scope="col">Real-time path tracing</th><th scope="col">Hybrid ray tracing (8.6)</th></tr></thead>
+                  <tbody>
+                    <tr><th scope="row">Samples</th><td>Hundreds to thousands per pixel, accumulated</td><td>About 1 or 2 paths per pixel per frame</td><td>A quarter to 1 ray per pixel per effect</td></tr>
+                    <tr><th scope="row">Light</th><td>Every bounce, every light</td><td>Every bounce, lights chosen by resampling</td><td>Chosen effects; the rest from probes and screen-space</td></tr>
+                    <tr><th scope="row">Clean-up</th><td>Offline denoiser on the final frame</td><td>Temporal reuse, AI denoiser, upscaling</td><td>A denoiser per effect</td></tr>
+                    <tr><th scope="row">Use</th><td>Ground truth, film, marketing stills</td><td>A top quality tier on high-end GPUs</td><td>Quality tiers on current consoles and PCs</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>Keep the reference running even if you never ship path tracing. A path-traced frame of the same scene tells lighting artists whether the real-time GI is too dark in corners, leaking, or missing a bounce, and it settles whether a bug lives in the content or in the approximation.</p>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>Path tracing cost is a product: pixels × samples per pixel × bounces × rays per bounce. At 1080p, one sample per pixel with three bounces and a shadow ray at each is 2,073,600 × 3 × 2 = 12,441,600 rays a frame, six times a single ray-traced effect. A reference frame at 1,024 samples is 1,024 times that, about 12.7 billion rays, which is why it takes seconds to minutes rather than milliseconds.</p>
+            <div class="stat-row">
+              <div class="stat"><span class="value">10 ms</span><span class="what">SVGF denoising at 1920 × 1080, one path per pixel, Titan X (Pascal), 2017</span></div>
+              <div class="stat"><span class="value">15 to 50 ms</span><span class="what">ReSTIR frames at 1920 × 1080, scenes with up to 3.4 million emissive triangles, RTX 2080 Ti or Titan RTX, 2020</span></div>
+              <div class="stat"><span class="value">29 ms</span><span class="what">one path-traced Quake II RTX frame, RTX 2080, per NVIDIA in 2019</span></div>
+              <div class="stat"><span class="value">×4</span><span class="what">samples needed to halve the noise</span></div>
+            </div>
+            <p class="stamp">Timings as published in the SVGF paper (2017), the ReSTIR paper (2020) and NVIDIA's Hot Chips 2019 talk, each on the hardware named. Current GPUs are faster; profile your own scene.</p>
+            <ul class="grows">
+              <li><strong>Samples per pixel</strong><span>Linear in cost, square root in quality. Real time sits at one or two and leans on reuse.</span></li>
+              <li><strong>Bounces</strong><span>Each bounce traces again, less coherently. Bright interiors keep paths alive longer; Epic recommends keeping diffuse base colours below 0.8 for the path tracer.</span></li>
+              <li><strong>Lights</strong><span>Without resampling, sampling many lights well needs many shadow rays. ReSTIR keeps it near one.</span></li>
+              <li><strong>Denoising and upscaling</strong><span>A fixed cost per pixel, and on the AI side a GPU generation requirement.</span></li>
+              <li><strong>Materials at every hit</strong><span>A path shades a material at every bounce, so expensive materials cost several times over.</span></li>
+              <li><strong>Motion</strong><span>Reuse across frames is what makes one sample enough; fast motion and disocclusion take it away exactly when the image changes most.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>Real-time path tracing replaces a stack of separate techniques, each with its own leaks and tuning, with one that is correct but noisy. You trade art-team time spent fixing light leaks and probe placement for GPU time and denoiser artifacts, and you narrow the hardware that can run it. Most games that offer it today offer it as an optional top setting.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Path tracing's own failures are noise and fireflies. Most of what players report, though, comes from the denoiser and the reuse across frames that hide the noise.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A dim room corner sprinkled with isolated bright white specks.">
+                    <rect class="f-buf-lo" x="0" y="0" width="240" height="130"/>
+                    <polygon class="f-buf-hi" fill-opacity="0.12" points="0,96 240,96 240,130 0,130"/>
+                    <g class="f-paint-daylight">
+                      <rect x="40" y="30" width="3" height="3"/><rect x="96" y="70" width="3" height="3"/><rect x="150" y="20" width="3" height="3"/><rect x="190" y="104" width="3" height="3"/>
+                      <rect x="70" y="112" width="3" height="3"/><rect x="214" y="58" width="3" height="3"/><rect x="126" y="100" width="3" height="3"/><rect x="20" y="80" width="3" height="3"/>
+                    </g>
+                    <circle class="f-paint-daylight" fill-opacity="0.35" cx="128" cy="101" r="6"/>
+                    <circle class="f-paint-daylight" fill-opacity="0.35" cx="191" cy="105" r="6"/>
+                  </svg>
+                </div>
+                <h4>Fireflies: bright specks that flicker</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Rare paths that reach a small, bright light, often through a mirror, glass or glossy metal. Bloom (9.4) can spread them into blobs.</dd></div>
+                  <div><dt>Ask for</dt><dd>Better light sampling for that light, a firefly clamp (Max Path Intensity, Maximum Intensity) at the lowest value that does not visibly darken the scene, and denoiser outlier rejection.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A wall covered in soft, blotchy light and dark patches, like moving clouds.">
+                    <defs>
+                      <filter id="sy-blotch" x="0" y="0" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="2" seed="5"/>
+                        <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1.3 0 0 0 -0.5"/>
+                      </filter>
+                    </defs>
+                    <rect class="f-buf-hi" x="0" y="0" width="240" height="130"/>
+                    <rect x="0" y="0" width="240" height="130" filter="url(#sy-blotch)"/>
+                  </svg>
+                </div>
+                <h4>Blotchy, boiling light in motion</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>The denoiser has turned fine grain into large patches that crawl as the noise changes each frame: too few samples for the light, or history lost to camera motion.</dd></div>
+                  <div><dt>Ask for</dt><dd>Captures in motion, the samples per pixel for the worst lights, and whether temporal history is being reset too often.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A lit character moving right across a dark corridor, leaving a fading trail of light on the wall behind it.">
+                    <defs>
+                      <filter id="sy-trail" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
+                      <marker id="sy-trail-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-ink" d="M0,0 L8,4 L0,8 Z"/></marker>
+                    </defs>
+                    <rect class="f-solid" x="0" y="0" width="240" height="130"/>
+                    <g filter="url(#sy-trail)">
+                      <ellipse class="f-lit" fill-opacity="0.15" cx="70" cy="70" rx="22" ry="34"/>
+                      <ellipse class="f-lit" fill-opacity="0.25" cx="110" cy="70" rx="22" ry="34"/>
+                      <ellipse class="f-lit" fill-opacity="0.4" cx="150" cy="70" rx="22" ry="34"/>
+                    </g>
+                    <circle class="f-lit" cx="186" cy="62" r="7"/>
+                    <rect class="f-strong s-ink" x="176" y="70" width="20" height="44" rx="6"/>
+                    <line class="s-ink w15" x1="60" y1="18" x2="130" y2="18" marker-end="url(#sy-trail-arr)"/>
+                  </svg>
+                </div>
+                <h4>Light smears behind moving objects</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Temporal reuse keeps light, or a ReSTIR light choice, from where an object was. It is <a class="term" data-term="ghosting" data-forward href="glossary.html#ghosting">ghosting</a>, and it shows most at <a class="term" data-term="disocclusion" data-forward href="glossary.html#disocclusion">disocclusion</a> and on objects without correct motion vectors.</dd></div>
+                  <div><dt>Ask for</dt><dd>History rejection settings, motion vectors on every moving object, including particles and animated materials, and slow-motion captures of the trail.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A lamp drawn as switched off, but the wall around it still glows for a moment.">
+                    <defs><filter id="sy-lag" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="12"/></filter></defs>
+                    <rect class="f-solid" x="0" y="0" width="240" height="130"/>
+                    <circle class="f-lit" fill-opacity="0.35" cx="120" cy="56" r="40" filter="url(#sy-lag)"/>
+                    <circle class="f-surface s-ink w15" cx="120" cy="52" r="10"/>
+                    <path class="s-ink w15" d="M113,45 L127,59 M127,45 L113,59"/>
+                    <text class="t-small t-muted mid" x="120" y="112">lamp off, glow lingers</text>
+                  </svg>
+                </div>
+                <h4>Lighting lags behind changes</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>Accumulation over many frames: a switched-off light or an opened door takes several frames to show, because old samples still dominate the average.</dd></div>
+                  <div><dt>Ask for</dt><dd>History reset or faster blending on large lighting changes, and a recording of the change at the target frame rate.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+                  <svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two crates on a floor. On the left, a crisp dark contact shadow under the crate. On the right, the same shadow blurred into a faint smudge, and the crate's planks smoothed away.">
+                    <defs><filter id="sy-blur" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter></defs>
+                    <rect class="f-sunken" x="0" y="0" width="240" height="130"/>
+                    <polygon class="f-shade" fill-opacity="0.55" points="28,108 92,108 104,116 24,116"/>
+                    <rect class="f-solid s-ink" x="30" y="60" width="60" height="48"/>
+                    <path class="s-ink" d="M30,76 H90 M30,92 H90"/>
+                    <polygon class="f-shade" fill-opacity="0.3" points="148,108 212,108 224,116 144,116" filter="url(#sy-blur)"/>
+                    <rect class="f-solid s-ink" x="150" y="60" width="60" height="48"/>
+                    <text class="t-small t-muted mid" x="60" y="30">reference</text>
+                    <text class="t-small t-pix t-strong mid" x="180" y="30">over-filtered</text>
+                  </svg>
+                </div>
+                <h4>A soft, waxy look: lost contact shadows</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>A spatial filter strong enough for the noise also smooths small, real lighting detail: contact shadows, creases, light in small gaps.</dd></div>
+                  <div><dt>Ask for</dt><dd>Side-by-side comparison with the engine's reference path tracer, more samples rather than more blur where detail matters, and the denoiser's edge-stopping settings.</dd></div>
+                </dl>
+              </article>
+            </div>
+            <p>The reference path tracer is the diagnostic tool here too: if the reference shows the same thing, it is the content or the lighting; if only the real-time image does, it is sampling or denoising.</p>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>Unreal and HDRP both ship a reference path tracer built on their hardware ray tracing, plus denoisers for their real-time ray-traced effects. URP and Godot ship neither.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6, HDRP</th><th scope="col">Unity 6, URP</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Reference path tracer</th>
+                    <td><strong>Path Tracer</strong>: enable Support Hardware Ray Tracing and Path Tracing in Project Settings; DirectX 12, Shader Model 6. For final shots and ground truth, mainly through Movie Render Queue.</td>
+                    <td><strong>Path Tracing</strong> Volume override. Needs HDRP ray tracing set up (DirectX 12).</td>
+                    <td>None.</td>
+                    <td>None built in. NVIDIA released an experimental path-tracing fork of Godot in March 2026, separate from the main engine.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Samples and bounces</th>
+                    <td>Post Process Volume, Path Tracing: <strong>Samples Per Pixel</strong>, <strong>Max. Bounces</strong>. Accumulation restarts when the camera or scene changes.</td>
+                    <td><strong>Maximum Samples</strong>, <strong>Minimum Depth</strong>, <strong>Maximum Depth</strong>. Accumulation restarts when the camera moves.</td>
+                    <td>Not applicable.</td>
+                    <td>Not applicable.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Fireflies</th>
+                    <td><strong>Max Path Intensity</strong> clamps bright samples, relative to exposure; <code>r.PathTracing.ApproximateCaustics</code> (on by default) reduces caustic noise.</td>
+                    <td><strong>Maximum Intensity</strong> caps each bounce; <strong>Sky Importance Sampling</strong> for HDRI skies.</td>
+                    <td>Not applicable.</td>
+                    <td>Not applicable.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Path tracer denoiser</th>
+                    <td><strong>Denoiser</strong> checkbox. Default NNE Denoiser (Open Image Denoise networks on the GPU); also a CPU Open Image Denoise plugin, NVIDIA OptiX (experimental) and NFOR for temporal denoising.</td>
+                    <td><strong>Denoising</strong>: None (default), Intel Open Image Denoise (recommended) or NVIDIA OptiX (deprecated). Requires the Unity Denoising package.</td>
+                    <td>Not applicable.</td>
+                    <td>Not applicable.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Real-time sampling and denoising</th>
+                    <td><strong>MegaLights</strong> (experimental): traces a fixed number of rays per pixel to the most important lights, then denoises. Hardware ray tracing only; not on mobile or previous-generation consoles.</td>
+                    <td>Each ray-traced effect has a <strong>Denoise</strong> option, a spatio-temporal filter.</td>
+                    <td>No ray-traced effects.</td>
+                    <td>No ray-traced effects.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Names checked against the documentation for Unreal Engine 5.8, Unity 6.6 (6000.6) with HDRP 17.6, and Godot 4.7 in November 2026, plus GameFromScratch's report on NVIDIA's Godot fork (March 2026). Third-party plugins, such as NVIDIA's DLSS integration, add their own options; check their versions separately.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Path tracing briefs need the purpose (reference stills, cinematics, or real-time), the sample and bounce budget, the denoiser, and what "clean enough" means. Ask for comparisons with a reference image, not adjectives.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when setting up a lighting reference</span></div>
+              <pre class="prompt-body">Unreal Engine 5.8, Lumen GI and reflections in hardware mode. We want a path-traced reference for our five lighting test rooms, to compare against Lumen.
+
+1. Give the project settings and Post Process Volume Path Tracing settings for reference stills: samples per pixel, max bounces, Max Path Intensity, denoiser.
+2. Explain which settings would make the reference itself wrong (clamping too hard, too few bounces, emissive double-counting) and how to check.
+3. Describe a repeatable capture: camera bookmarks, exposure locked, the same frame with Lumen and with the path tracer, exported for side-by-side review.
+4. List what differences to expect between the two that are not bugs.</pre>
+              <ul class="prompt-why">
+                <li>Saying it is a reference, not gameplay, gets settings tuned for correctness rather than speed.</li>
+                <li>Asking how the reference can be wrong guards against a clamped or under-bounced "ground truth".</li>
+                <li>Locking exposure makes the comparison about lighting, not brightness.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when ray-traced lighting looks noisy or smeared</span></div>
+              <pre class="prompt-body">Unity 6.6, HDRP 17.6, ray-traced GI and reflections on, Performance mode, denoising on. 1440p, RTX 4070.
+1. In the neon alley, the walls shimmer with bright specks that come and go.
+2. When the player runs past a neon sign, a glow trails behind them for about half a second.
+
+For each problem, say whether it is a sampling problem, a denoising problem or a reuse-over-time problem, and why. Propose fixes in order of visual risk with their GPU cost. Tell us what to capture to confirm the cause, including a comparison with HDRP's path tracer for the same view.</pre>
+              <ul class="prompt-why">
+                <li>Separating sampling, denoising and reuse makes the AI reason about which part is failing.</li>
+                <li>Small bright neon is a classic firefly source; the trail is classic temporal reuse.</li>
+                <li>The path tracer comparison tells you whether the content itself is the problem.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing path tracing and denoising work</h3>
+            <ol class="review-list">
+              <li>How many samples per pixel, how many bounces, and is anything clamped?<span class="why">Clamps and bounce limits change the answer, not just the noise.</span></li>
+              <li>How are lights chosen when there are many of them?<span class="why">Without importance sampling or resampling, many lights mean many rays or a lot of noise.</span></li>
+              <li>What does the denoiser read, and does every moving thing write motion vectors?<span class="why">Missing guides cause blur across edges; missing motion vectors cause ghosting.</span></li>
+              <li>How long does lighting take to respond to a sudden change?<span class="why">Reuse across frames trades noise for lag.</span></li>
+              <li>Has the result been compared with a reference render, in motion?<span class="why">Denoised stills hide what players see when the camera moves.</span></li>
+              <li>What runs on GPUs without the required features?<span class="why">AI denoisers and path tracing modes are tied to hardware generations.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">A still render at 64 samples per pixel is still too noisy. Roughly how many samples would halve the noise, and what does that say about brute force?</p>
+                <details><summary>Show answer</summary><p>About 256: noise falls with the square root of the samples, so halving it takes four times as many. Each further halving costs four times the last, which is why both offline and real-time renderers rely on better sampling and denoising rather than more samples alone.</p></details>
+              </li>
+              <li>
+                <p class="q">What problem does ReSTIR solve, and why does it need only one shadow ray per pixel?</p>
+                <details><summary>Show answer</summary><p>Choosing which of many lights to sample. Each pixel resamples many cheap candidates without tracing shadow rays, keeps a winner in a reservoir, then combines reservoirs from random neighbours and from the previous frame. Only the final winner is tested for visibility, so the shadow ray goes where it is most likely to matter.</p></details>
+              </li>
+              <li>
+                <p class="q">Why does a real-time denoiser divide out the albedo before filtering, and what does it need motion vectors for?</p>
+                <details><summary>Show answer</summary><p>So that it filters only the light, not the texture detail, which the G-buffer already knows exactly; the albedo is multiplied back afterwards. Motion vectors tell it where each pixel was last frame, so it can reuse its history; without them, moving objects smear.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#path-tracing">path tracing</a></li>
+              <li><a class="chip" href="glossary.html#monte-carlo-integration">Monte Carlo integration</a></li>
+              <li><a class="chip" href="glossary.html#noise">noise</a></li>
+              <li><a class="chip" href="glossary.html#denoising">denoising</a></li>
+              <li><a class="chip" href="glossary.html#samples-per-pixel">samples per pixel</a></li>
+              <li><a class="chip" href="glossary.html#fireflies">fireflies</a></li>
+              <li><a class="chip" href="glossary.html#importance-sampling">importance sampling</a></li>
+              <li><a class="chip" href="glossary.html#restir">ReSTIR</a></li>
+              <li><a class="chip" href="glossary.html#svgf">SVGF</a></li>
+              <li><a class="chip" href="glossary.html#ai-denoiser">AI denoiser</a></li>
+              <li><a class="chip" href="glossary.html#ray-reconstruction">ray reconstruction</a></li>
+              <li><a class="chip" href="glossary.html#reference-rendering">reference rendering</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="9.1"></a> starts Part 9 with what happens to all this light after it is computed: exposure and tone mapping squeeze it into what a screen can show.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Matt Pharr, Wenzel Jakob and Greg Humphreys, <a href="https://pbr-book.org/4ed/Monte_Carlo_Integration/Monte_Carlo_Basics">Monte Carlo Basics</a>, Physically Based Rendering, fourth edition.</li>
+              <li>Benedikt Bitterli, Chris Wyman, Matt Pharr, Peter Shirley, Aaron Lefohn and Wojciech Jarosz, <a href="https://research.nvidia.com/publication/2020-07_spatiotemporal-reservoir-resampling-real-time-ray-tracing-dynamic-direct">Spatiotemporal reservoir resampling for real-time ray tracing with dynamic direct lighting</a>, ACM Transactions on Graphics 39(4), SIGGRAPH 2020 (<a href="https://benedikt-bitterli.me/restir/bitterli20restir.pdf">paper</a>).</li>
+              <li>Christoph Schied, Anton Kaplanyan, Chris Wyman and colleagues, <a href="https://research.nvidia.com/publication/2017-07_spatiotemporal-variance-guided-filtering-real-time-reconstruction-path-traced">Spatiotemporal Variance-Guided Filtering: Real-Time Reconstruction for Path-Traced Global Illumination</a>, High Performance Graphics 2017.</li>
+              <li>NVIDIA, <a href="https://github.com/NVIDIA-RTX/RTXDI">RTXDI</a> and <a href="https://github.com/NVIDIA-RTX/NRD">NRD</a> repositories; <a href="https://www.nvidia.com/en-us/geforce/news/nvidia-dlss-3-5-ray-reconstruction/">NVIDIA DLSS 3.5: Enhancing Ray Tracing With AI</a>, 2023; <a href="https://www.nvidia.com/en-us/geforce/news/cyberpunk-2077-ray-tracing-overdrive-update-launches-april-11/">Cyberpunk 2077 Ray Tracing: Overdrive Mode</a>, 2023.</li>
+              <li>John Burgess, <a href="https://www.old.hotchips.org/hc31/HC31_2.12_NVIDIA_final.pdf">RTX ON: The NVIDIA Turing GPU</a>, Hot Chips 31, 2019. The Quake II RTX timings.</li>
+              <li>AMD, <a href="https://gpuopen.com/manuals/fsr_sdk/techniques/denoising/">AMD FSR Ray Regeneration</a>, FSR SDK documentation.</li>
+              <li>Unreal Engine 5.8 documentation: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/path-tracer-in-unreal-engine?application_version=5.8">Path Tracer</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/megalights-in-unreal-engine?application_version=5.8">MegaLights</a>.</li>
+              <li>HDRP 17.6 documentation: <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/path-tracing-understand.html">Understand path tracing</a> and <a href="https://docs.unity3d.com/Packages/com.unity.render-pipelines.high-definition@17.6/manual/reference-path-tracing.html">Path tracing reference</a>; Unity 6.6 <a href="https://docs.unity.com/en-us/engine/6000.6/manual/render-pipelines/choose-a-render-pipeline/feature-comparison">Render pipeline feature comparison</a>.</li>
+              <li>GameFromScratch, <a href="https://gamefromscratch.com/nvidia-release-rtx-powered-godot-fork/">NVIDIA Release RTX Powered Godot Fork</a>, March 2026.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/spp-slider.js"></script>
+</body>
+</html>
