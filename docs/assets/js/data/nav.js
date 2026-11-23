@@ -129,14 +129,14 @@
       n: 10, title: "Anatomy of a frame", blurb: "Every earlier chapter replayed, in order, on real frames.",
       chapters: [
         { num: "10.1", slug: "deferred-frame", title: "A deferred frame, pass by pass", terms: "shadow pass, depth pre-pass, G-buffer, AO, lighting, SSR and SSGI, fog, transparents, post, UI", core: true, status: "published" },
-        { num: "10.2", slug: "mobile-frame", title: "A mobile frame", terms: "forward rendering, tile-based deferred rendering, load and store actions, bandwidth, heat", core: false, status: "planned" },
-        { num: "10.3", slug: "modern-feature-stack", title: "A modern feature stack", terms: "Nanite, Lumen, virtual shadow maps, TSR; how to read a feature list", core: false, status: "planned" }
+        { num: "10.2", slug: "mobile-frame", title: "A mobile frame", terms: "forward rendering, tile-based deferred rendering, load and store actions, bandwidth, heat", core: false, status: "published" },
+        { num: "10.3", slug: "modern-feature-stack", title: "A modern feature stack", terms: "Nanite, Lumen, virtual shadow maps, TSR; how to read a feature list", core: false, status: "published" }
       ]
     },
     {
       n: 11, title: "Performance", blurb: "Where the milliseconds go and how to find out.",
       chapters: [
-        { num: "11.1", slug: "frame-budgets", title: "Frame budgets", terms: "fps and ms, CPU-bound and GPU-bound, 1% lows, frame pacing, input latency", core: true, status: "planned" },
+        { num: "11.1", slug: "frame-budgets", title: "Frame budgets", terms: "fps and ms, CPU-bound and GPU-bound, 1% lows, frame pacing, input latency", core: true, status: "published" },
         { num: "11.2", slug: "gpu-time", title: "Where GPU time goes", terms: "resolution, fill rate, overdraw, shader cost, bandwidth, VRAM", core: false, status: "planned" },
         { num: "11.3", slug: "cpu-time", title: "Where CPU time goes", terms: "draw calls, culling, animation, physics, scripts, garbage collection, job systems", core: false, status: "planned" },
         { num: "11.4", slug: "memory-hitches", title: "Memory, streaming and hitches", terms: "texture pool, mesh streaming, loading, shader compile stutter, PSO cache", core: false, status: "planned" },
