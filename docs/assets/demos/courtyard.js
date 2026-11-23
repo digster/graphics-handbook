@@ -928,7 +928,7 @@
       // Picture first, so on phones (stacked) the scrubber sits under what it
       // changes. When .demo-panels splits into columns (900px, as in
       // diagrams.css) the pass list moves to the left column.
-      root.appendChild(h("div", { class: "demo-panels is-split" }, [h("div", { class: "demo-panel" }, [canvas]), passUI.panel]));
+      root.appendChild(h("div", { class: "demo-panels is-split is-scrubber" }, [h("div", { class: "demo-panel" }, [canvas]), passUI.panel]));
       if (window.matchMedia) {
         var wide = window.matchMedia("(min-width: 900px)");
         var place = function () { passUI.panel.style.order = wide.matches ? "-1" : ""; };

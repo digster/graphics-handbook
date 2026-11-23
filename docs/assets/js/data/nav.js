@@ -121,14 +121,14 @@
         { num: "9.2", slug: "anti-aliasing", title: "Anti-aliasing", terms: "jaggies, specular aliasing, SSAA, MSAA, FXAA, SMAA, TAA, jitter, history, motion vectors, ghosting", core: true, status: "published" },
         { num: "9.3", slug: "upscaling", title: "Upscaling and frame generation", terms: "DLSS, FSR, XeSS, TSR, internal resolution, dynamic resolution, VRS, frame generation, latency", core: true, status: "published" },
         { num: "9.4", slug: "camera-effects", title: "Camera effects", terms: "bloom, depth of field, circle of confusion, bokeh, motion blur, velocity buffer, grain, vignette", core: false, status: "published" },
-        { num: "9.5", slug: "atmosphere", title: "Atmosphere", terms: "height fog, volumetric fog, froxels, god rays, sky scattering, volumetric clouds", core: false, status: "planned" },
-        { num: "9.6", slug: "special-surfaces", title: "Special surfaces and effects", terms: "particles, flipbooks, soft particles, decals, water, foliage, subsurface scattering, hair, terrain", core: false, status: "planned" }
+        { num: "9.5", slug: "atmosphere", title: "Atmosphere", terms: "height fog, volumetric fog, froxels, god rays, sky scattering, volumetric clouds", core: false, status: "published" },
+        { num: "9.6", slug: "special-surfaces", title: "Special surfaces and effects", terms: "particles, flipbooks, soft particles, decals, water, foliage, subsurface scattering, hair, terrain", core: false, status: "published" }
       ]
     },
     {
       n: 10, title: "Anatomy of a frame", blurb: "Every earlier chapter replayed, in order, on real frames.",
       chapters: [
-        { num: "10.1", slug: "deferred-frame", title: "A deferred frame, pass by pass", terms: "shadow pass, depth pre-pass, G-buffer, AO, lighting, SSR and SSGI, fog, transparents, post, UI", core: true, status: "planned" },
+        { num: "10.1", slug: "deferred-frame", title: "A deferred frame, pass by pass", terms: "shadow pass, depth pre-pass, G-buffer, AO, lighting, SSR and SSGI, fog, transparents, post, UI", core: true, status: "published" },
         { num: "10.2", slug: "mobile-frame", title: "A mobile frame", terms: "forward rendering, tile-based deferred rendering, load and store actions, bandwidth, heat", core: false, status: "planned" },
         { num: "10.3", slug: "modern-feature-stack", title: "A modern feature stack", terms: "Nanite, Lumen, virtual shadow maps, TSR; how to read a feature list", core: false, status: "planned" }
       ]

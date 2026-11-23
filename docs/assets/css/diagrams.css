@@ -274,6 +274,20 @@ svg.dg .stop-black { stop-color: #000000; }  /* masks only: never visible */
   }
 }
 
+/* The courtyard's pass scrubber: picture beside a pass table that needs
+   room for its reads/writes columns, so the table column is the wider one
+   and its cells may wrap. */
+@media (min-width: 900px) {
+  .demo-panels.is-split.is-scrubber {
+    grid-template-columns: minmax(0, 1.2fr) minmax(320px, 1fr);
+  }
+}
+
+.demo-panels.is-scrubber .byte-table th,
+.demo-panels.is-scrubber .byte-table td {
+  white-space: normal;
+}
+
 .demo-panel {
   display: grid;
   gap: var(--sp-2);
