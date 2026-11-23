@@ -137,9 +137,9 @@
       n: 11, title: "Performance", blurb: "Where the milliseconds go and how to find out.",
       chapters: [
         { num: "11.1", slug: "frame-budgets", title: "Frame budgets", terms: "fps and ms, CPU-bound and GPU-bound, 1% lows, frame pacing, input latency", core: true, status: "published" },
-        { num: "11.2", slug: "gpu-time", title: "Where GPU time goes", terms: "resolution, fill rate, overdraw, shader cost, bandwidth, VRAM", core: false, status: "planned" },
-        { num: "11.3", slug: "cpu-time", title: "Where CPU time goes", terms: "draw calls, culling, animation, physics, scripts, garbage collection, job systems", core: false, status: "planned" },
-        { num: "11.4", slug: "memory-hitches", title: "Memory, streaming and hitches", terms: "texture pool, mesh streaming, loading, shader compile stutter, PSO cache", core: false, status: "planned" },
+        { num: "11.2", slug: "gpu-time", title: "Where GPU time goes", terms: "resolution, fill rate, overdraw, shader cost, bandwidth, VRAM", core: false, status: "published" },
+        { num: "11.3", slug: "cpu-time", title: "Where CPU time goes", terms: "draw calls, culling, animation, physics, scripts, garbage collection, job systems", core: false, status: "published" },
+        { num: "11.4", slug: "memory-hitches", title: "Memory, streaming and hitches", terms: "texture pool, mesh streaming, loading, shader compile stutter, PSO cache", core: false, status: "published" },
         { num: "11.5", slug: "profilers-settings", title: "Profilers and the settings menu", terms: "RenderDoc, PIX, Unreal Insights, Unity Profiler; scalability tiers", core: false, status: "planned" }
       ]
     },
