@@ -140,6 +140,11 @@ svg.dg .f-paint-candle { fill: var(--paint-candle); }
 svg.dg .f-paint-tungsten { fill: var(--paint-tungsten); }
 svg.dg .f-paint-daylight { fill: var(--paint-daylight); }
 svg.dg .f-paint-sky { fill: var(--paint-sky); }
+svg.dg .s-paint-red { stroke: var(--paint-red); }
+svg.dg .stop-paint-candle { stop-color: var(--paint-candle); }
+svg.dg .stop-paint-tungsten { stop-color: var(--paint-tungsten); }
+svg.dg .stop-paint-daylight { stop-color: var(--paint-daylight); }
+svg.dg .stop-paint-sky { stop-color: var(--paint-sky); }
 svg.dg .f-none { fill: none; }
 
 /* ---------- Strokes ---------- */

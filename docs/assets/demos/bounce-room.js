@@ -29,7 +29,7 @@
  * sunbeam itself is drawn as an amber overlay.
  *
  * Drawing uses diagram classes only: a buffer-dark base, a buffer-light
- * layer whose opacity is the brightness, and a rose layer for red light,
+ * layer whose opacity is the brightness, and a red (paint-red) layer for red light,
  * so the picture is the same in both themes. Exposed as HB.bounceRoom so the
  * chapter's static figure uses exactly the same solution.
  */
@@ -224,7 +224,7 @@
   }
 
   /* Display: exposure, then a gentle curve. Returns the opacity of the
-     light layer (a) and of the rose layer (b) over the dark base. */
+     light layer (a) and of the red layer (b) over the dark base. */
   var EXPO = { patch: 3.2, field: 0.75 };
   function tone(v, e) { return Math.pow(1 - Math.exp(-e * v), 1 / 2.2); }
   function layers(c, e) {
@@ -357,7 +357,7 @@
         var L = layers(fieldAt(c, Bf), EXPO.field);
         var x = sx(c.x * W / NX), y = sy((c.y + 1) * H / NY);
         if (L.a > 0.01) svgEl("rect", { x: x.toFixed(1), y: y.toFixed(1), width: (cw + 0.6).toFixed(1), height: (chh + 0.6).toFixed(1), class: "f-buf-hi", "fill-opacity": L.a.toFixed(2) }, layerField2);
-        if (L.b > 0.02) svgEl("rect", { x: x.toFixed(1), y: y.toFixed(1), width: (cw + 0.6).toFixed(1), height: (chh + 0.6).toFixed(1), class: "f-pix", "fill-opacity": L.b.toFixed(2) }, layerField2);
+        if (L.b > 0.02) svgEl("rect", { x: x.toFixed(1), y: y.toFixed(1), width: (cw + 0.6).toFixed(1), height: (chh + 0.6).toFixed(1), class: "f-paint-red", "fill-opacity": L.b.toFixed(2) }, layerField2);
       });
 
       /* Patches, drawn as bands just outside the interior (inside, for the crate). */
@@ -380,7 +380,7 @@
         var L = layers(B[i], EXPO.patch);
         svgEl("rect", { x: r.x.toFixed(1), y: r.y.toFixed(1), width: (r.w + 0.4).toFixed(1), height: (r.h + 0.4).toFixed(1), class: "f-buf-lo" }, layerPatches);
         if (L.a > 0.01) svgEl("rect", { x: r.x.toFixed(1), y: r.y.toFixed(1), width: (r.w + 0.4).toFixed(1), height: (r.h + 0.4).toFixed(1), class: "f-buf-hi", "fill-opacity": L.a.toFixed(2) }, layerPatches);
-        if (L.b > 0.02) svgEl("rect", { x: r.x.toFixed(1), y: r.y.toFixed(1), width: (r.w + 0.4).toFixed(1), height: (r.h + 0.4).toFixed(1), class: "f-pix", "fill-opacity": L.b.toFixed(2) }, layerPatches);
+        if (L.b > 0.02) svgEl("rect", { x: r.x.toFixed(1), y: r.y.toFixed(1), width: (r.w + 0.4).toFixed(1), height: (r.h + 0.4).toFixed(1), class: "f-paint-red", "fill-opacity": L.b.toFixed(2) }, layerPatches);
       });
       svgEl("rect", { x: sx(0) - 9, y: sy(H) - 9, width: W * K + 18, height: H * K + 18, class: "s-strong" }, layerPatches);
 
