@@ -39,3 +39,17 @@ Try again. (After an interrupted run.)
 ### 7
 
 continue (Sent twice, around model switches.)
+
+## 2026-11-24
+
+### 8
+
+what do you mean by more 3d scene coverage?
+
+### 9
+
+No, just work on a shared style for thumbnail pickers and then open a pr to main.
+
+### 10
+
+I have renamed it to main on GitHub. Also, disable the github workflows defined in the .github folder.

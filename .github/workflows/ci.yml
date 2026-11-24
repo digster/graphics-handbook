@@ -1,10 +1,13 @@
 # Runs the structure tests and the browser tests (Chromium, Firefox and
-# WebKit, each opening the pages from file://) on every push and pull request.
+# WebKit, each opening the pages from file://).
+#
+# Disabled: pushes and pull requests no longer start it. It runs only when
+# started by hand (Actions tab, CI, "Run workflow"). To turn automatic runs
+# back on, add `push:` and `pull_request:` under `on:` again.
 name: CI
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
