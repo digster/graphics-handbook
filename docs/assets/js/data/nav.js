@@ -205,6 +205,7 @@
     reference: [
       { id: "glossary", title: "Glossary", file: "glossary.html", blurb: "Every term the handbook defines, with the chapter that teaches it." },
       { id: "acronyms", title: "Acronym decoder", file: "acronyms.html", blurb: "Every acronym in the handbook, spelled out, in one sorted list." },
+      { id: "cheat-sheets", title: "Cheat sheets", file: "cheat-sheets.html", blurb: "Four printable one-page sheets: the pipeline, the anatomy of a frame, budgets, and the settings menu decoded." },
       { id: "sources", title: "Sources and further reading", file: "sources.html", blurb: "Every paper, talk and documentation page the chapters cite, grouped by chapter." }
     ]
   };

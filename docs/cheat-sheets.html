@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cheat sheets · Graphics Handbook</title>
+  <meta name="description" content="Four printable one-page cheat sheets: the pipeline, the anatomy of a frame, budgets, and the graphics settings menu decoded.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="cheat-sheets">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content cs-page">
+        <section class="hero" aria-labelledby="sheets-title">
+          <p class="eyebrow">Reference</p>
+          <h1 id="sheets-title">Cheat sheets</h1>
+          <p class="lead">Four one-page summaries to keep beside you in a review or a planning meeting. Each prints on its own page, in the light palette, whatever theme you read in.</p>
+          <div class="hero-actions">
+            <button class="btn" type="button" data-print="all" hidden>Print all four</button>
+          </div>
+          <ol class="cs-toc">
+            <li><a href="#sheet-pipeline">The pipeline, from idea to pixel</a></li>
+            <li><a href="#sheet-frame">The anatomy of a frame</a></li>
+            <li><a href="#sheet-budgets">Budgets</a></li>
+            <li><a href="#sheet-settings">Settings, decoded</a></li>
+          </ol>
+        </section>
+        <section class="cs-sheet" id="sheet-pipeline" aria-labelledby="sheet-pipeline-title">
+          <header class="cs-head">
+            <div>
+              <p class="eyebrow">Sheet 1 of 4</p>
+              <h2 id="sheet-pipeline-title">The pipeline, from idea to pixel</h2>
+              <p class="cs-lead">Three pipelines a graphics conversation can mean: the project&#x27;s, an asset&#x27;s, and the GPU&#x27;s.</p>
+            </div>
+            <button class="btn cs-print" type="button" data-print="sheet-pipeline" hidden>Print this sheet</button>
+          </header>
+          <figure>
+          <div class="fig-frame">
+          <svg class="dg is-wide" viewBox="0 0 900 534" role="img" aria-label="Three rows. The project: concept, pre-production, production, alpha, beta, launch and live ops, with gates greenlight, vertical slice, alpha, beta and gold master. An asset&#x27;s journey: source files, export, import, cook per platform, package, stream and load. One frame&#x27;s drawing: game thread, render thread and command buffer on the CPU, then the GPU stages input assembler, vertex shader, primitive assembly, rasterizer, pixel shader and output merger; the two shaders are your code, the rest fixed hardware.">
+            <defs>
+              <marker id="cs1-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+              <marker id="cs1-arr-a" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker>
+            </defs>
+            <text class="t-caps" x="14" y="24">THE PROJECT, FROM IDEA TO LIVE GAME · 1.1</text>
+            <polygon class="f-surface s-strong" points="14,36 150,36 162,51 150,66 14,66"/>
+            <text class="t-head mid" x="86" y="56">Concept</text>
+            <text class="t-small mid" x="88" y="84">look development:</text>
+            <text class="t-small t-muted mid" x="88" y="97">style tests, targets</text>
+            <polygon class="f-acc-soft s-acc" points="158.8,36 294.8,36 306.8,51 294.8,66 158.8,66 170.8,51"/>
+            <text class="t-head mid t-acc" x="236.8" y="56">Pre-production</text>
+            <text class="t-small mid" x="232.8" y="84">tech targets and</text>
+            <text class="t-small t-muted mid" x="232.8" y="97">budgets are set</text>
+            <polygon class="f-surface s-strong" points="303.6,36 439.6,36 451.6,51 439.6,66 303.6,66 315.6,51"/>
+            <text class="t-head mid" x="381.6" y="56">Production</text>
+            <text class="t-small mid" x="377.6" y="84">content built to</text>
+            <text class="t-small t-muted mid" x="377.6" y="97">budget; features built</text>
+            <polygon class="f-surface s-strong" points="448.4,36 584.4,36 596.4,51 584.4,66 448.4,66 460.4,51"/>
+            <text class="t-head mid" x="526.4" y="56">Alpha</text>
+            <text class="t-small mid" x="522.4" y="84">every feature in;</text>
+            <text class="t-small t-muted mid" x="522.4" y="97">features freeze</text>
+            <polygon class="f-surface s-strong" points="593.2,36 729.2,36 741.2,51 729.2,66 593.2,66 605.2,51"/>
+            <text class="t-head mid" x="671.2" y="56">Beta</text>
+            <text class="t-small mid" x="667.2" y="84">content complete;</text>
+            <text class="t-small t-muted mid" x="667.2" y="97">optimise, fix bugs</text>
+            <polygon class="f-surface s-strong" points="738,36 866,36 878,51 866,66 738,66 750,51"/>
+            <text class="t-head mid" x="816" y="56">Launch, live ops</text>
+            <text class="t-small mid" x="812" y="84">patches and new content</text>
+            <text class="t-small t-muted mid" x="812" y="97">inside the same budgets</text>
+            <line class="s-strong dash" x1="164.8" y1="70" x2="164.8" y2="108"/>
+            <text class="t-small t-strong mid" x="164.8" y="120">greenlight</text>
+            <line class="s-strong dash" x1="309.6" y1="70" x2="309.6" y2="108"/>
+            <text class="t-small t-strong mid" x="309.6" y="120">vertical slice</text>
+            <line class="s-strong dash" x1="454.4" y1="70" x2="454.4" y2="108"/>
+            <text class="t-small t-strong mid" x="454.4" y="120">alpha</text>
+            <line class="s-strong dash" x1="599.2" y1="70" x2="599.2" y2="108"/>
+            <text class="t-small t-strong mid" x="599.2" y="120">beta</text>
+            <line class="s-strong dash" x1="744" y1="70" x2="744" y2="108"/>
+            <text class="t-small t-strong mid" x="744" y="120">gold master</text>
+            <text class="t-small t-acc mid" x="232.8" y="138">change is cheapest here: retire risk early</text>
+            <text class="t-caps" x="14" y="166">AN ASSET&#x27;S JOURNEY · 1.3, 11.4 · THE LANTERN FROM 1.3</text>
+            <rect class="f-surface s-strong" x="14" y="178" width="140" height="96" rx="8"/>
+            <text class="t-head" x="24" y="198">Source files</text>
+            <text class="t-small" x="24" y="216">sculpt, retopology,</text>
+            <text class="t-small" x="24" y="229">UVs, bake, paint</text>
+            <text class="t-small t-mono t-strong" x="24" y="249">about 1 GB</text>
+            <text class="t-small t-muted" x="24" y="264">artists&#x27; tools</text>
+            <line class="s-muted w15" x1="154.5" y1="226" x2="159" y2="226" marker-end="url(#cs1-arr)"/>
+            <rect class="f-surface s-strong" x="158.8" y="178" width="140" height="96" rx="8"/>
+            <text class="t-head" x="168.8" y="198">Export</text>
+            <text class="t-small" x="168.8" y="216">FBX or glTF + maps;</text>
+            <text class="t-small" x="168.8" y="229">units, axis, parts</text>
+            <text class="t-small t-mono t-strong" x="168.8" y="249">about 1 MB + maps</text>
+            <text class="t-small t-muted" x="168.8" y="264">artists&#x27; tools</text>
+            <line class="s-muted w15" x1="299.3" y1="226" x2="303.8" y2="226" marker-end="url(#cs1-arr)"/>
+            <rect class="f-surface s-strong" x="303.6" y="178" width="140" height="96" rx="8"/>
+            <text class="t-head" x="313.6" y="198">Import</text>
+            <text class="t-small" x="313.6" y="216">engine asset + ID;</text>
+            <text class="t-small" x="313.6" y="229">settings, validation</text>
+            <text class="t-small t-mono t-strong" x="313.6" y="249">a few MB</text>
+            <text class="t-small t-muted" x="313.6" y="264">engine</text>
+            <line class="s-muted w15" x1="444.1" y1="226" x2="448.6" y2="226" marker-end="url(#cs1-arr)"/>
+            <rect class="f-lit-soft s-lit" x="448.4" y="178" width="140" height="96" rx="8"/>
+            <text class="t-head t-lit" x="458.4" y="198">Cook</text>
+            <text class="t-small" x="458.4" y="216">per platform: BC7 on</text>
+            <text class="t-small" x="458.4" y="229">PC, ASTC on phones</text>
+            <text class="t-small t-mono t-strong" x="458.4" y="249">16 MB PC, 2 MB phone</text>
+            <text class="t-small t-muted" x="458.4" y="264">build machines</text>
+            <line class="s-muted w15" x1="588.9" y1="226" x2="593.4" y2="226" marker-end="url(#cs1-arr)"/>
+            <rect class="f-surface s-strong" x="593.2" y="178" width="140" height="96" rx="8"/>
+            <text class="t-head" x="603.2" y="198">Package</text>
+            <text class="t-small" x="603.2" y="216">packed with every</text>
+            <text class="t-small" x="603.2" y="229">other cooked asset</text>
+            <text class="t-small t-mono t-strong" x="603.2" y="249">.pak or .pck</text>
+            <text class="t-small t-muted" x="603.2" y="264">build machines</text>
+            <line class="s-muted w15" x1="733.7" y1="226" x2="738.2" y2="226" marker-end="url(#cs1-arr)"/>
+            <rect class="f-surface s-strong" x="738" y="178" width="140" height="96" rx="8"/>
+            <text class="t-head" x="748" y="198">Stream, load</text>
+            <text class="t-small" x="748" y="216">read, unpack, upload</text>
+            <text class="t-small" x="748" y="229">while the game runs</text>
+            <text class="t-small t-mono t-strong" x="748" y="249">a memory budget</text>
+            <text class="t-small t-muted" x="748" y="264">player&#x27;s device</text>
+            <line class="s-muted dash" x1="301.2" y1="284" x2="301.2" y2="172"/>
+            <text class="t-small t-muted" x="307.2" y="294">the hand-off: artists&#x27; tools to the engine</text>
+            <text class="t-caps" x="14" y="318">ONE FRAME&#x27;S DRAWING, CPU TO SCREEN · 2.2, 4.3, 5.1</text>
+            <rect class="f-surface s-strong" x="14" y="330" width="206" height="46" rx="8"/>
+            <text class="t-head" x="24" y="349">Game thread</text>
+            <text class="t-small t-muted" x="24" y="366">gameplay, physics, animation</text>
+            <line class="s-muted w15" x1="220.5" y1="353" x2="231.5" y2="353" marker-end="url(#cs1-arr)"/>
+            <rect class="f-surface s-strong" x="232" y="330" width="206" height="46" rx="8"/>
+            <text class="t-head" x="242" y="349">Render thread</text>
+            <text class="t-small t-muted" x="242" y="366">culling, records draw calls</text>
+            <line class="s-muted w15" x1="438.5" y1="353" x2="449.5" y2="353" marker-end="url(#cs1-arr)"/>
+            <rect class="f-sunken s-strong" x="450" y="330" width="206" height="46" rx="8"/>
+            <text class="t-head" x="460" y="349">Command buffer</text>
+            <text class="t-small t-muted" x="460" y="366">draw calls queued for the GPU</text>
+            <line class="s-muted w15" x1="656.5" y1="353" x2="667.5" y2="353" marker-end="url(#cs1-arr)"/>
+            <rect class="f-sunken s-strong" x="668" y="330" width="218" height="46" rx="8"/>
+            <text class="t-small" x="678" y="349">Each lane works on a different</text>
+            <text class="t-small" x="678" y="364">frame; the longest sets the pace</text>
+            <rect class="f-surface s-strong" x="14" y="396" width="140" height="104" rx="8"/>
+            <text class="t-head" x="24" y="416">Input assembler</text>
+            <text class="t-small t-strong t-muted" x="24" y="433">fixed hardware</text>
+            <text class="t-small" x="24" y="454">reads vertex and</text>
+            <text class="t-small" x="24" y="467">index buffers</text>
+            <text class="t-small t-mono t-muted" x="24" y="489">per vertex</text>
+            <line class="s-muted w15" x1="154.5" y1="448" x2="159" y2="448" marker-end="url(#cs1-arr)"/>
+            <rect class="f-acc-soft s-acc w15" x="158.8" y="396" width="140" height="104" rx="8"/>
+            <text class="t-head t-acc" x="168.8" y="416">Vertex shader</text>
+            <text class="t-small t-strong t-acc" x="168.8" y="433">your code</text>
+            <text class="t-small" x="168.8" y="454">moves each vertex</text>
+            <text class="t-small" x="168.8" y="467">to clip space</text>
+            <text class="t-small t-mono t-muted" x="168.8" y="489">per vertex</text>
+            <line class="s-muted w15" x1="299.3" y1="448" x2="303.8" y2="448" marker-end="url(#cs1-arr-a)"/>
+            <rect class="f-surface s-strong" x="303.6" y="396" width="140" height="104" rx="8"/>
+            <text class="t-head" x="313.6" y="416" font-size="12.5">Primitive assembly</text>
+            <text class="t-small t-strong t-muted" x="313.6" y="433">fixed hardware</text>
+            <text class="t-small" x="313.6" y="454">builds triangles;</text>
+            <text class="t-small" x="313.6" y="467">clips, culls backs</text>
+            <text class="t-small t-mono t-muted" x="313.6" y="489">per triangle</text>
+            <line class="s-muted w15" x1="444.1" y1="448" x2="448.6" y2="448" marker-end="url(#cs1-arr)"/>
+            <rect class="f-surface s-strong" x="448.4" y="396" width="140" height="104" rx="8"/>
+            <text class="t-head" x="458.4" y="416">Rasterizer</text>
+            <text class="t-small t-strong t-muted" x="458.4" y="433">fixed hardware</text>
+            <text class="t-small" x="458.4" y="454">finds the pixels</text>
+            <text class="t-small" x="458.4" y="467">each one covers</text>
+            <text class="t-small t-mono t-muted" x="458.4" y="489">per triangle</text>
+            <line class="s-muted w15" x1="588.9" y1="448" x2="593.4" y2="448" marker-end="url(#cs1-arr)"/>
+            <rect class="f-acc-soft s-acc w15" x="593.2" y="396" width="140" height="104" rx="8"/>
+            <text class="t-head t-acc" x="603.2" y="416">Pixel shader</text>
+            <text class="t-small t-strong t-acc" x="603.2" y="433">your code</text>
+            <text class="t-small" x="603.2" y="454">lights and colours</text>
+            <text class="t-small" x="603.2" y="467">each pixel</text>
+            <text class="t-small t-mono t-muted" x="603.2" y="489">per covered pixel</text>
+            <line class="s-muted w15" x1="733.7" y1="448" x2="738.2" y2="448" marker-end="url(#cs1-arr-a)"/>
+            <rect class="f-surface s-strong" x="738" y="396" width="140" height="104" rx="8"/>
+            <text class="t-head" x="748" y="416">Output merger</text>
+            <text class="t-small t-strong t-muted" x="748" y="433">fixed hardware</text>
+            <text class="t-small" x="748" y="454">depth test, blend,</text>
+            <text class="t-small" x="748" y="467">write the target</text>
+            <text class="t-small t-mono t-muted" x="748" y="489">per covered pixel</text>
+            <text class="t-small t-muted" x="14" y="522">Blue stages run your shader code; the rest are fixed hardware with settings. A pass repeats this whole chain for every draw call.</text>
+          </svg>
+          </div>
+          <figcaption><b>Three pipelines.</b> A project moves through phases and gates; an asset moves from the artists' tools through cooking to the player's device; each frame, the CPU records draw calls and the GPU runs every one through the same six stages.</figcaption>
+          </figure>
+          <h3 class="cs-sub">The GPU stages: where the cost comes from</h3>
+          <div class="table-wrap">
+          <table class="is-wide cs-table">
+          <thead><tr><th scope="col">Stage</th><th scope="col">Runs once per</th><th scope="col">Cost grows with</th><th scope="col">Usual fix</th><th scope="col" class="num">Chapter</th></tr></thead>
+          <tbody>
+          <tr><th scope="row">Input assembler</th><td>vertex</td><td>vertex count and bytes per vertex</td><td>compact vertex layouts</td><td class="num"><a class="xref" data-ch="4.2">4.2</a></td></tr>
+          <tr><th scope="row">Vertex shader</th><td>vertex, in every pass</td><td>vertices × passes × shader length</td><td>level of detail, fewer passes</td><td class="num"><a class="xref" data-ch="5.2">5.2</a></td></tr>
+          <tr><th scope="row">Primitive assembly</th><td>triangle</td><td>triangle count</td><td>culling, level of detail</td><td class="num"><a class="xref" data-ch="4.4">4.4</a></td></tr>
+          <tr><th scope="row">Rasterizer</th><td>triangle and covered pixel</td><td>covered pixels; triangles smaller than a pixel</td><td>LODs that keep triangles several pixels across</td><td class="num"><a class="xref" data-ch="5.3">5.3</a></td></tr>
+          <tr><th scope="row">Pixel shader</th><td>covered pixel</td><td>resolution × overdraw × shader length</td><td>simpler materials, fewer layers, lower internal resolution</td><td class="num"><a class="xref" data-ch="5.4">5.4</a></td></tr>
+          <tr><th scope="row">Output merger</th><td>covered pixel</td><td>pixels × bytes per pixel, doubled by blending</td><td>smaller formats, fewer transparent layers</td><td class="num"><a class="xref" data-ch="5.5">5.5</a></td></tr>
+          </tbody>
+          </table>
+          </div>
+          <p class="cs-foot">From <a class="xref" data-ch="1.1">1.1</a>, <a class="xref" data-ch="1.3">1.3</a>, <a class="xref" data-ch="2.2">2.2</a>, <a class="xref" data-ch="4.3">4.3</a> and <a class="xref" data-ch="5.1">5.1</a>.</p>
+        </section>
+        <section class="cs-sheet" id="sheet-frame" aria-labelledby="sheet-frame-title">
+          <header class="cs-head">
+            <div>
+              <p class="eyebrow">Sheet 2 of 4</p>
+              <h2 id="sheet-frame-title">The anatomy of a frame</h2>
+              <p class="cs-lead">What a modern deferred frame does, in order, what each pass reads and writes, and what it usually costs.</p>
+            </div>
+            <button class="btn cs-print" type="button" data-print="sheet-frame" hidden>Print this sheet</button>
+          </header>
+          <figure>
+          <div class="fig-frame">
+          <svg class="dg is-wide" viewBox="0 0 900 512" role="img" aria-label="Twelve GPU passes in order with typical costs: shadow 1 to 3 ms, depth pre-pass 0.3 to 1, G-buffer 1.5 to 4, AO 0.5 to 2, lighting 1 to 3 plus GI, SSR and SSGI 0.5 to 2, fog and sky 0.2 to 3, transparents 0 to several, TAA and upscaler 0.5 to 1.5, camera effects 0.3 to 2, tone map under 0.5, UI and present 0.1 to 1. Below, the game thread, render thread and GPU each work on a different frame, so frame 1 reaches the screen after three slots.">
+            <defs>
+              <marker id="cs2-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker>
+            </defs>
+            <text class="t-caps" x="14" y="24">ONE FRAME ON THE GPU, PASS BY PASS · TYPICAL COSTS FROM 10.1</text>
+            <rect class="f-geo-soft s-geo" x="560" y="13" width="16" height="13" rx="3"/>
+            <text class="t-small" x="582" y="24">draws meshes: grows with content</text>
+            <rect class="f-pix-soft s-pix" x="560" y="32" width="16" height="13" rx="3"/>
+            <text class="t-small" x="582" y="43">once per pixel: grows with resolution</text>
+            <rect class="f-geo-soft s-geo" x="14" y="56" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="24" y="75"> 1</text>
+            <text class="t-head t-geo" x="44" y="75">Shadow</text>
+            <text class="t-mono t-strong" x="24" y="98" font-size="12">1 to 3 ms</text>
+            <rect class="f-surface s-line" x="24" y="106" width="120" height="6" rx="2"/>
+            <rect class="f-geo" x="54" y="106" width="60" height="6" rx="2"/>
+            <text class="t-small t-muted" x="24" y="130">writes</text>
+            <text class="t-small t-strong" x="24" y="144">shadow maps</text>
+            <text class="t-small t-mono t-muted end" x="144" y="130">7.4</text>
+            <line class="s-muted w15" x1="154.5" y1="106" x2="159" y2="106" marker-end="url(#cs2-arr)"/>
+            <rect class="f-geo-soft s-geo" x="158.8" y="56" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="168.8" y="75"> 2</text>
+            <text class="t-head t-geo" x="188.8" y="75" font-size="12.5">Depth pre-pass</text>
+            <text class="t-mono t-strong" x="168.8" y="98" font-size="12">0.3 to 1 ms</text>
+            <rect class="f-surface s-line" x="168.8" y="106" width="120" height="6" rx="2"/>
+            <rect class="f-geo" x="177.8" y="106" width="21" height="6" rx="2"/>
+            <text class="t-small t-muted" x="168.8" y="130">writes</text>
+            <text class="t-small t-strong" x="168.8" y="144">depth</text>
+            <text class="t-small t-mono t-muted end" x="288.8" y="130">5.4</text>
+            <line class="s-muted w15" x1="299.3" y1="106" x2="303.8" y2="106" marker-end="url(#cs2-arr)"/>
+            <rect class="f-geo-soft s-geo" x="303.6" y="56" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="313.6" y="75"> 3</text>
+            <text class="t-head t-geo" x="333.6" y="75">G-buffer</text>
+            <text class="t-mono t-strong" x="313.6" y="98" font-size="12">1.5 to 4 ms</text>
+            <rect class="f-surface s-line" x="313.6" y="106" width="120" height="6" rx="2"/>
+            <rect class="f-geo" x="358.6" y="106" width="75" height="6" rx="2"/>
+            <text class="t-small t-muted" x="313.6" y="130">writes</text>
+            <text class="t-small t-strong" x="313.6" y="144">G-buffer, depth</text>
+            <text class="t-small t-mono t-muted end" x="433.6" y="130">7.3</text>
+            <line class="s-muted w15" x1="444.1" y1="106" x2="448.6" y2="106" marker-end="url(#cs2-arr)"/>
+            <rect class="f-pix-soft s-pix" x="448.4" y="56" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="458.4" y="75"> 4</text>
+            <text class="t-head t-pix" x="478.4" y="75">AO</text>
+            <text class="t-mono t-strong" x="458.4" y="98" font-size="12">0.5 to 2 ms</text>
+            <rect class="f-surface s-line" x="458.4" y="106" width="120" height="6" rx="2"/>
+            <rect class="f-pix" x="473.4" y="106" width="45" height="6" rx="2"/>
+            <text class="t-small t-muted" x="458.4" y="130">writes</text>
+            <text class="t-small t-strong" x="458.4" y="144">AO, often half size</text>
+            <text class="t-small t-mono t-muted end" x="578.4" y="130">8.3</text>
+            <line class="s-muted w15" x1="588.9" y1="106" x2="593.4" y2="106" marker-end="url(#cs2-arr)"/>
+            <rect class="f-pix-soft s-pix" x="593.2" y="56" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="603.2" y="75"> 5</text>
+            <text class="t-head t-pix" x="623.2" y="75">Lighting</text>
+            <text class="t-mono t-strong" x="603.2" y="98" font-size="12">1 to 3 ms</text>
+            <rect class="f-surface s-line" x="603.2" y="106" width="120" height="6" rx="2"/>
+            <rect class="f-pix" x="633.2" y="106" width="60" height="6" rx="2"/>
+            <text class="t-small t-muted" x="603.2" y="130">writes</text>
+            <text class="t-small t-strong" x="603.2" y="144">HDR light</text>
+            <text class="t-small t-mono t-muted end" x="723.2" y="130">7.3</text>
+            <line class="s-muted w15" x1="733.7" y1="106" x2="738.2" y2="106" marker-end="url(#cs2-arr)"/>
+            <rect class="f-pix-soft s-pix" x="738" y="56" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="748" y="75"> 6</text>
+            <text class="t-head t-pix" x="768" y="75">SSR, SSGI</text>
+            <text class="t-mono t-strong" x="748" y="98" font-size="12">0.5 to 2 ms</text>
+            <rect class="f-surface s-line" x="748" y="106" width="120" height="6" rx="2"/>
+            <rect class="f-pix" x="763" y="106" width="45" height="6" rx="2"/>
+            <text class="t-small t-muted" x="748" y="130">writes</text>
+            <text class="t-small t-strong" x="748" y="144">HDR</text>
+            <text class="t-small t-mono t-muted end" x="868" y="130">8.4</text>
+            <rect class="f-pix-soft s-pix" x="14" y="184" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="24" y="203"> 7</text>
+            <text class="t-head t-pix" x="44" y="203">Fog, sky</text>
+            <text class="t-mono t-strong" x="24" y="226" font-size="12">0.2 to 3 ms</text>
+            <rect class="f-surface s-line" x="24" y="234" width="120" height="6" rx="2"/>
+            <rect class="f-pix" x="30" y="234" width="84" height="6" rx="2"/>
+            <text class="t-small t-muted" x="24" y="258">writes</text>
+            <text class="t-small t-strong" x="24" y="272">HDR</text>
+            <text class="t-small t-mono t-muted end" x="144" y="258">9.5</text>
+            <line class="s-muted w15" x1="154.5" y1="234" x2="159" y2="234" marker-end="url(#cs2-arr)"/>
+            <rect class="f-geo-soft s-geo" x="158.8" y="184" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="168.8" y="203"> 8</text>
+            <text class="t-head t-geo" x="188.8" y="203">Transparents</text>
+            <text class="t-mono t-strong" x="168.8" y="226" font-size="12">0 to 3+ ms</text>
+            <rect class="f-surface s-line" x="168.8" y="234" width="120" height="6" rx="2"/>
+            <rect class="f-geo" x="168.8" y="234" width="90" height="6" rx="2"/>
+            <text class="t-small t-muted" x="168.8" y="258">writes</text>
+            <text class="t-small t-strong" x="168.8" y="272">HDR</text>
+            <text class="t-small t-mono t-muted end" x="288.8" y="258">9.6</text>
+            <line class="s-muted w15" x1="299.3" y1="234" x2="303.8" y2="234" marker-end="url(#cs2-arr)"/>
+            <rect class="f-pix-soft s-pix" x="303.6" y="184" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="313.6" y="203"> 9</text>
+            <text class="t-head t-pix" x="333.6" y="203" font-size="12.5">TAA, upscaler</text>
+            <text class="t-mono t-strong" x="313.6" y="226" font-size="12">0.5 to 1.5 ms</text>
+            <rect class="f-surface s-line" x="313.6" y="234" width="120" height="6" rx="2"/>
+            <rect class="f-pix" x="328.6" y="234" width="30" height="6" rx="2"/>
+            <text class="t-small t-muted" x="313.6" y="258">writes</text>
+            <text class="t-small t-strong" x="313.6" y="272">HDR, history</text>
+            <text class="t-small t-mono t-muted end" x="433.6" y="258">9.3</text>
+            <line class="s-muted w15" x1="444.1" y1="234" x2="448.6" y2="234" marker-end="url(#cs2-arr)"/>
+            <rect class="f-pix-soft s-pix" x="448.4" y="184" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="458.4" y="203">10</text>
+            <text class="t-head t-pix" x="478.4" y="203" font-size="12.5">Camera effects</text>
+            <text class="t-mono t-strong" x="458.4" y="226" font-size="12">0.3 to 2 ms</text>
+            <rect class="f-surface s-line" x="458.4" y="234" width="120" height="6" rx="2"/>
+            <rect class="f-pix" x="467.4" y="234" width="51" height="6" rx="2"/>
+            <text class="t-small t-muted" x="458.4" y="258">writes</text>
+            <text class="t-small t-strong" x="458.4" y="272">HDR</text>
+            <text class="t-small t-mono t-muted end" x="578.4" y="258">9.4</text>
+            <line class="s-muted w15" x1="588.9" y1="234" x2="593.4" y2="234" marker-end="url(#cs2-arr)"/>
+            <rect class="f-pix-soft s-pix" x="593.2" y="184" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="603.2" y="203">11</text>
+            <text class="t-head t-pix" x="623.2" y="203">Tone map</text>
+            <text class="t-mono t-strong" x="603.2" y="226" font-size="12">under 0.5 ms</text>
+            <rect class="f-surface s-line" x="603.2" y="234" width="120" height="6" rx="2"/>
+            <rect class="f-pix" x="606.2" y="234" width="12" height="6" rx="2"/>
+            <text class="t-small t-muted" x="603.2" y="258">writes</text>
+            <text class="t-small t-strong" x="603.2" y="272">8 or 10-bit image</text>
+            <text class="t-small t-mono t-muted end" x="723.2" y="258">9.1</text>
+            <line class="s-muted w15" x1="733.7" y1="234" x2="738.2" y2="234" marker-end="url(#cs2-arr)"/>
+            <rect class="f-surface s-strong" x="738" y="184" width="140" height="100" rx="8"/>
+            <text class="t-small t-mono t-muted" x="748" y="203">12</text>
+            <text class="t-head" x="768" y="203">UI, present</text>
+            <text class="t-mono t-strong" x="748" y="226" font-size="12">0.1 to 1 ms</text>
+            <rect class="f-surface s-line" x="748" y="234" width="120" height="6" rx="2"/>
+            <rect class="f-muted" x="751" y="234" width="27" height="6" rx="2"/>
+            <text class="t-small t-muted" x="748" y="258">writes</text>
+            <text class="t-small t-strong" x="748" y="272">back buffer</text>
+            <text class="t-small t-mono t-muted end" x="868" y="258">3.1</text>
+            <text class="t-small t-muted" x="14" y="330">Bars: each pass&#x27;s typical range on a 0 to 4 ms scale. Lighting adds real-time GI on top (8.5); transparents can cost several ms.</text>
+            <text class="t-caps" x="14" y="364">THE SAME FRAME ON THREE LANES · 2.2, 11.1</text>
+            <text class="t-small t-strong" x="14" y="397">Game thread</text>
+            <rect class="f-acc s-acc" x="130" y="378" width="180" height="26" rx="5"/>
+            <text class="t-small t-strong t-on-acc mid" x="220" y="395">frame 1</text>
+            <rect class="f-surface s-strong" x="316" y="378" width="180" height="26" rx="5"/>
+            <text class="t-small mid" x="406" y="395">frame 2</text>
+            <rect class="f-surface s-strong" x="502" y="378" width="180" height="26" rx="5"/>
+            <text class="t-small mid" x="592" y="395">frame 3</text>
+            <rect class="f-surface s-strong" x="688" y="378" width="180" height="26" rx="5"/>
+            <text class="t-small mid" x="778" y="395">frame 4</text>
+            <text class="t-small t-strong" x="14" y="431">Render thread</text>
+            <rect class="f-sunken s-line" x="130" y="412" width="180" height="26" rx="5"/>
+            <rect class="f-acc s-acc" x="316" y="412" width="180" height="26" rx="5"/>
+            <text class="t-small t-strong t-on-acc mid" x="406" y="429">frame 1</text>
+            <rect class="f-surface s-strong" x="502" y="412" width="180" height="26" rx="5"/>
+            <text class="t-small mid" x="592" y="429">frame 2</text>
+            <rect class="f-surface s-strong" x="688" y="412" width="180" height="26" rx="5"/>
+            <text class="t-small mid" x="778" y="429">frame 3</text>
+            <text class="t-small t-strong" x="14" y="465">GPU</text>
+            <rect class="f-sunken s-line" x="130" y="446" width="180" height="26" rx="5"/>
+            <rect class="f-sunken s-line" x="316" y="446" width="180" height="26" rx="5"/>
+            <rect class="f-acc s-acc" x="502" y="446" width="180" height="26" rx="5"/>
+            <text class="t-small t-strong t-on-acc mid" x="592" y="463">frame 1</text>
+            <rect class="f-surface s-strong" x="688" y="446" width="180" height="26" rx="5"/>
+            <text class="t-small mid" x="778" y="463">frame 2</text>
+            <line class="s-line dash" x1="127" y1="372" x2="127" y2="482"/>
+            <line class="s-line dash" x1="313" y1="372" x2="313" y2="482"/>
+            <line class="s-line dash" x1="499" y1="372" x2="499" y2="482"/>
+            <line class="s-line dash" x1="685" y1="372" x2="685" y2="482"/>
+            <line class="s-line dash" x1="871" y1="372" x2="871" y2="482"/>
+            <text class="t-small t-acc end" x="868" y="496">frame 1 reaches the screen after three slots: that wait is latency</text>
+          </svg>
+          </div>
+          <figcaption><b>One frame.</b> Teal passes draw meshes, so they grow with scene content; rose passes run once per pixel, so they grow with resolution. The CPU lanes work ahead of the GPU, which is where input latency comes from.</figcaption>
+          </figure>
+          <h3 class="cs-sub">Each pass: inputs, outputs and what makes it grow</h3>
+          <div class="table-wrap">
+          <table class="is-wide cs-table">
+          <thead><tr><th scope="col">Pass</th><th scope="col">Reads</th><th scope="col">Writes</th><th scope="col">Cost grows with</th></tr></thead>
+          <tbody>
+          <tr><th scope="row">Shadow</th><td>meshes from the light</td><td>shadow maps</td><td>casters, cascades, lights</td></tr>
+          <tr><th scope="row">Depth pre-pass</th><td>meshes</td><td>depth</td><td>triangles</td></tr>
+          <tr><th scope="row">G-buffer</th><td>meshes, textures</td><td>G-buffer, depth</td><td>triangles, overdraw, bytes per pixel</td></tr>
+          <tr><th scope="row">AO</th><td>depth, normals</td><td>AO, often half size</td><td>resolution, samples</td></tr>
+          <tr><th scope="row">Lighting</th><td>G-buffer, AO, shadows</td><td>HDR light</td><td>lights per pixel, GI</td></tr>
+          <tr><th scope="row">SSR, SSGI</th><td>HDR, depth, normals</td><td>HDR</td><td>resolution, ray steps</td></tr>
+          <tr><th scope="row">Fog, sky</th><td>HDR, depth</td><td>HDR</td><td>volumetric cells, shadowed lights</td></tr>
+          <tr><th scope="row">Transparents</th><td>HDR, depth, colour copy</td><td>HDR</td><td>screen coverage, layers</td></tr>
+          <tr><th scope="row">TAA, upscaler</th><td>HDR, motion, history</td><td>HDR, history</td><td>output resolution</td></tr>
+          <tr><th scope="row">Camera effects</th><td>HDR, depth, motion</td><td>HDR</td><td>blur sizes, effects on</td></tr>
+          <tr><th scope="row">Tone map</th><td>HDR, bloom</td><td>8 or 10-bit image</td><td>output resolution</td></tr>
+          <tr><th scope="row">UI, present</th><td>image, UI textures</td><td>back buffer</td><td>UI complexity</td></tr>
+          </tbody>
+          </table>
+          </div>
+          <p class="cs-foot">From <a class="xref" data-ch="10.1">10.1</a>, with the CPU side from <a class="xref" data-ch="2.2">2.2</a>. Costs are typical ranges; a capture of your own frame gives the real ones.</p>
+        </section>
+        <section class="cs-sheet" id="sheet-budgets" aria-labelledby="sheet-budgets-title">
+          <header class="cs-head">
+            <div>
+              <p class="eyebrow">Sheet 3 of 4</p>
+              <h2 id="sheet-budgets-title">Budgets</h2>
+              <p class="cs-lead">The frame budget, how a team splits it, and the numbers worth knowing by heart. Work in milliseconds; report in frames per second.</p>
+            </div>
+            <button class="btn cs-print" type="button" data-print="sheet-budgets" hidden>Print this sheet</button>
+          </header>
+          <figure>
+          <div class="fig-frame">
+          <svg class="dg is-wide" viewBox="0 0 900 452" role="img" aria-label="Top: frame budgets drawn to scale, 33.3 ms at 30 fps, 16.7 at 60, 11.1 at 90, 8.3 at 120 and 6.9 at 144, with a 2 ms effect as 6, 12, 18, 24 and 29 percent of each. Bottom: an illustrative 60 fps console budget. Game thread: gameplay 3.5, physics 2.0, animation 2.5, AI 1.5, UI 0.7, other 1.8, 4.7 spare. Render thread: culling 1.5, draw submission 6.0, other 1.5, 7.7 spare. GPU: shadows 2.0, depth and G-buffer 3.5, lighting and GI 4.5, fog 2.0, AA and post 2.5, UI 0.5, 1.7 spare.">
+            <text class="t-caps" x="14" y="24">THE WHOLE FRAME BUDGET, TO SCALE · 2.2, 11.1</text>
+            <text class="t-mono t-strong end" x="108" y="55">30 fps</text>
+            <rect class="f-surface s-strong" x="120" y="40" width="566.1" height="20" rx="4"/>
+            <rect class="f-lit" x="652.1" y="40" width="34" height="20" fill-opacity="0.85"/>
+            <text class="t-mono t-strong" x="694.1" y="55">33.3 ms</text>
+            <text class="t-small t-muted" x="755.2" y="55">a 2 ms effect is 6% of it</text>
+            <text class="t-mono t-strong end" x="108" y="85">60 fps</text>
+            <rect class="f-acc-soft s-acc" x="120" y="70" width="283.9" height="20" rx="4"/>
+            <rect class="f-lit" x="369.9" y="70" width="34" height="20" fill-opacity="0.85"/>
+            <text class="t-mono t-strong" x="411.9" y="85">16.7 ms</text>
+            <text class="t-small t-muted" x="473" y="85">a 2 ms effect is 12% of it</text>
+            <text class="t-mono t-strong end" x="108" y="115">90 fps</text>
+            <rect class="f-surface s-strong" x="120" y="100" width="188.7" height="20" rx="4"/>
+            <rect class="f-lit" x="274.7" y="100" width="34" height="20" fill-opacity="0.85"/>
+            <text class="t-mono t-strong" x="316.7" y="115">11.1 ms</text>
+            <text class="t-small t-muted" x="377.8" y="115">a 2 ms effect is 18% of it</text>
+            <text class="t-mono t-strong end" x="108" y="145">120 fps</text>
+            <rect class="f-surface s-strong" x="120" y="130" width="141.1" height="20" rx="4"/>
+            <rect class="f-lit" x="227.1" y="130" width="34" height="20" fill-opacity="0.85"/>
+            <text class="t-mono t-strong" x="269.1" y="145">8.3 ms</text>
+            <text class="t-small t-muted" x="322.9" y="145">a 2 ms effect is 24% of it</text>
+            <text class="t-mono t-strong end" x="108" y="175">144 fps</text>
+            <rect class="f-surface s-strong" x="120" y="160" width="117.3" height="20" rx="4"/>
+            <rect class="f-lit" x="203.3" y="160" width="34" height="20" fill-opacity="0.85"/>
+            <text class="t-mono t-strong" x="245.3" y="175">6.9 ms</text>
+            <text class="t-small t-muted" x="299.1" y="175">a 2 ms effect is 29% of it</text>
+            <rect class="f-lit" x="120" y="196" width="14" height="11"/>
+            <text class="t-small" x="140" y="205">a 2 ms effect, the same size in every row</text>
+            <text class="t-caps" x="14" y="236">AN EXAMPLE BUDGET FOR A 60 FPS CONSOLE GAME · ILLUSTRATIVE · 11.1</text>
+            <text class="t-small t-strong end" x="108" y="271">Game thread</text>
+            <text class="t-small t-muted end" x="108" y="285">12.0 ms planned</text>
+            <rect class="f-geo-soft s-geo" x="120" y="254" width="154" height="26" rx="3"/>
+            <text class="t-small mid" x="197" y="271">Gameplay</text>
+            <text class="t-small t-mono t-muted mid" x="197" y="296">3.5</text>
+            <rect class="f-geo-soft s-geo" x="274" y="254" width="88" height="26" rx="3"/>
+            <text class="t-small mid" x="318" y="271">Physics</text>
+            <text class="t-small t-mono t-muted mid" x="318" y="296">2.0</text>
+            <rect class="f-geo-soft s-geo" x="362" y="254" width="110" height="26" rx="3"/>
+            <text class="t-small mid" x="417" y="271">Animation</text>
+            <text class="t-small t-mono t-muted mid" x="417" y="296">2.5</text>
+            <rect class="f-geo-soft s-geo" x="472" y="254" width="66" height="26" rx="3"/>
+            <text class="t-small mid" x="505" y="271">AI</text>
+            <text class="t-small t-mono t-muted mid" x="505" y="296">1.5</text>
+            <rect class="f-geo-soft s-geo" x="538" y="254" width="30.8" height="26" rx="3"/>
+            <text class="t-small mid" x="553.4" y="271">UI</text>
+            <text class="t-small t-mono t-muted mid" x="553.4" y="296">0.7</text>
+            <rect class="f-geo-soft s-geo" x="568.8" y="254" width="79.2" height="26" rx="3"/>
+            <text class="t-small mid" x="608.4" y="271">Other</text>
+            <text class="t-small t-mono t-muted mid" x="608.4" y="296">1.8</text>
+            <rect class="f-sunken s-line dash" x="648" y="254" width="206.8" height="26" rx="3"/>
+            <text class="t-small t-muted mid" x="751.4" y="271">4.7 spare</text>
+            <text class="t-small t-strong end" x="108" y="329">Render thread</text>
+            <text class="t-small t-muted end" x="108" y="343">9.0 ms planned</text>
+            <rect class="f-geo-soft s-geo" x="120" y="312" width="66" height="26" rx="3"/>
+            <text class="t-small mid" x="153" y="329">Culling</text>
+            <text class="t-small t-mono t-muted mid" x="153" y="354">1.5</text>
+            <rect class="f-geo-soft s-geo" x="186" y="312" width="264" height="26" rx="3"/>
+            <text class="t-small mid" x="318" y="329">Draw submission</text>
+            <text class="t-small t-mono t-muted mid" x="318" y="354">6.0</text>
+            <rect class="f-geo-soft s-geo" x="450" y="312" width="66" height="26" rx="3"/>
+            <text class="t-small mid" x="483" y="329">Other</text>
+            <text class="t-small t-mono t-muted mid" x="483" y="354">1.5</text>
+            <rect class="f-sunken s-line dash" x="516" y="312" width="338.8" height="26" rx="3"/>
+            <text class="t-small t-muted mid" x="685.4" y="329">7.7 spare</text>
+            <text class="t-small t-strong end" x="108" y="387">GPU</text>
+            <text class="t-small t-muted end" x="108" y="401">15.0 ms planned</text>
+            <rect class="f-pix-soft s-pix" x="120" y="370" width="88" height="26" rx="3"/>
+            <text class="t-small mid" x="164" y="387">Shadows</text>
+            <text class="t-small t-mono t-muted mid" x="164" y="412">2.0</text>
+            <rect class="f-pix-soft s-pix" x="208" y="370" width="154" height="26" rx="3"/>
+            <text class="t-small mid" x="285" y="387">Depth, G-buffer</text>
+            <text class="t-small t-mono t-muted mid" x="285" y="412">3.5</text>
+            <rect class="f-pix-soft s-pix" x="362" y="370" width="198" height="26" rx="3"/>
+            <text class="t-small mid" x="461" y="387">Lighting, GI</text>
+            <text class="t-small t-mono t-muted mid" x="461" y="412">4.5</text>
+            <rect class="f-pix-soft s-pix" x="560" y="370" width="88" height="26" rx="3"/>
+            <text class="t-small mid" x="604" y="387">Fog</text>
+            <text class="t-small t-mono t-muted mid" x="604" y="412">2.0</text>
+            <rect class="f-pix-soft s-pix" x="648" y="370" width="110" height="26" rx="3"/>
+            <text class="t-small mid" x="703" y="387">AA, post</text>
+            <text class="t-small t-mono t-muted mid" x="703" y="412">2.5</text>
+            <rect class="f-pix-soft s-pix" x="758" y="370" width="22" height="26" rx="3"/>
+            <text class="t-small mid" x="769" y="387">UI</text>
+            <text class="t-small t-mono t-muted mid" x="769" y="412">0.5</text>
+            <rect class="f-sunken s-line dash" x="780" y="370" width="74.8" height="26" rx="3"/>
+            <text class="t-small t-muted mid" x="817.4" y="387">1.7 spare</text>
+            <line class="s-acc w15 dash" x1="854.8" y1="246" x2="854.8" y2="426"/>
+            <text class="t-small t-mono t-acc mid" x="854.8" y="440">16.7 ms</text>
+            <text class="t-small t-muted" x="120" y="440">Each lane gets the whole frame; the GPU is planned closest to it, with about 10% kept back.</text>
+          </svg>
+          </div>
+          <figcaption><b>Budgets in milliseconds.</b> The faster the target, the bigger the share any one effect takes. The lanes run side by side, so each has the whole frame and the longest one sets the frame time.</figcaption>
+          </figure>
+          <div class="table-wrap">
+          <table class="cs-table">
+          <thead><tr><th scope="col">Target</th><th scope="col" class="num">Budget</th><th scope="col" class="num">Plan to, 10% kept back</th><th scope="col" class="num">A 2 ms effect is</th><th scope="col" class="num">Input latency, 11.1's model</th></tr></thead>
+          <tbody>
+          <tr><th scope="row">30 fps</th><td class="num">33.3 ms</td><td class="num">30.0 ms</td><td class="num">6%</td><td class="num">133 ms</td></tr>
+          <tr><th scope="row">60 fps</th><td class="num">16.7 ms</td><td class="num">15.0 ms</td><td class="num">12%</td><td class="num">67 ms</td></tr>
+          <tr><th scope="row">90 fps</th><td class="num">11.1 ms</td><td class="num">10.0 ms</td><td class="num">18%</td><td class="num">44 ms</td></tr>
+          <tr><th scope="row">120 fps</th><td class="num">8.3 ms</td><td class="num">7.5 ms</td><td class="num">24%</td><td class="num">33 ms</td></tr>
+          </tbody>
+          </table>
+          </div>
+          <h3 class="cs-sub">Numbers worth knowing</h3>
+          <div class="cs-cards">
+            <div class="cs-card">
+              <p class="label">Pixels per frame · 11.2</p>
+              <dl>
+                <div><dt>720p</dt><dd>0.92 million, × 0.44</dd></div>
+                <div><dt>1080p</dt><dd>2.07 million, × 1</dd></div>
+                <div><dt>1440p</dt><dd>3.69 million, × 1.78</dd></div>
+                <div><dt>4K</dt><dd>8.29 million, × 4</dd></div>
+              </dl>
+              <p class="cs-note">A per-pixel pass that takes 1 ms at 1080p takes about 4 ms at 4K.</p>
+            </div>
+            <div class="cs-card">
+              <p class="label">One 4096 × 4096 texture · 6.3</p>
+              <dl>
+                <div><dt>RGBA8</dt><dd>85.3 MB with mips</dd></div>
+                <div><dt>BC7</dt><dd>21.3 MB with mips</dd></div>
+                <div><dt>BC1</dt><dd>10.7 MB with mips</dd></div>
+                <div><dt>ASTC 6×6</dt><dd>9.5 MB with mips</dd></div>
+              </dl>
+              <p class="cs-note">Mips add one third. Dropping the top mip saves about three quarters.</p>
+            </div>
+            <div class="cs-card">
+              <p class="label">Draw calls per frame · 4.3</p>
+              <dl>
+                <div><dt>Quest 3</dt><dd>400 to 600</dd></div>
+                <div><dt>Android tablet</dt><dd>about 700</dd></div>
+                <div><dt>DX12 PC, console</dt><dd>several thousand</dd></div>
+                <div><dt>GPU-driven</dt><dd>far beyond, by design</dd></div>
+              </dl>
+              <p class="cs-note">Typical figures, not limits. Instancing turns many draws into one.</p>
+            </div>
+            <div class="cs-card">
+              <p class="label">Streaming a 128 m cell · 11.4</p>
+              <dl>
+                <div><dt>Walking</dt><dd>2.9 MB/s</dd></div>
+                <div><dt>Riding</dt><dd>29.3 MB/s</dd></div>
+                <div><dt>Driving</dt><dd>97.7 MB/s</dd></div>
+                <div><dt>Flying</dt><dd>293 MB/s</dd></div>
+              </dl>
+              <p class="cs-note">The faster the player crosses the world, the faster data must arrive.</p>
+            </div>
+          </div>
+          <p class="cs-foot">From <a class="xref" data-ch="11.1">11.1</a>, <a class="xref" data-ch="11.2">11.2</a>, <a class="xref" data-ch="11.4">11.4</a>, <a class="xref" data-ch="6.3">6.3</a> and <a class="xref" data-ch="4.3">4.3</a>. Budget splits are illustrative; every number has an owner.</p>
+        </section>
+        <section class="cs-sheet" id="sheet-settings" aria-labelledby="sheet-settings-title">
+          <header class="cs-head">
+            <div>
+              <p class="eyebrow">Sheet 4 of 4</p>
+              <h2 id="sheet-settings-title">Settings, decoded</h2>
+              <p class="cs-lead">Every row of a graphics settings menu is a technique from this book with a known kind of cost. Dots show how strongly an option usually moves each cost.</p>
+            </div>
+            <button class="btn cs-print" type="button" data-print="sheet-settings" hidden>Print this sheet</button>
+          </header>
+          <figure>
+          <div class="fig-frame">
+          <svg class="dg is-wide" viewBox="0 0 900 200" role="img" aria-label="Five rectangles inside a 4K frame: native 3840 by 2160, 100 percent of the pixels; Quality 2560 by 1440, 44 percent; Balanced about 2227 by 1253, 34 percent; Performance 1920 by 1080, 25 percent; Ultra Performance 1280 by 720, 11 percent.">
+            <text class="t-caps" x="14" y="24">UPSCALER MODES: SHARE OF 4K PIXELS SHADED, TO SCALE · 9.3</text>
+            <rect class="f-sunken s-strong" x="14" y="40" width="164" height="92.25" rx="3"/>
+            <rect class="f-acc-soft s-acc" x="14" y="40" width="164" height="92.25" rx="2"/>
+            <text class="t-head" x="14" y="150.25" font-size="12.5">Native</text>
+            <text class="t-small t-mono t-muted" x="14" y="166.25">3840 × 2160</text>
+            <text class="t-mono t-strong t-acc end" x="174" y="126.25" font-size="13">100%</text>
+            <rect class="f-sunken s-strong" x="192" y="40" width="164" height="92.25" rx="3"/>
+            <rect class="f-acc-soft s-acc" x="192" y="70.75" width="109.333" height="61.5" rx="2"/>
+            <text class="t-head" x="192" y="150.25" font-size="12.5">Quality</text>
+            <text class="t-small t-mono t-muted" x="192" y="166.25">2560 × 1440</text>
+            <text class="t-mono t-strong t-acc end" x="352" y="126.25" font-size="13">44%</text>
+            <rect class="f-sunken s-strong" x="370" y="40" width="164" height="92.25" rx="3"/>
+            <rect class="f-acc-soft s-acc" x="370" y="78.7365" width="95.1115" height="53.5135" rx="2"/>
+            <text class="t-head" x="370" y="150.25" font-size="12.5">Balanced</text>
+            <text class="t-small t-mono t-muted" x="370" y="166.25">2227 × 1253</text>
+            <text class="t-mono t-strong t-acc end" x="530" y="126.25" font-size="13">34%</text>
+            <rect class="f-sunken s-strong" x="548" y="40" width="164" height="92.25" rx="3"/>
+            <rect class="f-acc-soft s-acc" x="548" y="86.125" width="82" height="46.125" rx="2"/>
+            <text class="t-head" x="548" y="150.25" font-size="12.5">Performance</text>
+            <text class="t-small t-mono t-muted" x="548" y="166.25">1920 × 1080</text>
+            <text class="t-mono t-strong t-acc end" x="708" y="126.25" font-size="13">25%</text>
+            <rect class="f-sunken s-strong" x="726" y="40" width="164" height="92.25" rx="3"/>
+            <rect class="f-acc-soft s-acc" x="726" y="101.5" width="54.6667" height="30.75" rx="2"/>
+            <text class="t-head" x="726" y="150.25" font-size="12.5">Ultra Performance</text>
+            <text class="t-small t-mono t-muted" x="726" y="166.25">1280 × 720</text>
+            <text class="t-mono t-strong t-acc end" x="886" y="126.25" font-size="13">11%</text>
+            <text class="t-small t-muted" x="14" y="188">DLSS and FSR scale factors per axis; per-pixel passes cost roughly in proportion to the shaded share (11.2).</text>
+          </svg>
+          </div>
+          <figcaption><b>The biggest lever.</b> Upscaling changes how many pixels every per-pixel pass shades, which is why it moves GPU time more than any other option.</figcaption>
+          </figure>
+          <div class="table-wrap">
+          <table class="is-wide cs-table">
+          <thead><tr><th scope="col">Setting</th><th scope="col">What it changes</th><th scope="col">GPU</th><th scope="col">Memory</th><th scope="col">CPU</th><th scope="col">Set too low, it looks like</th><th scope="col">Chapter</th></tr></thead>
+          <tbody>
+          <tr><th scope="row">Upscaling</th><td>internal resolution: how many pixels are shaded</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: strong"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: none"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></td><td>softer image; shimmer and ghosting on thin, moving detail</td><td class="num"><a class="xref" data-ch="9.3">9.3</a>, <a class="xref" data-ch="11.2">11.2</a></td></tr>
+          <tr><th scope="row">Anti-aliasing</th><td>how edges are smoothed: FXAA, SMAA, TAA, MSAA</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: none"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></td><td>jagged, crawling edges; with TAA, smearing in motion</td><td class="num"><a class="xref" data-ch="9.2">9.2</a></td></tr>
+          <tr><th scope="row">Shadows</th><td>shadow map size, cascades, distance, filtering</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: strong"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: medium"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: medium"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span></td><td>blocky or shimmering shadows that end near the camera</td><td class="num"><a class="xref" data-ch="7.4">7.4</a>, <a class="xref" data-ch="7.5">7.5</a></td></tr>
+          <tr><th scope="row">Ambient occlusion</th><td>AO method, samples and resolution</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: medium"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: none"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></td><td>objects look pasted on, with no darkening where they meet</td><td class="num"><a class="xref" data-ch="8.3">8.3</a></td></tr>
+          <tr><th scope="row">Reflections</th><td>probes, screen-space or ray-traced reflections</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: medium"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: none"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></td><td>reflections that do not match the room, or vanish at screen edges</td><td class="num"><a class="xref" data-ch="7.6">7.6</a>, <a class="xref" data-ch="8.4">8.4</a></td></tr>
+          <tr><th scope="row">Global illumination</th><td>real-time GI quality, or baked light only</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: strong"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: medium"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td>flat, dark interiors; light that leaks, crawls or lags</td><td class="num"><a class="xref" data-ch="8.5">8.5</a>, <a class="xref" data-ch="8.2">8.2</a></td></tr>
+          <tr><th scope="row">Textures</th><td>highest mip kept, streaming pool, anisotropy</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: strong"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: none"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></td><td>blurry surfaces, detail that arrives late</td><td class="num"><a class="xref" data-ch="6.3">6.3</a>, <a class="xref" data-ch="6.2">6.2</a></td></tr>
+          <tr><th scope="row">View distance</th><td>draw and LOD distances, foliage density</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: medium"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: strong"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot is-on"></span></span></td><td>objects and grass popping in near the player</td><td class="num"><a class="xref" data-ch="4.4">4.4</a>, <a class="xref" data-ch="4.5">4.5</a></td></tr>
+          <tr><th scope="row">Effects</th><td>particles, translucency, volumetric fog</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: medium"><span class="dot is-on"></span><span class="dot is-on"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td>thin smoke and fire, blocky or flickering fog</td><td class="num"><a class="xref" data-ch="9.6">9.6</a>, <a class="xref" data-ch="9.5">9.5</a></td></tr>
+          <tr><th scope="row">Post-processing</th><td>bloom, depth of field, motion blur quality</td><td class="dots-cell"><span class="dots" role="img" aria-label="GPU time: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="Memory: weak"><span class="dot is-on"></span><span class="dot"></span><span class="dot"></span></span></td><td class="dots-cell"><span class="dots" role="img" aria-label="CPU time: none"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></td><td>grainy blur, stepped bokeh, bloom that flickers</td><td class="num"><a class="xref" data-ch="9.4">9.4</a></td></tr>
+          </tbody>
+          </table>
+          </div>
+          <h3 class="cs-sub">Before you change a setting</h3>
+          <ol class="cs-steps">
+            <li><strong>Reproduce.</strong> Same place, same camera, a development build on the target hardware.</li>
+            <li><strong>Find the lane.</strong> Game thread, render thread or GPU: only the longest one matters.</li>
+            <li><strong>Capture at two levels.</strong> Compare pass by pass, in milliseconds, not frames per second.</li>
+            <li><strong>Change one thing.</strong> Then measure again, in the same place.</li>
+          </ol>
+          <p class="cs-foot">From <a class="xref" data-ch="11.5">11.5</a>, with each row's chapter linked. Dots are a rough guide, not measurements; ray-traced reflections and GI cost far more than their rows suggest (<a class="xref" data-ch="8.6">8.6</a>).</p>
+        </section>
+      </div>
+    </main>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/js/cheat-sheets.js"></script>
+</body>
+</html>

@@ -106,3 +106,20 @@ related area.
   search index once the phrase became a link. Inline tags (`a`, `em`,
   `strong`, `code`, `dfn`, `span`...) now vanish; block tags still become a
   space.
+
+## Reference pages and print (cheat sheets)
+
+- **Check a class name is free before styling it.** `.sheet` and
+  `.sheet-head` already belonged to the shell's search and contents
+  dialogs; a page-level `.sheet-head { display: flex }` would have
+  restyled them on every page. New page components take a prefix
+  (`cs-` on the cheat sheets).
+- **Content tables use `.table-wrap`; `.table-scroll` is the demos'.**
+  `.table-scroll` (diagrams.css) caps height at 320 px and scrolls, which
+  silently clipped a ten-row table.
+- **`:first-of-type` counts element types, not classes.** The first
+  `section.cs-sheet` is not `:first-of-type` when a `section.hero` comes
+  before it; use `.hero + .cs-sheet`.
+- **Print styles land over several frames after `emulateMedia`.** Measuring
+  straight away gave heights halfway between screen and print. Poll until
+  two readings agree.

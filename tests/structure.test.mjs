@@ -204,6 +204,12 @@ test("every term a published chapter owns is introduced there with <dfn>", () =>
   }
 });
 
+test("the home page's no-script reference links match nav.reference", () => {
+  const block = html["index.html"].split('id="reference-list"')[1].split("</ul>")[0];
+  const hrefs = [...block.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+  assert.deepEqual(hrefs, [...nav.reference.map((r) => r.file)]);
+});
+
 test("cross-references point at chapters that exist", () => {
   for (const [page, src] of Object.entries(html).filter(([p]) => pages.includes(p))) {
     for (const tag of tags(src, "a")) {

@@ -39,6 +39,18 @@
     start.textContent = "Start with " + published[0].num + " " + published[0].title;
   }
 
+  /* Reference pages, from nav.reference so the sidebar and the home page
+     always agree. The static links in the markup are the no-script view. */
+  var refList = document.getElementById("reference-list");
+  if (refList && nav.reference) {
+    refList.replaceChildren.apply(refList, nav.reference.map(function (ref) {
+      return h("li", null, [
+        h("a", { href: ref.file, text: ref.title }),
+        h("span", { text: ref.blurb })
+      ]);
+    }));
+  }
+
   var list = document.getElementById("contents-list");
   var filterRow = document.getElementById("contents-filter");
   if (!list) return;

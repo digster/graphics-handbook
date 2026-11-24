@@ -52,8 +52,11 @@ HTTP. Every rule below is enforced by `tests/structure.test.mjs`.
 | --- | --- |
 | `docs/index.html`, `docs/assets/js/home.js` | Cover, learning path, rendered contents with filters. |
 | `docs/glossary.html`, `docs/assets/js/glossary-page.js` | Glossary rendered from data, with a filter and `#id` anchors. |
+| `docs/acronyms.html`, `docs/assets/js/acronyms-page.js` | Acronym decoder, derived from the glossary's capitalised terms and aliases. |
+| `docs/cheat-sheets.html`, `docs/assets/js/cheat-sheets.js` | Four printable one-page sheets (pipeline, frame, budgets, settings). Hand-maintained HTML and SVG; every number is quoted from a named chapter. Classes use a `cs-` prefix because the shell already owns `.sheet` (its dialogs). Print styles in `site.css` section 7 put one sheet on each page; a browser test checks each fits 703 × 950 CSS px. |
+| `docs/sources.html` | Generated from every chapter's sources list (`npm run build`). |
 | `docs/NN-C-slug.html` | One chapter. The name comes from `HB.nav.fileOf()`: two-digit part, chapter, slug. |
-| `docs/assets/js/data/nav.js` | Parts and chapters: number, slug, title, terms, `core`, `status`. |
+| `docs/assets/js/data/nav.js` | Parts and chapters: number, slug, title, terms, `core`, `status`; `reference` lists the look-up pages shown in the sidebar and on the home page. |
 | `docs/assets/js/data/glossary.js` | Terms keyed by id: `term`, `aka`, `def`, `ch` (the chapter that teaches it). |
 | `docs/assets/js/data/search-index.js` | Generated. Never edit by hand. |
 | `docs/assets/js/theme-init.js` | Loaded in `<head>`; applies a saved theme before first paint. |

@@ -184,6 +184,10 @@ for (const browserName of BROWSERS) {
     assert.equal(await tab.locator(".contents-ch").count(), published.length);
     await tab.click('#contents-filter button:has-text("Core path")');
     assert.equal(await tab.locator(".contents-ch").count(), nav.chapters.filter((c) => c.core).length);
+    // Reference links come from nav.reference, with a blurb each.
+    const refs = await tab.locator("#reference-list a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
+    assert.deepEqual(refs, [...nav.reference.map((r) => r.file)]);
+    assert.equal(await tab.locator("#reference-list li span").count(), nav.reference.length);
     await context.close();
   });
 
@@ -229,6 +233,47 @@ for (const browserName of BROWSERS) {
     assert.ok(values.every((v) => v >= 0 && v <= 1), "visibility values lie between 0 and 1");
     await demo.locator('button:has-text("SSAO samples")').click();
     assert.ok((await demo.locator("svg circle").count()) > 8, "SSAO view draws its sample points");
+    await context.close();
+  });
+
+  test(`[${browserName}] cheat sheets: print buttons, one sheet per printed page`, { skip: DRAFT_MODE }, async () => {
+    // Record what the page asked to print instead of opening a dialog.
+    const context = await browser.newContext({ viewport: { width: 703, height: 950 }, reducedMotion: "reduce" });
+    await context.addInitScript(() => {
+      window.print = () => {
+        window.__printed = {
+          one: document.body.dataset.printOne || null,
+          target: (document.querySelector(".cs-sheet.is-print-target") || {}).id || null,
+        };
+      };
+    });
+    const tab = await context.newPage();
+    await tab.goto(url("cheat-sheets.html"));
+    await tab.waitForFunction(() => document.documentElement.classList.contains("hb-ready"));
+    const sheets = tab.locator(".cs-sheet");
+    assert.equal(await sheets.count(), 4, "four sheets");
+    assert.equal(await tab.locator("[data-print]:visible").count(), 5, "script reveals Print all and four Print this sheet buttons");
+
+    await tab.getByRole("button", { name: "Print this sheet" }).nth(2).click();
+    assert.deepEqual({ ...(await tab.evaluate(() => window.__printed)) }, { one: "sheet-budgets", target: "sheet-budgets" });
+    await tab.waitForFunction(() => !document.body.dataset.printOne && !document.querySelector(".is-print-target"));
+    await tab.getByRole("button", { name: "Print all four" }).click();
+    assert.deepEqual({ ...(await tab.evaluate(() => window.__printed)) }, { one: null, target: null });
+
+    // 703 x 950 CSS px is the printable area of A4 (narrower) and US Letter
+    // (shorter) with typical margins. Each sheet must fit on one page.
+    // The print styles land over a few frames after emulateMedia, so wait
+    // until two readings agree before checking.
+    await tab.emulateMedia({ media: "print" });
+    const measure = () => sheets.evaluateAll((els) => els.map((el) => [el.id, Math.round(el.getBoundingClientRect().height)]));
+    let heights = await measure();
+    for (let i = 0, prev = null; i < 30 && JSON.stringify(heights) !== JSON.stringify(prev); i++) {
+      prev = heights;
+      await tab.waitForTimeout(100);
+      heights = await measure();
+    }
+    for (const [id, h] of heights) assert.ok(h <= 950, `${id} is ${h}px tall in print; it must fit one page (950px)`);
+    assert.equal(await tab.locator(".cs-page > .hero").isVisible(), false, "the intro does not print");
     await context.close();
   });
 

@@ -583,6 +583,7 @@ window.HB.searchIndex = [
   {"k":"chapter","t":"12.5 Decision guides","s":"Part 12 · not written yet","u":"index.html#ch-12-5","w":"choosing a render path, shadows, GI and anti-aliasing per platform and team size","p":1},
   {"k":"page","t":"Glossary","s":"Every term the handbook defines, with the chapter that teaches it.","u":"glossary.html"},
   {"k":"page","t":"Acronym decoder","s":"Every acronym in the handbook, spelled out, in one sorted list.","u":"acronyms.html"},
+  {"k":"page","t":"Cheat sheets","s":"Four printable one-page sheets: the pipeline, the anatomy of a frame, budgets, and the settings menu decoded.","u":"cheat-sheets.html"},
   {"k":"page","t":"Sources and further reading","s":"Every paper, talk and documentation page the chapters cite, grouped by chapter.","u":"sources.html"},
   {"k":"term","t":"Acceleration structure","s":"A structure that groups a scene's triangles so a ray can skip almost all of them. Ray tracing APIs build it from meshes and instances;…","u":"glossary.html#acceleration-structure","w":"AS ray tracing acceleration structure RayTracingAccelerationStructure"},
   {"k":"term","t":"Acceptance criteria","s":"The conditions, written before work starts, that a result must meet to be accepted. Good ones are measurable, such as a pass under 2 ms on…","u":"glossary.html#acceptance-criteria","w":"definition of done success criteria exit criteria"},
