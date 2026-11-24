@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <p class="eyebrow">Part 8 · <a class="term" data-term="global-illumination" href="glossary.html#global-illumination">Global illumination</a> and <a class="term" data-term="ambient-occlusion" href="glossary.html#ambient-occlusion">ambient occlusion</a></p>
             <h1><span class="ch-num">8.7</span> Path tracing and denoising</h1>
             <p class="lead">Path tracing follows light the way the rendering equation describes it: one random path per sample, bounce after bounce, until it reaches a light. Averaged over enough samples it is the reference every other technique is judged against. Real time can afford a sample or two per pixel, so the raw image is mostly noise, and smarter sampling and denoising do the rest.</p>
             <dl class="chapter-meta">
@@ -140,19 +140,19 @@
               </div>
               <div>
                 <span class="label">The problem it solves</span>
-                <p>Every technique in Part 8 handles one kind of light with its own approximation: probes for diffuse bounce, screen-space or ray-traced reflections, AO for contact. Path tracing computes all of them, every bounce, in one method, with no leaks and no blind spots. That is why film uses it and why engines ship it as a reference.</p>
+                <p>Every technique in Part 8 handles one kind of light with its own approximation: probes for diffuse bounce, screen-space or <a class="term" data-term="ray-traced-reflections" href="glossary.html#ray-traced-reflections">ray-traced reflections</a>, AO for contact. Path tracing computes all of them, every bounce, in one method, with no leaks and no blind spots. That is why film uses it and why engines ship it as a reference.</p>
               </div>
             </div>
             <aside class="note" data-kind="lead">
               <p class="note-label">Why a lead cares</p>
-              <p>Real-time path tracing exists in shipping games, but on top-end GPUs and only with heavy sampling tricks, an AI denoiser and upscaling. For most teams the engine's path tracer is a reference tool: it shows lighting artists what the real-time GI should look like and settles arguments about whether a bug is in the lighting or in the approximation. Know which of the two you are being sold.</p>
+              <p>Real-time path tracing exists in shipping games, but on top-end GPUs and only with heavy sampling tricks, an AI denoiser and upscaling. For most teams the engine's path tracer is a reference tool: it shows <a class="term" data-term="lighting-artist" href="glossary.html#lighting-artist">lighting artists</a> what the real-time GI should look like and settles arguments about whether a bug is in the lighting or in the approximation. Know which of the two you are being sold.</p>
             </aside>
           </section>
 
           <!-- ============ 3. How it works ============ -->
           <section class="beat" id="how" data-beat="how">
             <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
-            <p>A path tracer is a loop around the ray tracing of 8.6. The interesting parts are the choices it makes at every bounce, how its error shrinks with samples, and the tricks that make few samples go further.</p>
+            <p>A path tracer is a loop around the <a class="term" data-term="ray-tracing" href="glossary.html#ray-tracing">ray tracing</a> of 8.6. The interesting parts are the choices it makes at every bounce, how its error shrinks with samples, and the tricks that make few samples go further.</p>
 
             <div class="step">
               <h3 class="step-title" id="one-path"><span class="step-num">1</span> One path, several bounces</h3>
@@ -213,7 +213,7 @@
 
             <div class="step">
               <h3 class="step-title" id="monte-carlo"><span class="step-num">2</span> Samples, and why noise falls so slowly</h3>
-              <p>The number of paths averaged per pixel is the <dfn class="term" data-term="samples-per-pixel">samples per pixel</dfn>, or spp. Monte Carlo error falls with the square root of the number of samples: in the words of Physically Based Rendering, the error goes down at a rate of O(n<sup>−1/2</sup>). Four times the samples halve the noise. Going from 1 to 1,024 samples, a thousand times the work, cuts the noise by a factor of 32.</p>
+              <p>The number of paths averaged per pixel is the <dfn class="term" data-term="samples-per-pixel">samples per pixel</dfn>, or spp. Monte Carlo error falls with the square root of the number of samples: in the words of <a class="term" data-term="pbr" href="glossary.html#pbr">Physically Based Rendering</a>, the error goes down at a rate of O(n<sup>−1/2</sup>). Four times the samples halve the noise. Going from 1 to 1,024 samples, a thousand times the work, cuts the noise by a factor of 32.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 260" role="img" aria-label="A chart of noise against samples per pixel on a doubling axis from 1 to 1,024. Noise starts at 100 percent with one sample and follows a curve down: 50 percent at 4 samples, 25 percent at 16, 12.5 percent at 64, 6.3 percent at 256 and 3.1 percent at 1,024. Below the axis, the time grows in proportion: one, four, sixteen, sixty-four, two hundred and fifty-six and one thousand and twenty-four times.">
@@ -332,7 +332,7 @@
                 </div>
                 <figcaption><b>A firefly is one lucky sample.</b> Fifteen ordinary samples and one that found the light through the mirror give a pixel average a hundred times too bright. The true average for that pixel is somewhere in between, and only a very large number of samples reveals it.</figcaption>
               </figure>
-              <p>Renderers fight fireflies three ways. Better sampling finds the rare light paths more often (step 5). Clamping caps how bright any one sample may be: Unreal's path tracer calls it Max Path Intensity and HDRP's Maximum Intensity. It works, but it throws away energy, so caustics and bright reflections come out darker. And denoisers try to spot and suppress outliers, which a plain blur cannot do: a blur spreads a firefly into a blob.</p>
+              <p>Renderers fight fireflies three ways. Better sampling finds the rare light paths more often (step 5). Clamping caps how bright any one sample may be: Unreal's path tracer calls it Max Path Intensity and <a class="term" data-term="hdrp" href="glossary.html#hdrp">HDRP</a>'s Maximum Intensity. It works, but it throws away energy, so caustics and bright reflections come out darker. And denoisers try to spot and suppress outliers, which a plain blur cannot do: a blur spreads a firefly into a blob.</p>
             </div>
 
             <div class="step">
@@ -447,7 +447,7 @@
 
             <div class="step">
               <h3 class="step-title" id="denoisers"><span class="step-num">7</span> Denoisers: neighbours, history and guides</h3>
-              <p>A real-time denoiser works from more than the noisy image. The rasterized <a class="term" data-term="g-buffer" href="glossary.html#g-buffer">G-buffer</a> gives clean depth, normals and surface colour for every pixel, which say where one surface ends and the next begins. Motion vectors say where each pixel was last frame, so previous results can be reused. These guides let the denoiser average a lot of noisy samples without blurring across edges.</p>
+              <p>A real-time denoiser works from more than the noisy image. The rasterized <a class="term" data-term="g-buffer" href="glossary.html#g-buffer">G-buffer</a> gives clean depth, normals and surface colour for every pixel, which say where one surface ends and the next begins. <a class="term" data-term="motion-vectors" data-forward href="glossary.html#motion-vectors">Motion vectors</a> say where each pixel was last frame, so previous results can be reused. These guides let the denoiser average a lot of noisy samples without blurring across edges.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 290" role="img" aria-label="Six inputs feed a denoiser: the noisy colour, the albedo or surface colour, the normals, the depth, the motion vectors and the history, last frame's result. The denoiser divides out the albedo, accumulates the history, estimates the noise, blurs within edges and multiplies the albedo back. The output is a clean frame.">
@@ -540,13 +540,13 @@
 
             <div class="step">
               <h3 class="step-title" id="ai-denoisers"><span class="step-num">8</span> AI denoisers and ray reconstruction</h3>
-              <p>An <dfn class="term" data-term="ai-denoiser">AI denoiser</dfn> replaces hand-written filter rules with a neural network trained on pairs of noisy and clean images. Offline, Intel's Open Image Denoise is widely used: Unreal's default path tracer denoiser runs Open Image Denoise networks on the GPU, and HDRP recommends it for its path tracer. In real time, NVIDIA's <dfn class="term" data-term="ray-reconstruction">ray reconstruction</dfn>, introduced with DLSS 3.5 in 2023, replaces a game's several hand-tuned denoisers, one per ray-traced effect, with a single network trained on offline-rendered images; NVIDIA describes it as available on all GeForce RTX GPUs. AMD's FSR Ray Regeneration is a machine-learning denoiser for ray-traced lighting in its FSR SDK, which runs separately from upscaling or alongside it.</p>
+              <p>An <dfn class="term" data-term="ai-denoiser">AI denoiser</dfn> replaces hand-written filter rules with a neural network trained on pairs of noisy and clean images. Offline, Intel's Open Image Denoise is widely used: Unreal's default path tracer denoiser runs Open Image Denoise networks on the <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a>, and HDRP recommends it for its path tracer. In real time, NVIDIA's <dfn class="term" data-term="ray-reconstruction">ray reconstruction</dfn>, introduced with <a class="term" data-term="dlss" data-forward href="glossary.html#dlss">DLSS</a> 3.5 in 2023, replaces a game's several hand-tuned denoisers, one per ray-traced effect, with a single network trained on offline-rendered images; NVIDIA describes it as available on all GeForce RTX GPUs. AMD's <a class="term" data-term="fsr" data-forward href="glossary.html#fsr">FSR</a> Ray Regeneration is a machine-learning denoiser for ray-traced lighting in its FSR SDK, which runs separately from upscaling or alongside it.</p>
               <p>NVIDIA's own announcement names the weaknesses these networks target: hand-tuned temporal denoisers can introduce ghosting and remove dynamic effects, and spatial blending can blur detail. A network does not abolish those trade-offs; it moves them. When an AI denoiser fails, it fails in ways that are harder to tune by hand, so review it in motion, not in screenshots.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="reference"><span class="step-num">9</span> Reference rendering and real time</h3>
-              <p>Path tracing appears in games in two very different roles. As <dfn class="term" data-term="reference-rendering">reference rendering</dfn>, the engine's path tracer accumulates thousands of samples while the camera stands still and restarts when anything moves; Epic describes Unreal's as being for final shots and ground truth comparisons, not gameplay. As real-time rendering, a game traces about one or two paths per pixel, samples lights with ReSTIR, denoises with a network, and upscales. NVIDIA's Cyberpunk 2077 Overdrive mode, which it calls full ray tracing, otherwise known as path tracing, recommended a GeForce RTX 40 series GPU with DLSS 3 at launch in 2023.</p>
+              <p>Path tracing appears in games in two very different roles. As <dfn class="term" data-term="reference-rendering">reference rendering</dfn>, the engine's path tracer accumulates thousands of samples while the camera stands still and restarts when anything moves; Epic describes Unreal's as being for final shots and ground truth comparisons, not gameplay. As <a class="term" data-term="real-time-rendering" href="glossary.html#real-time-rendering">real-time rendering</a>, a game traces about one or two paths per pixel, samples lights with ReSTIR, denoises with a network, and upscales. NVIDIA's Cyberpunk 2077 Overdrive mode, which it calls full ray tracing, otherwise known as path tracing, recommended a GeForce RTX 40 series GPU with DLSS 3 at launch in 2023.</p>
               <div class="table-wrap">
                 <table>
                   <thead><tr><th scope="col"></th><th scope="col">Reference path tracing</th><th scope="col">Real-time path tracing</th><th scope="col">Hybrid ray tracing (8.6)</th></tr></thead>
@@ -651,7 +651,7 @@
                 <h4>Light smears behind moving objects</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>Temporal reuse keeps light, or a ReSTIR light choice, from where an object was. It is <a class="term" data-term="ghosting" data-forward href="glossary.html#ghosting">ghosting</a>, and it shows most at <a class="term" data-term="disocclusion" data-forward href="glossary.html#disocclusion">disocclusion</a> and on objects without correct motion vectors.</dd></div>
-                  <div><dt>Ask for</dt><dd>History rejection settings, motion vectors on every moving object, including particles and animated materials, and slow-motion captures of the trail.</dd></div>
+                  <div><dt>Ask for</dt><dd><a class="term" data-term="history-rejection" data-forward href="glossary.html#history-rejection">History rejection</a> settings, motion vectors on every moving object, including particles and animated materials, and slow-motion captures of the trail.</dd></div>
                 </dl>
               </article>
               <article class="symptom">
@@ -687,7 +687,7 @@
                 </div>
                 <h4>A soft, waxy look: lost contact shadows</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>A spatial filter strong enough for the noise also smooths small, real lighting detail: contact shadows, creases, light in small gaps.</dd></div>
+                  <div><dt>Cause</dt><dd>A spatial filter strong enough for the noise also smooths small, real lighting detail: <a class="term" data-term="contact-shadows" href="glossary.html#contact-shadows">contact shadows</a>, creases, light in small gaps.</dd></div>
                   <div><dt>Ask for</dt><dd>Side-by-side comparison with the engine's reference path tracer, more samples rather than more blur where detail matters, and the denoiser's edge-stopping settings.</dd></div>
                 </dl>
               </article>

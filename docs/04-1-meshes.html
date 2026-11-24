@@ -82,7 +82,7 @@
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
             <p>A 3D model in a game is hollow. There is nothing inside a character or a crate, only a surface, and that surface is made of flat <dfn class="term" data-term="triangle">triangles</dfn> joined edge to edge. The surface plus the data stored at its corners is a <dfn class="term" data-term="mesh">mesh</dfn>.</p>
-            <p>Each corner, with its data, is a <dfn class="term" data-term="vertex">vertex</dfn>. It always has a position. It usually has a <dfn class="term" data-term="normal">normal</dfn>, the direction the surface faces at that corner, which lighting needs. It usually has <dfn class="term" data-term="uv">UV coordinates</dfn>, which say which point of a flat image lands on that corner. Meshes that use normal maps add a <dfn class="term" data-term="tangent">tangent</dfn>, which says which way the image runs across the surface, and some add a <dfn class="term" data-term="vertex-colour">vertex colour</dfn>, a value painted onto each corner.</p>
+            <p>Each corner, with its data, is a <dfn class="term" data-term="vertex">vertex</dfn>. It always has a position. It usually has a <dfn class="term" data-term="normal">normal</dfn>, the direction the surface faces at that corner, which lighting needs. It usually has <dfn class="term" data-term="uv">UV coordinates</dfn>, which say which point of a flat image lands on that corner. Meshes that use <a class="term" data-term="normal-map" data-forward href="glossary.html#normal-map">normal maps</a> add a <dfn class="term" data-term="tangent">tangent</dfn>, which says which way the image runs across the surface, and some add a <dfn class="term" data-term="vertex-colour">vertex colour</dfn>, a value painted onto each corner.</p>
             <p>None of this is drawn as such. The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> fills each triangle with pixels and blends the corner values across it, so a few numbers at three corners decide the look of everything in between.</p>
             <div class="analogy">
               <div>
@@ -110,7 +110,7 @@
             <div class="step">
               <h3 class="step-title" id="why-triangles"><span class="step-num">1</span> Why triangles</h3>
               <p>Three points always lie on one flat plane. Whatever three corners you pick, there is exactly one flat triangle through them, so the GPU never has to guess what surface it is filling. Four points need not lie on a plane: lift one corner of a square and it can fold two different ways, depending on which diagonal you fold along.</p>
-              <p>A triangle is also always convex. A line across it goes in once and comes out once, and a pixel is inside it exactly when it is on the inner side of all three edges. That test is simple enough to build into fixed hardware, which is why every GPU draws triangles and everything else is made of them. Modelling tools call their faces polygons; by the time a mesh reaches the GPU, every polygon is a triangle.</p>
+              <p>A triangle is also always convex. A line across it goes in once and comes out once, and a pixel is inside it exactly when it is on the inner side of all three edges. That test is simple enough to build into <a class="term" data-term="fixed-hardware" href="glossary.html#fixed-hardware">fixed hardware</a>, which is why every GPU draws triangles and everything else is made of them. Modelling tools call their faces polygons; by the time a mesh reaches the GPU, every polygon is a triangle.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="Left: three points always define one flat triangle. Middle: four corners A, B, C and D with C lifted can be split along A to C, making a ridge, or along B to D, making a valley: the same corners give two different surfaces. Right: a triangle is convex, and a point is covered when it lies on the inner side of all three edges.">
@@ -219,9 +219,9 @@
 
             <div class="step">
               <h3 class="step-title" id="winding"><span class="step-num">3</span> Winding order and front faces</h3>
-              <p>Each triangle lists its three corners in an order. Seen from one side, that order goes anticlockwise; seen from the other side, clockwise. The GPU uses this <dfn class="term" data-term="winding-order">winding order</dfn> to tell a triangle's front from its back, and most renderers skip back faces entirely, because on a closed mesh they are hidden anyway. That is <a class="term" data-term="backface-culling" data-forward href="glossary.html#backface-culling">backface culling</a>. On a closed mesh roughly half the triangles face away at any moment, and culling skips all of them.</p>
-              <p>Which order counts as the front is a convention that varies between APIs and file formats; glTF, for example, uses anticlockwise. The face's normal follows from the same order: the cross product of two edges, from <a class="xref" data-ch="3.3">3.3 Vectors you can see</a>, points out of the front.</p>
-              <p>Mirroring flips it. Scaling a mesh by −1 along one axis turns every anticlockwise triangle clockwise, so a mirrored object would render inside out unless something compensates. glTF spells out that a negative scale flips the front-facing order, and Unreal can build a reversed index buffer for meshes used with mirrored transforms.</p>
+              <p>Each <a class="term" data-term="triangle-list" data-forward href="glossary.html#triangle-list">triangle lists</a> its three corners in an order. Seen from one side, that order goes anticlockwise; seen from the other side, clockwise. The GPU uses this <dfn class="term" data-term="winding-order">winding order</dfn> to tell a triangle's front from its back, and most renderers skip back faces entirely, because on a closed mesh they are hidden anyway. That is <a class="term" data-term="backface-culling" data-forward href="glossary.html#backface-culling">backface culling</a>. On a closed mesh roughly half the triangles face away at any moment, and culling skips all of them.</p>
+              <p>Which order counts as the front is a convention that varies between APIs and file formats; glTF, for example, uses anticlockwise. The face's normal follows from the same order: the <a class="term" data-term="cross-product" href="glossary.html#cross-product">cross product</a> of two edges, from <a class="xref" data-ch="3.3">3.3 Vectors you can see</a>, points out of the front.</p>
+              <p>Mirroring flips it. Scaling a mesh by −1 along one axis turns every anticlockwise triangle clockwise, so a mirrored object would render inside out unless something compensates. glTF spells out that a negative scale flips the front-facing order, and Unreal can build a reversed <a class="term" data-term="index-buffer" data-forward href="glossary.html#index-buffer">index buffer</a> for meshes used with mirrored transforms.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 236" role="img" aria-label="Left: a triangle with corners 0, 1, 2 going anticlockwise, its normal pointing towards the viewer: a front face. Middle: the same triangle seen from behind, where 0, 1, 2 go clockwise and the normal points away: a back face, culled. Right: a triangle and its mirror image across a dashed line; the mirror image's corners run clockwise, so it would be treated as a back face.">
@@ -304,7 +304,7 @@
 
             <div class="step">
               <h3 class="step-title" id="uvs"><span class="step-num">5</span> UVs and seams</h3>
-              <p>UV coordinates place each vertex on a flat image, with U across and V up, usually each from 0 to 1. <a class="xref" data-ch="6.1">6.1 Textures and UVs</a> covers the images themselves; here the point is the cut. A closed surface cannot lie flat without being cut open, like the jacket's pattern pieces. Each cut is a <dfn class="term" data-term="uv-seam">UV seam</dfn>, and each separate flat piece is called a UV island.</p>
+              <p>UV coordinates place each vertex on a flat image, with U across and V up, usually each from 0 to 1. <a class="xref" data-ch="6.1">6.1 Textures and UVs</a> covers the images themselves; here the point is the cut. A closed surface cannot lie flat without being cut open, like the jacket's pattern pieces. Each cut is a <dfn class="term" data-term="uv-seam">UV seam</dfn>, and each separate flat piece is called a <a class="term" data-term="uv-island" data-forward href="glossary.html#uv-island">UV island</a>.</p>
               <p>A vertex on a seam belongs to two places in the layout, so it needs two sets of UVs and is stored twice. Seams also show: a texture rarely lines up perfectly across one. So artists put seams where they hide, under arms, on the back of props, and along hard edges, which split their vertices anyway and so cost nothing extra.</p>
               <figure>
                 <div class="fig-frame">
@@ -424,10 +424,10 @@
               <div class="stat"><span class="value">32%</span><span class="what">of a 750,000-triangle Quest 2 scene for 12 such characters</span></div>
               <div class="stat"><span class="value">0.8 MB</span><span class="what">vertex and index data for one 20,000-triangle character</span></div>
             </div>
-            <p>The other big cost is people-time. Clean topology, UV unwrapping and the lower-detail versions of each model (<a class="xref" data-ch="4.5">4.5 Level of detail</a>) are skilled work, and budgets agreed late in production force artists to redo it. Set triangle budgets per asset type and platform before full production, and check them on import.</p>
+            <p>The other big cost is people-time. Clean topology, <a class="term" data-term="uv-unwrap" data-forward href="glossary.html#uv-unwrap">UV unwrapping</a> and the lower-detail versions of each model (<a class="xref" data-ch="4.5">4.5 Level of detail</a>) are skilled work, and budgets agreed late in production force artists to redo it. Set triangle budgets per asset type and platform before full production, and check them on import.</p>
             <h3>What makes the costs grow</h3>
             <ul class="grows">
-              <li><strong>Triangles on screen</strong><span>Every visible triangle costs vertex work in every pass, including each shadow pass.</span></li>
+              <li><strong>Triangles on screen</strong><span>Every visible triangle costs vertex work in every pass, including each <a class="term" data-term="shadow-pass" data-forward href="glossary.html#shadow-pass">shadow pass</a>.</span></li>
               <li><strong>Vertices after splits</strong><span>Hard edges and UV seams add vertices beyond the corner count: three per corner on a crate.</span></li>
               <li><strong>Tiny triangles</strong><span>Triangles a few pixels across waste pixel work and gain no visible detail.</span></li>
               <li><strong>Extra attributes</strong><span>A second UV set, colours and tangents add bytes to every vertex and can split more of them.</span></li>
@@ -515,7 +515,7 @@
                 </div>
                 <h4>Visible texture seams or stretching</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>Seams placed where players look, islands with different texel density on either side, or UVs squashed in one direction.</dd></div>
+                  <div><dt>Cause</dt><dd>Seams placed where players look, islands with different <a class="term" data-term="texel-density" data-forward href="glossary.html#texel-density">texel density</a> on either side, or UVs squashed in one direction.</dd></div>
                   <div><dt>Ask for</dt><dd>A checker-texture review of the UVs, with seam placement and texel density checked against the asset rules.</dd></div>
                 </dl>
               </article>

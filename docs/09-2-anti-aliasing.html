@@ -233,14 +233,14 @@
                 <text class="t-small t-muted" x="612" y="230">this is what TAA does.</text>
                 </svg>
               </div>
-              <figcaption><b>Anti-aliasing is about measuring coverage better.</b> The blue lines are the true edge and a thin wire. With one sample per pixel every pixel is all in or all out. Sixteen samples per pixel give each pixel a grey level that matches how much of it is covered. Temporal anti-aliasing takes those same sixteen samples one per frame, nudging the camera between frames, and blends them: the right-hand grid is computed that way and is almost identical to the middle one.</figcaption>
+              <figcaption><b>Anti-aliasing is about measuring coverage better.</b> The blue lines are the true edge and a thin wire. With one sample per pixel every pixel is all in or all out. Sixteen <a class="term" data-term="samples-per-pixel" href="glossary.html#samples-per-pixel">samples per pixel</a> give each pixel a grey level that matches how much of it is covered. Temporal anti-aliasing takes those same sixteen samples one per frame, nudging the camera between frames, and blends them: the right-hand grid is computed that way and is almost identical to the middle one.</figcaption>
             </figure>
           </section>
 
           <!-- ============ 2. In plain words ============ -->
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
-            <p>The GPU decides whether a triangle covers a pixel by testing one point, the pixel's <a class="term" data-term="sample-point" href="glossary.html#sample-point">sample point</a> (5.3). The answer is yes or no. A pixel that is 40% covered by a dark rock shows either all rock or no rock, so a straight edge becomes a staircase: <a class="term" data-term="edge-aliasing" href="glossary.html#edge-aliasing">edge aliasing</a>, the jaggies.</p>
+            <p>The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> decides whether a triangle covers a pixel by testing one point, the pixel's <a class="term" data-term="sample-point" href="glossary.html#sample-point">sample point</a> (5.3). The answer is yes or no. A pixel that is 40% covered by a dark rock shows either all rock or no rock, so a straight edge becomes a staircase: <a class="term" data-term="edge-aliasing" href="glossary.html#edge-aliasing">edge aliasing</a>, the jaggies.</p>
             <p>The general problem is <dfn class="term" data-term="aliasing">aliasing</dfn>: any detail finer than the pixel grid comes out wrong when each pixel looks at only one point. Edges become stairs, thin wires become dashes, fine texture patterns become false bands (the <a class="term" data-term="texture-aliasing" href="glossary.html#texture-aliasing">texture aliasing</a> that mipmaps fight, 6.2), and highlights smaller than a pixel sparkle. That last one has its own name: <dfn class="term" data-term="specular-aliasing">specular aliasing</dfn>. In a still screenshot aliasing looks rough. In motion it is worse, because each pixel's answer flips as things move, so edges crawl and details flicker.</p>
             <figure>
               <div class="fig-frame">
@@ -426,12 +426,12 @@
                 </div>
                 <figcaption><b>More samples turn one jump into small steps.</b> Where the samples sit matters too. On a plain 2 × 2 grid, two samples share each column, so a vertical edge still climbs in halves. The standard 4-sample pattern in Direct3D and Vulkan rotates the grid so all four samples sit at different heights and widths, and both vertical and horizontal edges get four even steps.</figcaption>
               </figure>
-              <p>Shading aliases the same way. A shiny, bumpy surface has highlights smaller than a pixel; whether a pixel catches one depends on the single normal its sample happens to read. The fixes there work on the material as well as the samples: <a class="term" data-term="mipmap" href="glossary.html#mipmap">mipmaps</a> for textures, and for highlights, raising <a class="term" data-term="roughness" href="glossary.html#roughness">roughness</a> where the <a class="term" data-term="normal-map" href="glossary.html#normal-map">normal map</a> or the geometry bends a lot within a pixel, so the highlight becomes wider and dimmer instead of flickering. HDRP calls this Geometric Specular AA; Godot runs a screen-space roughness limiter by default.</p>
+              <p>Shading aliases the same way. A shiny, bumpy surface has highlights smaller than a pixel; whether a pixel catches one depends on the single normal its sample happens to read. The fixes there work on the material as well as the samples: <a class="term" data-term="mipmap" href="glossary.html#mipmap">mipmaps</a> for textures, and for highlights, raising <a class="term" data-term="roughness" href="glossary.html#roughness">roughness</a> where the <a class="term" data-term="normal-map" href="glossary.html#normal-map">normal map</a> or the geometry bends a lot within a pixel, so the highlight becomes wider and dimmer instead of flickering. <a class="term" data-term="hdrp" href="glossary.html#hdrp">HDRP</a> calls this Geometric Specular AA; Godot runs a screen-space roughness limiter by default.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="ssaa"><span class="step-num">2</span> SSAA: render more pixels, then shrink</h3>
-              <p><dfn class="term" data-term="ssaa">SSAA</dfn>, supersample anti-aliasing, is the brute-force answer: render the whole frame at a higher resolution and average it down. At 2 × 2 the GPU shades four samples for every final pixel, so edges, thin geometry, textures and highlights are all anti-aliased together. It is the reference everything else is compared with, and it is too expensive for most games: four times the pixel shading and four times the render target memory. It survives as a quality option, often called resolution scale above 100%, and in photo modes.</p>
+              <p><dfn class="term" data-term="ssaa">SSAA</dfn>, supersample anti-aliasing, is the brute-force answer: render the whole frame at a higher resolution and average it down. At 2 × 2 the GPU shades four samples for every final pixel, so edges, thin geometry, textures and highlights are all anti-aliased together. It is the reference everything else is compared with, and it is too expensive for most games: four times the pixel shading and four times the <a class="term" data-term="render-target" href="glossary.html#render-target">render target</a> memory. It survives as a quality option, often called resolution scale above 100%, and in photo modes.</p>
             </div>
 
             <div class="step">
@@ -486,7 +486,7 @@
                 </div>
                 <figcaption><b>SSAA and MSAA see the same edge; MSAA shades a quarter as often.</b> That is why MSAA suited forward renderers so well. It is also its limit: anything that happens inside the pixel shader, a highlight, a texture, an alpha-tested leaf, is computed once per pixel, so it aliases as if there were no anti-aliasing at all.</figcaption>
               </figure>
-              <p>MSAA fits a <a class="term" data-term="forward-rendering" href="glossary.html#forward-rendering">forward renderer</a>, which shades as it draws. A <a class="term" data-term="deferred-rendering" href="glossary.html#deferred-rendering">deferred renderer</a> writes a <a class="term" data-term="g-buffer" href="glossary.html#g-buffer">G-buffer</a> first and lights it later, so with MSAA every G-buffer layer is stored once per sample and lighting must run per sample along edges. Brian Karis, explaining why Unreal Engine 4 moved to temporal AA, gives exactly that reason, and adds that most of their aliasing was inside triangles, where MSAA does nothing. Unreal and HDRP offer MSAA only with forward rendering for this reason. On <a class="term" data-term="tile-based-gpu" href="glossary.html#tile-based-gpu">tile-based mobile GPUs</a> the extra samples can stay in on-chip memory and be resolved before they are written out, which makes MSAA cheap there: Unity's URP documentation says MSAA can be the cheaper option on tiled GPUs. Leaves and fences drawn with <a class="term" data-term="alpha-test" href="glossary.html#alpha-test">alpha testing</a> need an extra trick, alpha to coverage, which turns the texture's alpha into a sample mask.</p>
+              <p>MSAA fits a <a class="term" data-term="forward-rendering" href="glossary.html#forward-rendering">forward renderer</a>, which shades as it draws. A <a class="term" data-term="deferred-rendering" href="glossary.html#deferred-rendering">deferred renderer</a> writes a <a class="term" data-term="g-buffer" href="glossary.html#g-buffer">G-buffer</a> first and lights it later, so with MSAA every G-buffer layer is stored once per sample and lighting must run per sample along edges. Brian Karis, explaining why <a class="term" data-term="unreal-engine" href="glossary.html#unreal-engine">Unreal Engine</a> 4 moved to temporal AA, gives exactly that reason, and adds that most of their aliasing was inside triangles, where MSAA does nothing. Unreal and HDRP offer MSAA only with forward rendering for this reason. On <a class="term" data-term="tile-based-gpu" href="glossary.html#tile-based-gpu">tile-based mobile GPUs</a> the extra samples can stay in on-chip memory and be resolved before they are written out, which makes MSAA cheap there: Unity's <a class="term" data-term="urp" href="glossary.html#urp">URP</a> documentation says MSAA can be the cheaper option on tiled GPUs. Leaves and fences drawn with <a class="term" data-term="alpha-test" href="glossary.html#alpha-test">alpha testing</a> need an extra trick, alpha to coverage, which turns the texture's alpha into a sample mask.</p>
             </div>
 
             <div class="step">
@@ -1016,7 +1016,7 @@
 
             <div class="step">
               <h3 class="step-title" id="taa"><span class="step-num">6</span> TAA: one jittered sample a frame, blended over time</h3>
-              <p><dfn class="term" data-term="taa">TAA</dfn>, temporal anti-aliasing, spreads supersampling over time. Each frame it moves the whole camera by a tiny offset, less than a pixel, so every pixel samples a slightly different point than last frame. That offset is <dfn class="term" data-term="subpixel-jitter">subpixel jitter</dfn>. It costs nothing to render: the offset is added to the projection matrix (3.4), and the rest of the renderer does not need to know.</p>
+              <p><dfn class="term" data-term="taa">TAA</dfn>, temporal anti-aliasing, spreads supersampling over time. Each frame it moves the whole camera by a tiny offset, less than a pixel, so every pixel samples a slightly different point than last frame. That offset is <dfn class="term" data-term="subpixel-jitter">subpixel jitter</dfn>. It costs nothing to render: the offset is added to the <a class="term" data-term="projection-matrix" href="glossary.html#projection-matrix">projection matrix</a> (3.4), and the rest of the renderer does not need to know.</p>
               <p>The offsets come from a short repeating list. Karis used the <dfn class="term" data-term="halton-sequence">Halton sequence</dfn> with bases 2 and 3, which places each new point in the biggest gap the earlier ones left, so after any number of frames the samples cover the pixel evenly. NVIDIA, AMD and Intel all recommend Halton jitter for their upscalers too.</p>
               <figure>
                 <div class="fig-frame">
@@ -1341,9 +1341,9 @@
                   <text class="t-small" x="470" y="223">the far wall half a pixel: vectors come from depth.</text>
                   </svg>
                 </div>
-                <figcaption><b>Motion vectors point each pixel at its past.</b> Left: only the object moved, so only its pixels carry a vector. Right: the camera moved, so everything does, and nearer surfaces move further, which is why vectors are computed from depth. Anything that moves without writing a vector, a scrolling texture, a particle, a vertex animation the engine does not know about, will smear.</figcaption>
+                <figcaption><b>Motion vectors point each pixel at its past.</b> Left: only the object moved, so only its pixels carry a vector. Right: the camera moved, so everything does, and nearer surfaces move further, which is why vectors are computed from depth. Anything that moves without writing a vector, a scrolling texture, a particle, a <a class="term" data-term="vertex-animation" href="glossary.html#vertex-animation">vertex animation</a> the engine does not know about, will smear.</figcaption>
               </figure>
-              <p>Accuracy matters. Karis notes that a small error in motion vectors streaks an otherwise static image, and that an anti-aliased edge lies partly outside the object that made it, so TAA reads the motion vector of the nearest surface in a small neighbourhood to keep edges attached to moving objects. Motion vectors are shared with motion blur (9.4) and every temporal upscaler (9.3), so their quality pays off three times.</p>
+              <p>Accuracy matters. Karis notes that a small error in motion vectors streaks an otherwise static image, and that an anti-aliased edge lies partly outside the object that made it, so TAA reads the motion vector of the nearest surface in a small neighbourhood to keep edges attached to moving objects. Motion vectors are shared with <a class="term" data-term="motion-blur" data-forward href="glossary.html#motion-blur">motion blur</a> (9.4) and every temporal upscaler (9.3), so their quality pays off three times.</p>
             </div>
 
             <div class="step">
@@ -1501,7 +1501,7 @@
                 </div>
                 <figcaption><b>Clamping keeps history only if it could plausibly belong here.</b> On open wall, a ghost from the box is far outside the neighbourhood's range and is pulled back to the wall. Right beside the box, the box is part of the neighbourhood, so the ghost survives: that is the one-pixel trail you can still see in the time machine.</figcaption>
               </figure>
-              <p>Production TAA refines the box. Karis clamps in YCoCg colour space, where brightness and colour are separate, and clips the history towards the neighbourhood's average instead of clamping each channel, which avoids colours collecting in the corners of the box. Unity's Variance Clamp Scale sets the size of that colour range. Clamping has a price. A feature thinner than a pixel may be absent from all nine neighbours in a given frame, so its correct history is clamped away, and it flickers. Anti-flicker heuristics, exposed for example as HDRP's Anti-flickering slider and Unreal's TSR flicker rejection, trade that against ghosting.</p>
+              <p>Production TAA refines the box. Karis clamps in YCoCg colour space, where brightness and colour are separate, and clips the history towards the neighbourhood's average instead of clamping each channel, which avoids colours collecting in the corners of the box. Unity's Variance Clamp Scale sets the size of that colour range. Clamping has a price. A feature thinner than a pixel may be absent from all nine neighbours in a given frame, so its correct history is clamped away, and it flickers. Anti-flicker heuristics, exposed for example as HDRP's Anti-flickering slider and Unreal's <a class="term" data-term="tsr" data-forward href="glossary.html#tsr">TSR</a> flicker rejection, trade that against ghosting.</p>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
                 <p>The time machine uses one darkness value per pixel instead of colour, motion vectors that are exact for the one moving object, and a plain min-max clamp. Real TAA also filters each sample with a small kernel that weights it by distance from the pixel centre, handles colour and HDR brightness, and resamples history with sharper filters than bilinear.</p>
@@ -1614,7 +1614,7 @@
                 </div>
                 <figcaption><b>TAA is a firewall.</b> Karis's term: everything before it can be jittered, noisy or aliased and TAA will settle it; anything after it must be stable on its own. Depth read after TAA is still jittered. A full-screen effect after TAA that magnifies aliased detail will flicker. And the interface must be drawn after TAA, with no jitter, or text wobbles.</figcaption>
               </figure>
-              <p>The firewall is why TAA became the default. Renderers now compute <a class="term" data-term="ambient-occlusion" href="glossary.html#ambient-occlusion">ambient occlusion</a>, reflections and soft shadows with a few rotated samples per pixel and let TAA's accumulation average them across frames, as the GTAO paper did (8.3). It is also why removing TAA from a modern renderer is rarely a simple switch.</p>
+              <p>The firewall is why TAA became the default. Renderers now compute <a class="term" data-term="ambient-occlusion" href="glossary.html#ambient-occlusion">ambient occlusion</a>, reflections and soft shadows with a few rotated samples per pixel and let TAA's accumulation average them across frames, as the <a class="term" data-term="gtao" href="glossary.html#gtao">GTAO</a> paper did (8.3). It is also why removing TAA from a modern renderer is rarely a simple switch.</p>
             </div>
           </section>
 
@@ -1634,7 +1634,7 @@
                 </tbody>
               </table>
             </div>
-            <p class="stamp">SSAA and MSAA memory: four samples of colour and depth, 4 × 12 bytes × 2,073,600 = 99.5 MB, against 24.9 MB without. SMAA: two extra screen-sized 8-bit textures, edges (2 bytes per pixel) and blend weights (4 bytes). The times are as published on hardware of their day and are not comparable with each other; measure your own in a frame capture.</p>
+            <p class="stamp">SSAA and MSAA memory: four samples of colour and depth, 4 × 12 bytes × 2,073,600 = 99.5 MB, against 24.9 MB without. SMAA: two extra screen-sized 8-bit textures, edges (2 bytes per pixel) and blend weights (4 bytes). The times are as published on hardware of their day and are not comparable with each other; measure your own in a <a class="term" data-term="frame-capture" data-forward href="glossary.html#frame-capture">frame capture</a>.</p>
             <div class="stat-row">
               <div class="stat"><span class="value">2.07 M</span><span class="what">pixels in a 1080p frame: one sample each without anti-aliasing</span></div>
               <div class="stat"><span class="value">8.3 M</span><span class="what">samples shaded per 1080p frame with SSAA 4×</span></div>
@@ -1646,7 +1646,7 @@
               <li><strong>Sample count</strong><span>MSAA 8× doubles 4×'s memory and bandwidth; SSAA's shading grows with every sample.</span></li>
               <li><strong>Deferred rendering</strong><span>MSAA multiplies every G-buffer layer and forces per-sample lighting on edges, which is why deferred engines stopped using it.</span></li>
               <li><strong>History quality</strong><span>Higher-precision or higher-resolution history costs more: Unreal's TSR at 200% history resolution makes the history update four times as expensive.</span></li>
-              <li><strong>Things without motion vectors</strong><span>Every particle system, scrolling material or vertex animation that should not smear needs velocity output or a mask, which is artist and engineer time.</span></li>
+              <li><strong>Things without motion vectors</strong><span>Every <a class="term" data-term="particle-system" data-forward href="glossary.html#particle-system">particle system</a>, scrolling material or vertex animation that should not smear needs velocity output or a mask, which is artist and engineer time.</span></li>
             </ul>
             <aside class="note" data-kind="lead">
               <p class="note-label">The usual trade</p>
@@ -1739,7 +1739,7 @@
                 </div>
                 <h4>Wobbling interface or effects</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>Something drawn after TAA still uses the jittered camera: interface elements in world space, or effects that read the jittered depth buffer. They shake by the jitter each frame.</dd></div>
+                  <div><dt>Cause</dt><dd>Something drawn after TAA still uses the jittered camera: interface elements in <a class="term" data-term="world-space" href="glossary.html#world-space">world space</a>, or effects that read the jittered depth buffer. They shake by the jitter each frame.</dd></div>
                   <div><dt>Ask for</dt><dd>The interface drawn after TAA with an unjittered projection, and a list of passes after TAA that read depth, so each can use the unjittered matrix.</dd></div>
                 </dl>
               </article>

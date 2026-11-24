@@ -484,7 +484,7 @@
             <div class="step">
               <h3 class="step-title" id="swap-chain"><span class="step-num">4</span> Front buffer, back buffer, present</h3>
               <p>The GPU cannot draw into the framebuffer the display is reading, or players would watch every frame being painted. So there are at least two. With <dfn class="term" data-term="double-buffering">double buffering</dfn> the display reads the front buffer while the GPU draws the next frame into the back buffer. When the frame is finished, the game calls <dfn class="term" data-term="present">present</dfn>, and the two buffers swap roles.</p>
-              <p>The graphics API manages these buffers as a <dfn class="term" data-term="swap-chain">swap chain</dfn>: a small ring of framebuffers, usually two or three, plus the rules for when a presented frame may become the front buffer. Direct3D calls the step <code>Present</code>; Vulkan calls it <code>vkQueuePresentKHR</code> and names the rules "present modes".</p>
+              <p>The <a class="term" data-term="graphics-api" data-forward href="glossary.html#graphics-api">graphics API</a> manages these buffers as a <dfn class="term" data-term="swap-chain">swap chain</dfn>: a small ring of framebuffers, usually two or three, plus the rules for when a presented frame may become the front buffer. Direct3D calls the step <code>Present</code>; Vulkan calls it <code>vkQueuePresentKHR</code> and names the rules "present modes".</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Three panels. One: the display reads frame 7 from the front buffer while the GPU draws frame 8 into the back buffer. Two: frame 8 is done and the game calls present. Three: the buffers swap roles; frame 8 is now the front buffer and the old front buffer becomes the back buffer, where the GPU starts frame 9.">
@@ -666,7 +666,7 @@
                 <summary><span class="fold-kind">Maths</span> The numbers behind every timing figure in this chapter</summary>
                 <div class="fold-body">
                   <p>Time per refresh and time per frame:</p>
-                  <p class="formula">refresh period (ms) = 1000 / refresh rate (Hz)&nbsp;&nbsp;&nbsp;frame time (ms) = 1000 / frame rate (fps)</p>
+                  <p class="formula">refresh period (ms) = 1000 / refresh rate (Hz)&nbsp;&nbsp;&nbsp;<a class="term" data-term="frame-time" href="glossary.html#frame-time">frame time</a> (ms) = 1000 / frame rate (fps)</p>
                   <p>Under vsync with double buffering, a frame that takes longer than one refresh is held for whole refreshes:</p>
                   <p class="formula">shown frame rate = refresh rate / ceil(frame time / refresh period)</p>
                   <p>A 22.2 ms frame on a 16.7 ms refresh needs ceil(1.33) = 2 refreshes, so 60 / 2 = 30 fps. With triple buffering the average stays at the game's own rate, but each frame is held for either floor or ceil of that ratio: 1 or 2 refreshes at 45 fps.</p>
@@ -748,7 +748,7 @@
           <!-- ============ 5. How it breaks ============ -->
           <section class="beat" id="breaks" data-beat="breaks">
             <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
-            <p>Display problems are easy to describe badly. "It feels choppy" can mean any of the five below. Ask for a video, or a frame-time graph, and match it to a picture.</p>
+            <p>Display problems are easy to describe badly. "It feels choppy" can mean any of the five below. Ask for a video, or a <a class="term" data-term="frame-time-graph" data-forward href="glossary.html#frame-time-graph">frame-time graph</a>, and match it to a picture.</p>
             <div class="symptoms">
               <article class="symptom">
                 <div class="thumb">
@@ -784,7 +784,7 @@
                 <h4>Stutter at a decent frame rate</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>Vsync on a fixed-refresh screen with a frame rate that does not divide the refresh rate, such as 45 to 55 fps at 60 Hz. Frames stay up for one or two refreshes unevenly. Uneven frame times from the game itself look the same.</dd></div>
-                  <div><dt>Ask for</dt><dd>A frame-time graph, not an average fps number. Then a cap at 30 or 60, a lighter preset, dynamic resolution, or VRR support.</dd></div>
+                  <div><dt>Ask for</dt><dd>A frame-time graph, not an average fps number. Then a cap at 30 or 60, a lighter preset, <a class="term" data-term="dynamic-resolution" data-forward href="glossary.html#dynamic-resolution">dynamic resolution</a>, or VRR support.</dd></div>
                 </dl>
               </article>
               <article class="symptom">

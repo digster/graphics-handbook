@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 2 · Inside a game engine</p>
+            <p class="eyebrow">Part 2 · Inside a <a class="term" data-term="game-engine" href="glossary.html#game-engine">game engine</a></p>
             <h1><span class="ch-num">2.3</span> Scenes, objects and components</h1>
             <p class="lead">Every engine has to record where each thing in a game world is, what it is made of and what it does. They do it in one of two shapes: a tree of objects that carry components, or tables of components that code sweeps through in bulk.</p>
             <dl class="chapter-meta">
@@ -160,7 +160,7 @@
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
             <p>Open any game editor and you see the same three panels. A list of everything in the level, a 3D view of it, and, when you click one thing, a column of settings for that thing. The list is the scene. The things in it are objects. The blocks of settings are components.</p>
-            <p>A <dfn class="term" data-term="scene">scene</dfn> is one saved world or piece of a world: a level, a main menu, a test room. Unreal Engine calls it a level or a map. Every object placed in it has a <dfn class="term" data-term="transform">transform</dfn>, its position, rotation and scale. The object itself does almost nothing. Its <dfn class="term" data-term="component">components</dfn> do the work: one holds the <a class="term" data-term="mesh" data-forward href="glossary.html#mesh">mesh</a> to draw, one the collision shape, one a light, one a script that makes the light flicker.</p>
+            <p>A <dfn class="term" data-term="scene">scene</dfn> is one saved world or piece of a world: a level, a main menu, a test room. <a class="term" data-term="unreal-engine" data-forward href="glossary.html#unreal-engine">Unreal Engine</a> calls it a level or a map. Every object placed in it has a <dfn class="term" data-term="transform">transform</dfn>, its position, rotation and scale. The object itself does almost nothing. Its <dfn class="term" data-term="component">components</dfn> do the work: one holds the <a class="term" data-term="mesh" data-forward href="glossary.html#mesh">mesh</a> to draw, one the collision shape, one a light, one a script that makes the light flicker.</p>
             <p>Objects can hang under other objects, so a lantern moves when its post moves. And when the same arrangement is needed fifty times, it is saved once as a reusable template and placed fifty times. The last section of How it works covers the second shape from the picture, where components live in tables instead of inside objects.</p>
             <div class="analogy">
               <div>
@@ -188,7 +188,7 @@
             <div class="step">
               <h3 class="step-title" id="scenes"><span class="step-num">1</span> Scenes: the saved world</h3>
               <p>A game is a set of scenes. Each one is a file that lists every object in it with its components and settings: <code>.umap</code> in Unreal Engine, <code>.unity</code> in Unity, <code>.tscn</code> in Godot. Loading a scene creates those objects in memory, and from then on the engine updates them every frame.</p>
-              <p>Small games load one scene at a time: the menu, then the courtyard, then the crypt. Open worlds are too big for that. Unreal's World Partition keeps one persistent level split into grid cells and loads the cells near the player, unloading them as the player moves away.</p>
+              <p>Small games load one scene at a time: the menu, then the courtyard, then the crypt. Open worlds are too big for that. Unreal's <a class="term" data-term="world-partition" data-forward href="glossary.html#world-partition">World Partition</a> keeps one persistent level split into grid cells and loads the cells near the player, unloading them as the player moves away.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Left: three scene files on disk, Main menu, Courtyard and Crypt. Courtyard is loaded into the running game, which holds Ground, Post, Lantern, two crates and a camera. Right: a large world drawn as a grid of cells, with a player and a circle around them. The ten cells inside the circle are loaded; the rest stay on disk.">
@@ -616,7 +616,7 @@
                     <text class="t-small t-muted" x="652" y="224">rendering, physics and audio in bulk</text>
                   </svg>
                 </div>
-                <figcaption><b>Objects for editing, bulk data underneath.</b> Unity bakes GameObjects into entities, Unreal's Mass spawners fill a data-oriented world for crowds and traffic, and Godot's nodes hand their data to servers. The left column is what your team works in every day; the right column is where the frame time is won.</figcaption>
+                <figcaption><b>Objects for editing, bulk data underneath.</b> Unity bakes GameObjects into entities, Unreal's Mass spawners fill a data-oriented world for crowds and traffic, and Godot's nodes hand their data to servers. The left column is what your team works in every day; the right column is where the <a class="term" data-term="frame-time" href="glossary.html#frame-time">frame time</a> is won.</figcaption>
               </figure>
               <aside class="note" data-kind="warning">
                 <p class="note-label">Moving target</p>
@@ -647,7 +647,7 @@
             </div>
             <p>The packed array moves 5.3 times less memory, and the last column overstates its cost: read in order, the CPU fetches lines before the code asks for them, so most of those 0.19 ms disappear. The scattered case cannot be predicted that way. Neither row includes the cost of calling a separate update function on each of 10,000 objects, which per-object scripts add on top.</p>
             <h3>The hierarchy has a cost as well</h3>
-            <p>Every child's world transform depends on its parents, so moving a parent means recomputing everything under it. Unity's own performance team described a game that moved ability objects out from under its moving characters and spawned characters at the root of the scene, and gained about 10 frames per second on its target hardware.</p>
+            <p>Every child's world transform depends on its parents, so moving a parent means recomputing everything under it. Unity's own performance team described a game that moved ability objects out from under its moving characters and spawned characters at the root of the scene, and gained about 10 <a class="term" data-term="fps" href="glossary.html#fps">frames per second</a> on its target hardware.</p>
             <ul class="grows">
               <li><strong>Object count</strong><span>Each object that updates every frame adds a call and scattered reads. Thousands add up to milliseconds.</span></li>
               <li><strong>Moving parents with many children</strong><span>Every frame the parent moves, every child's world transform is recomputed.</span></li>

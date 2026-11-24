@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 5 · The GPU pipeline</p>
+            <p class="eyebrow">Part 5 · The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> pipeline</p>
             <h1><span class="ch-num">5.2</span> Vertex shaders</h1>
             <p class="lead">The vertex shader is the program the GPU runs once for every corner of every mesh it draws. Its one required job is to say where that corner lands on screen. Along the way it can bend, wave and deform the mesh, and it hands the pixel shader the values it will need.</p>
             <dl class="chapter-meta">
@@ -76,7 +76,7 @@
               </div>
               <div>
                 <span class="label">The problem it solves</span>
-                <p>Every frame, millions of corners must be moved from where the artist built them to where they appear on screen. Doing that on the CPU would take all its time. On the GPU it is spread over thousands of lanes.</p>
+                <p>Every frame, millions of corners must be moved from where the artist built them to where they appear on screen. Doing that on the <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a> would take all its time. On the GPU it is spread over thousands of lanes.</p>
                 <p>The same machinery makes movement cheap: grass, trees, flags and water can sway with no animation data and no CPU work at all.</p>
               </div>
             </div>
@@ -93,8 +93,8 @@
 
             <div class="step">
               <h3 class="step-title" id="inputs-outputs"><span class="step-num">1</span> What goes in and what comes out</h3>
-              <p>The <a class="term" data-term="input-assembler" href="glossary.html#input-assembler">input assembler</a> hands each run one vertex: its position and whatever other <a class="term" data-term="vertex-attribute" href="glossary.html#vertex-attribute">vertex attributes</a> the mesh carries. Values that are the same for the whole draw, such as matrices and the time, arrive as constants. A vertex shader can also read textures, for example a height map or a wind noise pattern.</p>
-              <p>Out comes exactly one vertex. It must include a position in clip space, the four numbers <code>x, y, z, w</code> that the GPU needs to place the corner on screen (<a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>). Direct3D's documentation says the vertex shader stage must always be active, even if all it does is pass data through.</p>
+              <p>The <a class="term" data-term="input-assembler" href="glossary.html#input-assembler">input assembler</a> hands each run one vertex: its position and whatever other <a class="term" data-term="vertex-attribute" href="glossary.html#vertex-attribute">vertex attributes</a> the mesh carries. Values that are the same for the whole draw, such as matrices and the time, arrive as constants. A vertex shader can also read textures, for example a <a class="term" data-term="height-map" data-forward href="glossary.html#height-map">height map</a> or a wind noise pattern.</p>
+              <p>Out comes exactly one vertex. It must include a position in <a class="term" data-term="clip-space" href="glossary.html#clip-space">clip space</a>, the four numbers <code>x, y, z, w</code> that the GPU needs to place the corner on screen (<a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>). Direct3D's documentation says the vertex shader stage must always be active, even if all it does is pass data through.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 300" role="img" aria-label="Left: three kinds of input. Per vertex, from the vertex buffer: position, normal, UV, colour and bone weights. Per draw, as constants: the model and view-projection matrices, time and wind strength. Optionally, textures such as a height map. Middle: the vertex shader, which runs once per vertex, sees one vertex and cannot add or remove vertices. Right: two kinds of output. Required: the clip-space position x, y, z, w, which goes to primitive assembly. Interpolators such as UV, world normal and world position, which are blended across the triangle and reach the pixel shader.">
@@ -147,7 +147,7 @@
 
             <div class="step">
               <h3 class="step-title" id="transform-chain"><span class="step-num">2</span> The transform, vertex by vertex</h3>
-              <p>The required job is the chain of spaces from <a class="xref" data-ch="3.4">3.4</a>, applied to each vertex. Its position starts in object space, where the artist built it. The model matrix puts it in the world, the view matrix moves the world so the camera sits at the origin, and the projection matrix squeezes the camera's view into clip space. Engines usually multiply the three into one MVP matrix per object, so the position needs a single multiply.</p>
+              <p>The required job is the chain of spaces from <a class="xref" data-ch="3.4">3.4</a>, applied to each vertex. Its position starts in <a class="term" data-term="object-space" href="glossary.html#object-space">object space</a>, where the artist built it. The <a class="term" data-term="model-matrix" href="glossary.html#model-matrix">model matrix</a> puts it in the world, the <a class="term" data-term="view-matrix" href="glossary.html#view-matrix">view matrix</a> moves the world so the camera sits at the origin, and the <a class="term" data-term="projection-matrix" href="glossary.html#projection-matrix">projection matrix</a> squeezes the camera's view into clip space. Engines usually multiply the three into one <a class="term" data-term="mvp" href="glossary.html#mvp">MVP matrix</a> per object, so the position needs a single multiply.</p>
               <p>That is where the shader's work ends. The GPU then divides by <code>w</code> and maps the result to pixels on its own, in the fixed stages after the shader. Follow one corner of an object through, with real numbers:</p>
               <figure>
                 <div class="fig-frame">
@@ -198,7 +198,7 @@
                     <text class="t-small t-muted" x="14" y="228">The vertex shader also keeps the world position and a world-space normal, for lighting and wind, which need a model-only multiply.</text>
                   </svg>
                 </div>
-                <figcaption><b>Three matrix multiplies are the shader's; the divide and the viewport are the GPU's.</b> The numbers are one corner, 10 metres in front of a camera, landing at pixel (1241, 493). Notice the depth. At 10 metres, a tenth of the way to the far plane, it is already 0.99, which is why depth precision near the far plane is scarce (<a class="xref" data-ch="5.5">5.5</a>).</figcaption>
+                <figcaption><b>Three matrix multiplies are the shader's; the divide and the viewport are the GPU's.</b> The numbers are one corner, 10 metres in front of a camera, landing at pixel (1241, 493). Notice the depth. At 10 metres, a tenth of the way to the <a class="term" data-term="far-plane" href="glossary.html#far-plane">far plane</a>, it is already 0.99, which is why depth precision near the far plane is scarce (<a class="xref" data-ch="5.5">5.5</a>).</figcaption>
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
@@ -208,7 +208,7 @@
 
             <div class="step">
               <h3 class="step-title" id="interpolators"><span class="step-num">3</span> Interpolators: handing values to the pixel shader</h3>
-              <p>Everything a vertex shader outputs besides the position is an <dfn class="term" data-term="interpolator">interpolator</dfn>: a value given at each corner, which the <a class="term" data-term="rasterizer" href="glossary.html#rasterizer">rasterizer</a> blends for every pixel inside the triangle. A pixel near one corner gets mostly that corner's value; a pixel in the middle gets a mix. UVs, normals and world positions all reach the pixel shader this way. HLSL calls the output structure's fields by semantics such as <code>TEXCOORD0</code>; GLSL and Godot call them varyings.</p>
+              <p>Everything a vertex shader outputs besides the position is an <dfn class="term" data-term="interpolator">interpolator</dfn>: a value given at each corner, which the <a class="term" data-term="rasterizer" href="glossary.html#rasterizer">rasterizer</a> blends for every pixel inside the triangle. A pixel near one corner gets mostly that corner's value; a pixel in the middle gets a mix. UVs, normals and world positions all reach the pixel shader this way. <a class="term" data-term="hlsl" data-forward href="glossary.html#hlsl">HLSL</a> calls the output structure's fields by semantics such as <code>TEXCOORD0</code>; <a class="term" data-term="glsl" data-forward href="glossary.html#glsl">GLSL</a> and Godot call them varyings.</p>
               <p>The blend is linear across the triangle. So anything the vertex shader computes is only correct between corners if it changes in straight lines there. Multiplying and adding are fine; a sine wave, a square or a <code>length()</code> is not. Unreal's documentation of Customized UVs, its way of moving material maths into the vertex shader, gives exactly this warning.</p>
               <figure>
                 <div class="fig-frame">
@@ -242,13 +242,13 @@
                 </div>
                 <figcaption><b>Interpolators blend in straight lines.</b> Left: a pixel receives each corner's value weighted by how near it is. Right: a sine computed at 5 vertices lands on zero at every one of them, so after blending the wave has vanished; at 17 vertices it follows the curve. Maths that curves belongs in the pixel shader unless the mesh is dense enough to carry it.</figcaption>
               </figure>
-              <p>Interpolators are not free. Each one is stored for every vertex and blended for every pixel, and on the tile-based GPUs in phones, every visible vertex's outputs are written to memory and read back. Arm's guidance is to send as few as possible and to use 16-bit precision where it holds up.</p>
+              <p>Interpolators are not free. Each one is stored for every vertex and blended for every pixel, and on the <a class="term" data-term="tile-based-gpu" href="glossary.html#tile-based-gpu">tile-based GPUs</a> in phones, every visible vertex's outputs are written to memory and read back. Arm's guidance is to send as few as possible and to use 16-bit precision where it holds up.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="vertex-animation"><span class="step-num">4</span> Moving vertices: wind, flags and water</h3>
               <p>Because the shader runs every frame, it can move vertices before transforming them. This is <dfn class="term" data-term="vertex-animation">vertex animation</dfn>, and it is how most games make foliage sway, flags ripple and water swell, with no animation data and no CPU cost per object.</p>
-              <p>The trick is in the masks. A tree's trunk must stay planted while its branch tips move most, so artists paint a weight into each vertex, usually in its vertex colour channels, and the shader scales the movement by it. Crysis stored separate channels for edge stiffness, a per-leaf phase and overall leaf stiffness. A phase taken from each tree's world position keeps neighbours from swaying in step. Unreal ships the same idea as the SimpleGrassWind material function, which takes a wind intensity, a weight map and a speed.</p>
+              <p>The trick is in the masks. A tree's trunk must stay planted while its branch tips move most, so artists paint a weight into each vertex, usually in its <a class="term" data-term="vertex-colour" href="glossary.html#vertex-colour">vertex colour</a> channels, and the shader scales the movement by it. Crysis stored separate channels for edge stiffness, a per-leaf phase and overall leaf stiffness. A phase taken from each tree's world position keeps neighbours from swaying in step. Unreal ships the same idea as the SimpleGrassWind material function, which takes a wind intensity, a weight map and a speed.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Left: a tree whose vertices carry a painted weight, 0 at the base of the trunk rising to 1 at the tips, with arrows showing that the offset grows with the weight. Middle: the formula, offset equals wind direction times strength times weight times the sine of time times speed plus phase. Right: three identical trees at 0, 4 and 8 metres leaning by different amounts at the same moment, because each takes its phase from its world position.">
@@ -280,7 +280,7 @@ VertexOut main(VertexIn v)              <span class="c">// runs once per vertex:
     o.uv       = v.uv;                                                <span class="c">// passed on as an interpolator</span>
     <span class="k">return</span> o;
 }</pre>
-                  <p>Three things to check in code like this. The normal is the one from the buffer, so the rippled flag would be lit as if it were flat; a fix computes the slope of the wave and tilts the normal to match. A shadow pass needs the same wave, or the shadow stays flat. And the flag's bounds must allow for the 0.16 m it can move, or it will be culled early. Section 5 shows all three going wrong.</p>
+                  <p>Three things to check in code like this. The normal is the one from the buffer, so the rippled flag would be lit as if it were flat; a fix computes the slope of the wave and tilts the normal to match. A <a class="term" data-term="shadow-pass" data-forward href="glossary.html#shadow-pass">shadow pass</a> needs the same wave, or the shadow stays flat. And the flag's bounds must allow for the 0.16 m it can move, or it will be culled early. Section 5 shows all three going wrong.</p>
                 </div>
               </details>
             </div>
@@ -296,12 +296,12 @@ VertexOut main(VertexIn v)              <span class="c">// runs once per vertex:
                 </div>
                 <figcaption><b>A skinned vertex is a weighted vote between bones.</b> Each bone proposes a position; the weights mix them. That blend is why elbows and knees fold smoothly, and also why poor weights pinch or collapse them, which <a class="xref" data-ch="4.6">4.6 Moving geometry</a> covers.</figcaption>
               </figure>
-              <p>Done in the vertex shader, skinning is repeated by every pass that draws the character: depth, shadows, the main pass, motion vectors. Engines therefore often skin once per frame in a <a class="term" data-term="compute-shader" data-forward href="glossary.html#compute-shader">compute shader</a>, write the bent vertices to a buffer, and let every pass read that with a plain vertex shader. Unity does this by default; Unreal does it when its Skin Cache is on.</p>
+              <p>Done in the vertex shader, skinning is repeated by every pass that draws the character: depth, shadows, the main pass, <a class="term" data-term="motion-vectors" data-forward href="glossary.html#motion-vectors">motion vectors</a>. Engines therefore often skin once per frame in a <a class="term" data-term="compute-shader" data-forward href="glossary.html#compute-shader">compute shader</a>, write the bent vertices to a buffer, and let every pass read that with a plain vertex shader. Unity does this by default; Unreal does it when its Skin Cache is on.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="displacement"><span class="step-num">6</span> Displacement: real bumps from a texture</h3>
-              <p><dfn class="term" data-term="displacement">Displacement</dfn> reads a height from a texture at each vertex's UV and pushes the vertex out along its normal by that much. Unlike a normal map, which only changes the lighting (<a class="xref" data-ch="6.4">6.4</a>), displacement changes the real shape: silhouettes, shadows and intersections all show it.</p>
+              <p><dfn class="term" data-term="displacement">Displacement</dfn> reads a height from a texture at each vertex's UV and pushes the vertex out along its normal by that much. Unlike a <a class="term" data-term="normal-map" data-forward href="glossary.html#normal-map">normal map</a>, which only changes the lighting (<a class="xref" data-ch="6.4">6.4</a>), displacement changes the real shape: silhouettes, shadows and intersections all show it.</p>
               <p>The catch is that only vertices move. The texture's detail survives only where there are vertices to carry it, so displacement needs dense meshes, or a way to add vertices on the fly. Unreal's Nanite Tessellation does that for Nanite meshes, as programmable displacement at runtime.</p>
               <figure>
                 <div class="fig-frame">
@@ -350,7 +350,7 @@ VertexOut main(VertexIn v)              <span class="c">// runs once per vertex:
           <!-- ============ 4. What it costs ============ -->
           <section class="beat" id="cost" data-beat="cost">
             <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
-            <p>A vertex shader's bill is runs times cost per run, and runs are vertices times passes. Take a tree of 12,000 vertices at its current level of detail, drawn in a depth pre-pass, four shadow cascades, the main pass and a motion vector pass:</p>
+            <p>A vertex shader's bill is runs times cost per run, and runs are vertices times passes. Take a tree of 12,000 vertices at its current <a class="term" data-term="lod" href="glossary.html#lod">level of detail</a>, drawn in a <a class="term" data-term="depth-prepass" data-forward href="glossary.html#depth-prepass">depth pre-pass</a>, four shadow cascades, the main pass and a motion vector pass:</p>
             <figure>
               <div class="fig-frame">
                 <svg class="dg is-wide" viewBox="0 0 900 150" role="img" aria-label="One bar for one tree in one frame, split into seven equal parts of 12,000 vertex shader runs each: depth pre-pass, shadow cascades 1 to 4, main pass and motion vectors, 84,000 runs in all. Times 400 trees, 33.6 million runs per frame.">
@@ -360,7 +360,7 @@ VertexOut main(VertexIn v)              <span class="c">// runs once per vertex:
               <figcaption><b>Every pass pays again.</b> Seven passes turn a 12,000-vertex tree into 84,000 vertex shader runs per frame, and four of them are shadow cascades. Shadow passes write only depth, so their pixel work is light while their vertex work is full price. Shadows are where vertex counts hurt most.</figcaption>
             </figure>
             <p>The arithmetic of wind itself is cheap. Suppose wind adds 30 instructions to each run: 33.6 million runs × 30 = about 1 billion instructions per frame. An RTX 5070 has 6,144 lanes at up to 2.51 GHz, about 15.4 trillion simple instructions a second, so that is 0.07 ms at best. Real shaders wait on memory and rarely reach the best case, but vertex maths is seldom what breaks a budget.</p>
-            <p>The real bills are indirect. In Unreal, any material with World Position Offset invalidates its cached virtual shadow map pages every frame, so moving foliage is redrawn into the shadow map constantly. Moving objects need a motion vector pass. Bounds expanded for movement cull less. And dense meshes for displacement multiply every pass.</p>
+            <p>The real bills are indirect. In Unreal, any material with World Position Offset invalidates its cached virtual <a class="term" data-term="shadow-map" data-forward href="glossary.html#shadow-map">shadow map</a> pages every frame, so moving foliage is redrawn into the shadow map constantly. Moving objects need a motion vector pass. Bounds expanded for movement cull less. And dense meshes for displacement multiply every pass.</p>
             <h3>What makes it grow</h3>
             <ul class="grows">
               <li><strong>Vertex count</strong><span>The main driver. Level of detail is the main control.</span></li>
@@ -410,7 +410,7 @@ VertexOut main(VertexIn v)              <span class="c">// runs once per vertex:
                 </div>
                 <h4>The shadow does not sway with the tree</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>The shadow pass runs a vertex shader without the offset: a hand-written shader that borrows a stock shadow pass, baked lighting, or a shadow cache told not to update.</dd></div>
+                  <div><dt>Cause</dt><dd>The shadow pass runs a vertex shader without the offset: a hand-written shader that borrows a stock shadow pass, <a class="term" data-term="baked-lighting" data-forward href="glossary.html#baked-lighting">baked lighting</a>, or a shadow cache told not to update.</dd></div>
                   <div><dt>Ask for</dt><dd>The same displacement in the shadow, depth and motion vector passes, and a decision on cached shadows, such as Unreal's Shadow Cache Invalidation Behavior.</dd></div>
                 </dl>
               </article>

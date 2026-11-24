@@ -64,6 +64,8 @@ HTTP. Every rule below is enforced by `tests/structure.test.mjs`.
 | `docs/assets/demos/courtyard*.js` | The Lantern Courtyard WebGL2 renderer (see below). |
 | `tools/check-chapter.mjs` | Draft check: structure and browser page tests for named chapters with draft glossary entries. |
 | `tools/merge-drafts.mjs` | Merges draft glossary JSON into `glossary.js` and publishes chapters in `nav.js`. |
+| `tools/link-terms.mjs` | Links the first plain-text mention of each multi-word or acronym glossary term on every published chapter (`data-forward` when the term is taught later). Idempotent; exports `linkTerms()` for the tests. |
+| `tools/build-sources-page.mjs` | Writes `docs/sources.html` from each chapter's `#sources` list; exports `buildSourcesPage()` for the tests. |
 | `tools/screenshot.mjs` | Screenshots pages or figures for visual review. |
 | `tools/dev/courtyard.html` | Development harness for the courtyard renderer (not part of the site). |
 | `docs/assets/css/tokens.css` | Every colour, font, size and space token, plus `@font-face`. |
@@ -131,8 +133,9 @@ the chapter read.
 **A chapter.** Copy an existing chapter page, keep the head, body
 attributes, shell containers and script order. Write the eight beats. Set
 its `status` to `"published"` in `nav.js`. Add glossary entries for every
-term it introduces, with `ch` set to the chapter. Run `npm run build:search`,
-then `npm test`.
+term it introduces, with `ch` set to the chapter. Run
+`node tools/link-terms.mjs` (links first mentions of terms other chapters
+own), then `npm run build` (sources page and search index), then `npm test`.
 
 **A glossary term.** Add it to `glossary.js` with the chapter that teaches
 it. If that chapter is published, the page must have a matching `<dfn>`.
@@ -177,7 +180,9 @@ deferred renderer that chapters embed to show a real scene and its buffers.
 
 ```bash
 npm ci                     # author tooling only (Playwright)
-npm run build:search       # regenerate docs/assets/js/data/search-index.js
+node tools/link-terms.mjs  # link first mentions of glossary terms (--dry-run to preview)
+npm run build              # regenerate docs/sources.html, then the search index
+npm run build:search       # only the search index
 npm test                   # structure + browser tests
 npm run test:structure     # fast, no browser
 npm run test:browser       # Chromium by default; includes the courtyard tests

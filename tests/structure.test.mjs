@@ -21,6 +21,7 @@ import {
 } from "../tools/lib/site.mjs";
 import { buildIndex, renderIndexFile } from "../tools/build-search-index.mjs";
 import { buildSourcesPage } from "../tools/build-sources-page.mjs";
+import { linkTerms } from "../tools/link-terms.mjs";
 
 const { nav, glossary } = loadData();
 // In draft mode (HB_ONLY set by tools/check-chapter.mjs) only the named
@@ -241,6 +242,12 @@ test("diagrams are accessible, have unique ids and use theme classes only", () =
 test("sources page is up to date", { skip: DRAFT_MODE }, () => {
   const actual = readFileSync(join(DOCS, "sources.html"), "utf8");
   assert.equal(actual, buildSourcesPage(), "sources.html is stale: run npm run build:sources");
+});
+
+test("every page links its first mention of each glossary term", { skip: DRAFT_MODE }, () => {
+  // Multi-word terms and acronyms only; see tools/link-terms.mjs.
+  const missing = linkTerms({ write: false });
+  assert.deepEqual(missing, {}, "unlinked first mentions: run node tools/link-terms.mjs");
 });
 
 test("search index is up to date", { skip: DRAFT_MODE }, () => {

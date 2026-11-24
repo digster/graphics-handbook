@@ -100,7 +100,7 @@
           <!-- ============ 2. In plain words ============ -->
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
-            <p>A <a class="term" data-term="texture" href="glossary.html#texture">texture</a> is a grid of colour values. A 4096 × 4096 texture has 16.7 million of them, and a modern scene uses hundreds of textures: a colour map, a normal map and a mask for nearly every material. Stored plainly, they would not fit in the <a class="term" data-term="vram" href="glossary.html#vram">VRAM</a> of any graphics card, let alone a phone.</p>
+            <p>A <a class="term" data-term="texture" href="glossary.html#texture">texture</a> is a grid of colour values. A 4096 × 4096 texture has 16.7 million of them, and a modern scene uses hundreds of textures: a colour map, a <a class="term" data-term="normal-map" data-forward href="glossary.html#normal-map">normal map</a> and a mask for nearly every material. Stored plainly, they would not fit in the <a class="term" data-term="vram" href="glossary.html#vram">VRAM</a> of any graphics card, let alone a phone.</p>
             <p>Games solve this twice. First, <dfn class="term" data-term="block-compression">block compression</dfn> stores each small square of pixels in a fixed, tiny number of bytes that the <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> decodes for free as it reads. That cuts memory by four to eight times. Second, <dfn class="term" data-term="texture-streaming">texture streaming</dfn> keeps only the sharpness the camera needs right now in memory, and fetches more from disk as the player moves.</p>
             <div class="analogy">
               <div>
@@ -116,7 +116,7 @@
             </div>
             <aside class="note" data-kind="lead">
               <p class="note-label">Why a lead cares</p>
-              <p>Texture memory is usually the largest line in a game's memory budget, and the smallest GPU you ship on decides how much of it you get. Texture formats are import settings that artists set, often by default, on thousands of files. The symptoms of getting them wrong are some of the most common visual bug reports: blurry textures after loading, smeared normal maps, blocky gradients, and crashes on low-memory devices.</p>
+              <p>Texture memory is usually the largest line in a game's <a class="term" data-term="memory-budget" data-forward href="glossary.html#memory-budget">memory budget</a>, and the smallest GPU you ship on decides how much of it you get. Texture formats are import settings that artists set, often by default, on thousands of files. The symptoms of getting them wrong are some of the most common visual bug reports: blurry textures after loading, smeared normal maps, blocky gradients, and crashes on low-memory devices.</p>
             </aside>
           </section>
 
@@ -176,7 +176,7 @@
                     <text class="t-strong t-acc" x="650" y="278">yes: fixed 16 bytes a block</text>
                   </svg>
                 </div>
-                <figcaption><b>Small on disk is not small on the GPU.</b> PNG and JPEG save space with codes of varying length, so the only way to reach a pixel is to decode everything before it. GPU formats keep a fixed size per texel or per block, so the texture unit can compute where any texel lives, the same trick a vertex buffer's stride uses in <a class="xref" data-ch="4.2">4.2 Vertex buffers</a>.</figcaption>
+                <figcaption><b>Small on disk is not small on the GPU.</b> PNG and JPEG save space with codes of varying length, so the only way to reach a pixel is to decode everything before it. GPU formats keep a fixed size per texel or per block, so the texture unit can compute where any texel lives, the same trick a <a class="term" data-term="vertex-buffer" href="glossary.html#vertex-buffer">vertex buffer</a>'s stride uses in <a class="xref" data-ch="4.2">4.2 Vertex buffers</a>.</figcaption>
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
@@ -305,12 +305,12 @@
                 <table class="is-wide">
                   <thead><tr><th scope="col">Format</th><th scope="col">Stores</th><th scope="col" class="num">Bytes per 4 × 4</th><th scope="col" class="num">Bits per pixel</th><th scope="col">Typical use</th></tr></thead>
                   <tbody>
-                    <tr><th scope="row"><dfn class="term" data-term="bc1">BC1</dfn></th><td>RGB as two 5:6:5 endpoints and 2-bit indices, optional on/off alpha</td><td class="num">8</td><td class="num">4</td><td>Opaque colour, packed masks</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="bc1">BC1</dfn></th><td><a class="term" data-term="rgb" href="glossary.html#rgb">RGB</a> as two 5:6:5 endpoints and 2-bit indices, optional on/off alpha</td><td class="num">8</td><td class="num">4</td><td>Opaque colour, packed masks</td></tr>
                     <tr><th scope="row">BC2</th><td>RGB as BC1, plus 4-bit alpha per texel</td><td class="num">16</td><td class="num">8</td><td>Rarely used today</td></tr>
                     <tr><th scope="row"><dfn class="term" data-term="bc3">BC3</dfn></th><td>RGB as BC1, plus alpha with its own endpoints and 3-bit indices</td><td class="num">16</td><td class="num">8</td><td>Colour with smooth alpha</td></tr>
                     <tr><th scope="row"><dfn class="term" data-term="bc4">BC4</dfn></th><td>One channel, two 8-bit endpoints, 3-bit indices (8 levels)</td><td class="num">8</td><td class="num">4</td><td>Roughness, height, single masks</td></tr>
                     <tr><th scope="row"><dfn class="term" data-term="bc5">BC5</dfn></th><td>Two independent channels, each stored like BC4</td><td class="num">16</td><td class="num">8</td><td>Normal maps (X and Y)</td></tr>
-                    <tr><th scope="row"><dfn class="term" data-term="bc6h">BC6H</dfn></th><td>RGB as 16-bit floating point, 14 block modes</td><td class="num">16</td><td class="num">8</td><td>HDR: skies, light probes, lightmaps</td></tr>
+                    <tr><th scope="row"><dfn class="term" data-term="bc6h">BC6H</dfn></th><td>RGB as 16-bit floating point, 14 block modes</td><td class="num">16</td><td class="num">8</td><td>HDR: skies, <a class="term" data-term="light-probe" data-forward href="glossary.html#light-probe">light probes</a>, lightmaps</td></tr>
                     <tr><th scope="row"><dfn class="term" data-term="bc7">BC7</dfn></th><td>RGB or RGBA, 8 block modes, up to three pairs of endpoints per block</td><td class="num">16</td><td class="num">8</td><td>High-quality colour, with or without alpha</td></tr>
                   </tbody>
                 </table>
@@ -360,7 +360,7 @@
             <div class="step">
               <h3 class="step-title" id="choosing-formats"><span class="step-num">5</span> Which format for which map</h3>
               <p>A material's textures hold different kinds of data, and each kind has a natural format. Colour that people look at is stored in sRGB, the gamma-encoded form <a class="xref" data-ch="3.2">3.2 Colour</a> describes, and decoded to linear values when sampled. Everything else is data: normals, roughness, masks. Data must be stored linear, with sRGB off, or the decoding bends the numbers.</p>
-              <p>Packing several masks into the channels of one texture is <a class="term" data-term="channel-packing" href="glossary.html#channel-packing">channel packing</a>. A common layout puts ambient occlusion, roughness and metalness in red, green and blue. It saves a texture sample and a file, but formats that share endpoints between channels, such as BC1 and BC7, can let one channel's pattern leak into another.</p>
+              <p>Packing several masks into the channels of one texture is <a class="term" data-term="channel-packing" href="glossary.html#channel-packing">channel packing</a>. A common layout puts <a class="term" data-term="ambient-occlusion" data-forward href="glossary.html#ambient-occlusion">ambient occlusion</a>, roughness and metalness in red, green and blue. It saves a texture sample and a file, but formats that share endpoints between channels, such as BC1 and BC7, can let one channel's pattern leak into another.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 318" role="img" aria-label="Eight cards. Base colour: BC1 or BC7 on PC and console, ASTC or ETC2 on mobile, sRGB. Colour with alpha: BC7 or BC3, ASTC or ETC2 RGBA, sRGB colour. Normal map: BC5 with X and Y only, ASTC with X and Y only, linear. Single mask: BC4, ASTC or EAC R11, linear. Packed masks: BC1 or BC7, ASTC, linear. HDR: BC6H, ASTC HDR where supported, linear. UI and text: RGBA8 uncompressed or BC7 if it survives, RGBA8 or ASTC 4 by 4, sRGB. A legend card explains bits per pixel and sRGB against linear.">
@@ -532,7 +532,7 @@
             <div class="step">
               <h3 class="step-title" id="virtual-texturing"><span class="step-num">7</span> Virtual texturing: only the pages you need</h3>
               <p>Mip streaming works per texture: if any part of a huge texture is close, all of its top mip must load. <dfn class="term" data-term="virtual-texturing">Virtual texturing</dfn> goes finer. It cuts every mip of a texture into small square pages and loads only the pages that pixels on screen actually touch, into a fixed cache texture. A small lookup texture, the page table, tells the shader where each page currently lives in the cache.</p>
-              <p>Software virtual texturing finds out which pages are needed by having the GPU write page requests during rendering, which the CPU reads back a frame or more later and loads. Until a page arrives, the shader falls back to a coarser mip, so new areas can pop sharp a moment after they appear. <dfn class="term" data-term="sparse-texture">Sparse textures</dfn> are the hardware version: the GPU's own memory mapping lets a texture have only some of its pages backed by real memory.</p>
+              <p>Software virtual texturing finds out which pages are needed by having the GPU write page requests during rendering, which the <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a> reads back a frame or more later and loads. Until a page arrives, the shader falls back to a coarser mip, so new areas can pop sharp a moment after they appear. <dfn class="term" data-term="sparse-texture">Sparse textures</dfn> are the hardware version: the GPU's own memory mapping lets a texture have only some of its pages backed by real memory.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 330" role="img" aria-label="Left: a 16384 texture cut into a grid of pages; the nine pages the camera sees are highlighted. Middle: the page table, a small grid that records for each page whether it is loaded and where. Right: the physical cache, a smaller grid of slots holding the nine loaded pages and a few coarser fallback pages. Arrows run from visible pages through the page table to cache slots. Below, the feedback loop: the GPU records the pages it touched, the CPU reads the list and loads missing pages from disk into free slots, and until then the shader uses a coarser mip.">
@@ -597,7 +597,7 @@
           <!-- ============ 4. What it costs ============ -->
           <section class="beat" id="cost" data-beat="cost">
             <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
-            <p>Every game works to a <dfn class="term" data-term="texture-budget">texture memory budget</dfn>: the share of the weakest target's memory that textures may use, after render targets, geometry, audio and code have taken theirs. Here is an illustrative scene: 100 environment materials with 2048² textures, 4 hero characters at 4096², 8 terrain layers, an HDR sky and the UI, in the formats from section 3.</p>
+            <p>Every game works to a <dfn class="term" data-term="texture-budget">texture memory budget</dfn>: the share of the weakest target's memory that textures may use, after <a class="term" data-term="render-target" href="glossary.html#render-target">render targets</a>, geometry, audio and code have taken theirs. Here is an illustrative scene: 100 environment materials with 2048² textures, 4 hero characters at 4096², 8 terrain layers, an HDR sky and the UI, in the formats from section 3.</p>
             <figure>
               <div class="fig-frame">
                 <svg class="dg is-wide" viewBox="0 0 900 256" role="img" aria-label="Two stacked bars to scale. Compressed, the scene's textures take 1,781 megabytes: base colour 661, normal maps 661, masks 331, HDR sky 32 and UI 96, under a 2 gigabyte budget. Uncompressed, the same textures take 8,288 megabytes, about 8.1 gigabytes.">
@@ -664,7 +664,7 @@
             <h3>What makes the bill grow</h3>
             <ul class="grows">
               <li><strong>Resolution</strong><span>Memory grows with the square of the width. One step up in size is four times the bytes.</span></li>
-              <li><strong>Unique textures</strong><span>Every material with its own maps adds a full set. Tiling textures and shared trim sheets are reused for free.</span></li>
+              <li><strong>Unique textures</strong><span>Every material with its own maps adds a full set. Tiling textures and shared <a class="term" data-term="trim-sheet" href="glossary.html#trim-sheet">trim sheets</a> are reused for free.</span></li>
               <li><strong>Wrong formats</strong><span>A mask stored as a colour texture, or a normal map stored uncompressed, costs two to eight times what it should.</span></li>
               <li><strong>Fully loaded textures</strong><span>UI, textures that cannot stream and anything marked never to stream sit at full size, and in Unity they eat into the same budget.</span></li>
               <li><strong>Bandwidth</strong><span>Compressed textures are also cheaper to sample. Uncompressed ones move four to eight times more bytes per frame, which costs battery and heat on phones.</span></li>

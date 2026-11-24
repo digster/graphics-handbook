@@ -59,7 +59,7 @@
 <rect class="f-surface s-strong" x="716" y="58" width="96" height="96"/><text class="t-mono t-small t-muted" x="820" y="110">mip 0 · 128²</text><rect class="f-surface s-strong" x="716" y="160" width="48" height="48"/><text class="t-mono t-small t-muted" x="820" y="188">mip 1 · 64²</text><rect class="f-surface s-strong" x="716" y="214" width="24" height="24"/><text class="t-mono t-small t-muted" x="820" y="230">mip 2 · 32²</text><rect class="f-acc-soft s-acc w15" x="716" y="244" width="12" height="12"/><text class="t-mono t-small t-acc" x="820" y="254">mip 3 · 16²</text><rect class="f-acc-soft s-acc w15" x="716" y="262" width="6" height="6"/><text class="t-mono t-small t-acc" x="820" y="269">mip 4 · 8²</text><rect class="f-surface s-strong" x="716" y="278" width="3" height="3"/><text class="t-mono t-small t-muted" x="820" y="283.5">mip 5 · 4²</text><rect class="f-surface s-strong" x="716" y="294" width="1.5" height="1.5"/><text class="t-mono t-small t-muted" x="820" y="299">mip 6 · 2²</text><rect class="f-surface s-strong" x="716" y="310" width="0.75" height="0.75"/><text class="t-mono t-small t-muted" x="820" y="315">mip 7 · 1²</text>
 </svg>
               </div>
-              <figcaption><b>Every pixel covers a different amount of texture.</b> On a floor, a pixel near the camera covers a fraction of one texel, while a pixel near the horizon covers a long thin strip of many texels. The GPU answers the first with filtering between texels and the second by reading a pre-shrunk copy of the texture, a mip level, whose texels are about the size of the pixel.</figcaption>
+              <figcaption><b>Every pixel covers a different amount of texture.</b> On a floor, a pixel near the camera covers a fraction of one texel, while a pixel near the horizon covers a long thin strip of many texels. The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> answers the first with filtering between texels and the second by reading a pre-shrunk copy of the texture, a mip level, whose texels are about the size of the pixel.</figcaption>
             </figure>
           </section>
 
@@ -82,7 +82,7 @@
             </div>
             <aside class="note" data-kind="lead">
               <p class="note-label">Why a lead cares</p>
-              <p>Filtering and mip settings are a few checkboxes per texture and per quality preset, and they decide whether floors shimmer, roads blur at a distance and pixel art stays crisp. They also spend memory (mipmaps add a third to every texture) and GPU time (anisotropic filtering can read many times more texels). Most of the mistakes are one setting wrong on a whole class of textures, which is exactly the kind of rule worth putting in an import preset and checking automatically.</p>
+              <p>Filtering and mip settings are a few checkboxes per texture and per <a class="term" data-term="quality-preset" data-forward href="glossary.html#quality-preset">quality preset</a>, and they decide whether floors shimmer, roads blur at a distance and pixel art stays crisp. They also spend memory (mipmaps add a third to every texture) and GPU time (anisotropic filtering can read many times more texels). Most of the mistakes are one setting wrong on a whole class of textures, which is exactly the kind of rule worth putting in an import preset and checking automatically.</p>
             </aside>
           </section>
 
@@ -122,7 +122,7 @@
 
             <div class="step">
               <h3 class="step-title" id="nearest-bilinear"><span class="step-num">2</span> Nearest and bilinear</h3>
-              <p><dfn class="term" data-term="nearest-filtering">Nearest filtering</dfn>, also called point filtering, reads the one texel whose square the sample point falls in. It is the cheapest read and keeps hard edges, which is why pixel-art games use it on purpose. Magnified, every texel shows as a sharp block.</p>
+              <p><dfn class="term" data-term="nearest-filtering">Nearest filtering</dfn>, also called point filtering, reads the one texel whose square the <a class="term" data-term="sample-point" href="glossary.html#sample-point">sample point</a> falls in. It is the cheapest read and keeps hard edges, which is why pixel-art games use it on purpose. Magnified, every texel shows as a sharp block.</p>
               <p><dfn class="term" data-term="bilinear-filtering">Bilinear filtering</dfn> reads the four texels around the sample point and blends them, each weighted by how close the point is to its centre. Magnified textures become smooth gradients instead of blocks. GPUs do this blend in dedicated texture hardware, and it is the starting point for every filter that follows.</p>
               <figure>
                 <div class="fig-frame">
@@ -193,7 +193,7 @@
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
-                <p>A plain 2 × 2 average is the simplest way to build a level. Engines also offer sharper filters, and special handling for normal maps and alpha-tested textures, where averaging changes what the values mean. Compressed formats store texels in 4 × 4 blocks, so their smallest levels round up to one block; the chain still adds about a third.</p>
+                <p>A plain 2 × 2 average is the simplest way to build a level. Engines also offer sharper filters, and special handling for <a class="term" data-term="normal-map" data-forward href="glossary.html#normal-map">normal maps</a> and alpha-tested textures, where averaging changes what the values mean. Compressed formats store texels in 4 × 4 blocks, so their smallest levels round up to one block; the chain still adds about a third.</p>
               </aside>
             </div>
 
@@ -216,7 +216,7 @@
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
-                <p>The step sizes are the screen-space derivatives that pixel shaders can also ask for directly, which <a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a> covers. Hardware may approximate the lengths, and the graphics APIs allow some freedom in exactly how the span is measured.</p>
+                <p>The step sizes are the <a class="term" data-term="screen-space-derivatives" href="glossary.html#screen-space-derivatives">screen-space derivatives</a> that <a class="term" data-term="pixel-shader" href="glossary.html#pixel-shader">pixel shaders</a> can also ask for directly, which <a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a> covers. Hardware may approximate the lengths, and the <a class="term" data-term="graphics-api" href="glossary.html#graphics-api">graphics APIs</a> allow some freedom in exactly how the span is measured.</p>
               </aside>
             </div>
 
@@ -298,7 +298,7 @@
           <!-- ============ 4. What it costs ============ -->
           <section class="beat" id="cost" data-beat="cost">
             <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
-            <p>Filtering costs texel reads, and through them memory bandwidth and texture-unit time. Mipmaps cost memory. Both depend on the setting, as this table shows for one texture read.</p>
+            <p>Filtering costs texel reads, and through them <a class="term" data-term="memory-bandwidth" href="glossary.html#memory-bandwidth">memory bandwidth</a> and texture-unit time. Mipmaps cost memory. Both depend on the setting, as this table shows for one texture read.</p>
             <div class="table-wrap">
               <table>
                 <thead><tr><th scope="col">Filter</th><th scope="col" class="num">Texels read</th><th scope="col">Mip levels read</th><th scope="col">Typical use</th></tr></thead>

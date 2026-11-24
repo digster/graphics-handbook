@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <p class="eyebrow">Part 8 · <a class="term" data-term="global-illumination" href="glossary.html#global-illumination">Global illumination</a> and ambient occlusion</p>
             <h1><span class="ch-num">8.3</span> Ambient occlusion: SSAO to GTAO</h1>
             <p class="lead">Corners, creases and the ground under objects receive less of the light that bounces around a scene. Ambient occlusion darkens them. This chapter shows how renderers estimate it from the depth buffer every frame, and why each generation of the technique, from SSAO to GTAO, looks better and fails in its own way.</p>
             <dl class="chapter-meta">
@@ -277,7 +277,7 @@
 
             <div class="step">
               <h3 class="step-title" id="ssao"><span class="step-num">4</span> SSAO: test random points</h3>
-              <p><dfn class="term" data-term="ssao">SSAO</dfn>, screen-space ambient occlusion, was introduced by Crytek for Crysis in 2007. For each pixel it scatters a handful of sample points in the half-sphere above the surface, typically 8 to 16, and checks each against the depth buffer. A point that lies behind the stored surface is inside geometry, so it counts as blocked. The share of unblocked points is the visibility.</p>
+              <p><dfn class="term" data-term="ssao">SSAO</dfn>, screen-space ambient occlusion, was introduced by Crytek for Crysis in 2007. For each pixel it scatters a handful of <a class="term" data-term="sample-point" href="glossary.html#sample-point">sample points</a> in the half-sphere above the surface, typically 8 to 16, and checks each against the depth buffer. A point that lies behind the stored surface is inside geometry, so it counts as blocked. The share of unblocked points is the visibility.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 880 240" role="img" aria-label="A point P on the floor next to a step. Twelve sample points are scattered in the half circle above P. The three that fall inside the step are filled in rose and count as blocked; the nine in open air are hollow. Visibility is nine out of twelve, 75 percent.">
@@ -578,7 +578,7 @@
                     <text class="t-small t-muted" x="620" y="194">several frames blended together</text>
                   </svg>
                 </div>
-                <figcaption><b>Why AO needs denoising.</b> A few samples per pixel give a grainy result. A bilateral blur averages neighbours without crossing depth edges. Blending in previous frames, each computed with differently rotated samples, removes what is left. The price of that last step is ghosting when things move.</figcaption>
+                <figcaption><b>Why AO needs denoising.</b> A few <a class="term" data-term="samples-per-pixel" data-forward href="glossary.html#samples-per-pixel">samples per pixel</a> give a grainy result. A bilateral blur averages neighbours without crossing depth edges. Blending in previous frames, each computed with differently rotated samples, removes what is left. The price of that last step is ghosting when things move.</figcaption>
               </figure>
             </div>
 
@@ -599,12 +599,12 @@
               <div class="stat"><span class="value">1.4 ms</span><span class="what">XeGTAO "High", full resolution, 3840 × 2160, RTX 3070</span></div>
               <div class="stat"><span class="value">3%</span><span class="what">of a 60 fps <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a> (16.7 ms) for a 0.5 ms pass</span></div>
             </div>
-            <p class="stamp">Timings as published in the GTAO paper (2016) and the XeGTAO repository. Your numbers will differ with settings, scene and hardware; measure them in a frame capture.</p>
+            <p class="stamp">Timings as published in the GTAO paper (2016) and the XeGTAO repository. Your numbers will differ with settings, scene and hardware; measure them in a <a class="term" data-term="frame-capture" data-forward href="glossary.html#frame-capture">frame capture</a>.</p>
             <ul class="grows">
               <li><strong>Resolution</strong><span>Cost scales with pixel count. 4K is four times 1080p; half resolution is a quarter.</span></li>
-              <li><strong>Directions and steps</strong><span>Each extra slice or step adds reads for every pixel. Quality presets mostly change these two numbers.</span></li>
+              <li><strong>Directions and steps</strong><span>Each extra slice or step adds reads for every pixel. <a class="term" data-term="quality-preset" data-forward href="glossary.html#quality-preset">Quality presets</a> mostly change these two numbers.</span></li>
               <li><strong>Radius</strong><span>A larger radius spreads samples further apart in memory, so they miss the cache more often.</span></li>
-              <li><strong>Denoising</strong><span>Blur and temporal passes add their own cost, and the temporal pass needs motion vectors from the rest of the frame.</span></li>
+              <li><strong>Denoising</strong><span>Blur and temporal passes add their own cost, and the temporal pass needs <a class="term" data-term="motion-vectors" data-forward href="glossary.html#motion-vectors">motion vectors</a> from the rest of the frame.</span></li>
             </ul>
             <aside class="note" data-kind="lead">
               <p class="note-label">The usual trade</p>
@@ -697,7 +697,7 @@
                 <h4>Ghost trails behind moving objects</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>Temporal accumulation keeps blending last frame's AO, which was computed with the object somewhere else, and does not reject it fast enough at <a class="term" data-term="disocclusion" data-forward href="glossary.html#disocclusion">disocclusion</a>.</dd></div>
-                  <div><dt>Ask for</dt><dd>Tighter history rejection, a lower temporal blend weight, and checking that moving objects write correct motion vectors.</dd></div>
+                  <div><dt>Ask for</dt><dd>Tighter <a class="term" data-term="history-rejection" data-forward href="glossary.html#history-rejection">history rejection</a>, a lower temporal blend weight, and checking that moving objects write correct motion vectors.</dd></div>
                 </dl>
               </article>
               <article class="symptom">

@@ -139,13 +139,13 @@
                     <tr><th scope="row">Maps</th><td>Base colour, metallic, roughness</td><td>Diffuse, specular colour, glossiness</td></tr>
                     <tr><th scope="row">F0 of non-metals</th><td>Fixed at 4% (Unreal: the Specular input)</td><td>Painted per texel</td></tr>
                     <tr><th scope="row">Can break physics</th><td>No, with any values from 0 to 1</td><td>Yes: a bright diffuse plus a bright specular reflects more light than arrives</td></tr>
-                    <tr><th scope="row">Weak spot</th><td>A bright fringe can appear where metal meets non-metal at low texture resolution</td><td>One more colour texture to store and to get right</td></tr>
+                    <tr><th scope="row">Weak spot</th><td>A bright fringe can appear where metal meets non-metal at low <a class="term" data-term="texture-resolution" href="glossary.html#texture-resolution">texture resolution</a></td><td>One more colour texture to store and to get right</td></tr>
                   </tbody>
                 </table>
               </div>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Unreal's extra input</p>
-                <p>Unreal's classic material adds a Specular input, default 0.5, which means 4%. Epic's guidance is to leave it alone; it is mostly used for small-scale shadowing in cracks. Since Unreal Engine 5.7, new projects use Substrate materials, whose Slab node takes Diffuse Albedo, F0 and F90 directly. Classic materials still work and are converted when they compile.</p>
+                <p>Unreal's classic material adds a Specular input, default 0.5, which means 4%. Epic's guidance is to leave it alone; it is mostly used for small-scale shadowing in cracks. Since <a class="term" data-term="unreal-engine" href="glossary.html#unreal-engine">Unreal Engine</a> 5.7, new projects use Substrate materials, whose Slab node takes Diffuse Albedo, F0 and F90 directly. Classic materials still work and are converted when they compile.</p>
               </aside>
             </div>
 
@@ -183,7 +183,7 @@
                   <p class="formula">F = F0 + (1 − F0) (1 − v·h)⁵</p>
                   <p class="formula">f<sub>specular</sub> = D F G ÷ (4 (n·l)(n·v))</p>
                   <p class="formula">light leaving towards the eye = (f<sub>diffuse</sub> + f<sub>specular</sub>) × light arriving × (n·l)</p>
-                  <p>Karis computes Schlick's power with a faster exponential that gives the same result, and uses k = α ÷ 2 instead for reflections of the surroundings. Engines differ in small ways: glTF also scales the diffuse part by (1 − F), and Godot uses Burley's diffuse model by default instead of Lambert. Chapter 7.2 compares shading models.</p>
+                  <p>Karis computes Schlick's power with a faster exponential that gives the same result, and uses k = α ÷ 2 instead for reflections of the surroundings. Engines differ in small ways: glTF also scales the diffuse part by (1 − F), and Godot uses Burley's diffuse model by default instead of Lambert. Chapter 7.2 compares <a class="term" data-term="shading-model" data-forward href="glossary.html#shading-model">shading models</a>.</p>
                 </div>
               </details>
             </div>
@@ -220,9 +220,9 @@
               <h3 class="step-title" id="texture-set"><span class="step-num">8</span> Textures feed the inputs</h3>
               <p>The inputs rarely stay single numbers. Each one comes from a texture, painted or scanned, so a strap can be smooth metal while the planks beside it are rough wood. A typical set has three textures.</p>
               <ul>
-                <li><strong>Base colour:</strong> colour in RGB, stored with the sRGB curve.</li>
+                <li><strong>Base colour:</strong> colour in <a class="term" data-term="rgb" href="glossary.html#rgb">RGB</a>, stored with the sRGB curve.</li>
                 <li><strong>Normal map:</strong> the direction the surface faces at each <a class="term" data-term="texel" href="glossary.html#texel">texel</a>, for detail too fine to model (<a class="term" data-term="normal-map" href="glossary.html#normal-map">normal map</a>, chapter 6.4). Data, read as linear numbers.</li>
-                <li><strong>ORM:</strong> occlusion, roughness and metallic, one per colour channel of a single texture. Also data, also linear.</li>
+                <li><strong>ORM:</strong> occlusion, roughness and metallic, one per <a class="term" data-term="colour-channel" href="glossary.html#colour-channel">colour channel</a> of a single texture. Also data, also linear.</li>
               </ul>
 <figure>
 <div class="fig-frame">
@@ -230,7 +230,7 @@
 </div>
 <figcaption><b>A typical texture set: base colour, normal and ORM.</b> Packing occlusion, roughness and metallic into the three channels of one texture saves two texture reads per pixel, and usually memory too. The packing must match what the material expects, channel by channel, and every engine's default layout is a little different.</figcaption>
 </figure>
-              <p>Packing three greyscale maps into one texture, <a class="term" data-term="channel-packing" href="glossary.html#channel-packing">channel packing</a>, is common practice; the exact layout is not. glTF and Godot read roughness from green and metallic from blue. Unity HDRP's mask map puts metallic in red and smoothness in alpha. When a texture set moves between tools, check the layout before anything else.</p>
+              <p>Packing three greyscale maps into one texture, <a class="term" data-term="channel-packing" href="glossary.html#channel-packing">channel packing</a>, is common practice; the exact layout is not. glTF and Godot read roughness from green and metallic from blue. Unity <a class="term" data-term="hdrp" href="glossary.html#hdrp">HDRP</a>'s mask map puts metallic in red and smoothness in alpha. When a texture set moves between tools, check the layout before anything else.</p>
             </div>
 
             <div class="step">
@@ -256,8 +256,8 @@
                 <thead><tr><th scope="col">Texture</th><th scope="col">Format</th><th scope="col" class="num">Bytes per texel</th><th scope="col" class="num">2048²</th><th scope="col" class="num">4096²</th></tr></thead>
                 <tbody>
                   <tr><th scope="row">Base colour</th><td>BC7</td><td class="num">1</td><td class="num">5.3 MB</td><td class="num">21.3 MB</td></tr>
-                  <tr><th scope="row">Normal map</th><td>BC5</td><td class="num">1</td><td class="num">5.3 MB</td><td class="num">21.3 MB</td></tr>
-                  <tr><th scope="row">ORM</th><td>BC1</td><td class="num">0.5</td><td class="num">2.7 MB</td><td class="num">10.7 MB</td></tr>
+                  <tr><th scope="row">Normal map</th><td><a class="term" data-term="bc5" href="glossary.html#bc5">BC5</a></td><td class="num">1</td><td class="num">5.3 MB</td><td class="num">21.3 MB</td></tr>
+                  <tr><th scope="row">ORM</th><td><a class="term" data-term="bc1" href="glossary.html#bc1">BC1</a></td><td class="num">0.5</td><td class="num">2.7 MB</td><td class="num">10.7 MB</td></tr>
                   <tr><th scope="row">Metal/roughness set</th><td></td><td class="num"></td><td class="num">13.3 MB</td><td class="num">53.3 MB</td></tr>
                   <tr><th scope="row">Specular/glossiness set: diffuse and specular BC7, normal BC5, gloss BC4</th><td></td><td class="num"></td><td class="num">18.7 MB</td><td class="num">74.7 MB</td></tr>
                 </tbody>
@@ -320,7 +320,7 @@
                 <div class="thumb"><svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A smooth tiled floor fading into the distance, with bright single-pixel sparkles scattered over the far part that flicker as the camera moves."><rect class="f-buf-lo" x="0" y="0" width="240" height="130" rx="6"/><polygon class="f-buf-hi" points="0,130 240,130 168,40 72,40" fill-opacity="0.3"/><rect class="f-buf-hi" x="96" y="46" width="2.4" height="2.4"/><rect class="f-buf-hi" x="120" y="44" width="2.4" height="2.4"/><rect class="f-buf-hi" x="140" y="48" width="2.4" height="2.4"/><rect class="f-buf-hi" x="108" y="52" width="2.4" height="2.4"/><rect class="f-buf-hi" x="132" y="55" width="2.4" height="2.4"/><rect class="f-buf-hi" x="152" y="52" width="2.4" height="2.4"/><rect class="f-buf-hi" x="88" y="58" width="2.4" height="2.4"/><rect class="f-buf-hi" x="118" y="60" width="2.4" height="2.4"/><rect class="f-buf-hi" x="146" y="62" width="2.4" height="2.4"/><rect class="f-buf-hi" x="100" y="66" width="2.4" height="2.4"/><rect class="f-buf-hi" x="130" y="68" width="2.4" height="2.4"/><rect class="f-buf-hi" x="160" y="64" width="2.4" height="2.4"/><rect class="f-buf-hi" x="84" y="72" width="2.4" height="2.4"/><rect class="f-buf-hi" x="112" y="74" width="2.4" height="2.4"/><rect class="f-buf-hi" x="150" y="76" width="2.4" height="2.4"/><rect class="f-buf-hi" x="124" y="50" width="2.4" height="2.4"/><rect class="f-buf-hi" x="92" y="50" width="2.4" height="2.4"/><rect class="f-buf-hi" x="158" y="58" width="2.4" height="2.4"/><polyline class="s-shade" points="50,130 104,40" stroke-opacity="0.4"/><polyline class="s-shade" points="120,130 120,40" stroke-opacity="0.4"/><polyline class="s-shade" points="190,130 136,40" stroke-opacity="0.4"/></svg></div>
                 <h4>Sparkling, crawling highlights</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>Smooth materials with fine normal-map detail seen at a distance. Each pixel covers many tiny bumps, but shading samples only one, so the highlight flickers from frame to frame: specular aliasing (chapter 9.2).</dd></div>
+                  <div><dt>Cause</dt><dd>Smooth materials with fine normal-map detail seen at a distance. Each pixel covers many tiny bumps, but shading samples only one, so the highlight flickers from frame to frame: <a class="term" data-term="specular-aliasing" data-forward href="glossary.html#specular-aliasing">specular aliasing</a> (chapter 9.2).</dd></div>
                   <div><dt>Ask for</dt><dd>Roughness that rises in the smaller mip levels where the normal map averages out, or the engine's specular anti-aliasing option, compared in motion.</dd></div>
                 </dl>
               </article>

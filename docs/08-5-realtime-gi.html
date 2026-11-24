@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <p class="eyebrow">Part 8 · <a class="term" data-term="global-illumination" href="glossary.html#global-illumination">Global illumination</a> and <a class="term" data-term="ambient-occlusion" href="glossary.html#ambient-occlusion">ambient occlusion</a></p>
             <h1><span class="ch-num">8.5</span> Real-time GI families</h1>
             <p class="lead">Every method that computes bounced light while the game runs does three things: it traces light against a simplified copy of the scene, stores the result in some shape, and reuses it over many frames. The shape it chooses, a grid, voxels, probes, a cache on surfaces or a stack of cascades, decides what it costs, how fast it reacts and where light leaks through walls.</p>
             <dl class="chapter-meta">
@@ -160,7 +160,7 @@
           <!-- ============ 2. In plain words ============ -->
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
-            <p>Baked lighting (<a class="xref" data-ch="8.2">8.2</a>) computes bounced light once, in the editor. Screen-space GI (<a class="xref" data-ch="8.4">8.4</a>) computes it every frame, but only from what is on screen. The families in this chapter sit between them: they compute bounced light while the game runs, from the whole scene around the camera, so it follows moving lights, opening doors and the time of day.</p>
+            <p><a class="term" data-term="baked-lighting" href="glossary.html#baked-lighting">Baked lighting</a> (<a class="xref" data-ch="8.2">8.2</a>) computes bounced light once, in the editor. Screen-space GI (<a class="xref" data-ch="8.4">8.4</a>) computes it every frame, but only from what is on screen. The families in this chapter sit between them: they compute bounced light while the game runs, from the whole scene around the camera, so it follows moving lights, opening doors and the time of day.</p>
             <p>None of them can afford to trace rays against every triangle for every pixel. Instead each one keeps a cheaper version of the scene to trace against, stores the light it finds in a structure that is much coarser than the screen, and refreshes only part of it each frame. Every pixel then looks up nearby stored light.</p>
             <figure>
               <div class="fig-frame">
@@ -190,7 +190,7 @@
                   <text class="t-small t-muted" x="400" y="206">so the light catches up over several frames</text>
                 </svg>
               </div>
-              <figcaption><b>Trace, store, reuse.</b> Every family in this chapter is this loop. The simplified scene sets what can be traced fast; the store sets the detail and the leaks; the refresh rate sets how quickly light reacts. When you meet a new GI method, ask which of these three it changed.</figcaption>
+              <figcaption><b>Trace, store, reuse.</b> Every family in this chapter is this loop. The simplified scene sets what can be traced fast; the store sets the detail and the leaks; the <a class="term" data-term="refresh-rate" href="glossary.html#refresh-rate">refresh rate</a> sets how quickly light reacts. When you meet a new GI method, ask which of these three it changed.</figcaption>
             </figure>
             <div class="analogy">
               <div>
@@ -204,7 +204,7 @@
             </div>
             <aside class="note" data-kind="lead">
               <p class="note-label">Why a lead cares</p>
-              <p>The choice of GI family is made early and is hard to undo. It sets a GPU budget of several milliseconds, platform limits (most of these methods need a desktop or current-console GPU), content rules such as minimum wall thickness and how big emissive surfaces may be, and the look of interiors. It also replaces or reduces the bake step of 8.2, which changes how artists work every day.</p>
+              <p>The choice of GI family is made early and is hard to undo. It sets a <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> budget of several milliseconds, platform limits (most of these methods need a desktop or current-console GPU), content rules such as minimum wall thickness and how big <a class="term" data-term="emissive" href="glossary.html#emissive">emissive surfaces</a> may be, and the look of interiors. It also replaces or reduces the bake step of 8.2, which changes how artists work every day.</p>
             </aside>
           </section>
 
@@ -215,7 +215,7 @@
 
             <div class="step">
               <h3 class="step-title" id="lpv"><span class="step-num">1</span> Light propagation volumes: spread light through a grid</h3>
-              <p><dfn class="term" data-term="light-propagation-volumes">Light propagation volumes</dfn>, LPV, were presented by Anton Kaplanyan of Crytek in 2009 for CryEngine 3, then extended with Carsten Dachsbacher in 2010. The method has three steps. Render the scene from each light into a reflective shadow map, which records the lit surfaces as small points of light. Inject those points into a coarse 3D grid, each cell holding light as <a class="term" data-term="spherical-harmonics" href="glossary.html#spherical-harmonics">spherical harmonics</a> with two bands, four numbers per colour. Then spread the light: in each iteration every cell passes light to its six neighbours, like a ripple.</p>
+              <p><dfn class="term" data-term="light-propagation-volumes">Light propagation volumes</dfn>, LPV, were presented by Anton Kaplanyan of Crytek in 2009 for CryEngine 3, then extended with Carsten Dachsbacher in 2010. The method has three steps. Render the scene from each light into a reflective <a class="term" data-term="shadow-map" href="glossary.html#shadow-map">shadow map</a>, which records the lit surfaces as small points of light. Inject those points into a coarse 3D grid, each cell holding light as <a class="term" data-term="spherical-harmonics" href="glossary.html#spherical-harmonics">spherical harmonics</a> with two bands, four numbers per colour. Then spread the light: in each iteration every cell passes light to its six neighbours, like a ripple.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Three side views of the same grid of cells over a floor with a thin wall. Inject: the sunlit floor patch puts light into the cells just above it. Propagate: over four iterations, light spreads outward cell by cell, including into the cells on the far side of the thin wall, because cells are bigger than the wall. Sample: each pixel reads the light from the cell it is in, blended with its neighbours, so a point behind the wall gets light it should not.">
@@ -314,7 +314,7 @@
                 </div>
                 <figcaption><b>Coarse storage cannot see a thin wall.</b> Left: half-metre voxels are five times thicker than the wall, so the column that contains it mixes sunlight and shade and passes the light into the room. Right: plain probes are blended by distance, so a pixel 40 cm inside the room still takes about half its light from the probe outside. Moving the probe or thickening the wall helps; the next method stops the blend from crossing the wall at all.</figcaption>
               </figure>
-              <p>Every family has a leak rule. Epic says walls should be no thinner than 10 cm for Lumen. Godot's documentation says walls and floors should be at least one voxel thick for VoxelGI, and offers <strong>Use Occlusion</strong> and a smaller <strong>Y Scale</strong> against leaks in SDFGI. Unity's Adaptive Probe Volumes (8.2) add leak reduction and probe adjustment volumes. For an art team this becomes a modelling rule: no single-plane walls between bright and dark spaces.</p>
+              <p>Every family has a leak rule. Epic says walls should be no thinner than 10 cm for Lumen. Godot's documentation says walls and floors should be at least one voxel thick for VoxelGI, and offers <strong>Use Occlusion</strong> and a smaller <strong>Y Scale</strong> against leaks in SDFGI. Unity's <a class="term" data-term="adaptive-probe-volumes" href="glossary.html#adaptive-probe-volumes">Adaptive Probe Volumes</a> (8.2) add leak reduction and probe adjustment volumes. For an art team this becomes a modelling rule: no single-plane walls between bright and dark spaces.</p>
             </div>
 
             <div class="step">
@@ -352,7 +352,7 @@
                 </div>
                 <figcaption><b>Distance turns a blind blend into a visibility test.</b> Before a pixel uses a probe, it checks whether the probe could have seen it. Here the probe's rays towards the pixel stopped at the wall, much nearer than the pixel, so the pixel must be behind something and the probe's weight drops almost to zero. Storing the average distance and its spread, as variance shadow maps do, lets the test fade smoothly instead of snapping on and off.</figcaption>
               </figure>
-              <p>The paper's timings, on a GeForce RTX 2080 Ti, are 2.6 ms for the indirect lighting of a scene with 32 × 8 × 32 probes and 64 rays per probe, updating every probe every frame. Light reacts within a few frames, set by a <strong>hysteresis</strong> value that controls how much old light each update keeps. A 2021 follow-up by Majercik, Marrs, Spjut and McGuire describes the changes needed for production: moving probes out of walls automatically, switching off probes that cannot affect the image, and cascaded volumes for large worlds. It reports integrations in NVIDIA's RTXGI SDK, in Unity and in Unreal Engine 4, and in several commercial games.</p>
+              <p>The paper's timings, on a GeForce RTX 2080 Ti, are 2.6 ms for the indirect lighting of a scene with 32 × 8 × 32 probes and 64 rays per probe, updating every probe every frame. Light reacts within a few frames, set by a <strong>hysteresis</strong> value that controls how much old light each update keeps. A 2021 follow-up by Majercik, Marrs, Spjut and McGuire describes the changes needed for production: moving probes out of walls automatically, switching off probes that cannot affect the image, and cascaded volumes for large worlds. It reports integrations in NVIDIA's RTXGI SDK, in Unity and in <a class="term" data-term="unreal-engine" href="glossary.html#unreal-engine">Unreal Engine</a> 4, and in several commercial games.</p>
             </div>
 
             <div class="step">
@@ -389,7 +389,7 @@
                 </div>
                 <figcaption><b>Detail near the camera, reach far away.</b> Four cascades by default cover up to 204.8 m. Nothing is baked: the cascades follow the camera and update as it moves. Juan Linietsky's 2020 announcement calls SDFGI mostly leak-free compared with voxel cone tracing, while noting that walls thin relative to a cascade's cells can still leak.</figcaption>
               </figure>
-              <p>Its limits are set out in Godot's documentation. It runs only on the Forward+ renderer. It supports dynamic lights but not dynamic occluders or emissive surfaces: moving objects receive its light but do not block or bounce it. It takes 30 frames by default to converge, and cascade shifts can be visible when the camera moves quickly. Its <strong>Bounce Feedback</strong>, 0.5 by default, adds further bounces, and higher values risk feedback loops. Godot recommends it as the first GI method to try for desktop games, because it needs the least setup.</p>
+              <p>Its limits are set out in Godot's documentation. It runs only on the Forward+ renderer. It supports <a class="term" data-term="dynamic-light" href="glossary.html#dynamic-light">dynamic lights</a> but not dynamic occluders or emissive surfaces: moving objects receive its light but do not block or bounce it. It takes 30 frames by default to converge, and cascade shifts can be visible when the camera moves quickly. Its <strong>Bounce Feedback</strong>, 0.5 by default, adds further bounces, and higher values risk feedback loops. Godot recommends it as the first GI method to try for desktop games, because it needs the least setup.</p>
             </div>
 
             <div class="step">
@@ -453,9 +453,9 @@
                 </div>
                 <figcaption><b>A cache on surfaces, read by probes on the screen.</b> Rays find hits in the cheap Lumen Scene, but read the light there from the surface cache instead of shading each hit, so material and lighting work is shared between rays. The final gather traces from a few probes per screen region instead of from every pixel, then spreads their light to the pixels around them. Summarised from Epic's SIGGRAPH 2022 talk and the Unreal Engine 5.8 documentation.</figcaption>
               </figure>
-              <p>The <dfn class="term" data-term="surface-cache">surface cache</dfn> is the core idea. At import, Lumen places cards around each mesh, 12 by default, like cameras photographing it from several sides. At run time those cards capture the mesh's material and are lit, direct light first, then light gathered from the cache itself, so each update adds another bounce. Surfaces the cards do not cover cannot bounce light and show black in reflections; Epic notes that only meshes with simple interiors are supported well.</p>
+              <p>The <dfn class="term" data-term="surface-cache">surface cache</dfn> is the core idea. At import, Lumen places cards around each mesh, 12 by default, like cameras photographing it from several sides. At run time those cards capture the mesh's material and are lit, <a class="term" data-term="direct-light" href="glossary.html#direct-light">direct light</a> first, then light gathered from the cache itself, so each update adds another bounce. Surfaces the cards do not cover cannot bounce light and show black in reflections; Epic notes that only meshes with simple interiors are supported well.</p>
               <p><dfn class="term" data-term="screen-probes">Screen probes</dfn> are Lumen's final gather. Rather than trace from every pixel, it places probes on the visible surfaces, about one per 16 × 16 pixels and more where geometry is detailed, and traces 8 × 8 directions from each. Light from further than about two metres comes from a world-space radiance cache, with fewer probes but more directions per probe. The talk is frank about the cost of stability: the temporal filter reacts slowly to lighting changes, which shows as ghosting behind moving objects.</p>
-              <p>Lumen traces the Lumen Scene in software or hardware. Software ray tracing works on any GPU with Shader Model 6, but represents only static meshes, instanced meshes and landscape, so skinned characters appear only through screen traces. Hardware ray tracing needs a ray-tracing GPU, an RTX 2000 or Radeon RX 6000 or newer on Windows, or a PlayStation 5, Xbox Series or Switch 2; new projects in Unreal 5.8 enable it and use it where supported. Epic warns that its scene updates get expensive above about 100,000 instances. Lumen does not support the Mobile renderer, forward shading or VR, and it cannot be combined with baked lightmaps.</p>
+              <p>Lumen traces the Lumen Scene in software or hardware. <a class="term" data-term="software-ray-tracing" data-forward href="glossary.html#software-ray-tracing">Software ray tracing</a> works on any GPU with Shader Model 6, but represents only static meshes, instanced meshes and landscape, so skinned characters appear only through screen traces. Hardware ray tracing needs a ray-tracing GPU, an RTX 2000 or Radeon RX 6000 or newer on Windows, or a PlayStation 5, Xbox Series or Switch 2; new projects in Unreal 5.8 enable it and use it where supported. Epic warns that its scene updates get expensive above about 100,000 instances. Lumen does not support the Mobile renderer, forward shading or VR, and it cannot be combined with baked lightmaps.</p>
             </div>
 
             <div class="step">
@@ -480,13 +480,13 @@
                 </div>
                 <figcaption><b>Each level does the work that suits it.</b> Cascade 0 has many probes with a few short rays; cascade 2 has few probes with many long ones. Merging from the top level down extends each short ray with the light the levels above found beyond it, so the bottom level ends with light from every distance. The paper argues this behaves like casting a huge number of rays at a fixed cost.</figcaption>
               </figure>
-              <p>Path of Exile 2 uses radiance cascades as its GI. Its version works in screen space and fills the cascades by marching the depth buffer, which the paper says was chosen because the game's camera is fixed. That puts it in 8.4's territory, with the same blind spots, softened by a camera that never looks at the horizon. The paper also describes world-space versions in 2D and 3D.</p>
+              <p>Path of Exile 2 uses radiance cascades as its GI. Its version works in <a class="term" data-term="screen-space" href="glossary.html#screen-space">screen space</a> and fills the cascades by marching the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a>, which the paper says was chosen because the game's camera is fixed. That puts it in 8.4's territory, with the same blind spots, softened by a camera that never looks at the horizon. The paper also describes world-space versions in 2D and 3D.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="precomputed"><span class="step-num">8</span> Precomputed real-time GI: fixed walls, live light</h3>
               <p><dfn class="term" data-term="precomputed-realtime-gi">Precomputed real-time GI</dfn> splits the work differently. Unity's documentation describes Enlighten, the best-known version: in the editor it divides static surfaces into small patches, works out how much each patch can see each other one, and groups patches that see each other into systems. At run time it uses that visibility to bounce light from real-time lights between patches, writes the result into low-resolution lightmaps, and spreads the update over several frames.</p>
-              <p>Lights can move, change colour and switch off, and the sun can cross the sky, at a modest CPU cost. Geometry cannot move, because the visibility was precomputed, and updates take several frames, which Unity says suits slowly changing light and not effects or flickering lamps. Unity supports Enlighten Realtime GI until the end of Unity 6. Silicon Studio, which sells Enlighten, offers integrations for Unreal Engine 4 and 5 and lists titles from Hellblade: Senua's Sacrifice to Infinity Nikki.</p>
+              <p>Lights can move, change colour and switch off, and the sun can cross the sky, at a modest <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a> cost. Geometry cannot move, because the visibility was precomputed, and updates take several frames, which Unity says suits slowly changing light and not effects or flickering lamps. Unity supports Enlighten Realtime GI until the end of Unity 6. Silicon Studio, which sells Enlighten, offers integrations for Unreal Engine 4 and 5 and lists titles from Hellblade: Senua's Sacrifice to Infinity Nikki.</p>
             </div>
 
             <div class="step">
@@ -561,16 +561,16 @@
             </div>
             <p class="stamp">Published figures from Epic's Lumen documentation, the DDGI paper (JCGT 2019), NVIDIA's GTC 2014 VXGI talk and Crytek's SIGGRAPH 2009 course notes. Each was measured on different hardware, at a different time, for a different scene; profile on your own target.</p>
             <ul class="grows">
-              <li><strong>Rays per frame</strong><span>Probes times rays per probe, or screen probes times directions. Quality presets mostly change these two numbers.</span></li>
+              <li><strong>Rays per frame</strong><span>Probes times rays per probe, or screen probes times directions. <a class="term" data-term="quality-preset" data-forward href="glossary.html#quality-preset">Quality presets</a> mostly change these two numbers.</span></li>
               <li><strong>Scene complexity for tracing</strong><span>Distance fields cost disk space and memory per mesh; hardware ray tracing pays per instance, and Epic warns above about 100,000.</span></li>
               <li><strong>Reach and resolution</strong><span>Every extra cascade or larger volume adds cells or probes; finer cells near the camera multiply them.</span></li>
               <li><strong>Update rate</strong><span>Refreshing more of the store each frame reacts faster to change and costs more. Lumen and DDGI both trade lag for time.</span></li>
               <li><strong>Reflections</strong><span>Glossy reflections need far more directional detail than diffuse light; Lumen's cost grows with the share of smooth surfaces on screen.</span></li>
-              <li><strong>Internal resolution</strong><span>Per-pixel gathering scales with pixels, which is why Lumen's budget assumes 1080p upscaled.</span></li>
+              <li><strong><a class="term" data-term="internal-resolution" data-forward href="glossary.html#internal-resolution">Internal resolution</a></strong><span>Per-pixel gathering scales with pixels, which is why Lumen's budget assumes 1080p upscaled.</span></li>
             </ul>
             <aside class="note" data-kind="lead">
               <p class="note-label">What you trade for the milliseconds</p>
-              <p>Real-time GI buys you no bake step, lighting that follows change, and faster iteration for lighting artists. It costs GPU time on every frame of every player, minimum hardware requirements, and content rules about wall thickness and emissives. Many shipped games keep both: real-time GI on capable hardware, baked or simpler lighting on the lowest settings.</p>
+              <p>Real-time GI buys you no bake step, lighting that follows change, and faster iteration for <a class="term" data-term="lighting-artist" href="glossary.html#lighting-artist">lighting artists</a>. It costs GPU time on every frame of every player, minimum hardware requirements, and content rules about wall thickness and emissives. Many shipped games keep both: real-time GI on capable hardware, baked or simpler lighting on the lowest settings.</p>
             </aside>
           </section>
 

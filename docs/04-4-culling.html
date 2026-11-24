@@ -29,7 +29,7 @@
           <header class="chapter-head">
             <p class="eyebrow">Part 4 · Geometry</p>
             <h1><span class="ch-num">4.4</span> Culling</h1>
-            <p class="lead">The cheapest object to draw is the one you never send. Culling finds what the camera cannot see, because it is behind the camera, hidden behind a wall, or too small to matter, and skips it before it costs a draw call or any GPU work.</p>
+            <p class="lead">The cheapest object to draw is the one you never send. Culling finds what the camera cannot see, because it is behind the camera, hidden behind a wall, or too small to matter, and skips it before it costs a draw call or any <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> work.</p>
             <dl class="chapter-meta">
               <div><dt>Builds on</dt><dd><a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>, <a class="xref" data-ch="4.3">4.3 Draw calls, batching and instancing</a></dd></div>
               <div><dt>Leads to</dt><dd><a class="xref" data-ch="4.5">4.5 Level of detail</a>, <a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a></dd></div>
@@ -88,7 +88,7 @@
           <!-- ============ 2. In plain words ============ -->
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
-            <p>A level holds far more than any one view shows. Behind the camera, around the corner, inside the next building, over the hill: from most viewpoints, most of the world is out of sight. Drawing it anyway costs a <a class="term" data-term="draw-call" href="glossary.html#draw-call">draw call</a> on the CPU and vertex and pixel work on the GPU, for nothing on screen.</p>
+            <p>A level holds far more than any one view shows. Behind the camera, around the corner, inside the next building, over the hill: from most viewpoints, most of the world is out of sight. Drawing it anyway costs a <a class="term" data-term="draw-call" href="glossary.html#draw-call">draw call</a> on the <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a> and vertex and pixel work on the GPU, for nothing on screen.</p>
             <p><dfn class="term" data-term="culling">Culling</dfn> is the family of tests that find this waste and skip it. Each test asks one question of every object. Is it inside the camera's view? Is it big enough on screen to matter? Is something solid in front of it? Then, on the GPU, one last question of every triangle: is it facing the camera? Every test must be conservative. It may keep something that turns out to be invisible, which wastes a little time, but it must never remove something that should be seen.</p>
             <div class="analogy">
               <div>
@@ -231,7 +231,7 @@
 
                   </svg>
                 </div>
-                <figcaption><b>Size on screen falls in proportion to distance.</b> On a 1920-pixel-wide screen with a 75° field of view, a 1 m crate is about 63 pixels wide at 20 m and 13 at 100 m. A bottle drops below 4 pixels at about 78 m, where culling it is invisible. The same crate culled at 30 m would visibly pop.</figcaption>
+                <figcaption><b>Size on screen falls in proportion to distance.</b> On a 1920-pixel-wide screen with a 75° <a class="term" data-term="fov" href="glossary.html#fov">field of view</a>, a 1 m crate is about 63 pixels wide at 20 m and 13 at 100 m. A bottle drops below 4 pixels at about 78 m, where culling it is invisible. The same crate culled at 30 m would visibly pop.</figcaption>
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
@@ -278,7 +278,7 @@
                 </div>
                 <figcaption><b>An occludee is culled only when it is hidden everywhere.</b> The house sits wholly in the zone the wall hides, so it is skipped. The tower's top rises above the wall's line of sight, so the whole tower is drawn. Large, solid occluders close to the camera hide the most.</figcaption>
               </figure>
-              <p>The oldest way to ask the question uses the GPU itself. The renderer draws an object's bounding box against the depth buffer without writing any colour, and an occlusion query reports how many pixels passed the depth test. Zero means hidden. The catch is timing: the answer arrives after the GPU has done the work, and waiting for it stalls the CPU. Dean Sekulic's chapter in <em>GPU Gems</em> describes the usual fix, reading each result a frame later, which can make objects appear a frame late as the camera moves.</p>
+              <p>The oldest way to ask the question uses the GPU itself. The renderer draws an object's bounding box against the <a class="term" data-term="depth-buffer" data-forward href="glossary.html#depth-buffer">depth buffer</a> without writing any colour, and an occlusion query reports how many pixels passed the <a class="term" data-term="depth-test" data-forward href="glossary.html#depth-test">depth test</a>. Zero means hidden. The catch is timing: the answer arrives after the GPU has done the work, and waiting for it stalls the CPU. Dean Sekulic's chapter in <em>GPU Gems</em> describes the usual fix, reading each result a frame later, which can make objects appear a frame late as the camera moves.</p>
             </div>
 
             <div class="step">
@@ -368,7 +368,7 @@
             <div class="step">
               <h3 class="step-title" id="gpu-culling"><span class="step-num">7</span> Culling on the GPU</h3>
               <p>The renderers of <a class="xref" data-ch="4.3">4.3</a> that keep the scene in GPU memory cull there too. In <dfn class="term" data-term="gpu-culling">GPU culling</dfn>, a <a class="term" data-term="compute-shader" data-forward href="glossary.html#compute-shader">compute shader</a> tests every instance, or every small cluster of triangles, against the frustum and the depth pyramid, then writes the survivors for <a class="term" data-term="indirect-drawing" href="glossary.html#indirect-drawing">indirect draws</a>. Thousands of GPU threads test thousands of objects at once, and the CPU never sees the list.</p>
-              <p>There is a chicken-and-egg problem. Hi-Z needs a depth buffer, but the depth buffer comes from drawing the scene. A common answer is to cull in two passes, using last frame's depth first and this frame's depth to catch the rest. Unity's documentation for its URP GPU occlusion culling describes the same principle: it tests against depth from the current and previous frames and renders objects found unoccluded in either.</p>
+              <p>There is a chicken-and-egg problem. Hi-Z needs a depth buffer, but the depth buffer comes from drawing the scene. A common answer is to cull in two passes, using last frame's depth first and this frame's depth to catch the rest. Unity's documentation for its <a class="term" data-term="urp" href="glossary.html#urp">URP</a> GPU occlusion culling describes the same principle: it tests against depth from the current and previous frames and renders objects found unoccluded in either.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 230" role="img" aria-label="Two-pass GPU occlusion culling in six steps: take last frame's depth pyramid; test every object against it; draw the objects that pass; build this frame's pyramid from what was drawn; retest only the objects the first test rejected; draw any of those that are now visible. This frame's pyramid is kept for the next frame.">
@@ -467,7 +467,7 @@
                     <line class="s-muted w15" x1="740" y1="160" x2="740" y2="176" marker-end="url(#bf-arr-m)"/>
                   </svg>
                 </div>
-                <figcaption><b>Back faces are skipped per triangle, after the vertices are placed.</b> The GPU can only tell which way a triangle faces once its corners are on screen, so the vertex shader has already run for them. What backface culling saves is the rasterisation and pixel shading of roughly half of every closed mesh.</figcaption>
+                <figcaption><b>Back faces are skipped per triangle, after the vertices are placed.</b> The GPU can only tell which way a triangle faces once its corners are on screen, so the <a class="term" data-term="vertex-shader" data-forward href="glossary.html#vertex-shader">vertex shader</a> has already run for them. What backface culling saves is the rasterisation and pixel shading of roughly half of every closed mesh.</figcaption>
               </figure>
               <p>Surfaces with no back to hide, such as leaves, flags and cloth, turn it off and draw both sides. Which corner order counts as the front is a convention: glTF uses anticlockwise, and an import that flips it turns a mesh inside out.</p>
             </div>
@@ -485,12 +485,12 @@
                   <tr><th scope="row">Distance and size</th><td>CPU or GPU</td><td>One distance or size check per object; authoring the distances</td><td>Draw calls for many tiny far objects; risks visible popping if set too close</td></tr>
                   <tr><th scope="row">Occlusion, runtime</th><td>GPU queries, Hi-Z on GPU, or software on CPU</td><td>Rendering occluders, building the pyramid, the tests; one frame of delay with queries</td><td>Draw calls and pixel work for hidden objects: large in dense, walled scenes, near nothing in open ones</td></tr>
                   <tr><th scope="row">Precomputed (PVS)</th><td>Bake on the build machine, lookup at runtime</td><td>Bake time and memory for the visibility data; works only for geometry that never moves</td><td>Most of the occlusion test cost at runtime</td></tr>
-                  <tr><th scope="row">Backface</th><td>GPU, fixed hardware</td><td>Almost nothing</td><td>Rasterising and shading about half of every closed mesh</td></tr>
+                  <tr><th scope="row">Backface</th><td>GPU, <a class="term" data-term="fixed-hardware" href="glossary.html#fixed-hardware">fixed hardware</a></td><td>Almost nothing</td><td>Rasterising and shading about half of every closed mesh</td></tr>
                 </tbody>
               </table>
             </div>
             <p>Published numbers show the scale. On a PlayStation 4, the <em>Assassin's Creed Unity</em> pipeline spent about 600 µs drawing its 300 best occluders, 100 µs shrinking that depth to 512 × 256, 50 µs combining it with last frame's depth and 50 µs building the pyramid. That is about 0.8 ms of GPU time each frame before a single object has been tested.</p>
-            <p>The other side of the ledger is just as real. Unity's documentation warns that its built-in occlusion culling runs on the CPU at runtime and can offset the time it saves, so it helps most when a project is GPU-bound because of overdraw. Godot's warns that detailed occluders can overload the CPU, and that moving an occluder forces its acceleration structure to be rebuilt.</p>
+            <p>The other side of the ledger is just as real. Unity's documentation warns that its built-in occlusion culling runs on the CPU at runtime and can offset the time it saves, so it helps most when a project is GPU-bound because of overdraw. Godot's warns that detailed occluders can overload the CPU, and that moving an occluder forces its <a class="term" data-term="acceleration-structure" data-forward href="glossary.html#acceleration-structure">acceleration structure</a> to be rebuilt.</p>
             <ul class="grows">
               <li><strong>Object count</strong><span>Every object is tested every frame. Grouping objects in space keeps the cost growing slower than the level.</span></li>
               <li><strong>Open views</strong><span>With few occluders, occlusion culling costs time and removes little. Long sightlines make every stage less effective.</span></li>
@@ -521,7 +521,7 @@
                 </div>
                 <h4>Objects vanish at the screen edge</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>The bounding volume is smaller than what is drawn. Shaders that move vertices, such as wind on trees, or animation that reaches outside the bind pose, push geometry beyond its bounds, so the object is culled while part of it is still on screen.</dd></div>
+                  <div><dt>Cause</dt><dd>The bounding volume is smaller than what is drawn. Shaders that move vertices, such as wind on trees, or animation that reaches outside the <a class="term" data-term="bind-pose" data-forward href="glossary.html#bind-pose">bind pose</a>, push geometry beyond its bounds, so the object is culled while part of it is still on screen.</dd></div>
                   <div><dt>Ask for</dt><dd>The bounds drawn in a debug view, and the engine's bounds scale or extension set for animated and shader-deformed meshes.</dd></div>
                 </dl>
               </article>
@@ -553,7 +553,7 @@
                 </div>
                 <h4>Shadows disappear</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>A shadow caster was culled against the camera's view instead of the light's. The object is off screen, but its shadow falls into view.</dd></div>
+                  <div><dt>Cause</dt><dd>A <a class="term" data-term="shadow-caster" data-forward href="glossary.html#shadow-caster">shadow caster</a> was culled against the camera's view instead of the light's. The object is off screen, but its shadow falls into view.</dd></div>
                   <div><dt>Ask for</dt><dd>Shadow casters culled against each light's own frustum or cascade, and the setting that controls shadow-caster culling distance checked.</dd></div>
                 </dl>
               </article>

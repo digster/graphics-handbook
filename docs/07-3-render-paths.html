@@ -29,7 +29,7 @@
           <header class="chapter-head">
             <p class="eyebrow">Part 7 · Lighting and shadows</p>
             <h1><span class="ch-num">7.3</span> Forward, deferred and clustered</h1>
-            <p class="lead">Every lit pixel needs its material and every light that reaches it. Forward, deferred and clustered rendering are three ways of organising that work, and the choice decides how many lights a game can afford, how much memory traffic each frame costs, and whether transparency and MSAA come easily.</p>
+            <p class="lead">Every lit pixel needs its material and every light that reaches it. Forward, deferred and clustered rendering are three ways of organising that work, and the choice decides how many lights a game can afford, how much memory traffic each frame costs, and whether transparency and <a class="term" data-term="msaa" data-forward href="glossary.html#msaa">MSAA</a> come easily.</p>
             <dl class="chapter-meta">
               <div><dt>Builds on</dt><dd><a class="xref" data-ch="7.2">7.2 Shading models</a>, <a class="xref" data-ch="7.1">7.1 Lights</a>, <a class="xref" data-ch="5.6">5.6 Shaders in practice</a></dd></div>
               <div><dt>Leads to</dt><dd><a class="xref" data-ch="7.4">7.4 Shadow maps</a>, <a class="xref" data-ch="10.1">10.1 A deferred frame, pass by pass</a>, <a class="xref" data-ch="10.2">10.2 A mobile frame</a></dd></div>
@@ -68,7 +68,7 @@
             </div>
             <aside class="note" data-kind="lead">
               <p class="note-label">Why a lead cares</p>
-              <p>The rendering path is one of the earliest technical decisions in a project and one of the hardest to reverse. It sets the dynamic light budget, decides whether MSAA is available, changes how transparent objects are lit, and governs how much memory bandwidth every frame spends, which matters most on phones, standalone VR and at 4K. Engines pick a default; switching later changes which features work, so the decision belongs in pre-production with the art direction in mind.</p>
+              <p>The rendering path is one of the earliest technical decisions in a project and one of the hardest to reverse. It sets the <a class="term" data-term="dynamic-light" href="glossary.html#dynamic-light">dynamic light</a> budget, decides whether MSAA is available, changes how transparent objects are lit, and governs how much <a class="term" data-term="memory-bandwidth" href="glossary.html#memory-bandwidth">memory bandwidth</a> every frame spends, which matters most on phones, standalone VR and at 4K. Engines pick a default; switching later changes which features work, so the decision belongs in pre-production with the art direction in mind.</p>
             </aside>
           </section>
 
@@ -79,9 +79,9 @@
 
             <div class="step">
               <h3 class="step-title" id="forward"><span class="step-num">1</span> Forward: light each object as it is drawn</h3>
-              <p>Forward rendering is the obvious way. For each object, the CPU works out which lights touch it and hands the shader that list. The <a class="term" data-term="pixel-shader" href="glossary.html#pixel-shader">pixel shader</a> reads the material's textures and loops over the lights. Everything about the pixel is decided in one go.</p>
+              <p>Forward rendering is the obvious way. For each object, the <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a> works out which lights touch it and hands the shader that list. The <a class="term" data-term="pixel-shader" href="glossary.html#pixel-shader">pixel shader</a> reads the material's textures and loops over the lights. Everything about the pixel is decided in one go.</p>
               <p>Two kinds of waste creep in. Lights are matched to whole objects, so a large floor gets every light that touches any part of it, and its pixels loop over lights far away from them. And a pixel may be fully shaded and then covered by something nearer, which is <a class="term" data-term="overdraw" href="glossary.html#overdraw">overdraw</a>; a <a class="term" data-term="depth-prepass" href="glossary.html#depth-prepass">depth pre-pass</a> removes most of that at the cost of drawing the scene twice.</p>
-              <p>Forward renderers cap the lights per object to keep shaders short. Unity's URP Forward path allows the main light plus eight additional lights per object, and Godot's Mobile renderer eight omni and eight spot lights per mesh. Past the cap, lights are dropped, which is why 7.1 lists flickering lights as a forward symptom.</p>
+              <p>Forward renderers cap the lights per object to keep shaders short. Unity's <a class="term" data-term="urp" href="glossary.html#urp">URP</a> Forward path allows the main light plus eight additional lights per object, and Godot's Mobile renderer eight omni and eight <a class="term" data-term="spot-light" href="glossary.html#spot-light">spot lights</a> per mesh. Past the cap, lights are dropped, which is why 7.1 lists flickering lights as a forward symptom.</p>
             </div>
 
             <div class="step">
@@ -116,12 +116,12 @@
                 </div>
                 <figcaption><b>Bytes per pixel decide the bill.</b> URP's deferred layout is taken from Unity's documentation; the Courtyard's from its own source code. The bars below are computed: pixels × bytes × 2 for one write and one read. At 4K the same layout moves four times as much as at 1080p. The figures leave out depth testing, decals, AO and reflections, which read parts of the G-buffer again.</figcaption>
               </figure>
-              <p>Layouts are a constant negotiation. Normals squeezed into 24 bits band on smooth surfaces, so URP offers a slower, more accurate encoding as an option. A deferred renderer also needs to know which shading model (<a class="xref" data-ch="7.2">7.2</a>) each pixel uses; URP keeps it in the top four bits of the stencil buffer. Materials that do not fit the layout at all, such as URP's Complex Lit or HDRP's Fabric and Hair shaders, are drawn with a forward pass alongside the deferred ones.</p>
+              <p>Layouts are a constant negotiation. Normals squeezed into 24 bits band on smooth surfaces, so URP offers a slower, more accurate encoding as an option. A deferred renderer also needs to know which shading model (<a class="xref" data-ch="7.2">7.2</a>) each pixel uses; URP keeps it in the top four bits of the <a class="term" data-term="stencil-buffer" href="glossary.html#stencil-buffer">stencil buffer</a>. Materials that do not fit the layout at all, such as URP's Complex Lit or <a class="term" data-term="hdrp" href="glossary.html#hdrp">HDRP</a>'s Fabric and Hair shaders, are drawn with a forward pass alongside the deferred ones.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="light-volumes"><span class="step-num">5</span> Lighting the G-buffer, light by light</h3>
-              <p>The classic way to run the lighting pass is to draw a <dfn class="term" data-term="light-volume">light volume</dfn> for each light: a sphere for a point light, a cone for a spot, sized to its range. Only pixels inside the shape run that light's shader, using the stencil buffer to reject pixels in front of or behind the light's range. URP's Deferred path works this way.</p>
+              <p>The classic way to run the lighting pass is to draw a <dfn class="term" data-term="light-volume">light volume</dfn> for each light: a sphere for a <a class="term" data-term="point-light" href="glossary.html#point-light">point light</a>, a cone for a spot, sized to its range. Only pixels inside the shape run that light's shader, using the stencil buffer to reject pixels in front of or behind the light's range. URP's Deferred path works this way.</p>
               <p>The catch is bandwidth. Every light volume reads the G-buffer again for every pixel it covers and adds its result into a light buffer, which means reading and writing that too. With eight lights over the average pixel, a 1080p frame reads and writes several hundred megabytes in the lighting pass alone. Tiled and clustered shading were invented to fix exactly that.</p>
             </div>
 
@@ -145,7 +145,7 @@
                 <div class="demo" data-demo="light-count-cost">
                   <p class="demo-hint">The light count and cost model needs JavaScript. Its result: with a few lights all three paths cost about the same; at 256 medium lights at 1080p the model gives about 4 ms for forward with per-object lists, 2.7 ms for classic deferred and 1.2 ms for clustered.</p>
                 </div>
-                <figcaption><b>Light count and cost, an illustrative model.</b> Estimated GPU time for lighting the opaque pixels of a frame, without shadows or post-processing, on a made-up mid-range GPU. The dotted line marks where the average object would meet more than eight lights, URP Forward's per-object limit. Change the resolution to see every line scale with pixel count.</figcaption>
+                <figcaption><b>Light count and cost, an illustrative model.</b> Estimated <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> time for lighting the opaque pixels of a frame, without shadows or post-processing, on a made-up mid-range GPU. The dotted line marks where the average object would meet more than eight lights, URP Forward's per-object limit. Change the resolution to see every line scale with pixel count.</figcaption>
               </figure>
               <details class="fold">
                 <summary><span class="fold-kind">Maths</span> The model behind the plot</summary>
@@ -173,7 +173,7 @@
 
             <div class="step">
               <h3 class="step-title" id="msaa"><span class="step-num">9</span> MSAA and deferred</h3>
-              <p>Multisample anti-aliasing, MSAA, smooths edges by keeping several samples per pixel along triangle edges (<a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>). In a deferred renderer every sample needs its own G-buffer data, so 4× MSAA multiplies the G-buffer by four: URP's 20 bytes become 80 bytes per pixel, 633 MB for one 4K G-buffer. Engines do not offer it. Unreal supports MSAA only with its forward renderer, URP only on its Forward and Forward+ paths, and HDRP only in Forward Only or Both modes.</p>
+              <p>Multisample anti-aliasing, MSAA, smooths edges by keeping several <a class="term" data-term="samples-per-pixel" data-forward href="glossary.html#samples-per-pixel">samples per pixel</a> along triangle edges (<a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>). In a deferred renderer every sample needs its own G-buffer data, so 4× MSAA multiplies the G-buffer by four: URP's 20 bytes become 80 bytes per pixel, 633 MB for one 4K G-buffer. Engines do not offer it. Unreal supports MSAA only with its forward renderer, URP only on its Forward and Forward+ paths, and HDRP only in Forward Only or Both modes.</p>
               <p>Deferred engines use temporal anti-aliasing and upscalers instead. Forward rendering keeps MSAA available, which is one reason it is common in VR: Epic's documentation notes that the constant small head movements in VR make temporal techniques look blurry, "making MSAA a better choice".</p>
             </div>
 
@@ -273,8 +273,8 @@
                 </div>
                 <h4>4K or mobile frames slow down far more than expected</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>The G-buffer and lighting passes are limited by memory bandwidth, which grows with pixels and bytes per pixel, and on mobile by extra passes that leave tile memory.</dd></div>
-                  <div><dt>Ask for</dt><dd>A GPU capture with the time and memory traffic of the G-buffer and lighting passes at both resolutions, and options: fewer G-buffer bytes, a lower internal resolution with an upscaler, or a forward path.</dd></div>
+                  <div><dt>Cause</dt><dd>The G-buffer and lighting passes are limited by memory bandwidth, which grows with pixels and bytes per pixel, and on mobile by extra passes that leave <a class="term" data-term="tile-memory" data-forward href="glossary.html#tile-memory">tile memory</a>.</dd></div>
+                  <div><dt>Ask for</dt><dd>A GPU capture with the time and memory traffic of the G-buffer and lighting passes at both resolutions, and options: fewer G-buffer bytes, a lower <a class="term" data-term="internal-resolution" data-forward href="glossary.html#internal-resolution">internal resolution</a> with an upscaler, or a forward path.</dd></div>
                 </dl>
               </article>
             </div>

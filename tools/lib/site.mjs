@@ -81,6 +81,9 @@ const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", 
 export function textOf(html) {
   return html
     .replace(/<(script|style|svg|noscript)\b[\s\S]*?<\/\1>/gi, " ")
+    // Inline tags join the words around them ("<a>maps</a>," stays "maps,");
+    // every other tag is a boundary and becomes a space.
+    .replace(/<\/?(a|abbr|b|code|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)\b[^>]*>/gi, "")
     .replace(/<[^>]+>/g, " ")
     .replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, code) => {
       if (code[0] === "#") {

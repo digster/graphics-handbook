@@ -577,7 +577,7 @@
                   <text class="t-small t-muted" x="20" y="258">Dashed line: the halfway value, 128. Blue never drops below it, because a normal never points into the surface.</text>
                 </svg>
                 </div>
-                <figcaption><b>A normal map is data that happens to be stored as colour.</b> Each texel's red, green and blue are its direction's x, y and z, shifted from −1…1 into 0…255. The shader undoes it with <code>texel ÷ 255 × 2 − 1</code>. Because the direction has length 1, z can be rebuilt from x and y, so engines often store only red and green; that is what BC5 in <a class="xref" data-ch="6.3">6.3 Texture memory</a> is for.</figcaption>
+                <figcaption><b>A normal map is data that happens to be stored as colour.</b> Each texel's red, green and blue are its direction's x, y and z, shifted from −1…1 into 0…255. The shader undoes it with <code>texel ÷ 255 × 2 − 1</code>. Because the direction has length 1, z can be rebuilt from x and y, so engines often store only red and green; that is what <a class="term" data-term="bc5" href="glossary.html#bc5">BC5</a> in <a class="xref" data-ch="6.3">6.3 Texture memory</a> is for.</figcaption>
               </figure>
             </div>
 
@@ -589,7 +589,7 @@
                 <div class="demo" data-demo="normal-map-light">
                   <p class="demo-hint">The normal map light needs JavaScript. Without it: a flat square of procedural bricks or rivets is lit per pixel from a movable light, with the normal map on or off, beside the blue-purple normal map texture itself.</p>
                 </div>
-                <figcaption><b>Normal map light.</b> Left: a flat square shaded per pixel by one point light, the way a pixel shader does it. Right: the normal map it reads, shown as the colours it is stored with. Every bump on the left is a direction on the right; the square never stops being flat.</figcaption>
+                <figcaption><b>Normal map light.</b> Left: a flat square shaded per pixel by one <a class="term" data-term="point-light" data-forward href="glossary.html#point-light">point light</a>, the way a pixel shader does it. Right: the normal map it reads, shown as the colours it is stored with. Every bump on the left is a direction on the right; the square never stops being flat.</figcaption>
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
@@ -657,7 +657,7 @@
                   <text class="t-small t-muted" x="620" y="284">Tied to one mesh; cannot tile or deform.</text>
                 </svg>
                 </div>
-                <figcaption><b>Tangent space stores detail relative to the surface.</b> The same flat detail is (128, 128, 255) everywhere in tangent space. In object space each point must also encode which way the model faces there, so the values change across the surface and the map works only on the mesh it was baked for.</figcaption>
+                <figcaption><b>Tangent space stores detail relative to the surface.</b> The same flat detail is (128, 128, 255) everywhere in tangent space. In <a class="term" data-term="object-space" href="glossary.html#object-space">object space</a> each point must also encode which way the model faces there, so the values change across the surface and the map works only on the mesh it was baked for.</figcaption>
               </figure>
             </div>
 
@@ -951,14 +951,14 @@
                   <text class="t-small t-muted" x="20" y="286">Dashed line: the shape the height map describes. A: where the ray meets the flat polygon. B: where it would meet the real surface.</text>
                 </svg>
                 </div>
-                <figcaption><b>Each step to the right finds the true point B more accurately, at a higher price.</b> A normal map reads at A. Parallax mapping guesses a better place from one height read. POM marches the ray; Natalya Tatarchuk's 2006 POM demo used 8 to 40 samples per pixel, more at steep angles. Displacement moves the surface itself, which the next step covers.</figcaption>
+                <figcaption><b>Each step to the right finds the true point B more accurately, at a higher price.</b> A normal map reads at A. Parallax mapping guesses a better place from one height read. POM marches the ray; Natalya Tatarchuk's 2006 POM demo used 8 to 40 <a class="term" data-term="samples-per-pixel" data-forward href="glossary.html#samples-per-pixel">samples per pixel</a>, more at steep angles. Displacement moves the surface itself, which the next step covers.</figcaption>
               </figure>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="displacement"><span class="step-num">7</span> Displacement, tessellation and silhouettes</h3>
               <p>All of the above happen inside the pixel shader on a flat triangle, so none of them can change the outline of an object. That outline, the silhouette, is where fake detail is caught out: a normal-mapped rock is a perfect circle against the sky, and a brick wall seen along its length has a ruler-straight top.</p>
-              <p><dfn class="term" data-term="displacement-mapping">Displacement mapping</dfn> moves real vertices along their normals by the height map, so the geometry itself becomes bumpy. It needs enough vertices to carry the detail. <a class="term" data-term="tessellation" href="glossary.html#tessellation">Tessellation</a> creates them on the GPU at draw time, splitting triangles more finely where the camera is close; Unreal's Nanite Tessellation does this for <a class="term" data-term="nanite" href="glossary.html#nanite">Nanite</a> meshes with a displacement map.</p>
+              <p><dfn class="term" data-term="displacement-mapping">Displacement mapping</dfn> moves real vertices along their normals by the height map, so the geometry itself becomes bumpy. It needs enough vertices to carry the detail. <a class="term" data-term="tessellation" href="glossary.html#tessellation">Tessellation</a> creates them on the <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> at draw time, splitting triangles more finely where the camera is close; Unreal's Nanite Tessellation does this for <a class="term" data-term="nanite" href="glossary.html#nanite">Nanite</a> meshes with a displacement map.</p>
               <figure>
                 <div class="fig-frame">
                 <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Two spheres with the same rocky lighting. The normal-mapped one has a perfectly round outline; the displaced one has a bumpy outline. Right: a brick wall seen almost edge-on; with a normal map its top edge is a straight line, while real bricks would step in and out.">
@@ -1227,7 +1227,7 @@
                 </div>
                 <h4>Lighting leans one way, bumps look soft</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>The normal map was imported as a colour texture: sRGB decoding bends every stored direction, and a colour format such as BC1 loses precision in X and Y.</dd></div>
+                  <div><dt>Cause</dt><dd>The normal map was imported as a colour texture: sRGB decoding bends every stored direction, and a colour format such as <a class="term" data-term="bc1" href="glossary.html#bc1">BC1</a> loses precision in X and Y.</dd></div>
                   <div><dt>Ask for</dt><dd>The engine's normal map texture type or compression setting, which turns sRGB off and uses BC5, and an import rule so it cannot happen again.</dd></div>
                 </dl>
               </article>

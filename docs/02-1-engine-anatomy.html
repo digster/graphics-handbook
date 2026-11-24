@@ -186,17 +186,17 @@
               <h3 class="step-title" id="layers"><span class="step-num">1</span> The layers, top to bottom</h3>
               <p>At the top is your game: levels, characters, rules and the code that ties them together. Most of that code is written in the <dfn class="term" data-term="scripting-layer">scripting layer</dfn>, a language chosen so that gameplay programmers and designers can work quickly: Blueprints in Unreal, C# in Unity, GDScript in Godot. It calls into a gameplay framework, the engine's model of a world full of objects with components, which <a class="xref" data-ch="2.3">2.3 Scenes, objects and components</a> covers.</p>
               <p>Below that are the engine systems. Besides the renderer there is a <dfn class="term" data-term="physics-engine">physics engine</dfn> that moves bodies and resolves collisions, an <dfn class="term" data-term="animation-system">animation system</dfn> that poses skeletons and blends motions, and an <dfn class="term" data-term="audio-engine">audio engine</dfn> that mixes sounds and places them in 3D. Most engines also have systems for input, UI and networking.</p>
-              <p>Under the systems are shared services. The core provides memory, maths, logging and a way to spread work across CPU cores. The <dfn class="term" data-term="asset-system">asset system</dfn> finds, loads and unloads content, so the renderer can ask for "the rock mesh" without knowing which file or package it lives in. At the bottom, the <dfn class="term" data-term="platform-layer">platform layer</dfn> wraps each operating system's way of opening windows, reading controllers, reading files, keeping time and starting threads.</p>
+              <p>Under the systems are shared services. The core provides memory, maths, logging and a way to spread work across <a class="term" data-term="cpu" data-forward href="glossary.html#cpu">CPU</a> cores. The <dfn class="term" data-term="asset-system">asset system</dfn> finds, loads and unloads content, so the renderer can ask for "the rock mesh" without knowing which file or package it lives in. At the bottom, the <dfn class="term" data-term="platform-layer">platform layer</dfn> wraps each operating system's way of opening windows, reading controllers, reading files, keeping time and starting threads.</p>
               <div class="table-wrap">
                 <table>
                   <thead><tr><th scope="col">Layer</th><th scope="col">What it does</th><th scope="col">Usually changed by</th></tr></thead>
                   <tbody>
                     <tr><th scope="row">Your game</th><td>Levels, characters, rules, content.</td><td>Designers, artists, gameplay programmers</td></tr>
                     <tr><th scope="row">Scripting layer</th><td>Game logic in a fast-to-write language.</td><td>Gameplay programmers, technical designers</td></tr>
-                    <tr><th scope="row">Gameplay framework</th><td>The world, its objects and components, saving, input mapping.</td><td>Gameplay and engine programmers</td></tr>
-                    <tr><th scope="row">Engine systems</th><td>Rendering, physics, animation, audio.</td><td>Engine and graphics programmers</td></tr>
+                    <tr><th scope="row">Gameplay framework</th><td>The world, its objects and components, saving, input mapping.</td><td>Gameplay and <a class="term" data-term="engine-programmer" href="glossary.html#engine-programmer">engine programmers</a></td></tr>
+                    <tr><th scope="row">Engine systems</th><td>Rendering, physics, animation, audio.</td><td>Engine and <a class="term" data-term="graphics-programmer" href="glossary.html#graphics-programmer">graphics programmers</a></td></tr>
                     <tr><th scope="row">Core and asset system</th><td>Memory, maths, jobs, loading and streaming.</td><td>Engine programmers</td></tr>
-                    <tr><th scope="row">Platform layer and RHI</th><td>Talking to the operating system and the graphics API.</td><td>Engine and platform programmers</td></tr>
+                    <tr><th scope="row">Platform layer and RHI</th><td>Talking to the operating system and the <a class="term" data-term="graphics-api" data-forward href="glossary.html#graphics-api">graphics API</a>.</td><td>Engine and platform programmers</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -409,13 +409,13 @@
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
-                <p>Real renderers have more stages than four: choosing a level of detail per object, sorting draws, uploading per-frame data, and often a frame graph that schedules the passes automatically. The four boxes are the shape they all share.</p>
+                <p>Real renderers have more stages than four: choosing a <a class="term" data-term="lod" data-forward href="glossary.html#lod">level of detail</a> per object, sorting draws, uploading per-frame data, and often a <a class="term" data-term="frame-graph" data-forward href="glossary.html#frame-graph">frame graph</a> that schedules the passes automatically. The four boxes are the shape they all share.</p>
               </aside>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="rhi"><span class="step-num">4</span> The RHI and the platform layer</h3>
-              <p>A PC game may run on DirectX 12 or Vulkan, a Mac or iPhone build uses Metal, and each console has its own graphics API. These APIs do the same jobs with different names, rules and quirks. <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a> explains what they are. Writing the renderer once for each would multiply the work.</p>
+              <p>A PC game may run on <a class="term" data-term="directx-12" data-forward href="glossary.html#directx-12">DirectX 12</a> or Vulkan, a Mac or iPhone build uses Metal, and each console has its own graphics API. These APIs do the same jobs with different names, rules and quirks. <a class="xref" data-ch="3.5">3.5 CPU, GPU and graphics APIs</a> explains what they are. Writing the renderer once for each would multiply the work.</p>
               <p>So engines put an adapter in between. The <dfn class="term" data-term="rhi">RHI</dfn>, Unreal's name for its render hardware interface, gives the renderer one set of commands: create a buffer, set up a pipeline, draw, submit. Each platform has a backend that translates those commands into its own API. Godot calls the same layer RenderingDevice. Unity does not expose its layer by name, but you see it in Player settings, where each platform has a list of graphics APIs to choose from.</p>
               <p>The platform layer is the same idea for everything else: one interface for windows, controllers, files, clocks and threads, with a backend per operating system. Together these two adapters are why one project can build for Windows, consoles and phones.</p>
               <figure>
@@ -633,7 +633,7 @@
                   <text class="t-small t-muted" x="20" y="276">A rough relative scale: five dots is the most. Real costs depend on the team, the game and the engine.</text>
                 </svg>
               </div>
-              <figcaption><b>Owning more of the engine buys control with people and time.</b> Modifying a licensed engine is the middle path, and its hidden cost is the upgrade: every change you made has to be carried into every new engine release. A custom engine has no such merge, but every feature, tool and platform port is yours to build.</figcaption>
+              <figcaption><b>Owning more of the engine buys control with people and time.</b> Modifying a licensed engine is the middle path, and its hidden cost is the upgrade: every change you made has to be carried into every new engine release. A <a class="term" data-term="custom-engine" data-forward href="glossary.html#custom-engine">custom engine</a> has no such merge, but every feature, tool and platform port is yours to build.</figcaption>
             </figure>
             <p>Here is how the upgrade cost adds up. Say your team has changed 50 files in the engine's renderer and you take two engine releases a year. If merging and retesting those changes takes one engine programmer three weeks per release, that is six weeks a year spent standing still. Move half of those changes into a plugin that uses the engine's public interfaces and that time roughly halves, because the plugin only breaks when those interfaces change.</p>
             <div class="table-wrap">

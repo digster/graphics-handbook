@@ -29,7 +29,7 @@
           <header class="chapter-head">
             <p class="eyebrow">Part 5 · The GPU pipeline</p>
             <h1><span class="ch-num">5.5</span> Depth, stencil and blending</h1>
-            <p class="lead">Once a pixel shader has coloured a pixel, three small fixed units decide whether that colour is kept and how it mixes with what is already there. They are why near things hide far ones, how outlines and portals are made, and why glass is one of the hardest things in a frame to get right.</p>
+            <p class="lead">Once a <a class="term" data-term="pixel-shader" href="glossary.html#pixel-shader">pixel shader</a> has coloured a pixel, three small fixed units decide whether that colour is kept and how it mixes with what is already there. They are why near things hide far ones, how outlines and portals are made, and why glass is one of the hardest things in a frame to get right.</p>
             <dl class="chapter-meta">
               <div><dt>Builds on</dt><dd><a class="xref" data-ch="5.4">5.4 Pixel shaders and overdraw</a>, <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a></dd></div>
               <div><dt>Leads to</dt><dd><a class="xref" data-ch="5.6">5.6 Shaders in practice</a>, <a class="xref" data-ch="7.3">7.3 Forward, deferred and clustered</a>, <a class="xref" data-ch="9.6">9.6 Special surfaces and effects</a></dd></div>
@@ -301,7 +301,7 @@
 
             <div class="step">
               <h3 class="step-title" id="reversed-z"><span class="step-num">3</span> Depth precision and reversed-Z</h3>
-              <p>The steps are not the same size everywhere. As <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a> showed, a standard perspective projection spends most of its depth range right in front of the camera: with the near plane at 0.1 m, everything beyond 1 m shares the last tenth of the range. Far away, one step of stored depth covers a long distance.</p>
+              <p>The steps are not the same size everywhere. As <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a> showed, a standard <a class="term" data-term="perspective-projection" href="glossary.html#perspective-projection">perspective projection</a> spends most of its depth range right in front of the camera: with the <a class="term" data-term="near-plane" href="glossary.html#near-plane">near plane</a> at 0.1 m, everything beyond 1 m shares the last tenth of the range. Far away, one step of stored depth covers a long distance.</p>
               <p><dfn class="term" data-term="reversed-z">Reversed-Z</dfn> flips the range, so the near plane stores 1 and the far distance stores 0, and stores depth as a 32-bit floating-point number. Floating-point numbers are densest close to 0. In the standard range that density is wasted on the space just in front of the near plane; reversed, it lands on the distance, where the standard projection is weakest. The two unevennesses nearly cancel out, and precision becomes almost even across the whole view.</p>
               <figure>
                 <div class="fig-frame">
@@ -365,11 +365,11 @@
                 </div>
                 <figcaption><b>Reversed-Z makes depth precision nearly even.</b> Both lines are computed from the projection formula and the number formats. The standard line steepens with the square of distance. The reversed line grows only in proportion to distance; its sawtooth is the floating-point format changing step size at each power of two. At 1 km the difference is 60 cm against 0.07 mm.</figcaption>
               </figure>
-              <p>Reversed-Z costs nothing at run time and needs no extra memory. All three major engines use it where the graphics API allows. It does change what a stored depth of 0 and 1 mean, so custom shaders that read the depth buffer, such as water foam or soft particles, must be written for it. Godot found exactly that when it switched in 4.3.</p>
+              <p>Reversed-Z costs nothing at run time and needs no extra memory. All three major engines use it where the <a class="term" data-term="graphics-api" href="glossary.html#graphics-api">graphics API</a> allows. It does change what a stored depth of 0 and 1 mean, so custom shaders that read the depth buffer, such as water foam or <a class="term" data-term="soft-particles" data-forward href="glossary.html#soft-particles">soft particles</a>, must be written for it. Godot found exactly that when it switched in 4.3.</p>
               <details class="fold">
                 <summary><span class="fold-kind">Maths</span> Where the two lines come from</summary>
                 <div class="fold-body">
-                  <p>For near plane n, far plane f and distance z, standard depth and reversed depth are:</p>
+                  <p>For near plane n, <a class="term" data-term="far-plane" href="glossary.html#far-plane">far plane</a> f and distance z, standard depth and reversed depth are:</p>
                   <p class="formula">standard = f ÷ (f − n) × (1 − n ÷ z)      reversed = 1 − standard = n × (f − z) ÷ ((f − n) × z)</p>
                   <p>Both change with distance at the same rate, f × n ÷ ((f − n) × z²). The smallest gap the buffer can tell apart is one step of the stored number divided by that rate. A 24-bit integer has a fixed step of 1 ÷ 2<sup>24</sup>, so the gap grows with z². A 32-bit float's step is about its value × 2<sup>−23</sup>; reversed depth is roughly n ÷ z, so the gap grows only with z.</p>
                   <p>With n = 0.1 m and f = 10 km, at z = 200 m: 2<sup>−24</sup> × (f − n) × z² ÷ (f × n) = 2.4 cm for the standard buffer, and about 0.023 mm reversed.</p>
@@ -438,7 +438,7 @@
             <div class="step">
               <h3 class="step-title" id="blending"><span class="step-num">5</span> Blending: combining with what is already there</h3>
               <p>A fragment that survives both tests reaches the blender, a fixed unit that combines its colour, the source, with the colour already stored, the destination. The <dfn class="term" data-term="blend-mode">blend mode</dfn> picks the formula. Opaque surfaces use "replace". Three others cover nearly everything else in a game.</p>
-              <p><dfn class="term" data-term="alpha-blending">Alpha blending</dfn> mixes by the source's alpha, its opacity from 0 to 1, held in its fourth <a class="term" data-term="colour-channel" href="glossary.html#colour-channel">colour channel</a>. It is right for glass, smoke, and anything that partly covers what is behind. <dfn class="term" data-term="additive-blending">Additive blending</dfn> adds the source to the destination, so it can only brighten: fire, sparks, laser beams, light shafts. Multiplicative blending multiplies them, so it can only darken or tint: stains, tinted overlays.</p>
+              <p><dfn class="term" data-term="alpha-blending">Alpha blending</dfn> mixes by the source's alpha, its opacity from 0 to 1, held in its fourth <a class="term" data-term="colour-channel" href="glossary.html#colour-channel">colour channel</a>. It is right for glass, smoke, and anything that partly covers what is behind. <dfn class="term" data-term="additive-blending">Additive blending</dfn> adds the source to the destination, so it can only brighten: fire, sparks, laser beams, <a class="term" data-term="light-shafts" data-forward href="glossary.html#light-shafts">light shafts</a>. Multiplicative blending multiplies them, so it can only darken or tint: stains, tinted overlays.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 312" role="img" aria-label="Four columns, each drawing a coloured disc over a backdrop of light, mid and dark bands. Alpha blending: out equals alpha times source plus one minus alpha times destination; the disc is half see-through. Premultiplied alpha: out equals source plus one minus alpha times destination, with the source already multiplied by alpha; at alpha 0.6 it looks the same, and at alpha 0 the same rule adds the colour like a glow. Additive: out equals source plus destination; the disc brightens every band. Multiply: out equals source times destination; the disc tints and darkens. Below, one worked channel: destination 0.40, source 0.80, alpha 0.5 gives 0.60, 0.60, 1.20 and 0.32. Alpha and premultiplied blending depend on draw order; additive and multiply do not.">
@@ -497,12 +497,12 @@
               <h3 class="step-title" id="premultiplied"><span class="step-num">6</span> Premultiplied alpha</h3>
               <p>With <dfn class="term" data-term="premultiplied-alpha">premultiplied alpha</dfn>, a texture or shader stores its colour already multiplied by its alpha, and the blender uses "source plus (1 − alpha) × destination". For a single colour the picture is identical. Two things improve.</p>
               <p>First, filtering. When the GPU averages neighbouring texels, for example at the edge of a leaf texture or in a smaller mip level, it averages colour and alpha separately. With straight alpha, the invisible texels just outside the leaf still carry colour, often black, and that colour leaks into the average. The edge comes out with a dark or bright halo. Premultiplied texels outside the leaf are exactly zero, so they add nothing, and filtering gives the right answer.</p>
-              <p>Second, one blend mode covers two. With alpha 1 it behaves like normal blending; with alpha 0 and a non-zero colour it adds, like additive blending. A particle can go from glowing spark to dark smoke in one draw, with no change of blend state, so whole particle systems batch together. Unreal calls this mode AlphaComposite, Unity's URP calls it Premultiply, and Godot calls it Premultiplied Alpha.</p>
+              <p>Second, one blend mode covers two. With alpha 1 it behaves like normal blending; with alpha 0 and a non-zero colour it adds, like additive blending. A particle can go from glowing spark to dark smoke in one draw, with no change of blend state, so whole <a class="term" data-term="particle-system" data-forward href="glossary.html#particle-system">particle systems</a> batch together. Unreal calls this mode AlphaComposite, Unity's <a class="term" data-term="urp" href="glossary.html#urp">URP</a> calls it Premultiply, and Godot calls it Premultiplied Alpha.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="alpha-test"><span class="step-num">7</span> Cut-outs: alpha test</h3>
-              <p>Many see-through things are really either there or not there: leaves, grass, chain-link fences, hair cards, lace. For these, the <dfn class="term" data-term="alpha-test">alpha test</dfn> skips blending altogether. The pixel shader compares alpha with a threshold, typically 0.5, and discards the pixel if it is below. Everything that survives is fully opaque, so it can write depth and be drawn in any order like any solid object.</p>
+              <p>Many see-through things are really either there or not there: leaves, grass, chain-link fences, <a class="term" data-term="hair-cards" data-forward href="glossary.html#hair-cards">hair cards</a>, lace. For these, the <dfn class="term" data-term="alpha-test">alpha test</dfn> skips blending altogether. The pixel shader compares alpha with a threshold, typically 0.5, and discards the pixel if it is below. Everything that survives is fully opaque, so it can write depth and be drawn in any order like any solid object.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 270" role="img" aria-label="Three panels. One: a leaf texture's alpha channel, white in the middle fading to black at a soft edge. Two: the leaf alpha-blended over a striped background, with a soft edge; it needs sorting and does not write depth. Three: the same leaf alpha-tested at 0.5, with a hard, crisp edge; it writes depth and can be drawn in any order, but its edge can shimmer.">
@@ -535,7 +535,7 @@
                 </div>
                 <figcaption><b>A cut-out trades soft edges for freedom from sorting.</b> The alpha-tested leaf behaves like a solid object, which is why foliage, fences and hair cards almost always use it. Its hard edge aliases, and anti-aliasing techniques such as alpha to coverage or <a class="term" data-term="taa" data-forward href="glossary.html#taa">TAA</a> are what soften it again.</figcaption>
               </figure>
-              <p>It has two costs. A shader that can discard pixels cannot let the GPU write depth before it runs, so the early depth test from <a class="xref" data-ch="5.4">5.4</a> works less well; engines often draw alpha-tested foliage in a depth-only pass first for this reason. And as a texture gets smaller in its mip levels, its averaged alpha drifts below the threshold, so distant trees lose leaves. Dithered transparency is a cousin. It discards a noisy pattern of pixels whose density follows alpha, to fake partial opacity, and usually relies on anti-aliasing such as TAA to smooth the pattern out. Godot's Alpha Hash mode is one example.</p>
+              <p>It has two costs. A shader that can discard pixels cannot let the GPU write depth before it runs, so the early depth test from <a class="xref" data-ch="5.4">5.4</a> works less well; engines often draw <a class="term" data-term="alpha-tested-foliage" href="glossary.html#alpha-tested-foliage">alpha-tested foliage</a> in a depth-only pass first for this reason. And as a texture gets smaller in its mip levels, its averaged alpha drifts below the threshold, so distant trees lose leaves. Dithered transparency is a cousin. It discards a noisy pattern of pixels whose density follows alpha, to fake partial opacity, and usually relies on anti-aliasing such as TAA to smooth the pattern out. Godot's Alpha Hash mode is one example.</p>
             </div>
 
             <div class="step">
@@ -552,7 +552,7 @@
               <p>Engines give artists a manual override for the worst cases, a sort priority per object or material, and the usual advice is structural: split large transparent meshes, avoid intersecting glass, prefer cut-outs and additive effects, which need no sorting, wherever they look acceptable.</p>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
-                <p>Sorting by bounds centre is the common default; engines also offer sorting by distance along the view direction or along a fixed axis for 2D games. Sorting also fights with performance. Opaque objects are sorted by material and shader to cut state changes, but transparent ones must be sorted by distance, so they batch poorly and cost more draw calls.</p>
+                <p>Sorting by bounds centre is the common default; engines also offer sorting by distance along the view direction or along a fixed axis for 2D games. Sorting also fights with performance. Opaque objects are sorted by material and shader to cut state changes, but transparent ones must be sorted by distance, so they batch poorly and cost more <a class="term" data-term="draw-call" href="glossary.html#draw-call">draw calls</a>.</p>
               </aside>
             </div>
 
@@ -602,14 +602,14 @@
                 </div>
                 <figcaption><b>Exact OIT stores and sorts; cheap OIT averages.</b> Per-pixel lists give the right answer but need memory for every layer and a cap when it runs out. Weighted blended OIT, published by Morgan McGuire and Louis Bavoil in 2013, keeps two extra screen-sized targets and blends in one pass. It suits smoke and particles; it handles a clear pane in front of a nearly opaque one badly.</figcaption>
               </figure>
-              <p>Between the two sit depth peeling, which renders the transparent layers several times and peels off one layer per pass, and newer schemes that keep a few layers per pixel or approximate how light is absorbed along each view ray. Unreal Engine has two experimental options of this kind. None of them is the default in a major engine. They cost memory, extra shader variants and GPU time, and most games get by with sorting, cut-outs and careful art direction.</p>
+              <p>Between the two sit depth peeling, which renders the transparent layers several times and peels off one layer per pass, and newer schemes that keep a few layers per pixel or approximate how light is absorbed along each view ray. <a class="term" data-term="unreal-engine" href="glossary.html#unreal-engine">Unreal Engine</a> has two experimental options of this kind. None of them is the default in a major engine. They cost memory, extra <a class="term" data-term="shader-variant" data-forward href="glossary.html#shader-variant">shader variants</a> and GPU time, and most games get by with sorting, cut-outs and careful art direction.</p>
             </div>
           </section>
 
           <!-- ============ 4. What it costs ============ -->
           <section class="beat" id="cost" data-beat="cost">
             <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
-            <p>The tests themselves are nearly free: fixed hardware does them for many pixels per clock. What costs is memory, and the memory traffic of reading and writing buffers for every layer.</p>
+            <p>The tests themselves are nearly free: <a class="term" data-term="fixed-hardware" href="glossary.html#fixed-hardware">fixed hardware</a> does them for many pixels per clock. What costs is memory, and the memory traffic of reading and writing buffers for every layer.</p>
             <div class="table-wrap">
               <table class="is-wide">
                 <thead><tr><th scope="col">Buffer at 1920 × 1080 (2,073,600 pixels)</th><th scope="col" class="num">Bytes per pixel</th><th scope="col" class="num">1080p</th><th scope="col" class="num">4K</th></tr></thead>
@@ -632,10 +632,10 @@
             <ul class="grows">
               <li><strong>Layers × screen area</strong><span>Smoke filling the screen in front of the camera is the worst case; the same effect far away costs a fraction.</span></li>
               <li><strong>Resolution and format</strong><span>4K has four times the pixels of 1080p. A 16-bit float target moves twice the bytes of an 8-bit one per blend.</span></li>
-              <li><strong>Sorting and batching</strong><span>Distance-sorted transparents cannot be grouped by material, so each costs its own draw call on the CPU.</span></li>
+              <li><strong>Sorting and batching</strong><span>Distance-sorted transparents cannot be grouped by material, so each costs its own draw call on the <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a>.</span></li>
               <li><strong>Stencil and outline passes</strong><span>A stencil outline draws its objects at least twice. Unreal's custom depth draws marked objects into a separate depth and stencil target.</span></li>
               <li><strong>OIT</strong><span>Per-pixel lists cost memory per layer; weighted blending adds two screen-sized targets. Unreal notes its voxel-based OIT compiles an extra shader version of every translucent material.</span></li>
-              <li><strong>Alpha-tested foliage</strong><span>Discard weakens early depth rejection, so dense foliage often needs its own depth pre-pass.</span></li>
+              <li><strong>Alpha-tested foliage</strong><span>Discard weakens early depth rejection, so dense foliage often needs its own <a class="term" data-term="depth-prepass" href="glossary.html#depth-prepass">depth pre-pass</a>.</span></li>
             </ul>
           </section>
 
@@ -721,7 +721,7 @@
                 <h4>Outlines drawn through walls, or missing</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>The outline pass ignores depth when it should not, or the stencil marks are never written: stencil not enabled for the pass, a wrong reference value, or a material that skips the marking draw.</dd></div>
-                  <div><dt>Ask for</dt><dd>A frame capture showing the stencil buffer after the marking pass, and the stencil and depth settings of both draws.</dd></div>
+                  <div><dt>Ask for</dt><dd>A <a class="term" data-term="frame-capture" data-forward href="glossary.html#frame-capture">frame capture</a> showing the stencil buffer after the marking pass, and the stencil and depth settings of both draws.</dd></div>
                 </dl>
               </article>
               <article class="symptom">

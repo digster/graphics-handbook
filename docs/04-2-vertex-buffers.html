@@ -213,8 +213,8 @@
                   <tbody>
                     <tr><th scope="row">Position</th><td>Where the corner sits, relative to the model's own origin.</td><td>Every pass that draws the mesh</td></tr>
                     <tr><th scope="row">Normal</th><td>Which way the surface faces at this corner. See <a class="term" data-term="normal" href="glossary.html#normal">normal</a>.</td><td>Lighting</td></tr>
-                    <tr><th scope="row">Tangent</th><td>Which way the texture's horizontal axis runs across the surface. See <a class="term" data-term="tangent" href="glossary.html#tangent">tangent</a>.</td><td>Normal maps</td></tr>
-                    <tr><th scope="row">UV</th><td>Which point of a 2D texture lands on this corner. See <a class="term" data-term="uv" href="glossary.html#uv">UV coordinates</a>. A second set often holds lightmap coordinates.</td><td>Texturing, baked lighting</td></tr>
+                    <tr><th scope="row">Tangent</th><td>Which way the texture's horizontal axis runs across the surface. See <a class="term" data-term="tangent" href="glossary.html#tangent">tangent</a>.</td><td><a class="term" data-term="normal-map" data-forward href="glossary.html#normal-map">Normal maps</a></td></tr>
+                    <tr><th scope="row">UV</th><td>Which point of a 2D texture lands on this corner. See <a class="term" data-term="uv" href="glossary.html#uv">UV coordinates</a>. A second set often holds lightmap coordinates.</td><td>Texturing, <a class="term" data-term="baked-lighting" data-forward href="glossary.html#baked-lighting">baked lighting</a></td></tr>
                     <tr><th scope="row">Colour</th><td>A tint or mask painted onto the corners, often used to blend materials.</td><td>Material blending, wind, effects</td></tr>
                     <tr><th scope="row">Bone indices and weights</th><td>Which bones of a skeleton move this corner, and how much each one pulls.</td><td>Animated characters</td></tr>
                   </tbody>
@@ -484,7 +484,7 @@
                     <text class="t-small t-muted" x="728" y="163">every frame</text>
                   </svg>
                 </div>
-                <figcaption><b>Where vertex data lives.</b> Static geometry crosses from CPU to GPU once. Dynamic geometry crosses every frame, which is why particle systems and procedural meshes show up in CPU and bandwidth budgets. Keeping a CPU copy of a static mesh doubles its memory, so engines only keep one when asked.</figcaption>
+                <figcaption><b>Where vertex data lives.</b> Static geometry crosses from CPU to GPU once. Dynamic geometry crosses every frame, which is why <a class="term" data-term="particle-system" data-forward href="glossary.html#particle-system">particle systems</a> and procedural meshes show up in CPU and bandwidth budgets. Keeping a CPU copy of a static mesh doubles its memory, so engines only keep one when asked.</figcaption>
               </figure>
             </div>
 
@@ -543,7 +543,7 @@
               <details class="fold">
                 <summary><span class="fold-kind">Code</span> The same quad in about ten lines of WebGL 2</summary>
                 <div class="fold-body">
-                  <p>Every graphics API has the same three moves: create a buffer and copy bytes into it, describe the layout, then draw with indices. Here they are in WebGL 2, which runs in any browser. You will see the same shape in Direct3D, Vulkan and Metal code.</p>
+                  <p>Every <a class="term" data-term="graphics-api" href="glossary.html#graphics-api">graphics API</a> has the same three moves: create a buffer and copy bytes into it, describe the layout, then draw with indices. Here they are in WebGL 2, which runs in any browser. You will see the same shape in Direct3D, Vulkan and Metal code.</p>
 <pre class="code"><span class="c">// 1. Copy the vertex rows into a buffer in GPU memory.</span>
 <span class="k">const</span> vbo = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
@@ -588,11 +588,11 @@ gl.drawElements(gl.TRIANGLES, <span class="n">6</span>, gl.<span class="n">UNSIG
               <li><strong>Every pass reads it again</strong><span>A mesh drawn into a depth pass, four shadow cascades and the main pass is fetched six times per frame. Halving the stride halves all six.</span></li>
               <li><strong>Vertex shader runs</strong><span>Close to one per unique vertex with good triangle order; about three per triangle with no index buffer.</span></li>
               <li><strong>Dynamic updates</strong><span>Rewriting a buffer each frame costs CPU time and bus bandwidth in proportion to its size.</span></li>
-              <li><strong>Split vertices</strong><span>Every hard edge and UV seam adds rows. Hard-surface props often have 1.5 to 2 times the vertices of a smooth mesh with the same triangles.</span></li>
+              <li><strong>Split vertices</strong><span>Every hard edge and <a class="term" data-term="uv-seam" href="glossary.html#uv-seam">UV seam</a> adds rows. Hard-surface props often have 1.5 to 2 times the vertices of a smooth mesh with the same triangles.</span></li>
             </ul>
             <aside class="note" data-kind="lead">
               <p class="note-label">In proportion</p>
-              <p>One 2048 × 2048 texture compressed with BC7, with its mip chain, takes about 5.3 MB, more than four times the whole character mesh above. Vertex memory rarely decides whether a game fits. Vertex bandwidth and vertex counts matter more: in dense open worlds, in shadow passes that redraw everything, and on mobile GPUs where memory bandwidth also costs battery and heat.</p>
+              <p>One 2048 × 2048 texture compressed with <a class="term" data-term="bc7" data-forward href="glossary.html#bc7">BC7</a>, with its mip chain, takes about 5.3 MB, more than four times the whole character mesh above. Vertex memory rarely decides whether a game fits. Vertex bandwidth and vertex counts matter more: in dense open worlds, in shadow passes that redraw everything, and on mobile GPUs where <a class="term" data-term="memory-bandwidth" href="glossary.html#memory-bandwidth">memory bandwidth</a> also costs battery and heat.</p>
             </aside>
           </section>
 
@@ -615,7 +615,7 @@ gl.drawElements(gl.TRIANGLES, <span class="n">6</span>, gl.<span class="n">UNSIG
                 <h4>Exploding spikes</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>The vertex layout in code does not match the bytes in the buffer: wrong stride, offset or format. Positions are read from the middle of normals or UVs.</dd></div>
-                  <div><dt>Ask for</dt><dd>A comparison of the declared layout against what the importer writes, for every mesh variant, and a check in a frame capture's mesh viewer.</dd></div>
+                  <div><dt>Ask for</dt><dd>A comparison of the declared layout against what the importer writes, for every mesh variant, and a check in a <a class="term" data-term="frame-capture" data-forward href="glossary.html#frame-capture">frame capture</a>'s mesh viewer.</dd></div>
                 </dl>
               </article>
               <article class="symptom">

@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 5 · The GPU pipeline</p>
+            <p class="eyebrow">Part 5 · The <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> pipeline</p>
             <h1><span class="ch-num">5.4</span> Pixel shaders and overdraw</h1>
             <p class="lead">The pixel shader is the small program that colours every covered pixel. A frame usually runs it more times than the screen has pixels, and the gap between the two, overdraw, is one of the most common reasons a game misses its frame budget.</p>
             <dl class="chapter-meta">
@@ -60,7 +60,7 @@
               <div>
                 <span class="label">Everyday comparison</span>
                 <p>A decorator paints a detailed mural on a wall, and then the client hangs posters over half of it. All the careful painting under the posters is wasted. A sensible decorator asks where the posters go first and paints only the bare wall.</p>
-                <p>Painting is the pixel shader. Knowing where the posters go is the depth test. Tracing paper laid over the mural is transparency: you can see through it, so every sheet has to be drawn.</p>
+                <p>Painting is the pixel shader. Knowing where the posters go is the <a class="term" data-term="depth-test" data-forward href="glossary.html#depth-test">depth test</a>. Tracing paper laid over the mural is transparency: you can see through it, so every sheet has to be drawn.</p>
               </div>
               <div>
                 <span class="label">The problem it solves</span>
@@ -115,7 +115,7 @@
                   <defs><marker id="ez-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker><marker id="ez-arr2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs><rect class="f-surface s-strong" x="20" y="36" width="150" height="50" rx="6"/><text class="t-strong mid" x="95" y="58">Rasterizer</text><text class="t-small t-muted mid" x="95" y="75">fragments (5.3)</text><line class="s-muted w15" x1="172" y1="61" x2="192" y2="61" marker-end="url(#ez-arr)"/><rect class="f-acc-soft s-acc w2" x="196" y="36" width="150" height="50" rx="6"/><text class="t-strong mid" x="271" y="58">Early depth test</text><text class="t-small t-muted mid" x="271" y="75">before the shader</text><line class="s-muted w15" x1="348" y1="61" x2="368" y2="61" marker-end="url(#ez-arr)"/><rect class="f-surface s-strong" x="372" y="36" width="150" height="50" rx="6"/><text class="t-strong mid" x="447" y="58">Pixel shader</text><text class="t-small t-muted mid" x="447" y="75">the expensive part</text><line class="s-muted w15" x1="524" y1="61" x2="544" y2="61" marker-end="url(#ez-arr)"/><rect class="f-surface s-strong dash" x="548" y="36" width="150" height="50" rx="6"/><text class="t-strong mid" x="623" y="58">Late depth test</text><text class="t-small t-muted mid" x="623" y="75">after the shader</text><line class="s-muted w15" x1="700" y1="61" x2="720" y2="61" marker-end="url(#ez-arr)"/><rect class="f-surface s-strong" x="724" y="36" width="150" height="50" rx="6"/><text class="t-strong mid" x="799" y="58">Blend and write</text><text class="t-small t-muted mid" x="799" y="75">to the render target</text><line class="s-acc w15" x1="271" y1="88" x2="271" y2="104" marker-end="url(#ez-arr2)"/><text class="t-small t-acc mid" x="271" y="122">hidden fragments stop here,</text><text class="t-small t-acc mid" x="271" y="137">before any shading</text><rect class="f-surface s-line" x="20" y="168" width="272" height="58" rx="6"/><text class="t-strong t-acc" x="32" y="190">Opaque, ordinary shader</text><text class="t-small" x="32" y="210">Test and write early. Draw near things first.</text><rect class="f-surface s-line" x="312" y="168" width="272" height="58" rx="6"/><text class="t-strong t-lit" x="324" y="190">Shader can discard (cut-outs)</text><text class="t-small" x="324" y="210">Test early, but write depth only after the shader.</text><rect class="f-surface s-line" x="604" y="168" width="272" height="58" rx="6"/><text class="t-strong t-pix" x="616" y="190">Shader writes its own depth</text><text class="t-small" x="616" y="210">No early test at all: every fragment is shaded.</text><text class="t-small t-muted" x="20" y="250">GPUs also keep a coarse depth per tile, so whole blocks of hidden fragments can be rejected in one test.</text>
                   </svg>
                 </div>
-                <figcaption><b>Early-Z moves the depth test in front of the expensive part.</b> What a shader is allowed to do decides whether the GPU can use it. That is why cut-out and depth-writing materials show up as hot spots in overdraw views, and why graphics programmers ask before adding either to a common material.</figcaption>
+                <figcaption><b>Early-Z moves the depth test in front of the expensive part.</b> What a shader is allowed to do decides whether the GPU can use it. That is why cut-out and depth-writing materials show up as hot spots in overdraw views, and why <a class="term" data-term="graphics-programmer" href="glossary.html#graphics-programmer">graphics programmers</a> ask before adding either to a common material.</figcaption>
               </figure>
             </div>
 
@@ -178,7 +178,7 @@
 
             <div class="step">
               <h3 class="step-title" id="derivatives"><span class="step-num">8</span> Derivatives choose the mip level</h3>
-              <p>Within a quad, every pixel has a neighbour to its right or left and one above or below. Subtracting their values gives <dfn class="term" data-term="screen-space-derivatives">screen-space derivatives</dfn>: how fast a value changes from one pixel to the next. HLSL calls them <code>ddx</code> and <code>ddy</code>, GLSL <code>dFdx</code> and <code>dFdy</code>.</p>
+              <p>Within a quad, every pixel has a neighbour to its right or left and one above or below. Subtracting their values gives <dfn class="term" data-term="screen-space-derivatives">screen-space derivatives</dfn>: how fast a value changes from one pixel to the next. <a class="term" data-term="hlsl" data-forward href="glossary.html#hlsl">HLSL</a> calls them <code>ddx</code> and <code>ddy</code>, <a class="term" data-term="glsl" data-forward href="glossary.html#glsl">GLSL</a> <code>dFdx</code> and <code>dFdy</code>.</p>
               <p>Texture sampling uses them automatically. If neighbouring pixels land four texels apart in a texture, reading it at full size would skip detail and sparkle, so the sampler reads a smaller copy, a mip level, where they land about one texel apart. <a class="xref" data-ch="6.2">6.2 Filtering and mipmaps</a> covers mips properly. For now, the point is that derivatives are why quads exist, and why a texture read inside a branch that only some pixels of a quad take can pick the wrong mip.</p>
               <figure>
                 <div class="fig-frame">
@@ -239,14 +239,14 @@
             </ul>
             <aside class="note" data-kind="lead">
               <p class="note-label">In proportion</p>
-              <p>Vertex work grows with triangle count and pixel work grows with resolution and overdraw. When a frame is too slow on the GPU, lowering the internal resolution is usually the first lever engines pull, which is why upscalers exist (<a class="xref" data-ch="9.3">9.3</a>). The second lever is content: fewer, smaller and cheaper transparent layers, and foliage cards that fit their leaves.</p>
+              <p>Vertex work grows with triangle count and pixel work grows with resolution and overdraw. When a frame is too slow on the GPU, lowering the <a class="term" data-term="internal-resolution" data-forward href="glossary.html#internal-resolution">internal resolution</a> is usually the first lever engines pull, which is why upscalers exist (<a class="xref" data-ch="9.3">9.3</a>). The second lever is content: fewer, smaller and cheaper transparent layers, and foliage cards that fit their leaves.</p>
             </aside>
           </section>
 
           <!-- ============ 5. How it breaks ============ -->
           <section class="beat" id="breaks" data-beat="breaks">
             <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
-            <p>Pixel shading problems rarely look wrong on screen. They show up as frame time that jumps with the camera, the effect or the resolution. These five patterns cover most of them.</p>
+            <p>Pixel shading problems rarely look wrong on screen. They show up as <a class="term" data-term="frame-time" href="glossary.html#frame-time">frame time</a> that jumps with the camera, the effect or the resolution. These five patterns cover most of them.</p>
             <div class="symptoms">
               <article class="symptom">
                 <div class="thumb">

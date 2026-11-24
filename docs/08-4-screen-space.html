@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 8 · Global illumination and ambient occlusion</p>
+            <p class="eyebrow">Part 8 · <a class="term" data-term="global-illumination" href="glossary.html#global-illumination">Global illumination</a> and <a class="term" data-term="ambient-occlusion" href="glossary.html#ambient-occlusion">ambient occlusion</a></p>
             <h1><span class="ch-num">8.4</span> Screen-space tricks and their blind spots</h1>
             <p class="lead">Screen-space reflections, screen-space global illumination and contact shadows all do the same thing: they march rays through the depth buffer the frame has already drawn. That makes them cheap, sharp and fully dynamic. It also gives all of them the same four blind spots, and every engine pairs them with something else to answer when the screen cannot.</p>
             <dl class="chapter-meta">
@@ -288,7 +288,7 @@
               </div>
               <div>
                 <span class="label">The problem it solves</span>
-                <p>Reflections, bounced light and fine contact shadows all need to know what a ray from each pixel meets. Answering that against the real scene is the job of <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a>, which is expensive. Screen-space tracing answers it from data the frame already has, for a few milliseconds, on any GPU.</p>
+                <p>Reflections, bounced light and fine contact shadows all need to know what a ray from each pixel meets. Answering that against the real scene is the job of <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a>, which is expensive. Screen-space tracing answers it from data the frame already has, for a few milliseconds, on any <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a>.</p>
               </div>
             </div>
             <aside class="note" data-kind="lead">
@@ -304,7 +304,7 @@
 
             <div class="step">
               <h3 class="step-title" id="marching"><span class="step-num">1</span> Marching a ray through the depth buffer</h3>
-              <p><dfn class="term" data-term="ray-marching">Ray marching</dfn> means following a ray in steps and testing each step. In screen space each test has three parts. Move the point a little further along the ray. Project it onto the screen to find which pixel it falls in and how deep it is. Compare that depth with the one the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a> stores for the pixel. Nearer than the stored surface means the ray is still in open air; further means it has gone behind something.</p>
+              <p><dfn class="term" data-term="ray-marching">Ray marching</dfn> means following a ray in steps and testing each step. In <a class="term" data-term="screen-space" href="glossary.html#screen-space">screen space</a> each test has three parts. Move the point a little further along the ray. Project it onto the screen to find which pixel it falls in and how deep it is. Compare that depth with the one the <a class="term" data-term="depth-buffer" href="glossary.html#depth-buffer">depth buffer</a> stores for the pixel. Nearer than the stored surface means the ray is still in open air; further means it has gone behind something.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="A zoomed side view of ray A from the previous figure, leaving the floor towards the crate, with the camera ray through each sample drawn faintly. Beside it, a table of the three reads: at steps one and two the ray is nearer than the stored depth, so it is in front; at step three it is 0.11 metres behind the crate's stored surface, within the thickness, so it is a hit. Five halving steps then pin the crossing down.">
@@ -426,7 +426,7 @@
                 </div>
                 <figcaption><b>Every setting trades one wrong answer for another.</b> The rose band is what the tracer treats as solid behind each surface it can see. Long steps skip thin objects. A thin band lets rays tunnel through solid ones; a deep band stops rays that should pass behind thin ones. Lumen's authors show exactly the first problem, linear steps skipping tables, doors and walkways, and use the Hi-Z walk of step 3 instead.</figcaption>
               </figure>
-              <p>The guess about depth is the same <a class="term" data-term="thickness-heuristic" href="glossary.html#thickness-heuristic">thickness heuristic</a> that screen-space AO uses to avoid dark halos (<a class="xref" data-ch="8.3">8.3</a>). Engines expose it under different names: HDRP's SSR has <strong>Object Thickness</strong>, its SSGI has <strong>Depth Tolerance</strong>, Godot's SSR has <strong>Depth Tolerance</strong> (default 0.5). McGuire and Mara's widely used tracer gives every depth-buffer sample a thickness and recommends matching it to the objects in the scene.</p>
+              <p>The guess about depth is the same <a class="term" data-term="thickness-heuristic" href="glossary.html#thickness-heuristic">thickness heuristic</a> that screen-space AO uses to avoid dark halos (<a class="xref" data-ch="8.3">8.3</a>). Engines expose it under different names: <a class="term" data-term="hdrp" href="glossary.html#hdrp">HDRP</a>'s SSR has <strong>Object Thickness</strong>, its SSGI has <strong>Depth Tolerance</strong>, Godot's SSR has <strong>Depth Tolerance</strong> (default 0.5). McGuire and Mara's widely used tracer gives every depth-buffer sample a thickness and recommends matching it to the objects in the scene.</p>
             </div>
 
             <div class="step">
@@ -593,18 +593,18 @@
               <h3 class="step-title" id="ssgi"><span class="step-num">6</span> SSGI: the same march for bounced light</h3>
               <p><dfn class="term" data-term="ssgi">SSGI</dfn>, screen-space global illumination, uses the march for <a class="term" data-term="diffuse-gi" href="glossary.html#diffuse-gi">diffuse GI</a>. Each pixel sends rays over the half-sphere above its surface, takes the lit colour wherever they hit, and averages it, weighting rays near the <a class="term" data-term="normal" href="glossary.html#normal">normal</a> more, as in <a class="xref" data-ch="8.3">8.3</a>. The average is one <a class="term" data-term="bounce" href="glossary.html#bounce">bounce</a> of light from what is on screen, including <a class="term" data-term="colour-bleeding" href="glossary.html#colour-bleeding">colour bleeding</a> from a red wall onto a white floor and light from <a class="term" data-term="emissive" href="glossary.html#emissive">emissive</a> screens and signs. Godot's version is called SSIL, screen-space indirect lighting, and works the same way.</p>
               <p>A full hemisphere needs many directions, and a frame can afford very few per pixel. HDRP's SSGI with <strong>Full Resolution</strong> on traces one ray per pixel per frame, and one ray per four pixels with it off. Unreal's standalone SSGI quality levels 1 to 4 use 8 to 12 ray steps and 4 to 32 rays. The result is noisy, so SSGI always comes with a denoiser and with reuse of earlier frames, the subject of step 8.</p>
-              <p>The colour it picks up is the lit image itself, so a second bounce appears only if last frame's image already contained the first. And it inherits all four blind spots, which matter more for diffuse light than for reflections: a bounce needs rays in every direction, and most of those leave the screen or go behind something. Epic recommends its SSGI as a way to improve indirect lighting but not as a sole indirect lighting method; Godot says SSIL is meant to be used with a proper GI method such as SDFGI or VoxelGI.</p>
+              <p>The colour it picks up is the lit image itself, so a second bounce appears only if last frame's image already contained the first. And it inherits all four blind spots, which matter more for diffuse light than for reflections: a bounce needs rays in every direction, and most of those leave the screen or go behind something. Epic recommends its SSGI as a way to improve indirect lighting but not as a sole indirect lighting method; Godot says SSIL is meant to be used with a proper GI method such as <a class="term" data-term="sdfgi" data-forward href="glossary.html#sdfgi">SDFGI</a> or VoxelGI.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="screen-shadows"><span class="step-num">7</span> Screen-space shadows</h3>
               <p>The same march aimed at a light gives <a class="term" data-term="contact-shadows" href="glossary.html#contact-shadows">contact shadows</a>, introduced in <a class="xref" data-ch="7.5">7.5 Shadows at scale</a>. The ray is short, a few centimetres to a few tens of centimetres, and the question is only whether anything is in the way. Short rays rarely leave the screen and rarely pass far behind anything, so contact shadows suffer least from the blind spots. Their typical failure is the thin-object one: a pole or a finger can cast a shadow that is too long behind it, because the tracer cannot tell how thick it is.</p>
-              <p>Unreal sets them per light with <strong>Contact Shadow Length</strong>; HDRP has a <strong>Contact Shadows</strong> override; URP in Unity 6.6 and Godot 4.7 have none.</p>
+              <p>Unreal sets them per light with <strong>Contact Shadow Length</strong>; HDRP has a <strong>Contact Shadows</strong> override; <a class="term" data-term="urp" href="glossary.html#urp">URP</a> in Unity 6.6 and Godot 4.7 have none.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="reuse"><span class="step-num">8</span> Few rays, many frames: denoising and reprojection</h3>
-              <p>One ray per pixel, or one per four, gives a speckled result. Two things clean it up. A spatial <a class="term" data-term="denoising" data-forward href="glossary.html#denoising">denoiser</a> blends each pixel with neighbours at a similar depth and normal, like the <a class="term" data-term="bilateral-filter" href="glossary.html#bilateral-filter">bilateral filter</a> of 8.3. Temporal reprojection reuses the traced results of earlier frames: each pixel looks up where it was last frame using motion vectors, fetches the result stored there, and blends in a little of this frame's new rays. Over a dozen frames, a dozen rays per pixel add up. This is <a class="term" data-term="temporal-accumulation" data-forward href="glossary.html#temporal-accumulation">temporal accumulation</a>, which chapter 9.2 covers in full.</p>
+              <p>One ray per pixel, or one per four, gives a speckled result. Two things clean it up. A spatial <a class="term" data-term="denoising" data-forward href="glossary.html#denoising">denoiser</a> blends each pixel with neighbours at a similar depth and normal, like the <a class="term" data-term="bilateral-filter" href="glossary.html#bilateral-filter">bilateral filter</a> of 8.3. Temporal reprojection reuses the traced results of earlier frames: each pixel looks up where it was last frame using <a class="term" data-term="motion-vectors" data-forward href="glossary.html#motion-vectors">motion vectors</a>, fetches the result stored there, and blends in a little of this frame's new rays. Over a dozen frames, a dozen rays per pixel add up. This is <a class="term" data-term="temporal-accumulation" data-forward href="glossary.html#temporal-accumulation">temporal accumulation</a>, which chapter 9.2 covers in full.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 262" role="img" aria-label="Two frames of an SSGI result. Last frame: a crate on the left half of the screen, the floor around it smoothly lit after many frames of accumulation. This frame: the crate has moved right. Arrows show most pixels fetching last frame's result through motion vectors. The strip of floor the crate has just uncovered has no history, so it shows the raw, grainy result of a single frame's rays.">
@@ -739,7 +739,7 @@
               <div class="stat"><span class="value">4 to 32</span><span class="what">rays, with 8 to 12 steps, across Unreal's r.SSGI.Quality levels 1 to 4</span></div>
               <div class="stat"><span class="value">64</span><span class="what">maximum SSR steps by default in Godot 4.7's Environment</span></div>
             </div>
-            <p class="stamp">Figures from the published paper and the engines' documentation. Measure your own scene in a frame capture; costs move with resolution, settings and how much of the screen reflects.</p>
+            <p class="stamp">Figures from the published paper and the engines' documentation. Measure your own scene in a <a class="term" data-term="frame-capture" data-forward href="glossary.html#frame-capture">frame capture</a>; costs move with resolution, settings and how much of the screen reflects.</p>
             <ul class="grows">
               <li><strong>Resolution</strong><span>Every pixel that traces costs rays. Half resolution is a quarter of the work, and the usual default for SSGI.</span></li>
               <li><strong>Rays per pixel</strong><span>SSGI needs many directions; each extra ray per pixel is another full march.</span></li>
@@ -750,7 +750,7 @@
             </ul>
             <aside class="note" data-kind="lead">
               <p class="note-label">Cheap is relative</p>
-              <p>Screen-space effects are cheap compared with tracing the whole scene, but a stack of them is not free: SSR, SSGI, contact shadows and SSAO together can take several milliseconds of a 16.7 ms <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a>. Ask for each one's cost on the target platform, and whether two of them are doing the same job, for example SSGI's occlusion on top of SSAO.</p>
+              <p>Screen-space effects are cheap compared with tracing the whole scene, but a stack of them is not free: SSR, SSGI, contact shadows and <a class="term" data-term="ssao" href="glossary.html#ssao">SSAO</a> together can take several milliseconds of a 16.7 ms <a class="term" data-term="frame-budget" data-forward href="glossary.html#frame-budget">frame budget</a>. Ask for each one's cost on the target platform, and whether two of them are doing the same job, for example SSGI's occlusion on top of SSAO.</p>
             </aside>
           </section>
 
@@ -842,8 +842,8 @@
                 </div>
                 <h4>Noise, boiling and shimmer</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>Too few rays for the denoiser to clean, often after dropping to half resolution or a lower quality preset, or a temporal filter that cannot accumulate because the camera never stops.</dd></div>
-                  <div><dt>Ask for</dt><dd>The ray budget per pixel, denoiser settings and a capture of the raw and denoised passes side by side.</dd></div>
+                  <div><dt>Cause</dt><dd>Too few rays for the denoiser to clean, often after dropping to half resolution or a lower <a class="term" data-term="quality-preset" data-forward href="glossary.html#quality-preset">quality preset</a>, or a temporal filter that cannot accumulate because the camera never stops.</dd></div>
+                  <div><dt>Ask for</dt><dd>The <a class="term" data-term="ray-budget" data-forward href="glossary.html#ray-budget">ray budget</a> per pixel, denoiser settings and a capture of the raw and denoised passes side by side.</dd></div>
                 </dl>
               </article>
               <article class="symptom">

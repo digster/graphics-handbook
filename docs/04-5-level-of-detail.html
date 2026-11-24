@@ -267,7 +267,7 @@
                     <text class="t-small t-muted" x="650" y="230">can be relit: ≈ 1.4 MB in all.</text>
                   </svg>
                 </div>
-                <figcaption><b>An impostor trades triangles for texture memory.</b> The tree is rendered from eight directions into one atlas ahead of time. In game, a two-triangle card turns to face the camera and shows the stored view closest to the camera's direction. Compressed to one byte per texel, as the BC7 format does, the atlas costs more memory than many mid-sized LOD meshes.</figcaption>
+                <figcaption><b>An impostor trades triangles for texture memory.</b> The tree is rendered from eight directions into one atlas ahead of time. In game, a two-triangle card turns to face the camera and shows the stored view closest to the camera's direction. Compressed to one byte per texel, as the <a class="term" data-term="bc7" data-forward href="glossary.html#bc7">BC7</a> format does, the atlas costs more memory than many mid-sized LOD meshes.</figcaption>
               </figure>
               <p>Impostors are cheap to draw, but they break when seen from an angle they were not captured from, or under lighting that differs from the capture. They suit things that are only ever seen from far away: trees on a hillside, distant rocks, crowds.</p>
             </div>
@@ -308,17 +308,17 @@
                 </div>
                 <figcaption><b>HLOD swaps a whole group for one mesh.</b> Up close, twelve buildings are drawn separately, each at its own LOD. Far away, one merged proxy with one baked texture stands in for all of them: one draw call in place of 24 and an eighth of the triangles. The numbers are an example.</figcaption>
               </figure>
-              <p>Open worlds depend on it. Unreal's World Partition streams the world in grid cells and uses HLOD proxies to show cells that are not loaded at all. Godot builds the same idea from visibility ranges: a merged mesh appears beyond a set distance and its parts hide. HLODs are built data, so when the source objects change the proxies must be rebuilt, and that belongs in the automated build.</p>
+              <p>Open worlds depend on it. Unreal's <a class="term" data-term="world-partition" data-forward href="glossary.html#world-partition">World Partition</a> streams the world in grid cells and uses HLOD proxies to show cells that are not loaded at all. Godot builds the same idea from visibility ranges: a merged mesh appears beyond a set distance and its parts hide. HLODs are built data, so when the source objects change the proxies must be rebuilt, and that belongs in the automated build.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="cluster-lod"><span class="step-num">7</span> Cluster LOD and Nanite</h3>
               <p>Per-object LOD has a blind spot: one object gets one level. A long cliff, a castle wall or a terrain tile can be close at one end and far at the other. <dfn class="term" data-term="cluster-lod">Cluster LOD</dfn> chooses detail per small piece instead. The mesh is cut into <dfn class="term" data-term="meshlet">meshlets</dfn>, also called clusters: chunks of up to about 128 triangles that the GPU culls and draws as units. NVIDIA's guidance for its mesh shaders recommends up to 64 vertices and 126 triangles per meshlet.</p>
-              <p><dfn class="term" data-term="nanite">Nanite</dfn>, Unreal Engine 5's virtualised geometry system, is the best-known example. Epic's 2021 SIGGRAPH presentation describes how it works:</p>
+              <p><dfn class="term" data-term="nanite">Nanite</dfn>, <a class="term" data-term="unreal-engine" href="glossary.html#unreal-engine">Unreal Engine</a> 5's virtualised geometry system, is the best-known example. Epic's 2021 SIGGRAPH presentation describes how it works:</p>
               <ul>
                 <li><strong>At import</strong>, the mesh is split into clusters of 128 triangles. Neighbouring clusters are grouped, each group is simplified to half its triangles with its outer edges locked so neighbours still meet, and the result is split into clusters again. Repeating this builds a hierarchy from full detail down to a single cluster.</li>
                 <li><strong>Every frame</strong>, on the GPU, Nanite culls clusters that cannot be seen, using the <a class="term" data-term="gpu-culling" href="glossary.html#gpu-culling">GPU culling</a> covered in <a class="xref" data-ch="4.4">4.4</a>, and picks for each part of the mesh the coarsest clusters whose simplification error would be smaller than one pixel on screen. A change smaller than a pixel is not visible, and temporal anti-aliasing smooths what is left, so there is no cross-fade.</li>
-                <li><strong>Only what a view needs is in memory.</strong> The GPU requests missing detail and the CPU streams it from disk in fixed-size pages. Epic recommends SSD storage for Nanite content.</li>
+                <li><strong>Only what a view needs is in memory.</strong> The GPU requests missing detail and the <a class="term" data-term="cpu" href="glossary.html#cpu">CPU</a> streams it from disk in fixed-size pages. Epic recommends SSD storage for Nanite content.</li>
                 <li><strong>Tiny triangles get their own rasterizer.</strong> Clusters whose triangles are smaller than about 32 pixels are drawn by a compute-shader rasterizer, which Epic measured as about three times faster on average than its fastest hardware path for this work.</li>
               </ul>
               <figure>
@@ -333,12 +333,12 @@
                 <p class="note-label">Simplified</p>
                 <p>Nanite's hierarchy is a graph, not a tree: clusters are regrouped differently at each level so that locked edges do not stay locked, and a cluster can have several parents. The idea of picking a cut through it is the same.</p>
               </aside>
-              <p>Nobody authors LOD levels for a Nanite mesh, which removes most of the work in steps 2 and 4. The limits matter, though. In Unreal Engine 5.8, Nanite supports opaque and masked materials but not translucent ones, does not support morph targets, and does not run with forward rendering, stereo rendering for VR or MSAA. <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">Ray tracing</a> uses a simplified fallback mesh by default. Check the list for your version before planning content around it.</p>
+              <p>Nobody authors LOD levels for a Nanite mesh, which removes most of the work in steps 2 and 4. The limits matter, though. In Unreal Engine 5.8, Nanite supports opaque and masked materials but not translucent ones, does not support morph targets, and does not run with <a class="term" data-term="forward-rendering" data-forward href="glossary.html#forward-rendering">forward rendering</a>, stereo rendering for VR or <a class="term" data-term="msaa" data-forward href="glossary.html#msaa">MSAA</a>. <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">Ray tracing</a> uses a simplified <a class="term" data-term="nanite-fallback-mesh" data-forward href="glossary.html#nanite-fallback-mesh">fallback mesh</a> by default. Check the list for your version before planning content around it.</p>
             </div>
 
             <div class="step">
               <h3 class="step-title" id="tessellation"><span class="step-num">8</span> Tessellation, briefly</h3>
-              <p><dfn class="term" data-term="tessellation">Tessellation</dfn> works in the other direction: it adds triangles on the GPU at draw time. Direct3D 11 introduced three pipeline stages for it. A hull shader decides how finely to split each patch, a fixed tessellator splits it, up to a factor of 64 per edge, and a domain shader places every new vertex, often pushing it out along a <a class="term" data-term="height-map" data-forward href="glossary.html#height-map">height map</a>. In principle that gives detail on demand: split more up close, less far away.</p>
+              <p><dfn class="term" data-term="tessellation">Tessellation</dfn> works in the other direction: it adds triangles on the GPU at draw time. Direct3D 11 introduced three <a class="term" data-term="pipeline-stage" data-forward href="glossary.html#pipeline-stage">pipeline stages</a> for it. A hull shader decides how finely to split each patch, a fixed tessellator splits it, up to a factor of 64 per edge, and a domain shader places every new vertex, often pushing it out along a <a class="term" data-term="height-map" data-forward href="glossary.html#height-map">height map</a>. In principle that gives detail on demand: split more up close, less far away.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Top: the pipeline with tessellation: vertex shader, hull shader which picks split factors, the fixed tessellator which cuts the patch, the domain shader which places new vertices, then the rasterizer. Bottom: one triangle patch is split with factor 4 into 16 triangles, then the new vertices are moved by a height map.">
@@ -367,7 +367,7 @@
                 </tbody>
               </table>
             </div>
-            <p>A halving chain, like the defaults in Unreal and Unity, adds more: up to as much again as LOD0. Unity's Mesh LOD keeps the cost down by sharing one vertex buffer between all levels and storing each level as another range of indices, so at most the index buffer doubles.</p>
+            <p>A halving chain, like the defaults in Unreal and Unity, adds more: up to as much again as LOD0. Unity's Mesh LOD keeps the cost down by sharing one <a class="term" data-term="vertex-buffer" href="glossary.html#vertex-buffer">vertex buffer</a> between all levels and storing each level as another range of indices, so at most the <a class="term" data-term="index-buffer" href="glossary.html#index-buffer">index buffer</a> doubles.</p>
             <p>The saving is far larger. Scatter 2,000 of these boulders evenly in front of the camera, out to 200 m. Each band of the chain is twice as deep as the one before, so it holds four times as many boulders at a quarter of the triangles:</p>
             <div class="table-wrap">
               <table class="is-wide">
@@ -398,7 +398,7 @@
               <li><strong>LOD bias</strong><span>A bias of 2 keeps every level twice as far away. In a scattered field like the one above that is about four times the triangles.</span></li>
               <li><strong>Resolution, for pixel-based systems</strong><span>Selection by pixel error, as in Godot's automatic LOD and Nanite, asks for more detail at 4K than at 1080p.</span></li>
               <li><strong>Fades</strong><span>Both levels are drawn for as long as each fade lasts.</span></li>
-              <li><strong>Extra passes</strong><span>Every pass that draws the object, including each shadow map, pays for the level it draws.</span></li>
+              <li><strong>Extra passes</strong><span>Every pass that draws the object, including each <a class="term" data-term="shadow-map" data-forward href="glossary.html#shadow-map">shadow map</a>, pays for the level it draws.</span></li>
               <li><strong>Impostor and HLOD textures</strong><span>Baked atlases and proxy textures add memory and build time.</span></li>
             </ul>
           </section>
@@ -453,7 +453,7 @@
                 </div>
                 <h4>Thin parts vanish, holes open</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>Automatic simplification collapsed thin geometry such as posts, railings and leaves, or split the mesh open along UV seams.</dd></div>
+                  <div><dt>Cause</dt><dd>Automatic simplification collapsed thin geometry such as posts, railings and leaves, or split the mesh open along <a class="term" data-term="uv-seam" href="glossary.html#uv-seam">UV seams</a>.</dd></div>
                   <div><dt>Ask for</dt><dd>Hand-fixed levels or a higher triangle share for those meshes, and a review list of every auto-generated level.</dd></div>
                 </dl>
               </article>

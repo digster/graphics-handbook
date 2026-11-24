@@ -91,3 +91,18 @@ related area.
   an hour; the agents stop cleanly and resume with `SendMessage`.
 - Writers sharing one scratch folder overwrote each other's generator
   scripts; give each its own.
+
+## Auto-linking terms (tools/link-terms.mjs)
+
+- **Scan for the earliest match, not the first candidate.** Trying each
+  candidate in turn and keeping only the text after a match never rescans
+  the text before it, so a second run found 30 more links. The pass now
+  links the earliest match in the remaining text each time (the longest name
+  wins a tie), and a structure test asserts a dry run adds nothing.
+- **Only multi-word names and acronyms are linked.** Single words such as
+  "point" or "build" have everyday meanings; a wrong link is worse than none.
+- **`textOf()` must drop inline tags without a space.** Replacing `<a>` with
+  a space turned "virtual shadow maps," into "virtual shadow maps ," in the
+  search index once the phrase became a link. Inline tags (`a`, `em`,
+  `strong`, `code`, `dfn`, `span`...) now vanish; block tags still become a
+  space.

@@ -382,8 +382,8 @@
 
             <div class="step">
               <h3 class="step-title" id="pipeline"><span class="step-num">5</span> Decode on the way in, encode on the way out</h3>
-              <p>A renderer that works in linear colour does three things. When it reads a colour <a class="term" data-term="texture" data-forward href="glossary.html#texture">texture</a>, the GPU decodes sRGB to linear as it samples, before filtering, so the shader only ever sees light. Everything in between, lighting, blending, blur and post-processing, works on linear values. When the frame is finished, the output is encoded for the screen.</p>
-              <p>Not every texture holds colour. Normal maps, roughness and masks hold data: directions and amounts that were never put on the sRGB curve. They must be read exactly as stored. Marking a data texture as sRGB, or a colour texture as linear, is one of the most common colour bugs in games.</p>
+              <p>A renderer that works in linear colour does three things. When it reads a colour <a class="term" data-term="texture" data-forward href="glossary.html#texture">texture</a>, the <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a> decodes sRGB to linear as it samples, before filtering, so the shader only ever sees light. Everything in between, lighting, blending, blur and post-processing, works on linear values. When the frame is finished, the output is encoded for the screen.</p>
+              <p>Not every texture holds colour. <a class="term" data-term="normal-map" data-forward href="glossary.html#normal-map">Normal maps</a>, roughness and masks hold data: directions and amounts that were never put on the sRGB curve. They must be read exactly as stored. Marking a data texture as sRGB, or a colour texture as linear, is one of the most common colour bugs in games.</p>
               <figure>
                 <div class="fig-frame">
 <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="The colour pipeline of a modern renderer. Colour textures stored with the sRGB curve are decoded to linear when sampled; data textures such as normals and roughness are read as they are. Lighting, blending and blurring work on linear floating-point values with no upper limit. Tone mapping brings them into the display's range, and the result is encoded with the sRGB curve for a standard screen or the PQ curve for an HDR10 screen.">
@@ -433,7 +433,7 @@
                 </div>
                 <figcaption><b>The linear pipeline.</b> Colour textures are decoded on read, data textures are not, and all the work happens on linear light. The output step depends on the screen: the sRGB curve for a standard screen, the PQ curve for HDR10. Inside the renderer, values are free to exceed 1.0.</figcaption>
               </figure>
-              <p>Because values in the middle are real amounts of light, they are not limited to the 0 to 1 a screen can show. A sunlit wall can be many times brighter than a lamp-lit one. Rendering with this open-ended range in floating-point buffers is <dfn class="term" data-term="hdr-rendering">HDR rendering</dfn>, also called scene-referred rendering, because the values describe the scene rather than the screen. Squeezing that range into what a screen can show is tone mapping, the subject of <a class="xref" data-ch="9.1">9.1 HDR, exposure and tone mapping</a>.</p>
+              <p>Because values in the middle are real amounts of light, they are not limited to the 0 to 1 a screen can show. A sunlit wall can be many times brighter than a lamp-lit one. Rendering with this open-ended range in floating-point buffers is <dfn class="term" data-term="hdr-rendering">HDR rendering</dfn>, also called scene-referred rendering, because the values describe the scene rather than the screen. Squeezing that range into what a screen can show is <a class="term" data-term="tone-mapping" data-forward href="glossary.html#tone-mapping">tone mapping</a>, the subject of <a class="xref" data-ch="9.1">9.1 HDR, exposure and tone mapping</a>.</p>
             </div>
 
             <div class="step">
@@ -935,7 +935,7 @@
                 </tbody>
               </table>
             </div>
-            <p>Unity's URP shows the trade directly: its <strong>HDR Precision</strong> setting offers 32-bit (the default) or 64-bit scene colour, and its documentation notes the 64-bit option avoids banding at the cost of bandwidth. Every screen-sized image is read and written several times a frame, so doubling its bytes per pixel shows up in GPU time, most of all on mobile.</p>
+            <p>Unity's <a class="term" data-term="urp" href="glossary.html#urp">URP</a> shows the trade directly: its <strong>HDR Precision</strong> setting offers 32-bit (the default) or 64-bit scene colour, and its documentation notes the 64-bit option avoids banding at the cost of bandwidth. Every screen-sized image is read and written several times a frame, so doubling its bytes per pixel shows up in GPU time, most of all on mobile.</p>
             <h3>What makes the cost grow</h3>
             <ul class="grows">
               <li><strong>Precision of screen-sized images</strong><span>16-bit float doubles the memory and bandwidth of every full-screen pass that uses it.</span></li>
@@ -970,7 +970,7 @@
                 </div>
                 <h4>Dirty blends and dark fringes</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>Blending, mixing or blurring on stored values: gamma colour space, an 8-bit non-sRGB render target, or a shader that mixes colours read without decoding. Shows on gradients, particle edges, UI fades and soft shadows.</dd></div>
+                  <div><dt>Cause</dt><dd>Blending, mixing or blurring on stored values: gamma colour space, an 8-bit non-sRGB <a class="term" data-term="render-target" data-forward href="glossary.html#render-target">render target</a>, or a shader that mixes colours read without decoding. Shows on gradients, particle edges, UI fades and soft shadows.</dd></div>
                   <div><dt>Ask for</dt><dd>The project's colour space setting, the format of the render targets involved, and a test scene with red-to-green and black-to-white gradients.</dd></div>
                 </dl>
               </article>
@@ -1013,7 +1013,7 @@
                 <h4>Stripes in skies and fog</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>Too few levels somewhere in the chain: an 8-bit intermediate image, low HDR precision, compression, or 8-bit output without dither.</dd></div>
-                  <div><dt>Ask for</dt><dd>Which buffer the steps first appear in (a frame capture shows it), the scene colour precision, and dithering on the final output.</dd></div>
+                  <div><dt>Ask for</dt><dd>Which buffer the steps first appear in (a <a class="term" data-term="frame-capture" data-forward href="glossary.html#frame-capture">frame capture</a> shows it), the scene colour precision, and dithering on the final output.</dd></div>
                 </dl>
               </article>
               <article class="symptom">

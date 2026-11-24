@@ -27,7 +27,7 @@
         <article class="chapter">
 
           <header class="chapter-head">
-            <p class="eyebrow">Part 2 · Inside a game engine</p>
+            <p class="eyebrow">Part 2 · Inside a <a class="term" data-term="game-engine" href="glossary.html#game-engine">game engine</a></p>
             <h1><span class="ch-num">2.2</span> The game loop and threads</h1>
             <p class="lead">Every frame, an engine reads input, updates the game and draws the result, and it spreads that work over several threads and the GPU so they all run at once. That overlap is what makes high frame rates possible. It is also where input latency and hitches come from.</p>
             <dl class="chapter-meta">
@@ -117,7 +117,7 @@
           <!-- ============ 2. In plain words ============ -->
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
-            <p>A game is a loop. Each pass through it reads the controller, moves the world forward a little, and draws a picture of the result. <a class="xref" data-ch="0.2">0.2 What a frame is</a> called that the game loop, and one pass through it a <a class="term" data-term="frame" href="glossary.html#frame">frame</a>. At 60 frames per second, each pass has 16.7 milliseconds.</p>
+            <p>A game is a loop. Each pass through it reads the controller, moves the world forward a little, and draws a picture of the result. <a class="xref" data-ch="0.2">0.2 What a frame is</a> called that the <a class="term" data-term="game-loop" href="glossary.html#game-loop">game loop</a>, and one pass through it a <a class="term" data-term="frame" href="glossary.html#frame">frame</a>. At 60 <a class="term" data-term="fps" href="glossary.html#fps">frames per second</a>, each pass has 16.7 milliseconds.</p>
             <p>Done one step at a time on one processor, that budget runs out fast. So engines split the loop into stages and run the stages at the same time on different frames. One <a class="term" data-term="cpu" data-forward href="glossary.html#cpu">CPU</a> thread updates the game, another prepares the drawing, and the <a class="term" data-term="gpu" data-forward href="glossary.html#gpu">GPU</a> draws. This is <dfn class="term" data-term="pipelining">pipelining</dfn>. The slowest stage sets the frame rate, and each frame takes longer from start to finish than one frame's time.</p>
             <div class="analogy">
               <div>
@@ -189,7 +189,7 @@
 
             <div class="step">
               <h3 class="step-title" id="fixed-timestep"><span class="step-num">2</span> A fixed timestep for physics</h3>
-              <p>Physics engines are stable and repeatable only when every step is the same length. So engines run physics on a <dfn class="term" data-term="fixed-timestep">fixed timestep</dfn>: Godot steps 60 times a second by default, Unity 50. Each frame adds its real elapsed time to a running total and runs as many fixed steps as fit. A 144 fps frame often runs no physics step at all; a 30 fps frame runs two.</p>
+              <p><a class="term" data-term="physics-engine" href="glossary.html#physics-engine">Physics engines</a> are stable and repeatable only when every step is the same length. So engines run physics on a <dfn class="term" data-term="fixed-timestep">fixed timestep</dfn>: Godot steps 60 times a second by default, Unity 50. Each frame adds its real elapsed time to a running total and runs as many fixed steps as fit. A 144 fps frame often runs no physics step at all; a 30 fps frame runs two.</p>
               <p>That creates a new problem. If the display shows 144 frames a second but physics only moves things 60 times, some frames show the same position as the frame before, then the object jumps. The cure is <dfn class="term" data-term="physics-interpolation">physics interpolation</dfn>: keep the last two physics states and draw each object part of the way between them, by how far the frame lies between the two steps.</p>
               <figure>
                 <div class="fig-frame">
@@ -320,7 +320,7 @@
             <div class="step">
               <h3 class="step-title" id="gpu-queue"><span class="step-num">4</span> Handing work to the GPU</h3>
               <p>The render thread does not draw anything itself. It records a <dfn class="term" data-term="command-buffer">command buffer</dfn>: a list of instructions such as "use these settings, read this mesh, draw 5,400 triangles", thousands of them per frame. Then it submits the list to a <dfn class="term" data-term="gpu-queue">GPU queue</dfn> and moves on. The GPU works through the queue in order, as fast as it can.</p>
-              <p>Unreal adds a third CPU thread here. Its render thread records platform-neutral commands, and an <dfn class="term" data-term="rhi-thread">RHI thread</dfn> translates them into DirectX 12, Vulkan or Metal calls through the <a class="term" data-term="rhi" href="glossary.html#rhi">RHI</a> from chapter 2.1, and submits them. Unity and Godot do that translation on their render or main thread, sometimes helped by worker threads.</p>
+              <p>Unreal adds a third CPU thread here. Its render thread records platform-neutral commands, and an <dfn class="term" data-term="rhi-thread">RHI thread</dfn> translates them into <a class="term" data-term="directx-12" data-forward href="glossary.html#directx-12">DirectX 12</a>, Vulkan or Metal calls through the <a class="term" data-term="rhi" href="glossary.html#rhi">RHI</a> from chapter 2.1, and submits them. Unity and Godot do that translation on their render or main thread, sometimes helped by worker threads.</p>
               <p>The queue has a limit. If the CPU could run arbitrarily far ahead, a GPU-bound game would pile up frames, each one older than the last. Engines cap the number of frames in flight, typically at 2: Unity's <code>QualitySettings.maxQueuedFrames</code> defaults to 2 on PC, and Godot's <code>frame_queue_size</code> to 2. When the queue is full, the CPU waits.</p>
               <figure>
                 <div class="fig-frame">
@@ -380,7 +380,7 @@
                 <div class="demo" data-demo="frame-pipeline-timeline">
                   <p class="demo-hint">The frame pipeline timeline needs JavaScript. Without it: with a 9 ms game thread, a 6 ms render thread and a 14 ms GPU, the game runs at 71 fps, limited by the GPU, and each frame takes 50 ms from input to the GPU finishing it.</p>
                 </div>
-                <figcaption><b>Frame pipeline timeline.</b> Three lanes, frames moving from left to right through them. Frame N is highlighted from the moment it reads input to the moment the GPU finishes it. Low-latency mode starts CPU work just in time, the idea behind NVIDIA Reflex and Unreal's low-latency syncing: same frame rate, less waiting.</figcaption>
+                <figcaption><b>Frame pipeline timeline.</b> Three lanes, frames moving from left to right through them. Frame N is highlighted from the moment it reads input to the moment the GPU finishes it. Low-latency mode starts CPU work just in time, the idea behind <a class="term" data-term="reflex" data-forward href="glossary.html#reflex">NVIDIA Reflex</a> and Unreal's low-latency syncing: same frame rate, less waiting.</figcaption>
               </figure>
               <aside class="note" data-kind="simplified">
                 <p class="note-label">Simplified</p>
@@ -515,7 +515,7 @@
 
             <div class="step">
               <h3 class="step-title" id="hitch"><span class="step-num">8</span> What a hitch does</h3>
-              <p>A hitch is one frame that takes far longer than the rest: a file read on the game thread, a burst of garbage collection, a shader compiled on first use. Players feel it as a freeze or a stutter even when the average frame rate looks fine.</p>
+              <p>A hitch is one frame that takes far longer than the rest: a file read on the game thread, a burst of <a class="term" data-term="garbage-collection" data-forward href="glossary.html#garbage-collection">garbage collection</a>, a shader compiled on first use. Players feel it as a freeze or a stutter even when the average frame rate looks fine.</p>
               <p>Everything downstream feels it too. The render thread and the GPU run out of work and the screen keeps showing the last frame. Then the fixed timestep tries to catch up on the missed time by running several physics steps in one frame, which makes that frame slower as well. If each catch-up step costs more time than it covers, the game falls further behind every frame: Glenn Fiedler named this the spiral of death. Engines cap the catch-up to stop it.</p>
               <figure>
                 <div class="fig-frame">
@@ -568,7 +568,7 @@
                     <text class="t-small" x="670" y="264">covers, each frame falls further behind</text>
                   </svg>
                 </div>
-                <figcaption><b>One slow update stalls every lane behind it.</b> The average over a second can still read 55 fps, which is why frame time graphs and worst-frame numbers matter more than averages. Hitches are covered in depth in <a class="xref" data-ch="11.4">11.4 Memory, streaming and hitches</a>.</figcaption>
+                <figcaption><b>One slow update stalls every lane behind it.</b> The average over a second can still read 55 fps, which is why <a class="term" data-term="frame-time" href="glossary.html#frame-time">frame time</a> graphs and worst-frame numbers matter more than averages. Hitches are covered in depth in <a class="xref" data-ch="11.4">11.4 Memory, streaming and hitches</a>.</figcaption>
               </figure>
             </div>
           </section>

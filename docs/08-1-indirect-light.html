@@ -96,7 +96,7 @@
           <!-- ============ 2. In plain words ============ -->
           <section class="beat" id="plain" data-beat="plain">
             <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
-            <p><dfn class="term" data-term="direct-light">Direct light</dfn> travels straight from a light to a surface: the sun on the floor, a lamp on a desk. Everything Part 7 computed, from shading to shadow maps, was direct light. <dfn class="term" data-term="indirect-light">Indirect light</dfn> reaches a surface after bouncing off at least one other surface first. The underside of a table, the ceiling of a sunlit room and the side of a building facing away from the sun are lit almost entirely by it.</p>
+            <p><dfn class="term" data-term="direct-light">Direct light</dfn> travels straight from a light to a surface: the sun on the floor, a lamp on a desk. Everything Part 7 computed, from shading to <a class="term" data-term="shadow-map" href="glossary.html#shadow-map">shadow maps</a>, was direct light. <dfn class="term" data-term="indirect-light">Indirect light</dfn> reaches a surface after bouncing off at least one other surface first. The underside of a table, the ceiling of a sunlit room and the side of a building facing away from the sun are lit almost entirely by it.</p>
             <p>Lighting that includes those bounces is called <dfn class="term" data-term="global-illumination">global illumination</dfn>, GI: global because the light at any point depends on every other surface in the scene, not just on the lights. That dependence is what makes it expensive. To light one point you need the light leaving every surface it can see, and that light in turn depends on every surface those can see.</p>
             <div class="analogy">
               <div>
@@ -111,7 +111,7 @@
             </div>
             <aside class="note" data-kind="lead">
               <p class="note-label">Why a lead cares</p>
-              <p>Bounced light is the biggest single step from a game look to a believable one, and choosing how to get it is one of the largest technical decisions on a project. Baking it costs build time and forbids moving lights; computing it every frame costs milliseconds and hardware; every method has its own artefacts, from leaking light to lag. Unreal Engine 5 projects start with Lumen switched on, Unity starts from baking, and Godot offers several options. The acronyms in Part 8 all name different trade-offs on the one problem this chapter describes.</p>
+              <p>Bounced light is the biggest single step from a game look to a believable one, and choosing how to get it is one of the largest technical decisions on a project. Baking it costs build time and forbids moving lights; computing it every frame costs milliseconds and hardware; every method has its own artefacts, from leaking light to lag. <a class="term" data-term="unreal-engine" href="glossary.html#unreal-engine">Unreal Engine</a> 5 projects start with Lumen switched on, Unity starts from baking, and Godot offers several options. The acronyms in Part 8 all name different trade-offs on the one problem this chapter describes.</p>
             </aside>
           </section>
 
@@ -204,7 +204,7 @@
 
             <div class="step">
               <h3 class="step-title" id="colour-bleeding"><span class="step-num">4</span> Colour bleeding</h3>
-              <p>A surface reflects each colour channel by its own albedo. A red wall reflects most red light and little green or blue, so the light leaving it is red, and anything it lights picks up a red tint. That is <dfn class="term" data-term="colour-bleeding">colour bleeding</dfn>: one surface's colour spreading onto its neighbours through bounced light. It is why a white shirt looks green on a lawn and why a room's walls set the mood of everything in it.</p>
+              <p>A surface reflects each <a class="term" data-term="colour-channel" href="glossary.html#colour-channel">colour channel</a> by its own albedo. A red wall reflects most red light and little green or blue, so the light leaving it is red, and anything it lights picks up a red tint. That is <dfn class="term" data-term="colour-bleeding">colour bleeding</dfn>: one surface's colour spreading onto its neighbours through bounced light. It is why a white shirt looks green on a lawn and why a room's walls set the mood of everything in it.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 250" role="img" aria-label="Bar charts of red, green and blue light. White sunlight has 1.0 of each. The red wall's albedo is 0.75 red, 0.12 green and 0.08 blue, so the light it reflects is 0.75, 0.12 and 0.08. When that reaches the white ceiling, with albedo 0.8 in each channel, the ceiling reflects 0.60, 0.10 and 0.06: still strongly red.">
@@ -292,7 +292,7 @@
                 </div>
                 <figcaption><b>One arrow, or all of them added up.</b> Radiance belongs to a direction; irradiance belongs to a point on a surface. Arrows from overhead are drawn thicker because light striking squarely delivers more per square metre, the same cosine weighting as <a class="term" data-term="n-dot-l" href="glossary.html#n-dot-l">N·L</a> in 7.2.</figcaption>
               </figure>
-              <p>The difference matters when you read about GI techniques. Lightmaps and most light probes store irradiance, or something close to it, which is enough for matte surfaces; reflections (<a class="xref" data-ch="7.6">7.6</a>) need radiance from particular directions, which costs far more to store.</p>
+              <p>The difference matters when you read about GI techniques. Lightmaps and most <a class="term" data-term="light-probe" data-forward href="glossary.html#light-probe">light probes</a> store irradiance, or something close to it, which is enough for matte surfaces; reflections (<a class="xref" data-ch="7.6">7.6</a>) need radiance from particular directions, which costs far more to store.</p>
             </div>
 
             <div class="step">
@@ -386,7 +386,7 @@
                     <text class="t-small" x="490" y="236">A sharp reflection of the wall, in a different place for each eye.</text>
                   </svg>
                 </div>
-                <figcaption><b>Diffuse GI is stored; specular GI is looked up per view.</b> Most of the light in a room is diffuse GI, which changes slowly across surfaces and not at all with the camera. Specular GI is what reflections are made of. Engines often use different systems for the two: Lumen, for example, solves both but with separate passes, and baked lighting stores only the diffuse part.</figcaption>
+                <figcaption><b>Diffuse GI is stored; specular GI is looked up per view.</b> Most of the light in a room is diffuse GI, which changes slowly across surfaces and not at all with the camera. Specular GI is what reflections are made of. Engines often use different systems for the two: Lumen, for example, solves both but with separate passes, and <a class="term" data-term="baked-lighting" data-forward href="glossary.html#baked-lighting">baked lighting</a> stores only the diffuse part.</figcaption>
               </figure>
             </div>
 
@@ -424,7 +424,7 @@
 
             <div class="step">
               <h3 class="step-title" id="map"><span class="step-num">9</span> A map of the rest of Part 8</h3>
-              <p>Every GI technique makes the rendering equation affordable by giving something up. Some do the work ahead of time and cannot react to change. Some use only what is on screen. Some trace a simplified copy of the scene, at the risk of light leaking through walls that the simplified copy gets wrong. The map places the ones the following chapters cover.</p>
+              <p>Every GI technique makes the rendering equation affordable by giving something up. Some do the work ahead of time and cannot react to change. Some use only what is on screen. Some trace a simplified copy of the scene, at the risk of <a class="term" data-term="light-leaking" data-forward href="glossary.html#light-leaking">light leaking</a> through walls that the simplified copy gets wrong. The map places the ones the following chapters cover.</p>
               <figure>
                 <div class="fig-frame">
                   <svg class="dg is-wide" viewBox="0 0 900 340" role="img" aria-label="A map of global illumination techniques. Horizontally: from computed ahead of time on the left to computed every frame on the right. Vertically: from screen space at the bottom, using only what is on screen, to the whole scene at the top. Lightmaps and light probes, chapter 8.2, are top left. Ambient occlusion, 8.3, and screen-space GI, 8.4, are bottom right. Probe, voxel and distance-field GI and Lumen, 8.5, are upper right. Ray tracing, 8.6, and path tracing, 8.7, are top right.">
@@ -482,7 +482,7 @@
               <li><strong>Things that change</strong><span>Moving lights, opening doors and time of day force real-time GI or several bakes.</span></li>
               <li><strong>Scene size</strong><span>Bakes and GI data grow with the area covered; real-time methods need representations of everything in range.</span></li>
               <li><strong>Directions per point</strong><span>Rays or probe resolution per pixel decide noise and detail.</span></li>
-              <li><strong>Resolution</strong><span>Per-pixel methods scale with screen pixels, which is why many run at reduced internal resolution.</span></li>
+              <li><strong>Resolution</strong><span>Per-pixel methods scale with screen pixels, which is why many run at reduced <a class="term" data-term="internal-resolution" data-forward href="glossary.html#internal-resolution">internal resolution</a>.</span></li>
               <li><strong>Specular GI</strong><span>Sharp reflections of bounced light need far more data than soft diffuse light.</span></li>
             </ul>
             <aside class="note" data-kind="lead">

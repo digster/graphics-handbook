@@ -251,7 +251,7 @@
                 </div>
                 <figcaption><b>One texture, three answers for UVs outside the square.</b> Each panel shows UVs from −1 to 2 in both directions; the outlined square in the middle is the texture itself. Repeat tiles it, clamp smears its edge texels outwards, mirror flips every other copy.</figcaption>
               </figure>
-              <p>Graphics APIs offer a couple more. Direct3D 12 also has border, which returns a fixed colour outside the square, and mirror once, which mirrors a single time and then clamps. Wrap modes can differ along U and V: a road texture often repeats along its length and clamps across it.</p>
+              <p><a class="term" data-term="graphics-api" href="glossary.html#graphics-api">Graphics APIs</a> offer a couple more. Direct3D 12 also has border, which returns a fixed colour outside the square, and mirror once, which mirrors a single time and then clamps. Wrap modes can differ along U and V: a road texture often repeats along its length and clamps across it.</p>
             </div>
 
             <div class="step">
@@ -312,7 +312,7 @@
 
             <div class="step">
               <h3 class="step-title" id="channel-packing"><span class="step-num">8</span> Channel packing</h3>
-              <p>Many material inputs need one number per texel, not three. <dfn class="term" data-term="channel-packing">Channel packing</dfn> stores up to four of them in the red, green, blue and alpha channels of one texture. The most common is an ORM map: ambient occlusion in red, roughness in green and metallic in blue. Godot's ORM material reads exactly that order, and many asset stores and texturing tools export it.</p>
+              <p>Many material inputs need one number per texel, not three. <dfn class="term" data-term="channel-packing">Channel packing</dfn> stores up to four of them in the red, green, blue and alpha channels of one texture. The most common is an ORM map: <a class="term" data-term="ambient-occlusion" data-forward href="glossary.html#ambient-occlusion">ambient occlusion</a> in red, roughness in green and metallic in blue. Godot's ORM material reads exactly that order, and many asset stores and texturing tools export it.</p>
               <p>Packing turns three texture reads into one and three files into one. It also changes how the texture must be imported. The channels hold data, not colour, so the texture must be read as linear values with the sRGB flag off (<a class="xref" data-ch="3.2">3.2 Colour done right</a>); and the shader must agree with the exporter about which channel holds what. There is no standard beyond convention, so write the team's order down.</p>
               <figure>
                 <div class="fig-frame">
@@ -359,7 +359,7 @@
                 </tbody>
               </table>
             </div>
-            <p>Now scale it to a level. Two hundred unique props, each with a colour map, a normal map and a packed ORM map at 2048 × 2048, are 600 textures. Compressed with their smaller copies, that is 600 × 5.33 MiB, about 3.1 GiB. The same props at 1024 × 1024 need 800 MiB. Sharing helps more than shrinking. If half of them move onto two trim sheet sets, those hundred props need a handful of textures between them.</p>
+            <p>Now scale it to a level. Two hundred unique props, each with a colour map, a <a class="term" data-term="normal-map" data-forward href="glossary.html#normal-map">normal map</a> and a packed ORM map at 2048 × 2048, are 600 textures. Compressed with their smaller copies, that is 600 × 5.33 MiB, about 3.1 GiB. The same props at 1024 × 1024 need 800 MiB. Sharing helps more than shrinking. If half of them move onto two trim sheet sets, those hundred props need a handful of textures between them.</p>
             <div class="stat-row">
               <div class="stat"><span class="value">×4</span><span class="what">memory each time the texture side doubles</span></div>
               <div class="stat"><span class="value">37.5%</span><span class="what">of the texture used by the cube's one-island layout in the interactive</span></div>
@@ -418,7 +418,7 @@
 <h4>Obvious tiling pattern</h4>
 <dl>
 <div><dt>Cause</dt><dd>A tiling texture repeats at a short interval and has one distinctive feature, which forms a grid at a distance.</dd></div>
-<div><dt>Ask for</dt><dd>Fewer distinctive features in the tile, a second layer at a different scale, decals, or blending between materials by vertex colour or a mask.</dd></div>
+<div><dt>Ask for</dt><dd>Fewer distinctive features in the tile, a second layer at a different scale, decals, or blending between materials by <a class="term" data-term="vertex-colour" href="glossary.html#vertex-colour">vertex colour</a> or a mask.</dd></div>
 </dl>
 </article>
 <article class="symptom">

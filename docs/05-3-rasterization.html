@@ -65,7 +65,7 @@
               <div>
                 <span class="label">The problem it solves</span>
                 <p>Triangles are exact shapes with corners anywhere; a screen is a fixed grid. Something has to decide, millions of times a frame, which squares a shape fills, with no gaps and no square filled twice where two triangles meet.</p>
-                <p>The rasterizer makes that decision in fixed hardware, the same way on every GPU that follows the API's rules.</p>
+                <p>The rasterizer makes that decision in <a class="term" data-term="fixed-hardware" href="glossary.html#fixed-hardware">fixed hardware</a>, the same way on every GPU that follows the API's rules.</p>
               </div>
             </div>
             <aside class="note" data-kind="lead">
@@ -81,7 +81,7 @@
 
             <div class="step">
               <h3 class="step-title" id="pixel-coordinates"><span class="step-num">1</span> Corners become pixel coordinates</h3>
-              <p>The vertex shader hands over each corner in clip space (<a class="xref" data-ch="5.2">5.2 Vertex shaders</a>). The GPU divides by the fourth coordinate, w, to apply perspective, then scales the result to the render target: x from 0 to its width in pixels, y from 0 to its height, with y running down the screen.</p>
+              <p>The vertex shader hands over each corner in <a class="term" data-term="clip-space" href="glossary.html#clip-space">clip space</a> (<a class="xref" data-ch="5.2">5.2 Vertex shaders</a>). The GPU divides by the fourth coordinate, w, to apply perspective, then scales the result to the <a class="term" data-term="render-target" data-forward href="glossary.html#render-target">render target</a>: x from 0 to its width in pixels, y from 0 to its height, with y running down the screen.</p>
               <p>In these coordinates pixel (2, 1) is the square from x 2 to 3 and y 1 to 2. Its <dfn class="term" data-term="sample-point">sample point</dfn> is the centre, (2.5, 1.5). Direct3D 10 and later put pixel centres at these half-way positions; Direct3D 9 put them on whole numbers, which is why old code is full of half-pixel offsets.</p>
               <p>Finally the corners are snapped to a fixed grid inside each pixel, so all later maths is exact integer arithmetic. Vulkan requires at least 4 bits of this sub-pixel precision, 16 steps per pixel, and its 2026 roadmap profile asks for 8 bits, 256 steps.</p>
               <figure>
@@ -171,7 +171,7 @@
                   <p>With screen-space weights w<sub>A</sub>, w<sub>B</sub>, w<sub>C</sub>, a value u at the corners and each corner's clip-space w (its distance from the camera):</p>
                   <p class="formula">affine: u = w<sub>A</sub> u<sub>A</sub> + w<sub>B</sub> u<sub>B</sub> + w<sub>C</sub> u<sub>C</sub></p>
                   <p class="formula">correct: u = (w<sub>A</sub> u<sub>A</sub>/w'<sub>A</sub> + w<sub>B</sub> u<sub>B</sub>/w'<sub>B</sub> + w<sub>C</sub> u<sub>C</sub>/w'<sub>C</sub>) ÷ (w<sub>A</sub>/w'<sub>A</sub> + w<sub>B</sub>/w'<sub>B</sub> + w<sub>C</sub>/w'<sub>C</sub>)</p>
-                  <p>Here w' is the corner's clip-space w. For the floor above, the halfway screen point gets (0.5 × 1/3) ÷ (0.5 × 1 + 0.5 × 1/3) = 0.25 of the way along. In HLSL a vertex output marked <code>noperspective</code> switches this off; <code>nointerpolation</code> skips blending entirely and copies one corner's value.</p>
+                  <p>Here w' is the corner's clip-space w. For the floor above, the halfway screen point gets (0.5 × 1/3) ÷ (0.5 × 1 + 0.5 × 1/3) = 0.25 of the way along. In <a class="term" data-term="hlsl" data-forward href="glossary.html#hlsl">HLSL</a> a vertex output marked <code>noperspective</code> switches this off; <code>nointerpolation</code> skips blending entirely and copies one corner's value.</p>
                 </div>
               </details>
             </div>
@@ -256,7 +256,7 @@
               <li><strong>Triangles under a few pixels</strong><span>Dense meshes seen from far away shade two to four lanes per pixel and hit the triangle setup limit.</span></li>
               <li><strong>Long, thin triangles</strong><span>Slivers touch a new quad at almost every pixel along their length, whatever their area.</span></li>
               <li><strong>Overlapping surfaces</strong><span>Every surface that covers a pixel is rasterized there, even if it ends up hidden. That is overdraw, the subject of <a class="xref" data-ch="5.4">5.4</a>.</span></li>
-              <li><strong>More samples per pixel</strong><span>MSAA tests coverage and depth at 2, 4 or 8 points per pixel, though the pixel shader still runs once per pixel (<a class="xref" data-ch="9.2">9.2</a>).</span></li>
+              <li><strong>More <a class="term" data-term="samples-per-pixel" data-forward href="glossary.html#samples-per-pixel">samples per pixel</a></strong><span><a class="term" data-term="msaa" data-forward href="glossary.html#msaa">MSAA</a> tests coverage and depth at 2, 4 or 8 points per pixel, though the pixel shader still runs once per pixel (<a class="xref" data-ch="9.2">9.2</a>).</span></li>
             </ul>
             <aside class="note" data-kind="lead">
               <p class="note-label">In proportion</p>
@@ -295,7 +295,7 @@
                 </div>
                 <h4>Textures bend along a diagonal</h4>
                 <dl>
-                  <div><dt>Cause</dt><dd>UVs are blended in screen space instead of with perspective correction: a <code>noperspective</code> output, or UVs computed after the divide by w.</dd></div>
+                  <div><dt>Cause</dt><dd>UVs are blended in <a class="term" data-term="screen-space" href="glossary.html#screen-space">screen space</a> instead of with perspective correction: a <code>noperspective</code> output, or UVs computed after the divide by w.</dd></div>
                   <div><dt>Ask for</dt><dd>How UVs travel from the vertex shader to the pixel shader in that material, and a test scene with a large floor seen at a grazing angle.</dd></div>
                 </dl>
               </article>
@@ -355,7 +355,7 @@
                 <h4>Distant dense meshes cost more than near ones</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>Full-detail meshes far away: triangles of a pixel or less waste most of each 2 × 2 quad and hit the triangle setup limit.</dd></div>
-                  <div><dt>Ask for</dt><dd>A quad overdraw view of the shot, then LODs or Nanite for the bright assets, with before and after GPU timings.</dd></div>
+                  <div><dt>Ask for</dt><dd>A <a class="term" data-term="quad-overdraw" data-forward href="glossary.html#quad-overdraw">quad overdraw</a> view of the shot, then LODs or Nanite for the bright assets, with before and after GPU timings.</dd></div>
                 </dl>
               </article>
             </div>

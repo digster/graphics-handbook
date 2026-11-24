@@ -29,7 +29,7 @@
           <header class="chapter-head">
             <p class="eyebrow">Part 4 · Geometry</p>
             <h1><span class="ch-num">4.6</span> Moving geometry</h1>
-            <p class="lead">A character's mesh is stored once, in one pose, and never changes. Every frame the GPU moves each vertex to where the animation wants it, by following a skeleton, mixing stored shapes, or reading positions baked into a texture.</p>
+            <p class="lead">A character's mesh is stored once, in one pose, and never changes. Every frame the <a class="term" data-term="gpu" href="glossary.html#gpu">GPU</a> moves each vertex to where the animation wants it, by following a skeleton, mixing stored shapes, or reading positions baked into a texture.</p>
             <dl class="chapter-meta">
               <div><dt>Builds on</dt><dd><a class="xref" data-ch="2.3">2.3 Scenes, objects and components</a>, <a class="xref" data-ch="3.4">3.4 Spaces and transforms</a>, <a class="xref" data-ch="4.2">4.2 Vertex buffers and index buffers</a></dd></div>
               <div><dt>Leads to</dt><dd><a class="xref" data-ch="5.2">5.2 Vertex shaders</a>, <a class="xref" data-ch="5.6">5.6 Shaders in practice</a>, <a class="xref" data-ch="11.3">11.3 Where CPU time goes</a></dd></div>
@@ -64,7 +64,7 @@
               </div>
               <div>
                 <span class="label">The problem it solves</span>
-                <p>A 30,000-vertex character animated by storing every vertex would need about 350 KB of positions for each frame, about 21 MB for each second at 60 frames per second.</p>
+                <p>A 30,000-vertex character animated by storing every vertex would need about 350 KB of positions for each frame, about 21 MB for each second at 60 <a class="term" data-term="fps" href="glossary.html#fps">frames per second</a>.</p>
                 <p>Its skeleton needs a few dozen bone transforms per frame instead, and the same animations can drive any mesh built on that skeleton.</p>
               </div>
             </div>
@@ -386,7 +386,7 @@
                     <path class="s-line" d="M576,270 V274 H794 V270"/>
                   </svg>
                 </div>
-                <figcaption><b>The same skinning, done in three places.</b> Skinning in the vertex shader costs no memory but repeats the work in every pass. Skinning once in a compute shader saves the repeats but needs a buffer per character, and other features can read that buffer too: ray tracing, recomputed tangents and motion vectors.</figcaption>
+                <figcaption><b>The same skinning, done in three places.</b> Skinning in the vertex shader costs no memory but repeats the work in every pass. Skinning once in a compute shader saves the repeats but needs a buffer per character, and other features can read that buffer too: <a class="term" data-term="ray-tracing" data-forward href="glossary.html#ray-tracing">ray tracing</a>, recomputed tangents and <a class="term" data-term="motion-vectors" data-forward href="glossary.html#motion-vectors">motion vectors</a>.</figcaption>
               </figure>
               <p>Unreal offers both, plus programmable mesh deformers; its compute path, the Skin Cache, is required for hardware ray tracing. Unity skins with compute shaders by default and can batch many meshes into one dispatch. Godot's Forward+ and Mobile renderers skin and apply blend shapes in a compute shader before drawing.</p>
               <p>Animation data itself is compressed. A clip stores each bone's rotation, position and scale over time, and <dfn class="term" data-term="animation-compression">animation compression</dfn> drops keys that interpolation can rebuild and stores the rest with fewer bits. It trades memory for small errors, which show first in fingers and feet.</p>
@@ -408,7 +408,7 @@
                 <tbody>
                   <tr><th scope="row">Skin weights</th><td>30,000 vertices × 8 bytes (4 bones, 4 weights)</td><td class="num">0.23 MB</td></tr>
                   <tr><th scope="row">Compute skinning cache</th><td>30,000 vertices × 32 bytes, per character on screen</td><td class="num">0.92 MB</td></tr>
-                  <tr><th scope="row">Face blend shapes</th><td>50 shapes × 3,000 moved vertices × 28 bytes (position and normal offsets, vertex number)</td><td class="num">4.0 MB</td></tr>
+                  <tr><th scope="row">Face blend shapes</th><td>50 shapes × 3,000 moved vertices × 28 bytes (position and <a class="term" data-term="normal-offset" data-forward href="glossary.html#normal-offset">normal offsets</a>, vertex number)</td><td class="num">4.0 MB</td></tr>
                   <tr><th scope="row">Vertex animation texture</th><td>2,000 vertices × 60 frames × 8 bytes, positions only</td><td class="num">0.92 MB</td></tr>
                   <tr><th scope="row">Uncompressed animation</th><td>80 bones × 30 keys a second × 60 s × 40 bytes (rotation 16, position 12, scale 12)</td><td class="num">5.5 MB</td></tr>
                 </tbody>
@@ -513,7 +513,7 @@
                 <h4>Faces without expressions</h4>
                 <dl>
                   <div><dt>Cause</dt><dd>Blend shapes were not imported, were stripped from lower LODs, or the mesh uses a path that does not support them, such as a Nanite mesh in Unreal.</dd></div>
-                  <div><dt>Ask for</dt><dd>The import setting for blend shapes, which LODs keep them, and the rendering path each character uses.</dd></div>
+                  <div><dt>Ask for</dt><dd>The import setting for blend shapes, which LODs keep them, and the <a class="term" data-term="rendering-path" data-forward href="glossary.html#rendering-path">rendering path</a> each character uses.</dd></div>
                 </dl>
               </article>
               <article class="symptom">
