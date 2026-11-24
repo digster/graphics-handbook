@@ -652,7 +652,7 @@
                 </tbody>
               </table>
             </div>
-            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9, Unity 6.6 (Shader Graph 17.6) and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9 preview (5.8 was the current release), Unity 6.6 (Shader Graph 17.6) and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
             <aside class="note" data-kind="warning">
               <p class="note-label">Platform caveat</p>
               <p>Godot's documentation warns that compute shader support is generally poor on mobile devices because of driver bugs, even where it is technically available. Test compute-based effects on your lowest-end target phones before planning around them.</p>
@@ -666,7 +666,7 @@
 
             <div class="prompt">
               <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when a scene misses its GPU budget and nobody knows why</span></div>
-              <pre class="prompt-body">Engine: Unreal Engine 5.9, DirectX 12. Target: 60 fps at 2560 × 1440 on an RTX 3060.
+              <pre class="prompt-body">Engine: Unreal Engine 5.8, DirectX 12. Target: 60 fps at 2560 × 1440 on an RTX 3060.
 Our forest level takes 22 ms of GPU time per frame. We do not know whether vertex work, pixel work or blending is the limit.
 
 1. Measure GPU time at 100% and 50% screen percentage, and again with shadows off. Report the numbers.

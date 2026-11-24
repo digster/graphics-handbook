@@ -804,7 +804,7 @@
                 </tbody>
               </table>
             </div>
-            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9 (materials, rendering settings, PSO and OIT pages), Unity 6.6 (6000.6) with URP, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9 preview (materials, rendering settings, PSO and OIT pages; 5.8 was the current release), Unity 6.6 (6000.6) with URP, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
             <aside class="note" data-kind="warning">
               <p class="note-label">Depth reads in custom shaders</p>
               <p>Any custom shader that reads the depth buffer, for soft particles, water edges, fog or outlines, depends on the engine's depth convention and the platform's graphics API. Unity's own documentation shows the same shader needing a flip on some APIs. Ask for depth reads to go through the engine's helper functions, never raw comparisons with 0 or 1.</p>
@@ -834,7 +834,7 @@ The glass uses the URP Lit shader, Surface Type Transparent, Blending Mode Alpha
 
             <div class="prompt">
               <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding a selection or x-ray outline</span></div>
-              <pre class="prompt-body">Engine: Unreal Engine 5.9, desktop. We need a 2-pixel selection outline on interactable objects, visible only where the object itself is visible, plus an optional x-ray silhouette when the object is behind a wall.
+              <pre class="prompt-body">Engine: Unreal Engine 5.8, desktop. We need a 2-pixel selection outline on interactable objects, visible only where the object itself is visible, plus an optional x-ray silhouette when the object is behind a wall.
 
 Design this with Custom Depth and the custom stencil:
 1. Which project setting and per-object settings to enable, and which stencil values to reserve for which effect.

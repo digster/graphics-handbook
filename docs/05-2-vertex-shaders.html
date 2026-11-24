@@ -506,7 +506,7 @@ VertexOut main(VertexIn v)              <span class="c">// runs once per vertex:
                 </tbody>
               </table>
             </div>
-            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9, Unity 6.6 (Shader Graph 17.6) and Godot 4.7 in November 2026, and Godot's skinning shader in its source. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9 preview (5.8 was the current release), Unity 6.6 (Shader Graph 17.6) and Godot 4.7 in November 2026, and Godot's skinning shader in its source. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
             <aside class="note" data-kind="warning">
               <p class="note-label">Borrowed shadow passes</p>
               <p>A hand-written shader often reuses another shader's shadow pass to save effort. That pass runs its own vertex shader, without your offset, so the shadow is cast by the mesh as stored. Whatever the tool, confirm in a frame capture that the shadow pass moves too.</p>
@@ -539,7 +539,7 @@ Report the extra vertex shader cost in instructions and the total vertex count a
 
             <div class="prompt">
               <div class="prompt-head"><span class="label">Bug report</span><span class="use-when">Use when moving geometry vanishes or its shadow misbehaves</span></div>
-              <pre class="prompt-body">Unreal Engine 5.9, Nanite foliage with World Position Offset wind. Two problems since we raised wind strength:
+              <pre class="prompt-body">Unreal Engine 5.8, Nanite foliage with World Position Offset wind. Two problems since we raised wind strength:
 - Tree tops disappear near the edges of the screen during strong gusts.
 - Shadows of distant trees stop swaying, while near trees are fine.
 

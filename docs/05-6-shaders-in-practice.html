@@ -819,7 +819,7 @@
                 </tbody>
               </table>
             </div>
-            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9, Unity 6.6 (6000.6) with Shader Graph 17.3, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
+            <p class="stamp" id="engine-stamp">Names checked against the documentation for Unreal Engine 5.9 preview (5.8 was the current release), Unity 6.6 (6000.6) with Shader Graph 17.3, and Godot 4.7 in November 2026. Engines rename settings between versions; if one is missing, search for it in your version's documentation.</p>
             <aside class="note" data-kind="warning">
               <p class="note-label">Driver caches hide hitches from developers</p>
               <p>Developers play the same build all day, so their driver caches already hold every pipeline and the hitches never show. Players see them on first launch. Godot's documentation recommends its pipeline monitors so you can find stutter sources without clearing the driver cache; with any engine, test first-time play on a clean machine or with the cache cleared.</p>
@@ -848,7 +848,7 @@
 
             <div class="prompt">
               <div class="prompt-head"><span class="label">Brief</span><span class="use-when">Use when adding a full-screen compute effect</span></div>
-              <pre class="prompt-body">Engine: Unreal Engine 5.9, desktop and Steam Deck. Add a screen-space edge-detection effect for a scanner mode, as a compute pass in the Render Dependency Graph after tone mapping.
+              <pre class="prompt-body">Engine: Unreal Engine 5.8, desktop and Steam Deck. Add a screen-space edge-detection effect for a scanner mode, as a compute pass in the Render Dependency Graph after tone mapping.
 
 Requirements:
 - Reads the scene depth and the tone-mapped colour; writes a new colour target of the same size.
