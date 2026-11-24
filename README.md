@@ -74,7 +74,10 @@ npm run build
 Environment variables for the tools are listed in [`.env.example`](.env.example). In the
 browser, add `?log=debug` to a page URL to see the scripts' logs.
 
-CI runs both test suites on every push and pull request (`.github/workflows/ci.yml`).
+CI (`.github/workflows/ci.yml`) runs both test suites in all three browser engines, but only
+when started by hand from the repository's Actions tab: automatic runs on pushes and pull
+requests are turned off. Run `BROWSERS=chromium,firefox,webkit npm test` locally before
+merging instead.
 
 ## Project layout
 

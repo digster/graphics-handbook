@@ -189,7 +189,7 @@ npm run build:search       # only the search index
 npm test                   # structure + browser tests
 npm run test:structure     # fast, no browser
 npm run test:browser       # Chromium by default; page, courtyard and interactive tests
-BROWSERS=chromium,firefox,webkit npm run test:browser   # what CI runs
+BROWSERS=chromium,firefox,webkit npm run test:browser   # what CI runs when started
 LOG_LEVEL=debug npm run build:search
 ```
 
@@ -205,8 +205,10 @@ In the browser, add `?log=debug` to any page URL (or set
 `localStorage["hb.log"] = "debug"`) to see the shell's and demos' logs.
 The default level is `warn`.
 
-CI (`.github/workflows/ci.yml`) runs both suites on every push and pull
-request, with all three browser engines.
+CI (`.github/workflows/ci.yml`) runs both suites with all three browser
+engines, but only when started by hand (Actions tab, "Run workflow"):
+automatic runs on push and pull request are disabled. Re-enable them by
+adding `push:` and `pull_request:` under `on:`.
 
 ## Theme and storage
 

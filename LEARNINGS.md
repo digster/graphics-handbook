@@ -127,7 +127,8 @@ related area.
 ## Cross-browser (found when CI had been red for a while)
 
 - **Run WebKit locally before trusting a green Chromium run.** CI runs all
-  three engines; the local default is Chromium only. WebKit for the pinned
+  three engines (now only when started by hand, so local runs are the
+  main check); the local default is Chromium only. WebKit for the pinned
   Playwright can be installed into the scratchpad with
   `PLAYWRIGHT_BROWSERS_PATH=<dir> npx playwright@1.63.0 install webkit`
   plus `npx playwright@1.63.0 install-deps webkit`, then
