@@ -185,10 +185,18 @@ npm run build              # regenerate docs/sources.html, then the search index
 npm run build:search       # only the search index
 npm test                   # structure + browser tests
 npm run test:structure     # fast, no browser
-npm run test:browser       # Chromium by default; includes the courtyard tests
+npm run test:browser       # Chromium by default; page, courtyard and interactive tests
 BROWSERS=chromium,firefox,webkit npm run test:browser   # what CI runs
 LOG_LEVEL=debug npm run build:search
 ```
+
+`tests/demos.test.mjs` drives the interactives that expose a model as
+`window.HB.<name>` (BVH, cascades, tone curves, TAA, bounce room, hitch
+gallery, brief builder) or a readout (budget builder). Where a chapter
+quotes a number an interactive produces (11.1's budget, 11.4's hitch
+session), the test asserts that number, so prose and model cannot drift
+apart. Expose a model the same way when a new interactive computes
+something a chapter quotes.
 
 In the browser, add `?log=debug` to any page URL (or set
 `localStorage["hb.log"] = "debug"`) to see the shell's and demos' logs.
