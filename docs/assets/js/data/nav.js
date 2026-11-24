@@ -140,14 +140,14 @@
         { num: "11.2", slug: "gpu-time", title: "Where GPU time goes", terms: "resolution, fill rate, overdraw, shader cost, bandwidth, VRAM", core: false, status: "published" },
         { num: "11.3", slug: "cpu-time", title: "Where CPU time goes", terms: "draw calls, culling, animation, physics, scripts, garbage collection, job systems", core: false, status: "published" },
         { num: "11.4", slug: "memory-hitches", title: "Memory, streaming and hitches", terms: "texture pool, mesh streaming, loading, shader compile stutter, PSO cache", core: false, status: "published" },
-        { num: "11.5", slug: "profilers-settings", title: "Profilers and the settings menu", terms: "RenderDoc, PIX, Unreal Insights, Unity Profiler; scalability tiers", core: false, status: "planned" }
+        { num: "11.5", slug: "profilers-settings", title: "Profilers and the settings menu", terms: "RenderDoc, PIX, Unreal Insights, Unity Profiler; scalability tiers", core: false, status: "published" }
       ]
     },
     {
       n: 12, title: "Working with AI", blurb: "Turning the vocabulary into briefs, reviews and decisions.",
       chapters: [
-        { num: "12.1", slug: "where-ai-fits", title: "Where AI fits today", terms: "shaders, engine code, tools, asset generation, review, log and capture analysis; where it falls short", core: false, status: "planned" },
-        { num: "12.2", slug: "briefing-ai", title: "Briefing AI on graphics work", terms: "engine and version, render pipeline, target platform, budget, reproduction steps, acceptance criteria", core: true, status: "planned" },
+        { num: "12.1", slug: "where-ai-fits", title: "Where AI fits today", terms: "shaders, engine code, tools, asset generation, review, log and capture analysis; where it falls short", core: false, status: "published" },
+        { num: "12.2", slug: "briefing-ai", title: "Briefing AI on graphics work", terms: "engine and version, render pipeline, target platform, budget, reproduction steps, acceptance criteria", core: true, status: "published" },
         { num: "12.3", slug: "reviewing-ai-code", title: "Reviewing AI-written graphics code", terms: "colour-space mix-ups, wrong coordinate space, API and version mismatch, per-frame allocation, precision, missing fallbacks", core: false, status: "planned" },
         { num: "12.4", slug: "visual-bug-guide", title: "Visual bug field guide", terms: "acne, peter-panning, z-fighting, light leaks, ghosting, banding, fireflies, shimmer, seams, popping", core: true, status: "planned" },
         { num: "12.5", slug: "decision-guides", title: "Decision guides", terms: "choosing a render path, shadows, GI and anti-aliasing per platform and team size", core: false, status: "planned" }

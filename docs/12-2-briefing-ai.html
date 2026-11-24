@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>12.2 Briefing AI on graphics work · Graphics Handbook</title>
+  <meta name="description" content="How to brief an AI on graphics work: context (engine and version, render pipeline, target platform), the frame budget and current numbers, reproduction steps, constraints, deliverables, acceptance criteria, a verification plan and evidence, with an interactive brief builder and worked briefs for a bug, an optimisation and a new feature.">
+  <script src="assets/js/theme-init.js"></script>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/site.css">
+  <link rel="stylesheet" href="assets/css/diagrams.css">
+</head>
+<body data-page="12.2">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="index.html">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path class="tri" d="M4 19.5L12 4.5L20 19.5Z"/><circle class="dot" cx="20" cy="19.5" r="2.6"/></svg>
+      Graphics Handbook
+    </a>
+    <div class="header-tools" id="header-tools"></div>
+  </header>
+
+  <div class="layout has-rail">
+    <nav class="sidebar" id="sidebar" aria-label="Chapters"></nav>
+    <main id="main" class="main">
+      <div class="content">
+        <article class="chapter">
+
+          <header class="chapter-head">
+            <p class="eyebrow">Part 12 · Working with AI</p>
+            <h1><span class="ch-num">12.2</span> Briefing AI on graphics work</h1>
+            <p class="lead">An AI can only work from what it is told and what it can find. This chapter takes a brief apart: the context it cannot guess, the numbers and the budget, the symptom and how to reproduce it, the limits, what to hand back, and how the result will be checked. An interactive builds a strong brief from a weak one, and three worked briefs show the template on a bug, an optimisation and a new feature.</p>
+            <dl class="chapter-meta">
+              <div><dt>Builds on</dt><dd><a class="xref" data-ch="11.1">11.1 Frame budgets</a>, <a class="xref" data-ch="11.5">11.5 Profilers and the settings menu</a>, <a class="xref" data-ch="12.1">12.1 Where AI fits today</a></dd></div>
+              <div><dt>Leads to</dt><dd><a class="xref" data-ch="12.3">12.3 Reviewing AI-written graphics code</a>, <a class="xref" data-ch="12.4">12.4 Visual bug field guide</a></dd></div>
+              <div><dt>Reading time</dt><dd>About 30 minutes</dd></div>
+              <div><dt>Interactive</dt><dd>Brief builder</dd></div>
+            </dl>
+          </header>
+
+          <!-- ============ 1. The picture ============ -->
+          <section class="beat" id="picture" data-beat="picture">
+            <h2 class="beat-title is-quiet"><span class="beat-num">1</span> The picture</h2>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 352" role="img" aria-label="Left, a weak brief: Shadows are too slow, make them faster, and seven things the AI must guess: engine and version, platform and target, current numbers, symptom and where, constraints, deliverables and verification. Right, a strong brief with the same first line and seven numbered parts that answer each guess: Unreal Engine 5.8, deferred, Lumen, cascaded shadow maps; PS5 and Series S at 60 fps, a 16.7 ms budget; GPU 19.8 ms at bookmark 3 with shadow depths at 4.6 ms against 2.0; cascades 2 and 3 costing 3.4 ms with grass as 1,280 of 1,750 draws; keep the look and do not change time of day, foliage or cascades; causes first with evidence, then the smallest patch; done when shadow depths is at most 2.0 ms on PS5 measured the same way and the art lead signs off."><text class="t-caps" x="0" y="14">THE SAME REQUEST, WEAK AND STRONG · EACH NUMBER LINKS A GUESS TO THE LINES THAT REMOVE IT</text><text class="t-caps" x="0" y="44">WEAK BRIEF</text><rect class="f-surface s-strong" x="0" y="52" width="300" height="40" rx="6"/><text class="t-small t-mono" x="12" y="76">Shadows are too slow. Make them faster.</text><text class="t-caps" x="0" y="118">WHAT THE AI HAS TO GUESS</text><circle class="f-surface s-pix w15" cx="9" cy="140" r="8"/><text class="t-pix t-strong mid" x="9" y="143.8" font-size="10.5">1</text><text class="t-small t-strong" x="24" y="138">Engine and version</text><text class="t-small t-muted" x="24" y="151">which engine and version, so which settings exist</text><circle class="f-surface s-pix w15" cx="9" cy="170" r="8"/><text class="t-pix t-strong mid" x="9" y="173.8" font-size="10.5">2</text><text class="t-small t-strong" x="24" y="168">Platform and target</text><text class="t-small t-muted" x="24" y="181">which hardware, and how fast is fast enough</text><circle class="f-surface s-pix w15" cx="9" cy="200" r="8"/><text class="t-pix t-strong mid" x="9" y="203.8" font-size="10.5">3</text><text class="t-small t-strong" x="24" y="198">Current numbers</text><text class="t-small t-muted" x="24" y="211">how far off it is, from what starting point</text><circle class="f-surface s-pix w15" cx="9" cy="230" r="8"/><text class="t-pix t-strong mid" x="9" y="233.8" font-size="10.5">4</text><text class="t-small t-strong" x="24" y="228">Symptom and where</text><text class="t-small t-muted" x="24" y="241">what exactly is wrong, where, how to see it</text><circle class="f-surface s-pix w15" cx="9" cy="260" r="8"/><text class="t-pix t-strong mid" x="9" y="263.8" font-size="10.5">5</text><text class="t-small t-strong" x="24" y="258">Constraints</text><text class="t-small t-muted" x="24" y="271">what it may change, and what must stay</text><circle class="f-surface s-pix w15" cx="9" cy="290" r="8"/><text class="t-pix t-strong mid" x="9" y="293.8" font-size="10.5">6</text><text class="t-small t-strong" x="24" y="288">Deliverables</text><text class="t-small t-muted" x="24" y="301">what to hand back, and when to stop</text><circle class="f-surface s-pix w15" cx="9" cy="320" r="8"/><text class="t-pix t-strong mid" x="9" y="323.8" font-size="10.5">7</text><text class="t-small t-strong" x="24" y="318">Verification</text><text class="t-small t-muted" x="24" y="331">how anyone will know it worked</text><text class="t-caps" x="330" y="44">STRONG BRIEF</text><rect class="f-acc-soft s-acc" x="330" y="52" width="570" height="288" rx="6"/><text class="t-small t-mono" x="362" y="68">Shadows are too slow. Make them faster.</text><circle class="f-acc" cx="346" cy="87" r="8"/><text class="t-on-acc t-strong mid" x="346" y="90.8" font-size="10.5">1</text><text class="t-small t-mono" x="362" y="91">Unreal Engine 5.8, deferred, Lumen GI. The sun uses cascaded</text><text class="t-small t-mono" x="362" y="106">shadow maps (virtual shadow maps off), 4 cascades.</text><circle class="f-acc" cx="346" cy="125" r="8"/><text class="t-on-acc t-strong mid" x="346" y="128.8" font-size="10.5">2</text><text class="t-small t-mono" x="362" y="129">PS5 and Xbox Series S, 60 fps mode: 16.7 ms frame budget.</text><circle class="f-acc" cx="346" cy="148" r="8"/><text class="t-on-acc t-strong mid" x="346" y="151.8" font-size="10.5">3</text><text class="t-small t-mono" x="362" y="152">GPU is 19.8 ms at camera bookmark 3. Shadow depths take 4.6 ms</text><text class="t-small t-mono" x="362" y="167">against a 2.0 ms budget. Unreal Insights trace attached.</text><circle class="f-acc" cx="346" cy="186" r="8"/><text class="t-on-acc t-strong mid" x="346" y="189.8" font-size="10.5">4</text><text class="t-small t-mono" x="362" y="190">Cascades 2 and 3 cost 3.4 ms; 1,280 of their 1,750 draws are</text><text class="t-small t-mono" x="362" y="205">grass. Interiors are fine. Steps: MarketSquare, bookmark 3.</text><circle class="f-acc" cx="346" cy="224" r="8"/><text class="t-on-acc t-strong mid" x="346" y="227.8" font-size="10.5">5</text><text class="t-small t-mono" x="362" y="228">Keep the look at cameras 1 to 5. No change to time of day,</text><text class="t-small t-mono" x="362" y="243">foliage or cascade count. Series S must not get slower.</text><circle class="f-acc" cx="346" cy="262" r="8"/><text class="t-on-acc t-strong mid" x="346" y="265.8" font-size="10.5">6</text><text class="t-small t-mono" x="362" y="266">Causes first, ranked, with evidence from the trace. Then the</text><text class="t-small t-mono" x="362" y="281">smallest change, as a patch, with what it trades away.</text><circle class="f-acc" cx="346" cy="300" r="8"/><text class="t-on-acc t-strong mid" x="346" y="303.8" font-size="10.5">7</text><text class="t-small t-mono" x="362" y="304">Done when Shadow depths is at most 2.0 ms on PS5 at bookmark 3,</text><text class="t-small t-mono" x="362" y="319">measured the same way; art lead signs off cameras 1 to 5.</text></svg>
+              </div>
+              <figcaption><b>A weak brief leaves seven guesses; a strong one answers each in a line or two.</b> Both start with the same request. The strong brief adds the engine and its version, the platforms and their budget, the measured numbers, where the problem is and how to see it, what must not change, what to hand back, and what "done" means. None of it needs graphics expertise to write, only the vocabulary of this book and the numbers a capture gives (<a class="xref" data-ch="11.5">11.5</a>). The numbers are illustrative.</figcaption>
+            </figure>
+          </section>
+
+          <!-- ============ 2. In plain words ============ -->
+          <section class="beat" id="plain" data-beat="plain">
+            <h2 class="beat-title"><span class="beat-num">2</span> In plain words</h2>
+            <p>A <dfn class="term" data-term="brief">brief</dfn> is the written request that starts a piece of AI work. <a class="xref" data-ch="12.1">12.1</a> showed that an AI sees only its <a class="term" data-term="model-context" href="glossary.html#model-context">context</a>: the brief, the files it opens and the results of its tools. Whatever the brief leaves out, the AI fills in with a plausible guess, and it will not say which parts it guessed. A good brief puts the facts that are hard to guess inside that window.</p>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 268" role="img" aria-label="Left, seven things you know: the engine and version, the target platform and budget, how slow it is and where it was measured, how it looks, what the art lead will accept, what was tried last week, and why the budget is what it is. Arrows carry the first five into a funnel labelled the brief and attachments; the last two stay greyed out. Right, what the AI sees: the brief and its attachments, files it opens, and results of tools it runs; anything else it fills with a guess."><defs><marker id="rc2-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="0" y="14">ONLY WHAT IS IN THE BRIEF, THE FILES AND THE TOOLS REACHES THE AI</text><text class="t-caps" x="0" y="44">WHAT YOU KNOW</text><rect class="f-surface s-strong" x="0" y="54" width="250" height="22" rx="4"/><text class="t-small" x="10" y="69">the engine and its version</text><path class="s-acc w15" d="M252,65 C330,65 330,150 392,150" marker-end="url(#rc2-arr)"/><rect class="f-surface s-strong" x="0" y="82" width="250" height="22" rx="4"/><text class="t-small" x="10" y="97">the target platform and budget</text><path class="s-acc w15" d="M252,93 C330,93 330,150 392,150" marker-end="url(#rc2-arr)"/><rect class="f-surface s-strong" x="0" y="110" width="250" height="22" rx="4"/><text class="t-small" x="10" y="125">how slow it is, measured where</text><path class="s-acc w15" d="M252,121 C330,121 330,150 392,150" marker-end="url(#rc2-arr)"/><rect class="f-surface s-strong" x="0" y="138" width="250" height="22" rx="4"/><text class="t-small" x="10" y="153">how it looks on screen</text><path class="s-acc w15" d="M252,149 C330,149 330,150 392,150" marker-end="url(#rc2-arr)"/><rect class="f-surface s-strong" x="0" y="166" width="250" height="22" rx="4"/><text class="t-small" x="10" y="181">what the art lead will accept</text><path class="s-acc w15" d="M252,177 C330,177 330,150 392,150" marker-end="url(#rc2-arr)"/><rect class="f-sunken s-line" x="0" y="194" width="250" height="22" rx="4"/><text class="t-small t-muted" x="10" y="209">what was tried last week</text><rect class="f-sunken s-line" x="0" y="222" width="250" height="22" rx="4"/><text class="t-small t-muted" x="10" y="237">why the budget is what it is</text><polygon class="f-acc-soft s-acc" points="396,96 520,120 520,180 396,204"/><text class="t-head mid" x="458" y="146">the brief</text><text class="t-small mid" x="458" y="164">and attachments</text><line class="s-acc w15" x1="522" y1="150" x2="586" y2="150" marker-end="url(#rc2-arr)"/><text class="t-caps" x="590" y="44">WHAT THE AI SEES</text><rect class="f-acc-soft s-acc" x="590" y="104" width="310" height="24" rx="4"/><text class="t-small" x="600" y="120">the brief and what is attached to it</text><rect class="f-acc-soft s-acc" x="590" y="136" width="310" height="24" rx="4"/><text class="t-small" x="600" y="152">files it opens in the project</text><rect class="f-acc-soft s-acc" x="590" y="168" width="310" height="24" rx="4"/><text class="t-small" x="600" y="184">results of the tools it runs</text><text class="t-small t-strong" x="590" y="222">Anything else, it fills with a plausible guess.</text><text class="t-small t-muted" x="0" y="258">Greyed items stayed in someone's head: the AI will never know them unless they are written into the brief.</text></svg>
+              </div>
+              <figcaption><b>The brief is the only door from your head to the AI.</b> The engine version, the target hardware, the measured numbers and what the art lead will accept all live in people's heads, spreadsheets and devkits. Only what goes through the brief, or is attached to it, reaches the model. Some facts can stay out on purpose; the ones that change the answer cannot.</figcaption>
+            </figure>
+            <div class="analogy">
+              <div>
+                <span class="label">An everyday comparison</span>
+                <p>Calling a plumber about a leak. "There's water somewhere" gets a visit, a look around and a guess. "Hot tap in the upstairs bathroom drips once a second, worse since the boiler was serviced, the valve is a 15 mm compression fitting" gets the right part on the van and a fix on the first visit, and you both know when it is fixed: the dripping stops.</p>
+              </div>
+              <div>
+                <span class="label">The problem it solves</span>
+                <p>Without a brief, every AI result needs a round of corrections that each cost a review: wrong engine version, wrong platform, a change nobody asked for, no way to tell whether it worked. With one, the first result is usually close, and checking it takes minutes because the brief already said how.</p>
+              </div>
+            </div>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">Why a lead cares</p>
+              <p>Writing the brief is the part of AI work that cannot be delegated to the AI. It is also the same document a lead would give a contractor or a new hire, and the same one QA needs to verify the result. Ten to fifteen minutes on a brief often saves hours of review and rework, and it leaves a record of what was asked and why.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 3. How it works ============ -->
+          <section class="beat" id="how" data-beat="how">
+            <h2 class="beat-title"><span class="beat-num">3</span> How it works</h2>
+            <p>The steps follow the template: its parts, then the context, the numbers, the problem and how to reproduce it, the limits and deliverables, and how the result is checked. Then build a brief in the interactive, and see the template applied to three kinds of task.</p>
+
+            <div class="step">
+              <h3 class="step-title" id="anatomy"><span class="step-num">1</span> The anatomy of a brief</h3>
+              <p>Every brief in this book follows the same eight parts. Small tasks need a line for each; large ones need a paragraph. The order matters less than leaving nothing out, but this order reads well: what you want, where you are, how far off you are, what is wrong, what must not change, what to hand back, and how it will be checked.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 374" role="img" aria-label="A template of eight parts. Goal: one sentence, for example make the shadows cheaper. Context: engine and exact version, render pipeline and features, words from 2.4 and 7.3. Target: platforms, frame rate and budget, 1.4 and 11.1. Current numbers: measured values, where and with which tool, 11.5. Symptom and where: what is wrong, where, when, how often and steps to reproduce, 12.4. Constraints: what must not change and limits, 11.4. Deliverables: what to hand back and in what order, 12.3. Verification: acceptance criteria, how and by whom they are checked, and evidence, 11.5."><text class="t-caps" x="0" y="14">THE ANATOMY OF A BRIEF · A TEMPLATE TO REUSE</text><text class="t-caps" x="0" y="40">PART</text><text class="t-caps" x="186" y="40">WHAT TO WRITE</text><text class="t-caps" x="532" y="40">EXAMPLE</text><text class="t-caps end" x="900" y="40">WORDS FROM</text><rect class="f-acc-soft s-acc" x="0" y="52" width="900" height="34" rx="5"/><text class="t-small t-strong" x="12" y="73">Goal</text><text class="t-small" x="186" y="73">One sentence: the outcome you want.</text><text class="t-small t-mono" x="532" y="73">Make the shadows cheaper.</text><rect class="f-surface s-strong" x="0" y="92" width="900" height="34" rx="5"/><circle class="f-acc" cx="16" cy="109" r="8"/><text class="t-on-acc t-strong mid" x="16" y="112.8" font-size="10.5">1</text><text class="t-small t-strong" x="32" y="113">Context</text><text class="t-small" x="186" y="113">Engine and exact version, render pipeline or path, features on or off.</text><text class="t-small t-mono" x="532" y="113">UE 5.8, deferred, Lumen, CSM</text><a class="xref" data-ch="7.3"><text class="t-small t-acc t-strong end" x="888" y="113">7.3</text></a><a class="xref" data-ch="2.4"><text class="t-small t-acc t-strong end" x="850" y="113">2.4</text></a><rect class="f-surface s-strong" x="0" y="132" width="900" height="34" rx="5"/><circle class="f-acc" cx="16" cy="149" r="8"/><text class="t-on-acc t-strong mid" x="16" y="152.8" font-size="10.5">2</text><text class="t-small t-strong" x="32" y="153">Target</text><text class="t-small" x="186" y="153">Platforms, frame rate and the frame budget.</text><text class="t-small t-mono" x="532" y="153">PS5, Series S, 60 fps, 16.7 ms</text><a class="xref" data-ch="11.1"><text class="t-small t-acc t-strong end" x="888" y="153">11.1</text></a><a class="xref" data-ch="1.4"><text class="t-small t-acc t-strong end" x="850" y="153">1.4</text></a><rect class="f-surface s-strong" x="0" y="172" width="900" height="34" rx="5"/><circle class="f-acc" cx="16" cy="189" r="8"/><text class="t-on-acc t-strong mid" x="16" y="192.8" font-size="10.5">3</text><text class="t-small t-strong" x="32" y="193">Current numbers</text><text class="t-small" x="186" y="193">Measured values, where, and with which tool.</text><text class="t-small t-mono" x="532" y="193">shadows 4.6 ms at bookmark 3</text><a class="xref" data-ch="11.5"><text class="t-small t-acc t-strong end" x="888" y="193">11.5</text></a><rect class="f-surface s-strong" x="0" y="212" width="900" height="34" rx="5"/><circle class="f-acc" cx="16" cy="229" r="8"/><text class="t-on-acc t-strong mid" x="16" y="232.8" font-size="10.5">4</text><text class="t-small t-strong" x="32" y="233">Symptom and where</text><text class="t-small" x="186" y="233">What is wrong, where, when, how often; steps to reproduce.</text><text class="t-small t-mono" x="532" y="233">far cascades, grass, 10 of 10</text><a class="xref" data-ch="12.4"><text class="t-small t-acc t-strong end" x="888" y="233">12.4</text></a><rect class="f-surface s-strong" x="0" y="252" width="900" height="34" rx="5"/><circle class="f-acc" cx="16" cy="269" r="8"/><text class="t-on-acc t-strong mid" x="16" y="272.8" font-size="10.5">5</text><text class="t-small t-strong" x="32" y="273">Constraints</text><text class="t-small" x="186" y="273">What must not change; limits on time, memory, files, look.</text><text class="t-small t-mono" x="532" y="273">keep the look; Series S no slower</text><a class="xref" data-ch="11.4"><text class="t-small t-acc t-strong end" x="888" y="273">11.4</text></a><rect class="f-surface s-strong" x="0" y="292" width="900" height="34" rx="5"/><circle class="f-acc" cx="16" cy="309" r="8"/><text class="t-on-acc t-strong mid" x="16" y="312.8" font-size="10.5">6</text><text class="t-small t-strong" x="32" y="313">Deliverables</text><text class="t-small" x="186" y="313">What to hand back, in what order, and when to stop.</text><text class="t-small t-mono" x="532" y="313">causes first, then a small patch</text><a class="xref" data-ch="12.3"><text class="t-small t-acc t-strong end" x="888" y="313">12.3</text></a><rect class="f-surface s-strong" x="0" y="332" width="900" height="34" rx="5"/><circle class="f-acc" cx="16" cy="349" r="8"/><text class="t-on-acc t-strong mid" x="16" y="352.8" font-size="10.5">7</text><text class="t-small t-strong" x="32" y="353">Verification</text><text class="t-small" x="186" y="353">Acceptance criteria, how and by whom they are checked, evidence.</text><text class="t-small t-mono" x="532" y="353">≤ 2.0 ms, same capture, art sign-off</text><a class="xref" data-ch="11.5"><text class="t-small t-acc t-strong end" x="888" y="353">11.5</text></a></svg>
+                </div>
+                <figcaption><b>Eight parts, each filled with vocabulary from earlier chapters.</b> The template is the same for a bug, an optimisation or a feature; what changes is which parts carry the weight. The right-hand column points to where the book explains the words each part needs. Copy the template into your team's task tracker and fill it in before any AI work starts.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="context"><span class="step-num">2</span> Context: the facts an AI cannot guess</h3>
+              <p>The <dfn class="term" data-term="brief-context">context</dfn> names the engine and its exact version, the <a class="term" data-term="render-pipeline" href="glossary.html#render-pipeline">render pipeline</a> or <a class="term" data-term="rendering-path" href="glossary.html#rendering-path">rendering path</a>, the features that are on or off, the target platforms, and the files or systems involved. These facts come first because they change the answer to almost every question that follows.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 238" role="img" aria-label="A question, where do I set how far the sun&#x27;s shadows reach, with four correct answers. Unreal Engine 5.8 with classic cascades: Dynamic Shadow Distance MovableLight on the directional light, though new projects use virtual shadow maps. Unity 6 URP: the URP Asset&#x27;s Shadows section, Max Distance in metres. Unity 6 HDRP: the Shadows Volume override, Max Distance. Godot 4.7: DirectionalLight3D Max Distance, 100 m by default. Without the context, an AI picks one or blends two."><defs><marker id="en-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-muted" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="0" y="14">ONE QUESTION, FOUR RIGHT ANSWERS: WHY CONTEXT COMES FIRST</text><rect class="f-surface s-ink w15" x="250" y="26" width="400" height="34" rx="17"/><text class="t-small t-strong mid" x="450" y="48">“Where do I set how far the sun's shadows reach?”</text><path class="s-muted w15" d="M450,61 C450,80 106,76 106,92" marker-end="url(#en-arr)"/><rect class="f-surface s-strong" x="0" y="96" width="212" height="104" rx="8"/><text class="t-small t-strong t-acc" x="12" y="118">Unreal Engine 5.8</text><text class="t-small" x="12" y="138">Classic cascades: Dynamic Shadow</text><text class="t-small" x="12" y="152">Distance MovableLight on the</text><text class="t-small" x="12" y="166">directional light. New projects</text><text class="t-small" x="12" y="180">use virtual shadow maps instead.</text><path class="s-muted w15" d="M450,61 C450,80 335.3,76 335.3,92" marker-end="url(#en-arr)"/><rect class="f-surface s-strong" x="229.3" y="96" width="212" height="104" rx="8"/><text class="t-small t-strong t-acc" x="241.3" y="118">Unity 6, URP</text><text class="t-small" x="241.3" y="138">URP Asset, Shadows section:</text><text class="t-small" x="241.3" y="152">Max Distance, in metres.</text><path class="s-muted w15" d="M450,61 C450,80 564.7,76 564.7,92" marker-end="url(#en-arr)"/><rect class="f-surface s-strong" x="458.7" y="96" width="212" height="104" rx="8"/><text class="t-small t-strong t-acc" x="470.7" y="118">Unity 6, HDRP</text><text class="t-small" x="470.7" y="138">Shadows Volume override:</text><text class="t-small" x="470.7" y="152">Max Distance.</text><path class="s-muted w15" d="M450,61 C450,80 794,76 794,92" marker-end="url(#en-arr)"/><rect class="f-surface s-strong" x="688" y="96" width="212" height="104" rx="8"/><text class="t-small t-strong t-acc" x="700" y="118">Godot 4.7</text><text class="t-small" x="700" y="138">DirectionalLight3D, Shadow:</text><text class="t-small" x="700" y="152">Max Distance, 100 m by</text><text class="t-small" x="700" y="166">default.</text><text class="t-small t-muted" x="0" y="226">Without the engine, version and pipeline in the brief, an AI picks one of these, or blends two into a setting that does not exist.</text></svg>
+                </div>
+                <figcaption><b>The same question has a different right answer in each engine, version and pipeline.</b> All four answers come from <a class="xref" data-ch="7.5">7.5</a>, checked against each engine's documentation. Without the context line, an AI picks one of them or, worse, describes a setting that mixes two. Engine versions matter as much as engines: settings are renamed, moved and retired between releases.</figcaption>
+              </figure>
+              <p>Give the full version, such as 5.8 or 6000.6, rather than "Unreal 5" or "Unity 6". Name the pipeline and path: <a class="term" data-term="urp" href="glossary.html#urp">URP</a> or <a class="term" data-term="hdrp" href="glossary.html#hdrp">HDRP</a> and their rendering path in Unity, <a class="term" data-term="deferred-rendering" href="glossary.html#deferred-rendering">deferred</a> or forward in Unreal, the <a class="term" data-term="rendering-method" href="glossary.html#rendering-method">rendering method</a> in Godot. Say which big features are on: <a class="term" data-term="lumen" href="glossary.html#lumen">Lumen</a>, <a class="term" data-term="nanite" href="glossary.html#nanite">Nanite</a>, <a class="term" data-term="virtual-shadow-maps" href="glossary.html#virtual-shadow-maps">virtual shadow maps</a>, <a class="term" data-term="ray-tracing" href="glossary.html#ray-tracing">ray tracing</a>. If your project has modified the engine, say that too.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="numbers"><span class="step-num">3</span> Numbers: the budget and where you are</h3>
+              <p>Performance briefs need three numbers: the <a class="term" data-term="frame-budget" href="glossary.html#frame-budget">frame budget</a> for the target, the current measurement, and the gap. The budget comes from the target frame rate and the team's <a class="term" data-term="budget-allocation" href="glossary.html#budget-allocation">allocation</a> per pass (<a class="xref" data-ch="11.1">11.1</a>). The measurement comes from a capture, and its "where" and "how" matter as much as its value.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 212" role="img" aria-label="Two stacked bars to scale. Budget: shadows 2.0, G-buffer 3.5, lighting 4.0, AO 1.0, reflections 1.5, fog 1.2, post 2.0, UI 0.5 and other 1.0, totalling 16.7 ms. Measured: shadows 4.6, G-buffer 4.1, lighting 3.9, AO 1.0, reflections 1.6, fog 1.2, post 1.9, UI 0.5, other 1.0, totalling 19.8 ms. Notes give where it was measured, at bookmark 3 on a PS5 devkit; how, with Unreal Insights over 300 frames; and the gap, 3.1 ms of which 2.6 is shadows."><text class="t-caps" x="0" y="14">CURRENT NUMBERS: THE BUDGET, THE MEASUREMENT, THE GAP · ILLUSTRATIVE</text><line class="s-ink dash w15" x1="761.3" y1="30" x2="761.3" y2="140"/><text class="t-small t-strong" x="0" y="62">Budget</text><rect class="f-sunken s-strong" x="110" y="40" width="76.5" height="34" rx="2"/><text class="t-small" x="114" y="55">Shadows</text><text class="t-small t-mono" x="114" y="68">2.0</text><rect class="f-sunken s-strong" x="188" y="40" width="135" height="34" rx="2"/><text class="t-small" x="192" y="55">G-buffer</text><text class="t-small t-mono" x="192" y="68">3.5</text><rect class="f-sunken s-strong" x="324.5" y="40" width="154.5" height="34" rx="2"/><text class="t-small" x="328.5" y="55">Lighting</text><text class="t-small t-mono" x="328.5" y="68">4.0</text><rect class="f-sunken s-strong" x="480.5" y="40" width="37.5" height="34" rx="2"/><text class="t-small" x="484.5" y="55">AO</text><text class="t-small t-mono" x="484.5" y="68">1.0</text><rect class="f-sunken s-strong" x="519.5" y="40" width="57" height="34" rx="2"/><text class="t-small" x="523.5" y="55">Refl.</text><text class="t-small t-mono" x="523.5" y="68">1.5</text><rect class="f-sunken s-strong" x="578" y="40" width="45.3" height="34" rx="2"/><text class="t-small" x="582" y="55">Fog</text><text class="t-small t-mono" x="582" y="68">1.2</text><rect class="f-sunken s-strong" x="624.8" y="40" width="76.5" height="34" rx="2"/><text class="t-small" x="628.8" y="55">Post</text><text class="t-small t-mono" x="628.8" y="68">2.0</text><rect class="f-sunken s-strong" x="702.8" y="40" width="18" height="34" rx="2"/><rect class="f-sunken s-strong" x="722.3" y="40" width="37.5" height="34" rx="2"/><text class="t-small" x="726.3" y="55">Other</text><text class="t-small t-mono" x="726.3" y="68">1.0</text><text class="t-small t-strong" x="0" y="114">Measured</text><rect class="f-pix-soft s-pix" x="110" y="92" width="177.9" height="34" rx="2"/><text class="t-small t-strong" x="114" y="107">Shadows</text><text class="t-small t-mono" x="114" y="120">4.6</text><rect class="f-acc-soft s-acc" x="289.4" y="92" width="158.4" height="34" rx="2"/><text class="t-small" x="293.4" y="107">G-buffer</text><text class="t-small t-mono" x="293.4" y="120">4.1</text><rect class="f-acc-soft s-acc" x="449.3" y="92" width="150.6" height="34" rx="2"/><text class="t-small" x="453.3" y="107">Lighting</text><text class="t-small t-mono" x="453.3" y="120">3.9</text><rect class="f-acc-soft s-acc" x="601.4" y="92" width="37.5" height="34" rx="2"/><text class="t-small" x="605.4" y="107">AO</text><text class="t-small t-mono" x="605.4" y="120">1.0</text><rect class="f-acc-soft s-acc" x="640.4" y="92" width="60.9" height="34" rx="2"/><text class="t-small" x="644.4" y="107">Refl.</text><text class="t-small t-mono" x="644.4" y="120">1.6</text><rect class="f-acc-soft s-acc" x="702.8" y="92" width="45.3" height="34" rx="2"/><text class="t-small" x="706.8" y="107">Fog</text><text class="t-small t-mono" x="706.8" y="120">1.2</text><rect class="f-acc-soft s-acc" x="749.6" y="92" width="72.6" height="34" rx="2"/><text class="t-small" x="753.6" y="107">Post</text><text class="t-small t-mono" x="753.6" y="120">1.9</text><rect class="f-acc-soft s-acc" x="823.7" y="92" width="18" height="34" rx="2"/><rect class="f-acc-soft s-acc" x="843.2" y="92" width="37.5" height="34" rx="2"/><text class="t-small" x="847.2" y="107">Other</text><text class="t-small t-mono" x="847.2" y="120">1.0</text><text class="t-small t-mono t-strong mid" x="761.3" y="26">16.7 ms</text><text class="t-small t-mono t-strong end" x="882.2" y="146">19.8 ms</text><text class="t-small t-strong" x="0" y="172">Where</text><text class="t-small" x="60" y="172">bookmark 3 in MarketSquare, PS5 devkit, 60 fps mode</text><text class="t-small t-strong" x="0" y="188">How</text><text class="t-small" x="60" y="188">Unreal Insights, median of 300 frames, development build</text><text class="t-small t-strong" x="0" y="204">Gap</text><text class="t-small" x="60" y="204">3.1 ms over in total, 2.6 ms of it in the shadow pass</text></svg>
+                </div>
+                <figcaption><b>A number without where and how is not a measurement.</b> 19.8 ms at bookmark 3 on a PS5 devkit, as a median of 300 frames in a development build, can be compared with the next capture. "It runs at about 50 fps" cannot. Give milliseconds rather than frames per second, and say whether the frame is <a class="term" data-term="cpu-bound" href="glossary.html#cpu-bound">CPU-bound</a> or <a class="term" data-term="gpu-bound" href="glossary.html#gpu-bound">GPU-bound</a>, because that decides where the AI should look.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="repro"><span class="step-num">4</span> The problem, where it appears, and how to see it</h3>
+              <p>For a bug, describe what is wrong in the vocabulary of the book, where it appears, when, and how often. Then give <dfn class="term" data-term="reproduction-steps">reproduction steps</dfn>: the build, the settings, the place and camera, and the actions that make it happen every time. A visual bug described by name, such as <a class="term" data-term="shadow-acne" href="glossary.html#shadow-acne">shadow acne</a> or <a class="term" data-term="ghosting" href="glossary.html#ghosting">ghosting</a>, already points at a cause; <a class="xref" data-ch="12.4">12.4</a> is a field guide to those names.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 264" role="img" aria-label="A vague report, the shadows flicker sometimes, turned into reproduction steps: build, the nightly of 20 November as a development build; settings, Medium quality at 1280 by 800; place, the Courtyard scene at camera bookmark Pan-02; steps, play and pan right slowly for 5 seconds; how often, 10 out of 10 on PC and Steam Deck; system, GPU model, driver and graphics API; since when, after last week&#x27;s shadow settings change; evidence, a 60 fps video, a frame capture and shadow pass timing."><defs><marker id="rp-arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path class="f-acc" d="M0,0 L8,4 L0,8 Z"/></marker></defs><text class="t-caps" x="0" y="14">FROM A REPORT TO REPRODUCTION STEPS AND EVIDENCE</text><rect class="f-surface s-strong" x="0" y="34" width="230" height="70" rx="8"/><text class="t-small t-muted" x="12" y="56">Report as received</text><text class="t-small t-mono" x="12" y="76">“The shadows flicker</text><text class="t-small t-mono" x="12" y="91">sometimes.”</text><line class="s-acc w15" x1="232" y1="69" x2="278" y2="69" marker-end="url(#rp-arr)"/><rect class="f-acc-soft s-acc" x="282" y="34" width="618" height="222" rx="8"/><text class="t-head" x="296" y="56">Reproduction steps</text><text class="t-small t-strong" x="296" y="80">Build</text><text class="t-small" x="390" y="80">nightly of 20 November, development build</text><text class="t-small t-strong" x="296" y="104">Settings</text><text class="t-small" x="390" y="104">Medium quality level, 1280 × 800</text><text class="t-small t-strong" x="296" y="128">Place</text><text class="t-small" x="390" y="128">Courtyard scene, camera bookmark Pan-02</text><text class="t-small t-strong" x="296" y="152">Steps</text><text class="t-small" x="390" y="152">1. play   2. pan right slowly for 5 seconds</text><text class="t-small t-strong" x="296" y="176">How often</text><text class="t-small" x="390" y="176">10 times out of 10, on the PC and the Steam Deck</text><text class="t-small t-strong" x="296" y="200">System</text><text class="t-small" x="390" y="200">GPU model, driver version, graphics API</text><text class="t-small t-strong" x="296" y="224">Since when</text><text class="t-small" x="390" y="224">after last week's shadow settings change</text><text class="t-small t-strong" x="296" y="248">Evidence</text><text class="t-small" x="390" y="248">60 fps video, a frame capture, shadow pass timing</text><text class="t-small t-strong" x="0" y="140">A bug you can make happen</text><text class="t-small t-strong" x="0" y="154">on demand is a bug you can</text><text class="t-small t-strong" x="0" y="168">prove fixed.</text></svg>
+                </div>
+                <figcaption><b>Reproduction steps turn "sometimes" into "every time, here".</b> Engines ask the same of their own bug reports. Godot's bug template asks graphics reports for the GPU model, driver version and rendering backend, and for a minimal reproduction project; Unity's bug reporting guide says the most important thing is telling them exactly how to reproduce the issue. The same steps let an AI test its fix, and let a person confirm it.</figcaption>
+              </figure>
+              <p>For an optimisation, the problem part holds the expanded measurement: which pass, which part of it, which content (<a class="xref" data-ch="11.5">11.5</a>). For a new feature, it holds what the feature is and where it lives: which menu, which levels, which defaults per platform.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="limits"><span class="step-num">5</span> Constraints and deliverables</h3>
+              <p><dfn class="term" data-term="brief-constraints">Constraints</dfn> are the limits the solution must respect. In graphics work they usually cover the look (which cameras or scenes must not change), budgets (milliseconds and megabytes on each platform), scope (files and systems out of bounds), and trade-offs that need a person's decision, such as fewer <a class="term" data-term="cascaded-shadow-maps" href="glossary.html#cascaded-shadow-maps">shadow cascades</a> or a lower <a class="term" data-term="internal-resolution" href="glossary.html#internal-resolution">internal resolution</a>. Without them, an AI asked to make something faster will find the cheapest change, which is often a visible loss of quality on a platform nobody checked.</p>
+              <p>Deliverables say what to hand back and in what order. For anything non-trivial, ask for the diagnosis before the change, small steps rather than one large one, and a note of what each change trades away. Say where to stop: "then wait for review" keeps an agent from carrying on into work nobody has agreed to.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="verify"><span class="step-num">6</span> Acceptance criteria, verification and evidence</h3>
+              <p><dfn class="term" data-term="acceptance-criteria">Acceptance criteria</dfn> are the conditions the result must meet, written before work starts. A <dfn class="term" data-term="verification-plan">verification plan</dfn> says how each one will be checked and by whom. <dfn class="term" data-term="evidence">Evidence</dfn> is what goes in and comes back: captures, screenshots from fixed cameras, timings, logs and test results.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 222" role="img" aria-label="A table of four acceptance criteria with where, how and who. Shadow depths at most 2.0 ms on the PS5 devkit at bookmark 3, measured as a median of 300 frames in Insights, signed off by a graphics programmer. Series S no slower, the same way within 0.1 ms. No visible change at cameras 1 to 5 on both consoles, by before and after screenshots, signed off by the art lead. A 1% low of at least 55 fps on the market route, from a frame-time capture, signed off by QA. The measured-how column is highlighted: without it a criterion cannot be checked."><text class="t-caps" x="0" y="14">ACCEPTANCE CRITERIA WITH A VERIFICATION PLAN · THE SHADOW EXAMPLE</text><text class="t-caps" x="0" y="42">CRITERION</text><text class="t-caps" x="260" y="42">WHERE</text><text class="t-caps" x="470" y="42">MEASURED HOW</text><text class="t-caps" x="740" y="42">SIGNED OFF BY</text><rect class="f-sunken" x="0" y="52" width="900" height="28" rx="4"/><text class="t-small t-strong" x="8" y="70">Shadow depths at most 2.0 ms</text><text class="t-small" x="268" y="70">PS5 devkit, bookmark 3</text><text class="t-small" x="478" y="70">Insights, median of 300 frames</text><text class="t-small" x="748" y="70">graphics programmer</text><rect class="f-surface" x="0" y="86" width="900" height="28" rx="4"/><text class="t-small t-strong" x="8" y="104">Series S no slower than now</text><text class="t-small" x="268" y="104">Series S devkit, bookmark 3</text><text class="t-small" x="478" y="104">the same method, ± 0.1 ms</text><text class="t-small" x="748" y="104">graphics programmer</text><rect class="f-sunken" x="0" y="120" width="900" height="28" rx="4"/><text class="t-small t-strong" x="8" y="138">No visible change</text><text class="t-small" x="268" y="138">cameras 1 to 5, both consoles</text><text class="t-small" x="478" y="138">before and after screenshots</text><text class="t-small" x="748" y="138">art lead</text><rect class="f-surface" x="0" y="154" width="900" height="28" rx="4"/><text class="t-small t-strong" x="8" y="172">1% low at least 55 fps</text><text class="t-small" x="268" y="172">PS5, the market route</text><text class="t-small" x="478" y="172">frame-time capture of the route</text><text class="t-small" x="748" y="172">QA</text><rect class="s-acc w2" x="466" y="48" width="268" height="138" rx="6"/><text class="t-small t-acc t-strong mid" x="600" y="210">without this column, a criterion cannot be checked</text></svg>
+                </div>
+                <figcaption><b>Every criterion needs a place, a method and a person.</b> "Faster shadows" cannot be checked; "Shadow depths at most 2.0 ms at bookmark 3 on a PS5 devkit, median of 300 frames" can, by anyone, at any time. Criteria about the look need a named reviewer and fixed cameras, because no number captures taste. Criteria for platforms the AI cannot run on tell everyone, in advance, that a person will measure them.</figcaption>
+              </figure>
+              <p>Ask for evidence back in the same form you sent it: the same capture at the same bookmark, the same screenshots, the same test. Then the review compares like with like, and the <a class="term" data-term="human-review-gate" href="glossary.html#human-review-gate">human review gate</a> from <a class="xref" data-ch="12.1">12.1</a> takes minutes instead of an afternoon.</p>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="builder"><span class="step-num">7</span> Build a brief</h3>
+              <p>Start from the one-line brief and add the elements one at a time. Watch the list of guesses shrink and the brief grow; then switch to the bug or the feature to see the same template applied in another engine.</p>
+              <figure>
+                <div class="demo" data-demo="brief-builder">
+                  <p class="demo-hint">The brief builder needs JavaScript. Without it: the weak brief "Shadows are too slow. Make them faster." leaves seven things to guess. Adding the engine and version, platform and target frame rate, current numbers, symptom and where it appears, constraints, deliverables and verification turns it into the strong brief shown at the top of this chapter, in about 250 words.</p>
+                </div>
+                <figcaption><b>Brief builder.</b> Each element adds a paragraph to the brief and removes one guess. Verification is the element that makes the result checkable; without it, nobody can say when the work is finished. The three tasks use illustrative numbers in three engines, and their text matches the worked briefs in the next step. Copy a brief as a starting point for your own.</figcaption>
+              </figure>
+            </div>
+
+            <div class="step">
+              <h3 class="step-title" id="worked"><span class="step-num">8</span> Three worked briefs</h3>
+              <p>The template does not change between kinds of task, but the weight shifts. A bug brief is mostly symptom and reproduction steps. An optimisation brief is mostly numbers. A feature brief is mostly a description of what to build and what done looks like.</p>
+              <figure>
+                <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 310" role="img" aria-label="Three columns, one per kind of task, against five rows. Bug, in Unity 6.6 URP: goal, stop shadow edges crawling when the camera pans; the problem slot holds the symptom, place, steps, how often and since when; attach a video, a frame capture and the quality level; done means no crawl at Pan-02 on both machines with a cost change under 0.2 ms; words from 7.4, 7.5 and 6.2. Optimisation, in Unreal Engine 5.8: shadow depths under 2.0 ms on PS5; budget, measured numbers and the expanded pass; an Insights trace, capture and budget table; at most 2.0 ms at bookmark 3 with no visible change; 7.5, 11.1 and 11.5. New feature, in Godot 4.7: add an ambient occlusion option to the settings menu; what it is, where it lives, levels and defaults per platform; Visual Profiler timings and screenshots per level; each level changes the image, costs what it says and persists; 8.3 and 11.5."><text class="t-caps" x="0" y="14">THREE KINDS OF TASK, ONE TEMPLATE · WHAT CHANGES IN EACH</text><text class="t-small t-strong" x="0" y="76">Goal line</text><text class="t-small t-strong" x="0" y="128">The problem slot holds</text><text class="t-small t-strong" x="0" y="180">Attach as evidence</text><text class="t-small t-strong" x="0" y="232">Done means</text><text class="t-small t-strong" x="0" y="284">Words from</text><rect class="f-surface s-strong" x="166" y="26" width="232" height="276" rx="8"/><text class="t-head" x="178" y="46">Bug</text><text class="t-small t-muted end" x="386" y="46">Unity 6.6, URP</text><text class="t-small t-strong" x="178" y="76">Stop shadow edges crawling</text><text class="t-small t-strong" x="178" y="90">when the camera pans.</text><text class="t-small" x="178" y="128">symptom, place, steps,</text><text class="t-small" x="178" y="142">how often, since when</text><text class="t-small" x="178" y="180">video, frame capture,</text><text class="t-small" x="178" y="194">quality level in use</text><text class="t-small" x="178" y="232">no crawl at Pan-02 on both</text><text class="t-small" x="178" y="246">machines; cost change &lt; 0.2 ms</text><a class="xref" data-ch="7.4"><text class="t-small t-acc t-strong" x="178" y="284">7.4</text></a><a class="xref" data-ch="7.5"><text class="t-small t-acc t-strong" x="216" y="284">7.5</text></a><a class="xref" data-ch="6.2"><text class="t-small t-acc t-strong" x="254" y="284">6.2</text></a><rect class="f-surface s-strong" x="412" y="26" width="232" height="276" rx="8"/><text class="t-head" x="424" y="46">Optimisation</text><text class="t-small t-muted end" x="632" y="46">Unreal Engine 5.8</text><text class="t-small t-strong" x="424" y="76">Shadow depths under</text><text class="t-small t-strong" x="424" y="90">2.0 ms on PS5.</text><text class="t-small" x="424" y="128">budget, measured numbers,</text><text class="t-small" x="424" y="142">the expanded pass</text><text class="t-small" x="424" y="180">Insights trace, capture,</text><text class="t-small" x="424" y="194">per-pass budget table</text><text class="t-small" x="424" y="232">≤ 2.0 ms at bookmark 3,</text><text class="t-small" x="424" y="246">no visible change</text><a class="xref" data-ch="7.5"><text class="t-small t-acc t-strong" x="424" y="284">7.5</text></a><a class="xref" data-ch="11.1"><text class="t-small t-acc t-strong" x="462" y="284">11.1</text></a><a class="xref" data-ch="11.5"><text class="t-small t-acc t-strong" x="500" y="284">11.5</text></a><rect class="f-surface s-strong" x="658" y="26" width="232" height="276" rx="8"/><text class="t-head" x="670" y="46">New feature</text><text class="t-small t-muted end" x="878" y="46">Godot 4.7</text><text class="t-small t-strong" x="670" y="76">Add an ambient occlusion</text><text class="t-small t-strong" x="670" y="90">option to the settings menu.</text><text class="t-small" x="670" y="128">what it is, where it lives,</text><text class="t-small" x="670" y="142">levels, defaults per platform</text><text class="t-small" x="670" y="180">Visual Profiler timings,</text><text class="t-small" x="670" y="194">screenshots per level</text><text class="t-small" x="670" y="232">each level changes the image,</text><text class="t-small" x="670" y="246">costs what it says, persists</text><a class="xref" data-ch="8.3"><text class="t-small t-acc t-strong" x="670" y="284">8.3</text></a><a class="xref" data-ch="11.5"><text class="t-small t-acc t-strong" x="708" y="284">11.5</text></a><line class="s-line dash" x1="166" y1="110" x2="900" y2="110"/><line class="s-line dash" x1="166" y1="162" x2="900" y2="162"/><line class="s-line dash" x1="166" y1="214" x2="900" y2="214"/><line class="s-line dash" x1="166" y1="266" x2="900" y2="266"/></svg>
+                </div>
+                <figcaption><b>Same template, different weight.</b> The bug in Unity is <a class="term" data-term="shadow-map" href="glossary.html#shadow-map">shadow</a> edges crawling while the camera pans, a symptom <a class="xref" data-ch="7.4">7.4</a> describes, usually a light view that does not move in whole texels (<a class="xref" data-ch="7.5">7.5</a>). The optimisation in Unreal is the shadow pass from <a class="xref" data-ch="11.5">11.5</a>. The feature in Godot is an <a class="term" data-term="ambient-occlusion" href="glossary.html#ambient-occlusion">ambient occlusion</a> option for the settings menu, with its cost measured per level. Select each task in the brief builder above to read and copy its full text.</figcaption>
+              </figure>
+              <aside class="note" data-kind="simplified">
+                <p class="note-label">Simplified</p>
+                <p>Real briefs often add links: the ticket, the design document, the relevant files and earlier attempts. Long attachments such as full logs cost context; attach a summary with the key lines and say where the full file is.</p>
+              </aside>
+            </div>
+          </section>
+
+          <!-- ============ 4. What it costs ============ -->
+          <section class="beat" id="cost" data-beat="cost">
+            <h2 class="beat-title"><span class="beat-num">4</span> What it costs</h2>
+            <p>A strong brief costs ten to thirty minutes of someone who knows the problem. A weak one costs more, later: each round trip needs a review, and the reviews that find a wrong version or a wrong platform are pure waste. The cost also grows with how hard the result is to check without the brief's acceptance criteria.</p>
+            <figure>
+              <div class="fig-frame">
+<svg class="dg is-wide" viewBox="0 0 900 206" role="img" aria-label="Two timelines of people&#x27;s time, illustrative. A weak brief: a one-line brief, a review that finds the wrong engine version, another that finds the wrong platform, an hour capturing by hand to check, a final review and a devkit check, 3.25 hours in all. A strong brief: 0.3 hours writing it, 0.6 reviewing with the evidence the agent returned, and 0.3 on a devkit check, 1.2 hours in all."><text class="t-caps" x="0" y="14">PEOPLE'S TIME ON ONE TASK, WEAK BRIEF AGAINST STRONG · ILLUSTRATIVE HOURS</text><text class="t-small t-strong" x="0" y="64">Weak brief</text><rect class="f-sunken s-strong" x="112" y="44" width="8" height="30" rx="3"/><text class="t-small t-muted mid" x="117" y="88">1-line brief</text><rect class="f-pix-soft s-pix" x="122" y="44" width="98" height="30" rx="3"/><text class="t-small" x="127" y="63">wrong version</text><rect class="f-pix-soft s-pix" x="222" y="44" width="98" height="30" rx="3"/><text class="t-small" x="227" y="63">wrong platform</text><rect class="f-sunken s-strong" x="322" y="44" width="198" height="30" rx="3"/><text class="t-small" x="327" y="63">capture by hand</text><rect class="f-sunken s-strong" x="522" y="44" width="138" height="30" rx="3"/><text class="t-small" x="527" y="63">review</text><rect class="f-sunken s-strong" x="662" y="44" width="98" height="30" rx="3"/><text class="t-small" x="667" y="63">devkit check</text><text class="t-small t-mono t-strong" x="770" y="64">3.25 h</text><text class="t-small t-strong" x="0" y="132">Strong brief</text><rect class="f-acc-soft s-acc" x="112" y="112" width="58" height="30" rx="3"/><text class="t-small t-muted mid" x="142" y="156">write the brief</text><rect class="f-sunken s-strong" x="172" y="112" width="118" height="30" rx="3"/><text class="t-small" x="177" y="131">review with evidence</text><rect class="f-sunken s-strong" x="292" y="112" width="58" height="30" rx="3"/><text class="t-small t-muted mid" x="322" y="156">devkit check</text><text class="t-small t-mono t-strong" x="360" y="132">1.2 h</text><line class="s-strong" x1="112" y1="176" x2="112" y2="182"/><text class="t-small t-mono t-muted mid" x="112" y="196">0 h</text><line class="s-strong" x1="312" y1="176" x2="312" y2="182"/><text class="t-small t-mono t-muted mid" x="312" y="196">1 h</text><line class="s-strong" x1="512" y1="176" x2="512" y2="182"/><text class="t-small t-mono t-muted mid" x="512" y="196">2 h</text><line class="s-strong" x1="712" y1="176" x2="712" y2="182"/><text class="t-small t-mono t-muted mid" x="712" y="196">3 h</text><line class="s-strong" x1="112" y1="176" x2="812" y2="176"/></svg>
+              </div>
+              <figcaption><b>The time saved by a short brief is spent, with interest, in review.</b> The hours are illustrative but the shape is common: a one-line brief takes seconds and then two rounds of review discover what it left out, and checking the result means capturing by hand. The strong brief takes 18 minutes to write and gets back evidence that makes review quick.</figcaption>
+            </figure>
+            <p>Worked example, illustrative. The weak brief costs 3.25 hours of people's time over two days, the strong one 1.2 hours: about 2 hours saved on one task. A team handing an agent ten such tasks a week saves around 20 hours, half a person, and gets a written record of each decision. The saving depends on the checks: without a devkit check, both briefs are cheaper and both results are unverified.</p>
+            <ul class="grows">
+              <li><strong>Missing context</strong><span>Each missing fact is a potential round trip, and version mistakes are the most common.</span></li>
+              <li><strong>Vague criteria</strong><span>Without a measurable "done", review becomes opinion and repeats.</span></li>
+              <li><strong>Platforms the AI cannot run</strong><span>Every one needs a person with a devkit, so say who in the brief.</span></li>
+              <li><strong>Task size</strong><span>Big asks need plans and staged deliverables, or the review grows beyond what anyone can check.</span></li>
+              <li><strong>Long attachments</strong><span>Whole logs and captures crowd the context; summaries and pointers work better.</span></li>
+            </ul>
+            <aside class="note" data-kind="lead">
+              <p class="note-label">The usual trade</p>
+              <p>Teams keep a brief template in their task tracker, require the context and verification parts for every AI task, and let the rest scale with the task. They save good briefs as examples, because a brief that worked once is the fastest way to write the next one.</p>
+            </aside>
+          </section>
+
+          <!-- ============ 5. How it breaks ============ -->
+          <section class="beat" id="breaks" data-beat="breaks">
+            <h2 class="beat-title"><span class="beat-num">5</span> How it breaks</h2>
+            <p>Each missing part of a brief has its own failure. Most look like an AI mistake, and most trace back to a line the brief did not contain.</p>
+            <div class="symptoms">
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A brief with no engine version and an answer written for version 5.3."><rect class="f-surface" x="0" y="0" width="240" height="130"/><rect class="f-sunken s-strong dash" x="20" y="22" width="96" height="44" rx="4"/><text class="t-small t-mono mid" x="68" y="40">brief:</text><text class="t-small t-mono t-pix t-strong mid" x="68" y="56">no version</text><rect class="f-surface s-strong" x="140" y="22" width="84" height="44" rx="4"/><text class="t-small t-mono mid" x="182" y="40">answer:</text><text class="t-small t-mono mid" x="182" y="56">for 5.3</text><text class="t-small mid" x="120" y="100">settings that moved</text><text class="t-small t-pix t-strong mid" x="120" y="114">two versions ago</text></svg>
+                </div>
+                <h4>An answer for the wrong engine version</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No version in the context, so the AI answered for one it knew. The setting it describes moved or was renamed.</dd></div>
+                  <div><dt>Ask for</dt><dd>The exact version and pipeline in every brief, and links to that version's documentation in every answer.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A change that saves 1.2 ms on the development PC and costs 0.4 ms more on Series S."><rect class="f-surface" x="0" y="0" width="240" height="130"/><text class="t-small" x="16" y="30">dev PC</text><rect class="f-acc-soft s-acc" x="90" y="18" width="31.2" height="16"/><text class="t-small t-mono t-acc t-strong" x="127.2" y="31">−1.2 ms</text><text class="t-small" x="16" y="70">Series S</text><line class="s-strong" x1="90" y1="52" x2="90" y2="92"/><rect class="f-pix-soft s-pix" x="90" y="58" width="10.4" height="16"/><text class="t-small t-mono t-pix t-strong" x="106.4" y="71">+0.4 ms</text><text class="t-small t-muted mid" x="120" y="116">faster here, slower there</text></svg>
+                </div>
+                <h4>Faster on the dev PC, slower on the console</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No target platform or budget in the brief, so the AI optimised for the machine it could measure.</dd></div>
+                  <div><dt>Ask for</dt><dd>Platforms and budgets in the target line, and a criterion per platform with who measures it.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Shadows fixed in one place while new stripes appear on the water elsewhere."><rect class="f-surface" x="0" y="0" width="240" height="130"/><rect class="f-sunken s-strong" x="14" y="20" width="100" height="66" rx="4"/><polygon class="f-surface s-strong" points="22,78 106,78 90,52 38,52"/><path class="s-acc w3 round" d="M50,48 L62,60 L84,34"/><text class="t-small mid" x="64" y="104">shadows: fixed</text><rect class="f-sunken s-strong" x="126" y="20" width="100" height="66" rx="4"/><polygon class="f-surface s-strong" points="134,78 218,78 202,52 150,52"/><line class="s-pix w2" x1="148" y1="56" x2="156" y2="76"/><line class="s-pix w2" x1="164" y1="56" x2="172" y2="76"/><line class="s-pix w2" x1="180" y1="56" x2="188" y2="76"/><line class="s-pix w2" x1="196" y1="56" x2="204" y2="76"/><text class="t-small mid t-pix t-strong" x="176" y="104">water: new stripes</text></svg>
+                </div>
+                <h4>The fix broke something elsewhere</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No constraints and no regression checks: a shared setting changed, and another scene or material paid for it.</dd></div>
+                  <div><dt>Ask for</dt><dd>Constraints that name what must not change, and screenshots from a fixed set of cameras before and after.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A frame-time line with no target and no baseline, so nobody can say whether it improved."><rect class="f-surface" x="0" y="0" width="240" height="130"/><line class="s-strong" x1="20" y1="96" x2="220" y2="96"/><line class="s-strong" x1="20" y1="24" x2="20" y2="96"/><polyline class="s-acc w15" points="24,60 60,66 96,54 132,72 168,58 212,64"/><text class="t-small t-pix t-strong mid" x="120" y="40">better?</text><text class="t-small t-muted mid" x="120" y="118">no target, no baseline</text></svg>
+                </div>
+                <h4>Nobody can say whether it worked</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No acceptance criteria and no baseline: the result is "better", measured differently from the original.</dd></div>
+                  <div><dt>Ask for</dt><dd>Criteria with a place, a method and a person, and the same capture before and after.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="A change list that touches six files when one was asked for."><rect class="f-surface" x="0" y="0" width="240" height="130"/><rect class="f-acc" x="20" y="11" width="8" height="8"/><text class="t-small t-mono" x="34" y="19">ShadowSettings.ini</text><rect class="f-pix" x="20" y="26" width="8" height="8"/><text class="t-small t-mono" x="34" y="34">ShadowRendering.cpp</text><rect class="f-pix" x="20" y="41" width="8" height="8"/><text class="t-small t-mono" x="34" y="49">LightCulling.cpp</text><rect class="f-pix" x="20" y="56" width="8" height="8"/><text class="t-small t-mono" x="34" y="64">SceneVisibility.cpp</text><rect class="f-pix" x="20" y="71" width="8" height="8"/><text class="t-small t-mono" x="34" y="79">Foliage.cpp</text><rect class="f-pix" x="20" y="86" width="8" height="8"/><text class="t-small t-mono" x="34" y="94">PostProcess.cpp</text><text class="t-small t-pix t-strong mid" x="120" y="118">asked for one file, got six</text></svg>
+                </div>
+                <h4>It rewrote half the renderer</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No scope in the constraints and no stopping point in the deliverables, so the agent kept improving things.</dd></div>
+                  <div><dt>Ask for</dt><dd>Files and systems in and out of scope, a plan before code, and "then stop for review" in the deliverables.</dd></div>
+                </dl>
+              </article>
+              <article class="symptom">
+                <div class="thumb">
+<svg class="dg" viewBox="0 0 240 130" role="img" aria-label="Two dice and a question mark: without steps to reproduce, a fix is a guess."><rect class="f-surface" x="0" y="0" width="240" height="130"/><rect class="f-surface s-ink" x="40" y="26" width="44" height="44" rx="8"/><circle class="f-ink" cx="52" cy="38" r="3.5"/><circle class="f-ink" cx="72" cy="58" r="3.5"/><circle class="f-ink" cx="62" cy="48" r="3.5"/><rect class="f-surface s-ink" x="100" y="34" width="44" height="44" rx="8"/><circle class="f-ink" cx="112" cy="46" r="3.5"/><circle class="f-ink" cx="132" cy="66" r="3.5"/><text class="t-head t-pix mid" x="196" y="52">?</text><text class="t-small mid" x="120" y="104">no steps to reproduce:</text><text class="t-small t-pix t-strong mid" x="120" y="118">the fix is a guess</text></svg>
+                </div>
+                <h4>It cannot reproduce the bug, so it guesses</h4>
+                <dl>
+                  <div><dt>Cause</dt><dd>No reproduction steps: the AI fixes the most likely cause it can think of, and nobody can tell whether that was the real one.</dd></div>
+                  <div><dt>Ask for</dt><dd>Steps that reproduce it every time, with build, settings and camera, and a test that fails before the fix and passes after.</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+
+          <!-- ============ 6. In the engines ============ -->
+          <section class="beat" id="engines" data-beat="engines">
+            <h2 class="beat-title"><span class="beat-num">6</span> In the engines</h2>
+            <p>What goes in the context and evidence parts differs per engine. This table lists what to name and where the numbers come from.</p>
+            <div class="table-wrap">
+              <table class="engines is-wide">
+                <thead><tr><th scope="col"></th><th scope="col">Unreal Engine 5</th><th scope="col">Unity 6</th><th scope="col">Godot 4</th></tr></thead>
+                <tbody>
+                  <tr>
+                    <th scope="row">Version</th>
+                    <td>The full version, for example 5.8, and whether the engine is a modified source build.</td>
+                    <td>The Editor version with its patch number, for example 6000.6 and its patch, and the render pipeline package version.</td>
+                    <td><strong>Help, Copy System Info</strong> copies the version, renderer, GPU and driver in one line (since 4.1).</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Pipeline and path</th>
+                    <td>Deferred, or Forward Shading in Project Settings; Lumen, Nanite and virtual shadow maps on or off.</td>
+                    <td>URP or HDRP. URP: the Universal Renderer's Rendering Path, Forward, Forward+, Deferred or Deferred+. HDRP: Lit Shader Mode.</td>
+                    <td>The rendering method: Forward+, Mobile or Compatibility.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Quality in use</th>
+                    <td>Scalability group levels (<code>sg.*</code>) and the platform's device profile.</td>
+                    <td>The active quality level and its render pipeline asset.</td>
+                    <td>Project settings, and any feature-tag overrides in effect, such as <code>.mobile</code>.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Numbers from</th>
+                    <td><code>stat unit</code>, <code>stat gpu</code>, an Unreal Insights trace.</td>
+                    <td>The Profiler, connected to a development build on the target device.</td>
+                    <td>The Profiler, the Visual Profiler and Monitors.</td>
+                  </tr>
+                  <tr>
+                    <th scope="row">Evidence to attach</th>
+                    <td>Insights trace, a RenderDoc or PIX capture on PC, screenshots from camera bookmarks.</td>
+                    <td>Profiler data, a Frame Debugger walkthrough or RenderDoc capture, screenshots.</td>
+                    <td>A minimal reproduction project, which Godot's own bug template asks for, plus screenshots.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="stamp">Checked against the documentation for Unreal Engine 5.8 (stat commands, Unreal Insights, scalability reference), Unity 6.6 (6000.6: collecting performance data, Frame Debugger, Quality settings, and the Universal Renderer rendering paths as recorded in <a class="xref" data-ch="7.3">7.3</a>), Godot 4.7 (Profiler, Debugger panel, feature tags) and Godot's bug report template, and Unity's bug reporting guide, in November 2026. The worked briefs use illustrative numbers.</p>
+          </section>
+
+          <!-- ============ 7. Say it to your AI ============ -->
+          <section class="beat" id="ai" data-beat="ai">
+            <h2 class="beat-title"><span class="beat-num">7</span> Say it to your AI</h2>
+            <p>Two briefs about briefs: one asks the AI to find what your brief is missing before it starts, the other sets out what it must hand back so the review is quick.</p>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Check my brief</span><span class="use-when">Use before starting any larger task</span></div>
+              <pre class="prompt-body">Below is a brief for a graphics task. Do not start the task.
+
+1. List anything you would have to guess: engine or version details, platforms, budgets, how the problem is reproduced, what must not change, what to deliver, how the result will be checked.
+2. For each guess, ask me one specific question.
+3. Restate the acceptance criteria as you understand them, with where and how each will be measured.
+4. Say which criteria you cannot verify yourself and what evidence you will need from us.
+
+[paste the brief here]</pre>
+              <ul class="prompt-why">
+                <li>Surfacing guesses before work starts is far cheaper than finding them in review.</li>
+                <li>Restated criteria show whether the AI understood what "done" means.</li>
+                <li>Naming what it cannot verify assigns that check to a person early.</li>
+              </ul>
+            </div>
+
+            <div class="prompt">
+              <div class="prompt-head"><span class="label">Report back</span><span class="use-when">Append to any brief</span></div>
+              <pre class="prompt-body">When you finish, report in this order:
+
+1. What you changed, file by file, in one line each.
+2. The cause you found, with the evidence: capture locations, log lines or test output.
+3. Each acceptance criterion with its measured result, where and how you measured it, and the same measurement from before the change.
+4. What you did not test, including platforms you could not run.
+5. Anything you changed that the brief did not ask for, and why.</pre>
+              <ul class="prompt-why">
+                <li>A fixed report shape makes every review read the same way.</li>
+                <li>Before-and-after numbers in the same units make the claim checkable.</li>
+                <li>Listing what was not tested stops silence being read as success.</li>
+              </ul>
+            </div>
+
+            <h3>Questions to ask when reviewing the response to a brief</h3>
+            <ol class="review-list">
+              <li>Does the answer match the engine version and pipeline in the brief?<span class="why">Version drift is the most common and cheapest mistake to catch.</span></li>
+              <li>Is each acceptance criterion reported with a measurement, a place and a method?<span class="why">A claim without them is not yet a result.</span></li>
+              <li>Were the measurements taken the same way as the baseline?<span class="why">Different cameras, builds or tools make before and after incomparable.</span></li>
+              <li>Did anything outside the constraints change?<span class="why">Unrequested changes carry unreviewed risk.</span></li>
+              <li>Which criteria still need a person, and who has them?<span class="why">The brief named them; make sure someone actually does them.</span></li>
+            </ol>
+          </section>
+
+          <!-- ============ 8. Check yourself ============ -->
+          <section class="beat" id="check" data-beat="check">
+            <h2 class="beat-title"><span class="beat-num">8</span> Check yourself</h2>
+            <ol class="quiz">
+              <li>
+                <p class="q">"The game stutters, fix it." Which parts of the template are missing, and which one would you add first?</p>
+                <details><summary>Show answer</summary><p>All seven: context, target, numbers, symptom and where with reproduction steps, constraints, deliverables and verification. Add the symptom and reproduction steps first, with a frame-time capture: stutter has many causes (<a class="xref" data-ch="11.4">11.4</a>), and without knowing where and when it happens the AI can only guess which one.</p></details>
+              </li>
+              <li>
+                <p class="q">Which of these is an acceptance criterion an AI and a reviewer can both check: "shadows should look better and run faster", or "Shadow depths at most 2.0 ms on PS5 at bookmark 3, median of 300 frames, and no visible change at cameras 1 to 5, signed off by the art lead"? Why?</p>
+                <details><summary>Show answer</summary><p>The second. It names a measure, a threshold, a place, a method and a person for the part no number can judge. The first gives no threshold, place or method, so any result can be argued either way.</p></details>
+              </li>
+              <li>
+                <p class="q">An AI asked to make shadows faster cut the cascade count from 4 to 2. The pass is now under budget. What was missing from the brief, and what should it have said?</p>
+                <details><summary>Show answer</summary><p>Constraints. Fewer cascades lowers shadow resolution in the distance, a visible trade-off that needs a person's decision. The brief should have said "do not change the cascade count" or listed it as an option to propose but not apply, with the cameras where the look must not change.</p></details>
+              </li>
+            </ol>
+            <h3>Terms introduced</h3>
+            <ul class="chips">
+              <li><a class="chip" href="glossary.html#brief">brief</a></li>
+              <li><a class="chip" href="glossary.html#brief-context">context</a></li>
+              <li><a class="chip" href="glossary.html#reproduction-steps">reproduction steps</a></li>
+              <li><a class="chip" href="glossary.html#brief-constraints">constraints</a></li>
+              <li><a class="chip" href="glossary.html#acceptance-criteria">acceptance criteria</a></li>
+              <li><a class="chip" href="glossary.html#verification-plan">verification plan</a></li>
+              <li><a class="chip" href="glossary.html#evidence">evidence</a></li>
+            </ul>
+            <div class="next-card">
+              <span class="label">Next in the book</span>
+              <p><a class="xref" data-ch="12.3"></a> covers the other end of the loop: what to look for when reviewing graphics code an AI wrote.</p>
+            </div>
+          </section>
+
+          <section class="sources" id="sources" aria-labelledby="sources-title">
+            <h2 id="sources-title" class="beat-title">Sources and further reading</h2>
+            <ul>
+              <li>Godot, <a href="https://github.com/godotengine/godot/blob/master/.github/ISSUE_TEMPLATE/bug_report.yml">bug report template</a>: tested versions, system information including GPU, driver and rendering backend, steps to reproduce and a minimal reproduction project.</li>
+              <li>Unity, <a href="https://unity.com/releases/editor/qa/bug-reporting">Bug reporting</a>: reproduction steps and minimal projects.</li>
+              <li>Unreal Engine 5.8: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/stat-commands-in-unreal-engine?application_version=5.8">stat commands</a>, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-insights-in-unreal-engine?application_version=5.8">Unreal Insights</a> and the <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/scalability-reference-for-unreal-engine?application_version=5.8">scalability reference</a>.</li>
+              <li>Unity 6.6: <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/profiler/profiling-applications/profiling-collect-data-introduction">Introduction to collecting performance data</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/profile-rendering/frame-debugger/frame-debugger">Frame Debugger</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/unity-editor/editor-settings-reference/comp-manager-group/class-quality-settings">Quality settings</a>.</li>
+              <li>Godot 4.7: <a href="https://docs.godotengine.org/en/4.7/tutorials/scripting/debug/the_profiler.html">The Profiler</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/scripting/debug/debugger_panel.html">Debugger panel</a> and <a href="https://docs.godotengine.org/en/4.7/tutorials/export/feature_tags.html">Feature tags</a>.</li>
+              <li>NIST, <a href="https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence">Generative AI Profile</a> (NIST AI 600-1, July 2024), on confabulation and over-reliance.</li>
+            </ul>
+          </section>
+
+        </article>
+        <nav class="pager" id="pager" aria-label="Chapter navigation"></nav>
+      </div>
+    </main>
+    <aside class="rail" id="rail" aria-label="On this page"></aside>
+  </div>
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/log.js"></script>
+  <script src="assets/js/data/nav.js"></script>
+  <script src="assets/js/data/glossary.js"></script>
+  <script src="assets/js/data/search-index.js"></script>
+  <script src="assets/js/shell.js"></script>
+  <script src="assets/demos/kit.js"></script>
+  <script src="assets/demos/brief-builder.js"></script>
+</body>
+</html>
