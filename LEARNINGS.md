@@ -123,3 +123,23 @@ related area.
 - **Print styles land over several frames after `emulateMedia`.** Measuring
   straight away gave heights halfway between screen and print. Poll until
   two readings agree.
+
+## Cross-browser (found when CI had been red for a while)
+
+- **Run WebKit locally before trusting a green Chromium run.** CI runs all
+  three engines; the local default is Chromium only. WebKit for the pinned
+  Playwright can be installed into the scratchpad with
+  `PLAYWRIGHT_BROWSERS_PATH=<dir> npx playwright@1.63.0 install webkit`
+  plus `npx playwright@1.63.0 install-deps webkit`, then
+  `PLAYWRIGHT_BROWSERS_PATH=<dir> BROWSERS=webkit npm run test:browser`.
+- **WebKit shows a WebGL canvas one draw behind.** The newest frame reaches
+  the screen only when the next one is drawn. A renderer that draws on
+  demand left the previous view showing after every switch. The courtyard
+  now draws its last on-demand frame twice, and its tests wait for both
+  draws.
+- **Test phone layouts at 320 px, not 390.** A long API name in a sources
+  list fitted with 4 px to spare locally and overflowed by 5 px on CI.
+  `overflow-wrap: break-word` does not lower an element's min-content
+  width, so a grid column still grows to the longest word: grid children
+  need `min-width: 0`, and lists of titles and URLs need
+  `overflow-wrap: anywhere`.

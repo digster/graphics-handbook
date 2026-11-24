@@ -159,11 +159,16 @@ async function settle(tab, id) {
   return tab.locator(`#${id}`).getAttribute("data-webgl");
 }
 
-/** Waits until an instance has drawn a new frame showing view:step. */
+/**
+ * Waits until an instance has drawn view:step twice. Every on-demand frame
+ * is drawn a second time on the next animation frame, because WebKit shows
+ * a WebGL canvas one draw behind (see tick() in courtyard.js); only after
+ * the second draw is the picture on screen in every browser.
+ */
 async function waitForFrame(tab, id, rendered, framesBefore) {
   await tab.waitForFunction(([id, rendered, before]) => {
     const el = document.getElementById(id);
-    return el.getAttribute("data-rendered") === rendered && Number(el.getAttribute("data-frames")) > before;
+    return el.getAttribute("data-rendered") === rendered && Number(el.getAttribute("data-frames")) >= before + 2;
   }, [id, rendered, framesBefore], WAIT);
 }
 

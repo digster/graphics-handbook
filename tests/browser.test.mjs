@@ -68,7 +68,9 @@ for (const browserName of BROWSERS) {
   for (const page of PAGES) {
     test(`[${browserName}] ${page}: loads cleanly, fits a phone, follows both themes`, async () => {
       for (const colorScheme of ["light", "dark"]) {
-        for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 }]) {
+        // 320 px is the narrowest phone still in common use; a page that fits it
+        // fits wider ones, whatever small font-metric differences a browser has.
+        for (const viewport of [{ width: 320, height: 640 }, { width: 1280, height: 900 }]) {
           const { tab, context, errors } = await open(page, { viewport, colorScheme });
           // Let demos and fonts settle before measuring.
           await tab.waitForTimeout(150);

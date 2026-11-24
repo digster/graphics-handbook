@@ -912,6 +912,7 @@
     var visible = false;
     var started = false;
     var dirty = true;
+    var echo = false; // draw the last on-demand frame once more (see tick)
     var raf = 0;
     var lastTick = 0;
     var measure = 0;
@@ -1096,6 +1097,7 @@
     /* -- Rendering and scheduling -- */
     function request() {
       dirty = true;
+      echo = true;
       kick();
     }
 
@@ -1108,6 +1110,11 @@
      * blowing, or the pass panel is collecting timings; otherwise the loop
      * stops until the next request(). It also stops while the figure is
      * off screen (visible = false).
+     *
+     * The last frame before the loop stops is drawn twice, on two animation
+     * frames. WebKit shows a WebGL canvas one draw behind: the newest frame
+     * reaches the screen only when the next one is drawn, so a renderer that
+     * draws on demand would otherwise leave the previous view showing.
      */
     function tick(now) {
       raf = 0;
@@ -1129,6 +1136,10 @@
       }
       if (dirty) {
         dirty = false;
+        draw();
+        if (echo) again = true;
+      } else if (echo) {
+        echo = false;
         draw();
       }
       if (renderer && renderer.timer.poll()) again = true;

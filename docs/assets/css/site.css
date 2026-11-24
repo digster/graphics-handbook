@@ -562,6 +562,9 @@ body::before {
 .content {
   max-width: var(--content-max);
   margin-inline: auto;
+  /* Long unbroken tokens (API names such as D3D11_QUERY_DATA_PIPELINE_
+     STATISTICS, URLs) break rather than widen the page on a phone. */
+  overflow-wrap: break-word;
 }
 
 .rail {
@@ -853,10 +856,17 @@ dialog.sheet.is-nav {
 
 /* Grid children default to min-width: auto, so one wide child (a long
    .grows list, a table) can widen the whole column on phones. */
+.chapter > *,
+.chapter-head > *,
 .beat > *,
 .step > *,
 .section > * {
   min-width: 0;
+}
+
+/* Source titles are often API names or URLs with no break points. */
+.sources li {
+  overflow-wrap: anywhere;
 }
 
 .beat h3 {
