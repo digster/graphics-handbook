@@ -148,9 +148,9 @@
       chapters: [
         { num: "12.1", slug: "where-ai-fits", title: "Where AI fits today", terms: "shaders, engine code, tools, asset generation, review, log and capture analysis; where it falls short", core: false, status: "published" },
         { num: "12.2", slug: "briefing-ai", title: "Briefing AI on graphics work", terms: "engine and version, render pipeline, target platform, budget, reproduction steps, acceptance criteria", core: true, status: "published" },
-        { num: "12.3", slug: "reviewing-ai-code", title: "Reviewing AI-written graphics code", terms: "colour-space mix-ups, wrong coordinate space, API and version mismatch, per-frame allocation, precision, missing fallbacks", core: false, status: "planned" },
-        { num: "12.4", slug: "visual-bug-guide", title: "Visual bug field guide", terms: "acne, peter-panning, z-fighting, light leaks, ghosting, banding, fireflies, shimmer, seams, popping", core: true, status: "planned" },
-        { num: "12.5", slug: "decision-guides", title: "Decision guides", terms: "choosing a render path, shadows, GI and anti-aliasing per platform and team size", core: false, status: "planned" }
+        { num: "12.3", slug: "reviewing-ai-code", title: "Reviewing AI-written graphics code", terms: "colour-space mix-ups, wrong coordinate space, API and version mismatch, per-frame allocation, precision, missing fallbacks", core: false, status: "published" },
+        { num: "12.4", slug: "visual-bug-guide", title: "Visual bug field guide", terms: "acne, peter-panning, z-fighting, light leaks, ghosting, banding, fireflies, shimmer, seams, popping", core: true, status: "published" },
+        { num: "12.5", slug: "decision-guides", title: "Decision guides", terms: "choosing a render path, shadows, GI and anti-aliasing per platform and team size", core: false, status: "published" }
       ]
     }
   ];

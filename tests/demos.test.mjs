@@ -17,11 +17,12 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
-import { DOCS, DRAFT_MODE } from "../tools/lib/site.mjs";
+import { DOCS, DRAFT_MODE, loadData } from "../tools/lib/site.mjs";
 
 const require = createRequire(import.meta.url);
 const playwright = require("playwright");
 
+const { nav, glossary } = loadData();
 const BROWSERS = (process.env.BROWSERS || "chromium").split(",").map((s) => s.trim()).filter(Boolean);
 const url = (page) => pathToFileURL(join(DOCS, page)).href;
 
@@ -248,6 +249,37 @@ for (const browserName of BROWSERS) {
     assert.ok(r.bounces < 400, "the bounces converge");
     assert.ok(r.brighter, "adding bounces never darkens a patch");
     assert.ok(r.unlitButLit > 0, "bounced light reaches patches the sun does not");
+    await context.close();
+  });
+
+  test(`[${browserName}] symptom gallery (12.4): every bug points at a real chapter and term`, opts, async () => {
+    const { tab, context, errors } = await open("12-4-visual-bug-guide.html");
+    const g = await tab.evaluate(() => {
+      const s = window.HB.symptomGallery;
+      return {
+        bugs: s.bugs.map((b) => ({ id: b.id, family: b.family, cue: b.cue, term: b.term, ch: b.ch, filled: [b.see, b.cause, b.check, b.ask].every((t) => t && t.length > 20) })),
+        families: s.families.map((f) => f.id),
+        cues: s.cues.map((c) => c.id),
+        shadowsByLight: s.filter("shadows", "light").length,
+        all: s.filter("all", "all").length,
+      };
+    });
+    assert.equal(new Set(g.bugs.map((b) => b.id)).size, g.bugs.length, "bug ids are unique");
+    for (const b of g.bugs) {
+      assert.ok(nav.byNum(b.ch), `${b.id}: chapter ${b.ch} does not exist`);
+      assert.ok(glossary[b.term], `${b.id}: glossary has no term "${b.term}"`);
+      assert.ok(g.families.includes(b.family) && g.cues.includes(b.cue), `${b.id}: unknown family or cue`);
+      assert.ok(b.filled, `${b.id}: every field is written`);
+    }
+    assert.equal(g.all, g.bugs.length, "no filter shows every bug");
+    assert.ok(g.shadowsByLight > 0 && g.shadowsByLight < g.all, "filters narrow the list");
+
+    // The UI: a filter narrows the thumbnails, and the readout counts them.
+    const demo = tab.locator('[data-demo="symptom-gallery"]');
+    await demo.getByRole("button", { name: "Shadows", exact: true }).click();
+    const shown = g.bugs.filter((b) => b.family === "shadows").length;
+    assert.match((await demo.innerText()).replace(/\s+/g, " "), new RegExp(`${shown} of ${g.bugs.length}`, "i"));
+    assert.deepEqual(errors, []);
     await context.close();
   });
 

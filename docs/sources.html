@@ -30,7 +30,7 @@
         <section class="hero" aria-labelledby="sources-title">
           <p class="eyebrow">Reference</p>
           <h1 id="sources-title">Sources and further reading</h1>
-          <p class="lead">Every paper, conference talk and documentation page the chapters cite, grouped by chapter: 491 sources across 61 chapters. Engine documentation changes between versions; each chapter's engine table states which versions were checked.</p>
+          <p class="lead">Every paper, conference talk and documentation page the chapters cite, grouped by chapter: 509 sources across 64 chapters. Engine documentation changes between versions; each chapter's engine table states which versions were checked.</p>
         </section>
         <section class="section" aria-labelledby="part-0">
           <h2 id="part-0">Part 0 · Start here</h2>
@@ -864,6 +864,39 @@
               <li>Unity 6.6: <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/profiler/profiling-applications/profiling-collect-data-introduction">Introduction to collecting performance data</a>, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/profile-rendering/frame-debugger/frame-debugger">Frame Debugger</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/unity-editor/editor-settings-reference/comp-manager-group/class-quality-settings">Quality settings</a>.</li>
               <li>Godot 4.7: <a href="https://docs.godotengine.org/en/4.7/tutorials/scripting/debug/the_profiler.html">The Profiler</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/scripting/debug/debugger_panel.html">Debugger panel</a> and <a href="https://docs.godotengine.org/en/4.7/tutorials/export/feature_tags.html">Feature tags</a>.</li>
               <li>NIST, <a href="https://www.nist.gov/publications/artificial-intelligence-risk-management-framework-generative-artificial-intelligence">Generative AI Profile</a> (NIST AI 600-1, July 2024), on confabulation and over-reliance.</li>
+            </ul>
+          </section>
+          <section class="sources-chapter" id="src-12-3" aria-labelledby="src-12-3-t">
+            <h3 id="src-12-3-t"><a href="12-3-reviewing-ai-code.html">12.3 Reviewing AI-written graphics code</a></h3>
+            <ul>
+              <li>Unity 6.6, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/materials-and-shaders/shaders/writing-custom/shader-writing/sl/writing-shader-writing-shader-programs-hlsl/sl-use16bit-precision-in">Use 16-bit precision in shaders</a>: <code>half</code> becomes <code>float</code> on higher-performance platforms by default, and the Shader Precision Model setting.</li>
+              <li>Unity 6.6, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/unity-editor/editor-settings-reference/comp-manager-group/class-graphics-settings">Graphics settings reference</a> (strict shader variant matching, Log Shader Compilation), <a href="https://docs.unity.com/en-us/engine/6000.6/manual/unity-editor/command-line-arguments/player">Player command-line arguments</a> and <a href="https://docs.unity.com/en-us/engine/6000.6/manual/scripting/programming-distribute-work-threads/job-system/thread-safe-types/native-container">Introduction to NativeContainer</a> (the safety system).</li>
+              <li>Unreal Engine 5.8: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/unreal-engine-command-line-arguments-reference?application_version=5.8">command-line arguments reference</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/threaded-rendering-in-unreal-engine?application_version=5.8">Threaded rendering</a>.</li>
+              <li>Godot 4.7: <a href="https://docs.godotengine.org/en/4.7/tutorials/editor/command_line_tutorial.html">Command line tutorial</a>, <a href="https://docs.godotengine.org/en/4.7/tutorials/performance/thread_safe_apis.html">Thread-safe APIs</a> and <a href="https://docs.godotengine.org/en/4.7/tutorials/shaders/shader_reference/shading_language.html">Shading language</a> (precision qualifiers).</li>
+              <li>Microsoft, <a href="https://learn.microsoft.com/en-us/windows/win32/direct3d12/using-d3d12-debug-layer-gpu-based-validation">GPU-based validation and the Direct3D 12 debug layer</a>.</li>
+              <li>Khronos Group, <a href="https://github.com/KhronosGroup/Vulkan-ValidationLayers">Vulkan validation layers</a>.</li>
+              <li>Nathan Reed, <a href="https://developer.nvidia.com/content/depth-precision-visualized">Depth Precision Visualized</a> (NVIDIA), on floating-point depth and reversed-Z.</li>
+            </ul>
+          </section>
+          <section class="sources-chapter" id="src-12-4" aria-labelledby="src-12-4-t">
+            <h3 id="src-12-4-t"><a href="12-4-visual-bug-guide.html">12.4 Visual bug field guide</a></h3>
+            <ul>
+              <li>Unreal Engine 5.8: <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/screenshot-comparison-tool-in-unreal-engine?application_version=5.8">Screenshot Comparison tool</a> and <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/viewport-modes-in-unreal-engine?application_version=5.8">viewport modes</a>.</li>
+              <li>Unity: <a href="https://docs.unity3d.com/Packages/com.unity.testframework.graphics@8.9/manual/index.html">About the Graphics Test Framework</a> (8.9.1-exp.1), the <a href="https://docs.unity3d.com/Packages/com.unity.testframework.graphics@9.0/api/UnityEngine.TestTools.Graphics.ImageAssert.html">ImageAssert</a> and <a href="https://docs.unity3d.com/Packages/com.unity.testframework.graphics@9.0/api/UnityEngine.TestTools.Graphics.ImageComparisonSettings.html">ImageComparisonSettings</a> API reference (9.0.0-pre.32), and Unity 6.6's <a href="https://docs.unity.com/en-us/engine/6000.6/manual/analysis/graphics-performance-profiling/in-urp/understand-performance/rendering-debugger/use">Enable the Rendering Debugger in URP</a>.</li>
+              <li>Godot 4.7: <a href="https://docs.godotengine.org/en/4.7/tutorials/animation/creating_movies.html">Creating movies</a> (Movie Maker mode), the <a href="https://docs.godotengine.org/en/4.7/tutorials/editor/command_line_tutorial.html">command line tutorial</a> and the <a href="https://docs.godotengine.org/en/4.7/classes/class_viewport.html">Viewport class reference</a> (debug draw modes).</li>
+              <li>NVIDIA, <a href="https://github.com/NVlabs/flip">FLIP</a>: an open-source tool and metric for showing and measuring differences between rendered images, presented in Ray Tracing Gems II.</li>
+              <li>Each earlier chapter's "How it breaks" section, which this gallery summarises; start from <a class="xref" data-ch="7.4">7.4 Shadow maps</a>, <a class="xref" data-ch="8.3">8.3 Ambient occlusion: SSAO to GTAO</a> and <a class="xref" data-ch="9.2">9.2 Anti-aliasing</a>.</li>
+            </ul>
+          </section>
+          <section class="sources-chapter" id="src-12-5" aria-labelledby="src-12-5-t">
+            <h3 id="src-12-5-t"><a href="12-5-decision-guides.html">12.5 Decision guides</a></h3>
+            <ul>
+              <li>Unreal Engine 5.8, <a href="https://dev.epicgames.com/documentation/en-us/unreal-engine/forward-shading-renderer-in-unreal-engine?application_version=5.8">Forward Shading Renderer</a>: why forward rendering helps VR, MSAA, and what forward gives up.</li>
+              <li>Unity 6.6, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/render-pipelines/choose-a-render-pipeline/pipeline">Choose a render pipeline</a>: target uses, platform support and lighting for URP and HDRP.</li>
+              <li>Unity 6.6, <a href="https://docs.unity.com/en-us/engine/6000.6/manual/render-pipelines/universal-render-pipeline/introduction/installing-and-configuring-urp/migrating-from-hdrp">Migrating from HDRP to URP</a>: "you must rewrite most of your project".</li>
+              <li>Unity, <a href="https://unity.com/topics/render-pipelines-strategy-for-2026">Render Pipelines strategy for 2026</a>: URP for new projects, no new HDRP features, Built-In deprecation.</li>
+              <li>Godot 4.7, <a href="https://docs.godotengine.org/en/4.7/tutorials/rendering/renderers.html">Overview of renderers</a>: Forward+, Mobile and Compatibility, their defaults, recommendations and missing features.</li>
+              <li>The guides summarise <a class="xref" data-ch="7.3">7.3 Forward, deferred and clustered</a>, <a class="xref" data-ch="7.5">7.5 Shadows at scale</a>, <a class="xref" data-ch="8.2">8.2 Baked lighting</a>, <a class="xref" data-ch="8.5">8.5 Real-time GI families</a>, <a class="xref" data-ch="9.3">9.3 Upscaling and frame generation</a> and <a class="xref" data-ch="10.3">10.3 A modern feature stack</a>, whose sources give the detail behind each leaf.</li>
             </ul>
           </section>
         </section>

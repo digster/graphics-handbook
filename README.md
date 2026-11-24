@@ -8,16 +8,33 @@ fails, and how to brief and review work on it.
 
 ## Status
 
-**Early access: 2 of 64 chapters written.** Phase 0 of the [build plan](plan/handbook-plan.html)
-is done: the site shell, design system, tests and two pilot chapters.
+**Complete: 64 chapters in 13 parts, 787 glossary terms, 36 interactives.** The core path
+(34 chapters, marked on the home page) is enough to read a renderer's feature list; the rest
+goes deeper.
 
-| Chapter | Interactive |
+| Part | Chapters |
 | --- | --- |
-| [4.2 Vertex buffers and index buffers](docs/04-2-vertex-buffers.html) | Vertex buffer inspector |
-| [8.3 Ambient occlusion: SSAO to GTAO](docs/08-3-ambient-occlusion.html) | Horizon explorer |
+| 0 · Start here | the whole journey on one page, what a frame is |
+| 1 · How games get made | idea to gold master, who does what, the content pipeline, platforms |
+| 2 · Inside a game engine | engine anatomy, the game loop and threads, scenes and components, the engine landscape |
+| 3 · Foundations | pixels and displays, colour, vectors, spaces and transforms, CPU, GPU and graphics APIs |
+| 4 · Geometry | meshes, vertex and index buffers, draw calls, culling, level of detail, moving geometry |
+| 5 · The GPU pipeline | the pipeline in one picture, vertex shaders, rasterization, pixel shaders, depth and blending, shaders in practice |
+| 6 · Textures and materials | textures and UVs, filtering and mipmaps, texture memory, normal maps, PBR materials |
+| 7 · Lighting and shadows | lights, shading models, forward/deferred/clustered, shadow maps, shadows at scale, reflections |
+| 8 · Global illumination and AO | direct and indirect light, baked lighting, SSAO to GTAO, screen-space tricks, real-time GI, ray tracing, path tracing |
+| 9 · Post-processing and image quality | tone mapping, anti-aliasing, upscaling and frame generation, camera effects, atmosphere, special surfaces |
+| 10 · Anatomy of a frame | a deferred frame pass by pass, a mobile frame, a modern feature stack |
+| 11 · Performance | frame budgets, GPU time, CPU time, memory and hitches, profilers and the settings menu |
+| 12 · Working with AI | where AI fits, briefing AI, reviewing AI-written code, a visual bug field guide, decision guides |
 
-The home page lists all 64 planned chapters, the glossary has 79 terms, and search covers
-chapters, sections and terms.
+Reference pages: the [glossary](docs/glossary.html), an [acronym decoder](docs/acronyms.html),
+four printable [cheat sheets](docs/cheat-sheets.html) (the pipeline, the anatomy of a frame,
+budgets, the settings menu decoded) and every [source](docs/sources.html) the chapters cite.
+
+Many chapters embed the **Lantern Courtyard**, a small WebGL2 deferred renderer of one scene
+that shows its G-buffer, shadow map, AO, lighting, SSR, fog, bloom and tone mapping as
+separate views, with a pass scrubber. Without WebGL2 it shows a drawn sketch instead.
 
 ## Reading it
 
@@ -43,15 +60,16 @@ npm test
 ```
 
 ```bash
-npm run build:search
+npm run build
 ```
 
 | Script | What it does |
 | --- | --- |
-| `npm run build:search` | Regenerates `docs/assets/js/data/search-index.js` from the pages and data. Run it after editing a chapter or the glossary. |
+| `npm run build` | Regenerates the two generated files: `docs/sources.html` and `docs/assets/js/data/search-index.js`. Run it after editing a chapter or the glossary. |
+| `node tools/link-terms.mjs` | Links the first mention of each glossary term in every chapter (`--dry-run` to preview). Run it after adding chapters or terms; a test fails if a link is missing. |
 | `npm test` | Structure tests and browser tests. |
-| `npm run test:structure` | Fast checks without a browser: nav and pages agree, eight beats per chapter, links and anchors resolve, `file://` rules, glossary rules, diagram rules, search index is current. |
-| `npm run test:browser` | Opens every page from `file://` in Playwright and drives the shell and the interactives. Chromium by default; set `BROWSERS=chromium,firefox,webkit` for all three, as CI does. |
+| `npm run test:structure` | Fast checks without a browser: nav and pages agree, eight beats per chapter, links and anchors resolve, `file://` rules, glossary rules, term links, diagram rules, generated files are current. |
+| `npm run test:browser` | Opens every page from `file://` in Playwright at phone and desktop widths in both themes, and drives the shell, the courtyard renderer and the interactives. Chromium by default; set `BROWSERS=chromium,firefox,webkit` for all three, as CI does. |
 
 Environment variables for the tools are listed in [`.env.example`](.env.example). In the
 browser, add `?log=debug` to a page URL to see the scripts' logs.
@@ -64,13 +82,16 @@ CI runs both test suites on every push and pull request (`.github/workflows/ci.y
 docs/                    the site (GitHub Pages serves this folder)
   index.html             cover, learning path, contents
   glossary.html          every term, with the chapter that teaches it
+  acronyms.html          every acronym spelled out
+  cheat-sheets.html      four printable one-page sheets
+  sources.html           every cited source, by chapter (generated)
   NN-C-slug.html         one file per chapter, e.g. 04-2-vertex-buffers.html
   assets/css/            tokens, site layout and components, diagram classes
   assets/js/             shell, logger, theme init, page scripts
   assets/js/data/        nav.js, glossary.js, search-index.js (generated)
   assets/demos/          kit.js plus one script per interactive
   assets/fonts/          self-hosted IBM Plex Sans, IBM Plex Mono, Space Grotesk
-tools/                   search index generator and shared helpers
+tools/                   generators (search index, sources page), term linker, draft checks
 tests/                   structure and browser tests
 plan/                    the build plan
 ```
