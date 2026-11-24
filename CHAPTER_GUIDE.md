@@ -129,6 +129,11 @@ inside a figure. Load `assets/demos/kit.js` then your script after
   `HB.demos.color("ink")` and redraw on the `hb:themechange` event.
 - Controls: `HB.segmented`, `HB.slider`, checkboxes with labels. Dragging:
   `HB.draggable` (it adds keyboard arrows).
+- Picking one of many drawn examples: use the thumbnail picker classes in
+  `diagrams.css` (`.thumb-picker`, `.thumb-grid`, `.thumb-btn`,
+  `.thumb-preview`); set only `aria-pressed` on the buttons and let the
+  stylesheet draw the selected state. `symptom-gallery.js` is the example.
+  No layout or colour in inline styles.
 - Open in a meaningful state that already shows the point, with a readout
   (`.demo-readout`).
 - No `fetch`, no modules, no timers that run while off screen, respect

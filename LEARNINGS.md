@@ -143,3 +143,8 @@ related area.
   width, so a grid column still grows to the longest word: grid children
   need `min-width: 0`, and lists of titles and URLs need
   `overflow-wrap: anywhere`.
+- **WebKit can return stale computed styles for a moment after an attribute
+  changes.** Reading `getComputedStyle` once after flipping `aria-pressed`
+  gave the old colours in WebKit, and a check that compared two such stale
+  readings passed for the wrong reason. Capture the expected looks from a
+  settled state, then poll until each element reaches its own.

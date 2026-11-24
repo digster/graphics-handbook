@@ -300,6 +300,99 @@ svg.dg .stop-black { stop-color: #000000; }  /* masks only: never visible */
   min-width: 0;
 }
 
+/* ---------- Thumbnail picker ----------
+   A detail panel beside a grid of small drawn examples, one of which is
+   selected: the symptom gallery (12.4) uses it, and so should any demo
+   that lets the reader pick one of many pictures.
+
+     .thumb-picker
+       .demo-panel.thumb-picker-detail    detail first, so it sits above
+         svg.dg.thumb-preview             the grid on a phone
+         p.thumb-picker-title
+       .thumb-picker-list
+         .thumb-grid[role=group]
+           button.thumb-btn[aria-pressed] > svg.dg + span
+
+   The selected look comes from aria-pressed, so a script sets only that
+   and screen readers and sighted readers always agree. Hidden thumbnails
+   use the hidden attribute. */
+.thumb-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+
+.thumb-picker-detail {
+  flex: 1 1 250px;
+}
+
+.thumb-picker-list {
+  flex: 1.8 1 340px;
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(96px, 100%), 1fr));
+  gap: var(--sp-2);
+}
+
+.thumb-btn {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 4px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+
+.thumb-btn svg {
+  border-radius: var(--radius-s);
+}
+
+.thumb-btn:hover {
+  border-color: var(--accent);
+}
+
+.thumb-btn[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  background: var(--accent-soft);
+}
+
+/* High-contrast modes drop box-shadow and repaint borders, so mark the
+   selected thumbnail with a system-coloured outline instead. */
+@media (forced-colors: active) {
+  .thumb-btn[aria-pressed="true"] {
+    outline: 3px solid Highlight;
+    outline-offset: 1px;
+  }
+}
+
+.thumb-preview {
+  max-width: 320px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-m);
+}
+
+.thumb-picker-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
 .demo-readout {
   display: flex;
   flex-wrap: wrap;

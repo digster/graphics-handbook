@@ -527,10 +527,10 @@
     root.appendChild(controls);
 
     /* Detail first, so on a phone it sits above the grid it describes. */
-    var body = h("div", { style: "display:flex;flex-wrap:wrap;gap:var(--sp-4);align-items:flex-start" });
-    var detail = h("div", { "class": "demo-panel", "aria-live": "polite", style: "flex:1 1 250px;min-width:0" });
-    var gridWrap = h("div", { style: "flex:1.8 1 340px;min-width:0" });
-    var grid = h("div", { role: "group", "aria-label": "Visual bugs", style: "display:grid;grid-template-columns:repeat(auto-fill,minmax(min(96px,100%),1fr));gap:8px" });
+    var body = h("div", { "class": "thumb-picker" });
+    var detail = h("div", { "class": "demo-panel thumb-picker-detail", "aria-live": "polite" });
+    var gridWrap = h("div", { "class": "thumb-picker-list" });
+    var grid = h("div", { "class": "thumb-grid", role: "group", "aria-label": "Visual bugs" });
     var empty = h("p", { "class": "demo-hint", hidden: true, text: "No bug in this gallery matches both filters. Try Anything or All." });
     gridWrap.append(grid, empty);
     body.append(detail, gridWrap);
@@ -547,12 +547,11 @@
         "aria-pressed": "false",
         "data-bug": bug.id,
         tabindex: "-1",
-        style: "display:grid;gap:4px;align-content:start;padding:4px 4px 6px;border:1px solid var(--line-strong);border-radius:var(--radius-m);background:var(--surface);color:var(--ink);font:inherit;font-size:0.74rem;line-height:1.25;text-align:left;cursor:pointer;min-width:0"
+        "class": "thumb-btn"
       });
       var svg = thumb(bug, "sg-t-" + bug.id, "dg");
       svg.setAttribute("aria-hidden", "true");
       svg.removeAttribute("role");
-      svg.style.borderRadius = "4px";
       b.append(svg, h("span", { text: bug.name }));
       b.addEventListener("click", function () { select(bug.id, true); });
       b.addEventListener("keydown", onKey);
@@ -603,10 +602,8 @@
       state.selected = id;
       Object.keys(buttons).forEach(function (k) {
         var on = k === id;
+        // The pressed look comes from .thumb-btn[aria-pressed] (diagrams.css).
         buttons[k].setAttribute("aria-pressed", on ? "true" : "false");
-        buttons[k].style.borderColor = on ? "var(--accent)" : "var(--line-strong)";
-        buttons[k].style.boxShadow = on ? "0 0 0 1px var(--accent)" : "none";
-        buttons[k].style.background = on ? "var(--accent-soft)" : "var(--surface)";
       });
       setTabStop(id);
       drawDetail();
@@ -628,14 +625,11 @@
       if (!bug) return;
       var fam = byId(FAMILIES, bug.family);
       var cue = byId(CUES, bug.cue);
-      var big = thumb(bug, "sg-d-" + bug.id, "dg");
-      big.style.maxWidth = "320px";
-      big.style.border = "1px solid var(--line-strong)";
-      big.style.borderRadius = "var(--radius-m)";
+      var big = thumb(bug, "sg-d-" + bug.id, "dg thumb-preview");
       detail.append(
         big,
         h("p", { "class": "label", text: fam.label + " · changes with " + cue.label.toLowerCase() }),
-        h("p", { style: "font-family:var(--font-display);font-weight:600;font-size:1.1rem;margin:0" }, [bug.name]),
+        h("p", { "class": "thumb-picker-title" }, [bug.name]),
         row("What you see:", bug.see),
         row("Tell-tale:", cue.long),
         row("Likely cause:", bug.cause),

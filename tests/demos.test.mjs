@@ -279,6 +279,41 @@ for (const browserName of BROWSERS) {
     await demo.getByRole("button", { name: "Shadows", exact: true }).click();
     const shown = g.bugs.filter((b) => b.family === "shadows").length;
     assert.match((await demo.innerText()).replace(/\s+/g, " "), new RegExp(`${shown} of ${g.bugs.length}`, "i"));
+
+    // The thumbnails use the shared .thumb-grid / .thumb-btn styles: no
+    // inline styles, and the selected look follows aria-pressed alone.
+    const thumbs = demo.locator(".thumb-grid .thumb-btn");
+    assert.equal(await thumbs.count(), g.bugs.length, "one .thumb-btn per bug inside .thumb-grid");
+    assert.equal(await demo.locator(".thumb-btn[style]").count(), 0, "thumbnails carry no inline styles");
+    const look = (el) => el.evaluate((b) => {
+      const cs = getComputedStyle(b);
+      return { pressed: b.getAttribute("aria-pressed"), border: cs.borderTopColor, bg: cs.backgroundColor };
+    });
+    // WebKit can report stale computed colours for a moment after
+    // aria-pressed flips, so wait for each thumbnail to reach the look
+    // expected of it rather than reading once.
+    const reach = (el, want) => el.evaluate((b, want) => new Promise((resolve, reject) => {
+      const t0 = performance.now();
+      (function poll() {
+        const cs = getComputedStyle(b);
+        if (b.getAttribute("aria-pressed") === want.pressed && cs.backgroundColor === want.bg && cs.borderTopColor === want.border) return resolve();
+        if (performance.now() - t0 > 3000) return reject(new Error(`${b.dataset.bug} never looked ${JSON.stringify(want)}`));
+        requestAnimationFrame(poll);
+      })();
+    }), want);
+    const first = thumbs.filter({ visible: true }).nth(0); // selected on load
+    const second = thumbs.filter({ visible: true }).nth(1);
+    const pressedLook = await look(first);
+    const plainLook = await look(second);
+    assert.equal(pressedLook.pressed, "true", "the first thumbnail is selected on load");
+    assert.notEqual(pressedLook.bg, plainLook.bg, "the pressed thumbnail has its own background");
+    assert.notEqual(pressedLook.border, plainLook.border, "the pressed thumbnail has the accent border");
+    await second.click();
+    await reach(second, pressedLook);
+    await reach(first, plainLook);
+    await first.click();
+    await reach(first, pressedLook);
+    await reach(second, plainLook);
     assert.deepEqual(errors, []);
     await context.close();
   });

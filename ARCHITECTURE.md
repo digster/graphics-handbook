@@ -73,7 +73,7 @@ HTTP. Every rule below is enforced by `tests/structure.test.mjs`.
 | `tools/dev/courtyard.html` | Development harness for the courtyard renderer (not part of the site). |
 | `docs/assets/css/tokens.css` | Every colour, font, size and space token, plus `@font-face`. |
 | `docs/assets/css/site.css` | Layout, shell and content components. |
-| `docs/assets/css/diagrams.css` | The class vocabulary for SVG diagrams and demo UI. |
+| `docs/assets/css/diagrams.css` | The class vocabulary for SVG diagrams and demo UI, including the shared thumbnail picker (`.thumb-picker`, `.thumb-grid`, `.thumb-btn[aria-pressed]`). |
 | `tools/lib/site.mjs` | Loads `nav.js`/`glossary.js` in a Node `vm` sandbox; small HTML helpers. |
 | `tools/build-search-index.mjs` | Writes `search-index.js`; exports `buildIndex()` for the tests. |
 | `plan/handbook-plan.html` | The approved build plan (body of a published Claude artifact). |
