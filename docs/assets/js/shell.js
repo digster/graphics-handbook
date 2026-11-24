@@ -572,7 +572,9 @@
     if (!footer) return;
     footer.replaceChildren(h("div", { class: "footer-inner" }, [
       h("span", { text: "Graphics Handbook" }),
-      h("span", { text: "Early access: " + publishedChapters.length + " of " + nav.chapters.length + " chapters written" }),
+      h("span", { text: publishedChapters.length === nav.chapters.length
+        ? nav.chapters.length + " chapters"
+        : "Early access: " + publishedChapters.length + " of " + nav.chapters.length + " chapters written" }),
       h("a", { href: "glossary.html", text: "Glossary" }),
       h("a", { href: "https://github.com/digster/graphics-handbook", text: "Source on GitHub" }),
       h("span", { text: "MIT licence" })

@@ -20,6 +20,7 @@ import {
   DOCS, loadData, listPages, readPage, pageId, tags, attr, idsIn, compareNum, pagesInScope, DRAFT_MODE,
 } from "../tools/lib/site.mjs";
 import { buildIndex, renderIndexFile } from "../tools/build-search-index.mjs";
+import { buildSourcesPage } from "../tools/build-sources-page.mjs";
 
 const { nav, glossary } = loadData();
 // In draft mode (HB_ONLY set by tools/check-chapter.mjs) only the named
@@ -235,6 +236,11 @@ test("diagrams are accessible, have unique ids and use theme classes only", () =
       }
     });
   }
+});
+
+test("sources page is up to date", { skip: DRAFT_MODE }, () => {
+  const actual = readFileSync(join(DOCS, "sources.html"), "utf8");
+  assert.equal(actual, buildSourcesPage(), "sources.html is stale: run npm run build:sources");
 });
 
 test("search index is up to date", { skip: DRAFT_MODE }, () => {

@@ -10,6 +10,8 @@
   },
   "scripts": {
     "build:search": "node tools/build-search-index.mjs",
+    "build:sources": "node tools/build-sources-page.mjs",
+    "build": "node tools/build-sources-page.mjs && node tools/build-search-index.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:structure": "node --test tests/structure.test.mjs",
     "test:browser": "node --test tests/browser.test.mjs tests/courtyard.test.mjs"

@@ -27,6 +27,12 @@
     if (key in counts) el.textContent = counts[key];
   });
 
+  /* Once every chapter is written, the hero stops saying "early access". */
+  var status = document.getElementById("hero-status");
+  if (status && counts.published === counts.chapters) {
+    status.textContent = "Complete · " + counts.chapters + " chapters in " + counts.parts + " parts";
+  }
+
   var start = document.getElementById("start-link");
   if (start && published[0]) {
     start.href = published[0].file;
