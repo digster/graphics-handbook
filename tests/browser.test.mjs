@@ -105,9 +105,18 @@ for (const browserName of BROWSERS) {
     assert.equal(railItems, 8, "rail should list the eight beats");
     const pager = await tab.$$eval("#pager a", (as) => as.map((a) => a.getAttribute("href")));
     assert.ok(pager.includes(published[1].file), "pager should link the next written chapter");
-    const xrefs = await tab.$$eval("a.xref", (as) => as.map((a) => ({ href: a.getAttribute("href"), planned: a.classList.contains("is-planned") })));
-    assert.ok(xrefs.length > 0 && xrefs.every((x) => x.href), "every cross-reference gets an href");
-    assert.ok(xrefs.some((x) => x.planned && x.href.startsWith("index.html#ch-")), "unwritten chapters link to the contents");
+    const xrefs = await tab.$$eval("a.xref", (as) => as.map((a) => ({ ch: a.getAttribute("data-ch"), href: a.getAttribute("href"), planned: a.classList.contains("is-planned") })));
+    assert.ok(xrefs.length > 0, "the chapter has cross-references");
+    // Every cross-reference links to its chapter if written, else to its
+    // contents entry, whatever the publishing state of the book.
+    for (const x of xrefs) {
+      const ch = nav.byNum(x.ch);
+      if (ch.status === "published") {
+        assert.ok(x.href && x.href.startsWith(ch.file) && !x.planned, `xref to ${x.ch} should link ${ch.file}`);
+      } else {
+        assert.ok(x.href === nav.contentsHref(ch.num) && x.planned, `xref to unwritten ${x.ch} should link the contents`);
+      }
+    }
     await context.close();
   });
 
